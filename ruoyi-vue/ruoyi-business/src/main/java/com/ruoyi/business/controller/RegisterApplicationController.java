@@ -1,8 +1,10 @@
 package com.ruoyi.business.controller;
 
 import com.ruoyi.business.domain.RegisterApplication;
+import com.ruoyi.business.domain.RegisterStatusQueryBody;
 import com.ruoyi.business.domain.AuditRecord;
 import com.ruoyi.business.service.IRegisterApplicationService;
+import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
@@ -47,6 +49,18 @@ public class RegisterApplicationController extends BaseController {
     @GetMapping("/summary")
     public AjaxResult summary() {
         return AjaxResult.success(registerApplicationService.selectRegisterSummary());
+    }
+
+    /**
+     * 注册页按手机号查询最近一条申请状态。
+     * 仅返回审核进度和驳回原因，不返回身份证等敏感信息。
+     */
+    @Anonymous
+    @PostMapping("/status")
+    public AjaxResult status(@RequestBody RegisterStatusQueryBody body) {
+        String phone = body == null ? null : body.getPhone();
+        String password = body == null ? null : body.getPassword();
+        return AjaxResult.success(registerApplicationService.selectPublicStatusByPhone(phone, password));
     }
 
     /**

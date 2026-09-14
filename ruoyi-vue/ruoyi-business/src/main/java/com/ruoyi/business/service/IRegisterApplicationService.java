@@ -60,6 +60,12 @@ public interface IRegisterApplicationService extends IService<RegisterApplicatio
     /** 查询注册申请统计 */
     Map<String, Object> selectRegisterSummary();
 
+    /** 按手机号和密码公开查询最近一条注册申请状态 */
+    Map<String, Object> selectPublicStatusByPhone(String phone, String password);
+
+    /** 按手机号查询最近一条申请，供驳回申请复提使用 */
+    RegisterApplication selectLatestByLoginAccount(String loginAccount);
+
     /**
      * 校验同账号是否已有未结束申请
      */

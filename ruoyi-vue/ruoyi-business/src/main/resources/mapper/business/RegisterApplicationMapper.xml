@@ -94,6 +94,13 @@
         LIMIT 1
     </select>
 
+    <select id="selectPublicStatusByLoginAccount" resultMap="RegisterApplicationResult">
+        <include refid="selectRegisterApplicationVo"/>
+        WHERE ra.login_account = #{loginAccount}
+        ORDER BY ra.create_time DESC
+        LIMIT 1
+    </select>
+
     <update id="updateApplication">
         UPDATE register_application
         SET application_no = #{applicationNo},

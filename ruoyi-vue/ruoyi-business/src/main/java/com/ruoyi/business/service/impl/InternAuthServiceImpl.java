@@ -60,6 +60,30 @@ public class InternAuthServiceImpl implements IInternAuthService {
             throw new ServiceException("预备实习生角色未初始化");
         }
 
+        RegisterApplication previous = registerApplicationService.selectLatestByLoginAccount(body.getUsername());
+        SysUser existingUser = userService.selectUserByPhone(body.getUsername());
+        if (previous != null && "REJECTED".equals(previous.getStatus())) {
+            if (existingUser == null) {
+                throw new ServiceException("原申请账号数据不存在，请联系管理员");
+            }
+            if (existingUser.getPassword() == null
+                    || !SecurityUtils.matchesPassword(body.getPassword(), existingUser.getPassword())) {
+                throw new ServiceException("密码错误，重新提交需使用原申请密码");
+            }
+            Date expectedEntryDate = parseDate(body.getExpectedEntryDate());
+            if (internAuthMapper.updateRejectedRegistrationProfile(existingUser.getUserId(), body.getRealName(),
+                    deptId, position.getId(), expectedEntryDate, body.getIdCard()) != 1) {
+                throw new ServiceException("账号资料更新失败");
+            }
+            previous.setRealName(body.getRealName());
+            previous.setIdCard(body.getIdCard());
+            previous.setPositionId(position.getId());
+            previous.setDeptId(deptId);
+            previous.setExpectedEntryDate(expectedEntryDate);
+            registerApplicationService.resubmitApplication(previous.getId(), previous);
+            return previous.getApplicationNo();
+        }
+
         SysUser duplicate = new SysUser();
         duplicate.setUserName(body.getUsername());
         if (!userService.checkUserNameUnique(duplicate)) {
@@ -120,8 +144,11 @@ public class InternAuthServiceImpl implements IInternAuthService {
             throw new ServiceException("请完成签名并确认已阅读保密协议");
         }
         String signature = body.getSignature().trim();
-        if (signature.length() > 64) {
-            throw new ServiceException("签名不能超过64个字符");
+        if (signature.length() > 60000) {
+            throw new ServiceException("签名图片过大，请清空后重新签署");
+        }
+        if (!signature.startsWith("data:image/")) {
+            throw new ServiceException("请使用鼠标或触控设备完成签名");
         }
         Map<String, Object> template = internAuthMapper.selectEffectiveAgreement();
         if (template == null || template.get("id") == null) {
