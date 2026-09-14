@@ -17,6 +17,16 @@ export function getRegisterSummary() {
   })
 }
 
+// 注册页按手机号查询申请状态（公开接口）
+export function queryRegisterStatus(phone, password) {
+  return request({
+    url: '/business/register/status',
+    method: 'post',
+    headers: { isToken: false },
+    data: { phone: phone, password: password }
+  })
+}
+
 // 查询注册申请详细
 export function getRegister(id) {
   return request({

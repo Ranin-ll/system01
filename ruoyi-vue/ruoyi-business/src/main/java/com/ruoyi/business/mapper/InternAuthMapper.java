@@ -74,6 +74,13 @@ public interface InternAuthMapper {
             @Param("userStatus") String userStatus, @Param("expectedEntryDate") Date expectedEntryDate,
             @Param("idCard") String idCard);
 
+    @Update("UPDATE sys_user SET nick_name = #{realName}, dept_id = #{deptId}, position_id = #{positionId}, "
+            + "user_status = 'WAIT_AUDIT', status = '1', expected_entry_date = #{expectedEntryDate,jdbcType=DATE}, "
+            + "id_card = #{idCard}, mentor_name = NULL, mentor_phone = NULL, update_time = NOW() WHERE user_id = #{userId}")
+    int updateRejectedRegistrationProfile(@Param("userId") Long userId, @Param("realName") String realName,
+            @Param("deptId") Long deptId, @Param("positionId") Long positionId,
+            @Param("expectedEntryDate") Date expectedEntryDate, @Param("idCard") String idCard);
+
     @Update("UPDATE sys_user SET user_status = #{userStatus}, status = #{status}, mentor_name = #{mentorName}, mentor_phone = #{mentorPhone} "
             + "WHERE user_id = #{userId}")
     int updateAuditProfile(@Param("userId") Long userId, @Param("userStatus") String userStatus,
@@ -94,7 +101,7 @@ public interface InternAuthMapper {
 
     @Insert("INSERT INTO agreement_signature "
             + "(user_id, template_id, agreement_name, version_no, sign_ip, terminal, sign_mode, signature_data, status, create_time) "
-            + "VALUES (#{userId}, #{templateId}, #{agreementName}, #{versionNo}, #{signIp}, #{terminal}, 'TEXT', #{signature}, 1, NOW())")
+            + "VALUES (#{userId}, #{templateId}, #{agreementName}, #{versionNo}, #{signIp}, #{terminal}, 'MOUSE', #{signature}, 1, NOW())")
     int insertAgreementSignature(@Param("userId") Long userId, @Param("templateId") Long templateId,
             @Param("agreementName") String agreementName, @Param("versionNo") String versionNo,
             @Param("signIp") String signIp, @Param("terminal") String terminal,

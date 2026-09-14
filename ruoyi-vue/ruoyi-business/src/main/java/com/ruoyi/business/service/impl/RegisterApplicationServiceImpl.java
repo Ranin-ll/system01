@@ -3,11 +3,13 @@ package com.ruoyi.business.service.impl;
 import com.ruoyi.business.domain.AuditRecord;
 import com.ruoyi.business.domain.RegisterApplication;
 import com.ruoyi.business.mapper.InternAuthMapper;
+import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.business.mapper.RegisterApplicationMapper;
 import com.ruoyi.business.service.IRegisterApplicationService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.system.service.ISysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,9 @@ public class RegisterApplicationServiceImpl extends ServiceImpl<RegisterApplicat
     private RegisterApplicationMapper registerApplicationMapper;
 
     @Autowired
+    private ISysUserService userService;
+
+    @Autowired
     private InternAuthMapper internAuthMapper;
 
     @Autowired
@@ -45,6 +50,41 @@ public class RegisterApplicationServiceImpl extends ServiceImpl<RegisterApplicat
     @Override
     public Map<String, Object> selectRegisterSummary() {
         return registerApplicationMapper.selectRegisterSummary(currentDeptScope());
+    }
+
+    @Override
+    public Map<String, Object> selectPublicStatusByPhone(String phone, String password) {
+        if (phone == null || !phone.matches("^1[3-9]\\d{9}$")) {
+            throw new ServiceException("该手机号未提交注册");
+        }
+        if (password == null || password.trim().isEmpty()) {
+            throw new ServiceException("密码错误");
+        }
+        SysUser user = userService.selectUserByPhone(phone);
+        if (user == null) {
+            throw new ServiceException("该手机号未提交注册");
+        }
+        if (user.getPassword() == null || !SecurityUtils.matchesPassword(password, user.getPassword())) {
+            throw new ServiceException("密码错误");
+        }
+        RegisterApplication application = registerApplicationMapper.selectPublicStatusByLoginAccount(phone);
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("submitted", application != null);
+        if (application == null) {
+            result.put("status", "NOT_SUBMITTED");
+            return result;
+        }
+        result.put("status", application.getStatus());
+        result.put("applicationNo", application.getApplicationNo());
+        result.put("realName", application.getRealName());
+        result.put("positionName", application.getPositionName());
+        result.put("deptName", application.getDeptName());
+        result.put("createTime", application.getCreateTime());
+        result.put("updateTime", application.getUpdateTime());
+        if ("REJECTED".equals(application.getStatus())) {
+            result.put("rejectReason", application.getRejectReason());
+        }
+        return result;
     }
 
     private Long currentDeptScope() {
@@ -123,6 +163,7 @@ public class RegisterApplicationServiceImpl extends ServiceImpl<RegisterApplicat
         existing.setRealName(update.getRealName());
         existing.setIdCard(update.getIdCard());
         existing.setPositionId(update.getPositionId());
+        existing.setDeptId(update.getDeptId());
         existing.setExpectedEntryDate(update.getExpectedEntryDate());
         existing.setStatus("WAIT_AUDIT");
         existing.setRejectReason(null);
@@ -192,6 +233,11 @@ public class RegisterApplicationServiceImpl extends ServiceImpl<RegisterApplicat
         record.setCreateTime(new Date());
         auditRecordMapper.insertAuditRecord(record);
         return record;
+    }
+
+    @Override
+    public RegisterApplication selectLatestByLoginAccount(String loginAccount) {
+        return registerApplicationMapper.selectPublicStatusByLoginAccount(loginAccount);
     }
 
     @Override

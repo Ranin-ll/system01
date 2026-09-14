@@ -18,7 +18,7 @@ import java.util.Map;
 @Mapper
 public interface RegisterApplicationMapper extends BaseMapper<RegisterApplication> {
 
-    @Select("SELECT COUNT(1) FROM register_application WHERE login_account = #{loginAccount} AND status <> 'PASSED'")
+    @Select("SELECT COUNT(1) FROM register_application WHERE login_account = #{loginAccount} AND status IN ('WAIT_AUDIT')")
     Long countActiveByLoginAccount(@Param("loginAccount") String loginAccount);
 
     @Insert("INSERT INTO register_application (application_no, user_id, real_name, id_card, login_account, position_id, dept_id, "
@@ -56,4 +56,7 @@ public interface RegisterApplicationMapper extends BaseMapper<RegisterApplicatio
 
     /** 按数据范围统计注册申请 */
     Map<String, Object> selectRegisterSummary(@Param("deptId") Long deptId);
+
+    /** 按登录手机号查询最近一条申请 */
+    RegisterApplication selectPublicStatusByLoginAccount(@Param("loginAccount") String loginAccount);
 }
