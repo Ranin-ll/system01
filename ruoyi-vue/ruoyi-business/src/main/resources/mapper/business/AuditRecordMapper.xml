@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.AuditRecordMapper">
+
+    <resultMap type="AuditRecord" id="AuditRecordResult">
+        <id     property="id"          column="id"          />
+        <result property="bizType"     column="biz_type"    />
+        <result property="bizId"       column="biz_id"      />
+        <result property="userId"      column="user_id"     />
+        <result property="deptId"      column="dept_id"     />
+        <result property="action"      column="action"      />
+        <result property="fromStatus"  column="from_status" />
+        <result property="toStatus"    column="to_status"   />
+        <result property="reason"      column="reason"      />
+        <result property="operatorId"  column="operator_id" />
+        <result property="createTime"  column="create_time" />
+        <result property="operatorName" column="operator_name"/>
+        <result property="deptName"    column="dept_name"   />
+    </resultMap>
+
+    <select id="selectByBiz" resultMap="AuditRecordResult">
+        SELECT ar.*, u.user_name as operator_name, d.dept_name
+        FROM audit_record ar
+        LEFT JOIN sys_user u ON u.user_id = ar.operator_id AND u.del_flag = '0'
+        LEFT JOIN sys_dept d ON d.dept_id = ar.dept_id AND d.del_flag = '0'
+        WHERE ar.biz_type = #{bizType} AND ar.biz_id = #{bizId}
+        ORDER BY ar.create_time ASC
+    </select>
+
+</mapper>

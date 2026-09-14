@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.RegisterApplicationMapper">
+
+    <resultMap type="RegisterApplication" id="RegisterApplicationResult">
+        <id     property="id"                column="id"                />
+        <result property="applicationNo"     column="application_no"    />
+        <result property="userId"            column="user_id"           />
+        <result property="realName"          column="real_name"         />
+        <result property="idCard"            column="id_card"           />
+        <result property="loginAccount"      column="login_account"     />
+        <result property="positionId"        column="position_id"       />
+        <result property="deptId"            column="dept_id"           />
+        <result property="expectedEntryDate" column="expected_entry_date" />
+        <result property="status"            column="status"            />
+        <result property="rejectReason"      column="reject_reason"     />
+        <result property="auditCount"        column="audit_count"       />
+        <result property="createTime"        column="create_time"       />
+        <result property="updateTime"        column="update_time"       />
+        <result property="positionName"      column="position_name"     />
+        <result property="deptName"          column="dept_name"         />
+        <result property="accountStatus"     column="account_status"    />
+        <result property="userStatus"        column="user_status"       />
+        <result property="mentorName"        column="mentor_name"       />
+        <result property="mentorPhone"       column="mentor_phone"      />
+    </resultMap>
+
+    <sql id="selectRegisterApplicationVo">
+        SELECT ra.id, ra.application_no, ra.user_id, ra.real_name, ra.id_card, ra.login_account,
+               ra.position_id, ra.dept_id, ra.expected_entry_date, ra.status, ra.reject_reason,
+               ra.audit_count, ra.create_time, ra.update_time,
+               p.position_name, d.dept_name, u.status AS account_status,
+               u.user_status, u.mentor_name, u.mentor_phone
+        FROM register_application ra
+        LEFT JOIN position p ON p.id = ra.position_id AND p.deleted = 0
+        LEFT JOIN sys_dept d ON d.dept_id = ra.dept_id AND d.del_flag = '0'
+        LEFT JOIN sys_user u ON u.user_id = ra.user_id AND u.del_flag = '0'
+    </sql>
+
+    <select id="selectRegisterList" resultMap="RegisterApplicationResult">
+        <include refid="selectRegisterApplicationVo"/>
+        <where>
+            <if test="query.applicationNo != null and query.applicationNo != ''">
+                AND ra.application_no = #{query.applicationNo}
+            </if>
+            <if test="query.realName != null and query.realName != ''">
+                AND ra.real_name LIKE CONCAT('%', #{query.realName}, '%')
+            </if>
+            <if test="query.loginAccount != null and query.loginAccount != ''">
+                AND ra.login_account LIKE CONCAT('%', #{query.loginAccount}, '%')
+            </if>
+            <if test="query.status != null and query.status != ''">
+                AND ra.status = #{query.status}
+            </if>
+            <if test="query.positionId != null">
+                AND ra.position_id = #{query.positionId}
+            </if>
+            <if test="deptId != null">
+                AND ra.dept_id = #{deptId}
+            </if>
+        </where>
+        ORDER BY ra.create_time DESC
+    </select>
+
+    <select id="selectRegisterListByUserId" resultMap="RegisterApplicationResult">
+        <include refid="selectRegisterApplicationVo"/>
+        WHERE ra.user_id = #{userId}
+        ORDER BY ra.create_time DESC
+    </select>
+
+    <select id="selectRegisterById" resultMap="RegisterApplicationResult">
+        <include refid="selectRegisterApplicationVo"/>
+        WHERE ra.id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectRegisterSummary" resultType="java.util.HashMap">
+        SELECT COUNT(1) AS total_count,
+               COALESCE(SUM(CASE WHEN ra.status = 'WAIT_AUDIT' THEN 1 ELSE 0 END), 0) AS pending_count,
+               COALESCE(SUM(CASE WHEN ra.status = 'PASSED' THEN 1 ELSE 0 END), 0) AS passed_count,
+               COALESCE(SUM(CASE WHEN ra.status = 'REJECTED' THEN 1 ELSE 0 END), 0) AS rejected_count
+        FROM register_application ra
+        <where>
+            <if test="deptId != null">
+                ra.dept_id = #{deptId}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectByApplicationNo" resultMap="RegisterApplicationResult">
+        <include refid="selectRegisterApplicationVo"/>
+        WHERE ra.application_no = #{applicationNo}
+        LIMIT 1
+    </select>
+
+    <update id="updateApplication">
+        UPDATE register_application
+        SET application_no = #{applicationNo},
+            user_id = #{userId},
+            real_name = #{realName},
+            id_card = #{idCard},
+            login_account = #{loginAccount},
+            position_id = #{positionId},
+            dept_id = #{deptId},
+            expected_entry_date = #{expectedEntryDate,jdbcType=DATE},
+            status = #{status},
+            reject_reason = #{rejectReason},
+            audit_count = #{auditCount},
+            create_time = #{createTime},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

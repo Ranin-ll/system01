@@ -1,0 +1,36 @@
+# Local development runtimes and caches
+.venv/
+.local/
+.m2/
+
+# Temporary build copies and generated review artifacts
+build-course-check/
+artifacts/
+
+# IDE and OS metadata
+.idea/
+.vscode/
+.vs/
+.DS_Store
+Thumbs.db
+
+# Runtime data and logs
+*.log
+dump.rdb
+
+# Build outputs and packaged binaries
+**/target/
+*.jar
+*.war
+*.zip
+
+# Frontend dependencies and generated output
+ruoyi-vue/ruoyi-ui/node_modules/
+ruoyi-vue/ruoyi-ui/dist/
+
+# Local-only database credentials
+ruoyi-vue/ruoyi-admin/src/main/resources/application-druid.yml
+
+
+ruoyi-vue/ruoyi-ui/dist-check/
+ruoyi-vue/ruoyi-ui/dist-verify-*/

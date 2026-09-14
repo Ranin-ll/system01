@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.CourseMapper">
+
+    <resultMap type="Course" id="CourseResult">
+        <id     property="id"          column="id"          />
+        <result property="courseName"   column="course_name" />
+        <result property="positionId"   column="position_id" />
+        <result property="courseType"   column="course_type" />
+        <result property="isRequired"   column="is_required" />
+        <result property="coverUrl"     column="cover_url"   />
+        <result property="intro"        column="intro"       />
+        <result property="status"       column="status"      />
+        <result property="publishedAt"  column="published_at"/>
+        <result property="createBy"     column="create_by"   />
+        <result property="createTime"   column="create_time" />
+        <result property="updateTime"   column="update_time" />
+        <result property="deleted"      column="deleted"     />
+        <result property="positionName" column="position_name"/>
+        <result property="deptName"     column="dept_name"    />
+        <result property="chapterCount" column="chapter_count"/>
+        <result property="studentCount" column="student_count"/>
+        <result property="avgCompletionRate" column="avg_completion_rate"/>
+    </resultMap>
+
+    <sql id="courseColumns">
+        c.id, c.course_name, c.position_id, c.course_type, c.is_required, c.cover_url, c.intro,
+        c.status, c.published_at, c.create_by, c.create_time, c.update_time, c.deleted,
+        p.position_name,
+        (SELECT d.dept_name
+         FROM dept_position dp_name
+         INNER JOIN sys_dept d ON d.dept_id = dp_name.dept_id
+             AND d.del_flag = '0' AND d.status = '0'
+         WHERE dp_name.position_id = c.position_id AND dp_name.status = 1
+         ORDER BY dp_name.id ASC LIMIT 1) AS dept_name,
+        (SELECT COUNT(1) FROM course_chapter cc WHERE cc.course_id = c.id AND cc.deleted = 0) AS chapter_count,
+        (SELECT COUNT(DISTINCT sr.user_id) FROM study_record sr WHERE sr.course_id = c.id) AS student_count
+    </sql>
+
+    <sql id="courseScope">
+        <if test="scopeDeptId != null">
+            AND EXISTS (
+                SELECT 1 FROM dept_position dp_scope
+                WHERE dp_scope.position_id = c.position_id
+                  AND dp_scope.dept_id = #{scopeDeptId}
+                  AND dp_scope.status = 1
+            )
+        </if>
+    </sql>
+
+    <select id="selectCourseList" resultMap="CourseResult">
+        SELECT <include refid="courseColumns" />
+        FROM course c
+        LEFT JOIN position p ON p.id = c.position_id AND p.deleted = 0
+        <where>
+            c.deleted = 0
+            <include refid="courseScope" />
+            <if test="courseName != null and courseName != ''">
+                AND c.course_name LIKE CONCAT('%', #{courseName}, '%')
+            </if>
+            <if test="positionId != null">
+                AND c.position_id = #{positionId}
+            </if>
+            <if test="courseType != null and courseType != ''">
+                AND c.course_type = #{courseType}
+            </if>
+            <if test="status != null and status != ''">
+                AND c.status = #{status}
+            </if>
+        </where>
+        ORDER BY c.create_time DESC
+    </select>
+
+    <select id="selectCourseById" resultMap="CourseResult">
+        SELECT <include refid="courseColumns" />
+        FROM course c
+        LEFT JOIN position p ON p.id = c.position_id AND p.deleted = 0
+        <where>
+            c.id = #{id}
+            AND c.deleted = 0
+            <include refid="courseScope" />
+        </where>
+        LIMIT 1
+    </select>
+
+    <select id="countPositionInDept" resultType="int">
+        SELECT COUNT(1)
+        FROM dept_position
+        WHERE position_id = #{positionId}
+          AND dept_id = #{deptId}
+          AND status = 1
+    </select>
+
+    <resultMap type="Position" id="CoursePositionResult">
+        <id property="id" column="position_id" />
+        <result property="positionCode" column="position_code" />
+        <result property="positionName" column="position_name" />
+        <result property="sortNo" column="sort_no" />
+        <result property="status" column="position_status" />
+        <result property="createBy" column="position_create_by" />
+        <result property="createTime" column="position_create_time" />
+        <result property="updateBy" column="position_update_by" />
+        <result property="updateTime" column="position_update_time" />
+        <result property="deleted" column="position_deleted" />
+        <result property="deptId" column="dept_id" />
+        <result property="deptName" column="dept_name" />
+    </resultMap>
+
+    <select id="selectCoursePositions" resultMap="CoursePositionResult">
+        SELECT DISTINCT p.id AS position_id, p.position_code, p.position_name, p.sort_no,
+                        p.status AS position_status, p.create_by AS position_create_by,
+                        p.create_time AS position_create_time, p.update_by AS position_update_by,
+                        p.update_time AS position_update_time, p.deleted AS position_deleted,
+                        dp.dept_id,
+                        d.dept_name
+        FROM position p
+        INNER JOIN dept_position dp ON dp.position_id = p.id AND dp.status = 1
+        LEFT JOIN sys_dept d ON d.dept_id = dp.dept_id AND d.del_flag = '0'
+        WHERE p.deleted = 0
+          AND p.status = 1
+        <if test="scopeDeptId != null">
+            AND dp.dept_id = #{scopeDeptId}
+        </if>
+        ORDER BY p.sort_no ASC, p.id ASC
+    </select>
+
+</mapper>
