@@ -136,7 +136,16 @@ export default {
       this.$refs.registerForm.validate(valid => {
         if (!valid) return
         this.loading = true
-        const payload = { username: this.registerForm.username, password: this.registerForm.password, realName: this.registerForm.realName, idCard: this.registerForm.idCard, positionId: this.registerForm.positionId, expectedEntryDate: this.registerForm.expectedEntryDate || null }
+        const payload = {
+          username: this.registerForm.username,
+          password: this.registerForm.password,
+          realName: this.registerForm.realName,
+          idCard: this.registerForm.idCard,
+          positionId: this.registerForm.positionId,
+          expectedEntryDate: this.registerForm.expectedEntryDate || null,
+          code: this.registerForm.code,
+          uuid: this.registerForm.uuid
+        }
         register(payload).then(res => { this.$alert('<p>注册申请已提交。</p><p>申请编号：<strong>' + res.data + '</strong></p><p>审核通过后即可使用手机号登录。</p>', '申请提交成功', { dangerouslyUseHTMLString: true, type: 'success' }).then(() => this.$router.push('/login')).catch(() => {}) }).catch(() => { this.loading = false; if (this.captchaEnabled) this.getCode() })
       })
     },

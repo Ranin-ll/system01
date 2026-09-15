@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.CourseChapterMapper">
+    <select id="selectByCourseId" resultType="com.ruoyi.business.domain.CourseChapter">
+        SELECT id, course_id, chapter_name, chapter_intro, sort_no, is_required, create_time, update_time, deleted
+        FROM course_chapter
+        WHERE course_id = #{courseId} AND deleted = 0
+        ORDER BY sort_no ASC, id ASC
+    </select>
+</mapper>

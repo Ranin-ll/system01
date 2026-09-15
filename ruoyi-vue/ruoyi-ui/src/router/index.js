@@ -225,7 +225,7 @@ export const dynamicRoutes = [
       {
         path: 'course',
         name: 'BusinessCourse',
-        component: () => import('@/views/business/course/index'),
+        component: () => import('@/views/business/course/runtime'),
         meta: { title: '课程管理', icon: 'guide', activeMenu: '/assessment/department/courses' },
         permissions: ['business:course:list']
       },

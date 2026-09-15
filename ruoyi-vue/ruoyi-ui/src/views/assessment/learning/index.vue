@@ -115,7 +115,8 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { formatLearningDuration, getPositionName, learningSummary, loadPreviewCourses } from '@/utils/learningPreview'
+import { listLearningCourses } from '@/api/business/learning'
+import { formatLearningDuration, getPositionName, learningSummary } from '@/utils/learningPreview'
 
 export default {
   name: 'InternLearning',
@@ -134,7 +135,7 @@ export default {
       return this.roles.indexOf('FORMAL_TRAINEE') > -1
     },
     positionName() {
-      return getPositionName(this.deptName)
+      return (this.courses[0] && this.courses[0].positionName) || getPositionName(this.deptName)
     },
     filteredCourses() {
       return this.courses.filter(course => {
@@ -152,11 +153,18 @@ export default {
   methods: {
     loadCourses() {
       this.loading = true
-      window.setTimeout(() => {
-        this.courses = loadPreviewCourses(this.name, this.deptName)
+      listLearningCourses().then(response => {
+        this.courses = (response.data || []).map(course => Object.assign({
+          chapters: [], chapterCount: 0, itemCount: 0, completedItems: 0,
+          duration: 0, progress: 0, lastStudyTime: '尚未开始'
+        }, course, { lastStudyTime: course.lastStudyTime || '尚未开始' }))
         this.summary = learningSummary(this.courses)
+      }).catch(() => {
+        this.courses = []
+        this.summary = learningSummary([])
+      }).finally(() => {
         this.loading = false
-      }, 180)
+      })
     },
     progressFormat(percentage) {
       return this.summary.progress === null ? '--' : percentage + '%'

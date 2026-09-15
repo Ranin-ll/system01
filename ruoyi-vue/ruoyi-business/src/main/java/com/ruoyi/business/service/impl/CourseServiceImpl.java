@@ -52,14 +52,15 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
     @Override
     public int updateCourse(Course course) {
         Long deptId = managerScopeDeptId();
-        getAccessibleCourse(course.getId());
+        Course current = getAccessibleCourse(course.getId());
+        if ("PUBLISHED".equals(current.getStatus())) {
+            throw new ServiceException("已发布课程请先停用，再修改基础信息或课程内容");
+        }
         if (course.getPositionId() != null) {
             checkPositionScope(course.getPositionId(), deptId);
         }
-        if (course.getStatus() != null && !isEditableStatus(course.getStatus())) {
-            throw new ServiceException("课程状态只能通过发布或停用操作变更");
-        }
-        // 不允许通过通用编辑接口篡改删除标志、创建信息或发布时间。
+        // 课程状态只能通过发布、停用接口流转。
+        course.setStatus(null);
         course.setDeleted(null);
         course.setCreateBy(null);
         course.setCreateTime(null);
@@ -90,11 +91,34 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
     @Override
     public int publish(Long id) {
         managerScopeDeptId();
-        getAccessibleCourse(id);
+        Course current = getAccessibleCourse(id);
+        if (!"DRAFT".equals(current.getStatus()) && !"DISABLED".equals(current.getStatus())) {
+            throw new ServiceException("只有草稿或已停用课程可以发布");
+        }
+        if (courseMapper.countActiveChapters(id) == 0) {
+            throw new ServiceException("发布前请至少配置一个章节");
+        }
+        if (courseMapper.countEmptyChapters(id) > 0) {
+            throw new ServiceException("发布前请为每个章节至少配置一项学习资料");
+        }
         Course course = new Course();
         course.setId(id);
         course.setStatus("PUBLISHED");
         course.setPublishedAt(new Date());
+        course.setUpdateBy(SecurityUtils.getUsername());
+        return courseMapper.updateById(course);
+    }
+
+    @Override
+    public int disable(Long id) {
+        managerScopeDeptId();
+        Course current = getAccessibleCourse(id);
+        if (!"PUBLISHED".equals(current.getStatus())) {
+            throw new ServiceException("只有已发布课程可以停用");
+        }
+        Course course = new Course();
+        course.setId(id);
+        course.setStatus("DISABLED");
         course.setUpdateBy(SecurityUtils.getUsername());
         return courseMapper.updateById(course);
     }
@@ -143,7 +167,4 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         return SecurityUtils.hasRole("SUPER_ADMIN") || SecurityUtils.isAdmin(SecurityUtils.getUserId());
     }
 
-    private boolean isEditableStatus(String status) {
-        return "DRAFT".equals(status) || "PUBLISHED".equals(status) || "DISABLED".equals(status);
-    }
 }

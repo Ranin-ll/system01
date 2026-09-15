@@ -8,6 +8,10 @@ import lombok.Data;
 @Data
 public class InternRegisterBody {
 
+    private String code;
+
+    private String uuid;
+
     private String username;
 
     private String password;

@@ -75,4 +75,11 @@ public class CourseController extends BaseController {
     public AjaxResult publish(@PathVariable Long id) {
         return toAjax(courseService.publish(id));
     }
+
+    @PreAuthorize("@ss.hasPermi('business:course:edit')")
+    @Log(title = "课程停用", businessType = BusinessType.UPDATE)
+    @PutMapping("/disable/{id}")
+    public AjaxResult disable(@PathVariable Long id) {
+        return toAjax(courseService.disable(id));
+    }
 }

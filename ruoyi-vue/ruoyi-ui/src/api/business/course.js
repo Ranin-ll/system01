@@ -58,3 +58,11 @@ export function publishCourse(id) {
     method: 'put'
   })
 }
+
+// 停用课程。学习记录保留，停用后可重新编排并再次发布。
+export function disableCourse(id) {
+  return request({
+    url: '/business/course/disable/' + id,
+    method: 'put'
+  })
+}

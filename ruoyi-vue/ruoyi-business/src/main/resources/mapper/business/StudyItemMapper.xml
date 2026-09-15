@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.StudyItemMapper">
+    <resultMap id="StudyItemResult" type="com.ruoyi.business.domain.StudyItem">
+        <id property="id" column="id" />
+        <result property="chapterId" column="chapter_id" />
+        <result property="itemTitle" column="item_title" />
+        <result property="itemIntro" column="item_intro" />
+        <result property="itemType" column="item_type" />
+        <result property="contentUrl" column="content_url" />
+        <result property="duration" column="duration" />
+        <result property="isRequired" column="is_required" />
+        <result property="completionRule" column="completion_rule" />
+        <result property="quizJson" column="quiz_json" />
+        <result property="sortNo" column="sort_no" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+        <result property="deleted" column="deleted" />
+        <result property="fileName" column="file_name" />
+        <result property="fileSize" column="file_size" />
+        <result property="fileExt" column="file_ext" />
+        <result property="completionThreshold" column="completion_threshold" />
+        <result property="courseId" column="course_id" />
+    </resultMap>
+
+    <select id="selectByCourseId" resultMap="StudyItemResult">
+        SELECT si.id, si.chapter_id, si.item_title, si.item_intro, si.item_type, si.content_url,
+               si.duration, si.is_required, si.completion_rule, si.quiz_json,
+               si.sort_no, si.create_time, si.update_time, si.deleted,
+               si.file_name, si.file_size, si.file_ext, si.completion_threshold
+        FROM study_item si
+        INNER JOIN course_chapter cc ON cc.id = si.chapter_id
+        WHERE cc.course_id = #{courseId} AND cc.deleted = 0 AND si.deleted = 0
+        ORDER BY si.chapter_id ASC, si.sort_no ASC, si.id ASC
+    </select>
+
+    <select id="selectByIdAndCourse" resultMap="StudyItemResult">
+        SELECT si.id, si.chapter_id, si.item_title, si.item_intro, si.item_type, si.content_url,
+               si.duration, si.is_required, si.completion_rule, si.quiz_json,
+               si.sort_no, si.create_time, si.update_time, si.deleted,
+               si.file_name, si.file_size, si.file_ext, si.completion_threshold
+        FROM study_item si
+        INNER JOIN course_chapter cc ON cc.id = si.chapter_id
+        WHERE si.id = #{id} AND cc.course_id = #{courseId} AND si.deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectLearningItem" resultMap="StudyItemResult">
+        SELECT si.id, si.chapter_id, cc.course_id, si.item_title, si.item_intro, si.item_type, si.content_url,
+               si.duration, si.is_required, si.completion_rule, si.quiz_json,
+               si.sort_no, si.create_time, si.update_time, si.deleted,
+               si.file_name, si.file_size, si.file_ext, si.completion_threshold
+        FROM study_item si
+        INNER JOIN course_chapter cc ON cc.id = si.chapter_id AND cc.deleted = 0
+        INNER JOIN course c ON c.id = cc.course_id AND c.deleted = 0 AND c.status = 'PUBLISHED'
+        INNER JOIN sys_user learner ON learner.user_id = #{userId}
+            AND learner.del_flag = '0'
+            AND learner.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+        INNER JOIN dept_position learner_scope ON learner_scope.dept_id = learner.dept_id
+            AND learner_scope.position_id = learner.position_id
+            AND learner_scope.status = 1
+            AND learner_scope.position_id = c.position_id
+        WHERE si.id = #{itemId} AND si.deleted = 0
+        LIMIT 1
+    </select>
+</mapper>

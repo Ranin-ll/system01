@@ -121,12 +121,12 @@
         <el-table-column label="更新时间" width="150">
           <template slot-scope="scope">{{ formatDate(scope.row.updateTime || scope.row.publishedAt || scope.row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="230" fixed="right" align="center" class-name="course-actions">
+        <el-table-column label="操作" width="310" fixed="right" align="center" class-name="course-actions">
           <template slot-scope="scope">
-            <el-button type="text" size="mini" @click="openContent(scope.row)">查看</el-button>
+            <el-button type="text" size="mini" @click="openContent(scope.row)">{{ canEditContent(scope.row) ? '编排内容' : '查看内容' }}</el-button>
             <el-button type="text" size="mini" @click="openRecords(scope.row)">记录</el-button>
-            <el-button v-if="!readOnly" v-hasPermi="['business:course:edit']" type="text" size="mini" @click="handleUpdate(scope.row)">编辑</el-button>
-            <el-button v-if="!readOnly && scope.row.status === 'DRAFT'" v-hasPermi="['business:course:publish']" type="text" size="mini" @click="handlePublish(scope.row)">发布</el-button>
+            <el-button v-if="!readOnly && scope.row.status !== 'PUBLISHED'" v-hasPermi="['business:course:edit']" type="text" size="mini" @click="handleUpdate(scope.row)">编辑信息</el-button>
+            <el-button v-if="!readOnly && (scope.row.status === 'DRAFT' || scope.row.status === 'DISABLED')" v-hasPermi="['business:course:publish']" type="text" size="mini" @click="handlePublish(scope.row)">{{ scope.row.status === 'DISABLED' ? '重新发布' : '发布' }}</el-button>
             <el-button v-else-if="!readOnly && scope.row.status === 'PUBLISHED'" v-hasPermi="['business:course:edit']" type="text" size="mini" class="danger-text" @click="handleDisable(scope.row)">停用</el-button>
           </template>
         </el-table-column>
@@ -164,48 +164,77 @@
           </div>
           <el-button icon="el-icon-close" circle size="mini" @click="contentDrawerOpen = false" />
         </div>
-        <div class="drawer-body">
+        <div v-loading="contentLoading" class="drawer-body">
           <div class="content-toolbar">
-            <div><strong>{{ contentSummary(currentCourse).chapterCount }} 个章节</strong><span> · {{ contentSummary(currentCourse).itemCount }} 项学习资料</span></div>
-            <el-button v-if="canEditContent(currentCourse)" type="primary" plain size="mini" icon="el-icon-plus" @click="openChapterDialog()">新增章节</el-button>
+            <div>
+              <strong>{{ contentSummary(currentCourse).chapterCount }} 个章节</strong><span> · {{ contentSummary(currentCourse).itemCount }} 项学习资料</span>
+              <span class="content-save-state" :class="contentDirty ? 'is-dirty' : 'is-saved'"><i :class="contentDirty ? 'el-icon-warning-outline' : 'el-icon-circle-check'" />{{ contentDirty ? '有待保存调整' : '编排已保存' }}</span>
+            </div>
+            <div class="content-toolbar-actions">
+              <el-tag size="mini" effect="plain" :type="contentCheck(currentCourse).ready ? 'success' : 'warning'"><i :class="contentCheck(currentCourse).ready ? 'el-icon-circle-check' : 'el-icon-warning-outline'" /> {{ contentCheck(currentCourse).label }}</el-tag>
+              <el-button v-if="canEditContent(currentCourse)" size="mini" icon="el-icon-check" :loading="contentSaving" @click="saveContentDraft">保存编排</el-button>
+              <el-button v-if="canEditContent(currentCourse)" type="primary" plain size="mini" icon="el-icon-plus" @click="openChapterDialog()">新增章节</el-button>
+            </div>
           </div>
-          <el-alert class="drawer-alert" :title="canEditContent(currentCourse) ? '草稿内容维护为前端演示，保存后会保留在本浏览器；正式接口接入后将自动替换为服务器数据。' : '已发布课程进入只读状态，可查看目录和学习资料；后续通过课程版本功能维护新内容。'" :type="canEditContent(currentCourse) ? 'info' : 'success'" :closable="false" show-icon />
-          <div v-if="courseContents(currentCourse).length" class="chapter-list">
+          <el-alert class="drawer-alert" :title="contentStatusTip(currentCourse)" :type="canEditContent(currentCourse) ? 'info' : 'success'" :closable="false" show-icon />
+          <draggable v-if="courseContents(currentCourse).length" :list="courseContents(currentCourse)" class="chapter-list" handle=".chapter-drag-handle" :disabled="!canEditContent(currentCourse)" @end="markContentDirty">
             <section v-for="(chapter, chapterIndex) in courseContents(currentCourse)" :key="chapter.id" class="chapter-block">
               <header class="chapter-heading">
-                <div><span class="chapter-order">{{ String(chapterIndex + 1).padStart(2, '0') }}</span><strong>{{ chapter.chapterName }}</strong><small>{{ chapter.items.length }} 项资料</small></div>
+                <div><button v-if="canEditContent(currentCourse)" type="button" class="drag-handle chapter-drag-handle" title="拖拽调整章节顺序"><i class="el-icon-rank" /></button><span class="chapter-order">{{ String(chapterIndex + 1).padStart(2, '0') }}</span><span class="chapter-heading-copy"><strong>{{ chapter.chapterName }}</strong><small>{{ chapter.chapterIntro || '暂未填写内容简介' }}</small></span><small class="chapter-item-count">{{ chapter.items.length }} 项资料</small></div>
                 <div v-if="canEditContent(currentCourse)" class="chapter-actions"><el-button type="text" size="mini" @click="openChapterDialog(chapter)">编辑</el-button><el-button type="text" size="mini" class="danger-text" @click="removeChapter(chapter)">删除</el-button></div>
               </header>
-              <div v-for="item in chapter.items" :key="item.id" class="resource-row">
-                <span class="resource-icon" :class="item.itemType.toLowerCase()"><i :class="resourceIcon(item.itemType)" /></span>
-                <div class="resource-info"><strong>{{ item.itemTitle }}</strong><span>{{ resourceTypeLabel(item.itemType) }} · {{ item.duration || 0 }} 分钟 · {{ completionRuleLabel(item.completionRule) }}</span></div>
-                <div v-if="canEditContent(currentCourse)" class="resource-actions"><el-button type="text" size="mini" @click="openItemDialog(chapter, item)">编辑</el-button><el-button type="text" size="mini" class="danger-text" @click="removeItem(chapter, item)">删除</el-button></div>
-              </div>
+              <draggable :list="chapter.items" class="resource-list" handle=".resource-drag-handle" :disabled="!canEditContent(currentCourse)" @end="markContentDirty">
+                <div v-for="item in chapter.items" :key="item.id" class="resource-row">
+                  <button v-if="canEditContent(currentCourse)" type="button" class="drag-handle resource-drag-handle" title="拖拽调整资料顺序"><i class="el-icon-rank" /></button>
+                  <span class="resource-icon" :class="item.itemType.toLowerCase()"><i :class="resourceIcon(item.itemType)" /></span>
+                  <div class="resource-info"><strong>{{ item.itemTitle }}</strong><small v-if="item.itemIntro" class="resource-intro">{{ item.itemIntro }}</small><span>{{ resourceTypeLabel(item.itemType) }} · {{ item.duration || 0 }} 分钟 · {{ completionRuleLabel(item.completionRule) }}</span><small class="resource-file-state" :class="item.fileName || item.contentUrl ? 'is-bound' : 'is-missing'"><i :class="item.fileName || item.contentUrl ? 'el-icon-paperclip' : 'el-icon-warning-outline'" /> {{ item.fileName || (item.itemType === 'QUIZ' ? '题目接口待接入' : '待上传文件') }}</small></div>
+                  <div v-if="canEditContent(currentCourse)" class="resource-actions"><el-button type="text" size="mini" @click="openItemDialog(chapter, item)">编辑</el-button><el-button type="text" size="mini" class="danger-text" @click="removeItem(chapter, item)">删除</el-button></div>
+                </div>
+              </draggable>
               <el-button v-if="canEditContent(currentCourse)" class="add-resource" icon="el-icon-plus" size="mini" @click="openItemDialog(chapter)">添加学习资料</el-button>
             </section>
-          </div>
+          </draggable>
           <el-empty v-else description="还没有学习章节"><el-button v-if="canEditContent(currentCourse)" type="primary" size="small" @click="openChapterDialog()">新增第一个章节</el-button></el-empty>
         </div>
       </template>
     </el-drawer>
 
-    <el-dialog :title="chapterForm.id ? '编辑章节' : '新增章节'" :visible.sync="chapterDialogOpen" width="460px" append-to-body>
+    <el-dialog :title="chapterForm.id ? '编辑章节' : '新增章节'" :visible.sync="chapterDialogOpen" width="520px" append-to-body>
       <el-form ref="chapterForm" :model="chapterForm" :rules="chapterRules" label-width="82px">
         <el-form-item label="章节名称" prop="chapterName"><el-input v-model="chapterForm.chapterName" maxlength="128" placeholder="例如：第一章 入职与保密" /></el-form-item>
+        <el-form-item label="内容简介" prop="chapterIntro"><el-input v-model="chapterForm.chapterIntro" type="textarea" :rows="4" maxlength="300" show-word-limit placeholder="简要说明本章节的学习目标、主要内容和学习重点" /></el-form-item>
         <el-form-item label="学习要求"><el-radio-group v-model="chapterForm.isRequired"><el-radio :label="1">必修</el-radio><el-radio :label="0">选修</el-radio></el-radio-group></el-form-item>
       </el-form>
       <div slot="footer"><el-button @click="chapterDialogOpen = false">取消</el-button><el-button type="primary" @click="saveChapter">保存章节</el-button></div>
     </el-dialog>
 
-    <el-dialog :title="itemForm.id ? '编辑学习资料' : '添加学习资料'" :visible.sync="itemDialogOpen" width="520px" append-to-body>
+    <el-dialog :title="itemForm.id ? '编辑学习资料' : '添加学习资料'" :visible.sync="itemDialogOpen" width="560px" append-to-body>
       <el-form ref="itemForm" :model="itemForm" :rules="itemRules" label-width="98px">
         <el-form-item label="资料名称" prop="itemTitle"><el-input v-model="itemForm.itemTitle" maxlength="128" placeholder="请输入学习资料名称" /></el-form-item>
-        <el-form-item label="资料类型" prop="itemType"><el-radio-group v-model="itemForm.itemType"><el-radio label="DOC">文档</el-radio><el-radio label="VIDEO">视频</el-radio><el-radio label="QUIZ">章节测试</el-radio></el-radio-group></el-form-item>
+        <el-form-item label="内容简介" prop="itemIntro"><el-input v-model="itemForm.itemIntro" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="简要说明本节学习目标、主要内容和学习重点" /></el-form-item>
+        <el-form-item label="资料类型" prop="itemType"><el-radio-group v-model="itemForm.itemType" @change="handleItemTypeChange"><el-radio label="DOC">文档</el-radio><el-radio label="VIDEO">视频</el-radio><el-radio label="QUIZ">章节测试</el-radio></el-radio-group></el-form-item>
         <el-form-item label="预计时长"><el-input-number v-model="itemForm.duration" :min="0" :max="600" controls-position="right" /><span class="unit-text">分钟</span></el-form-item>
         <el-form-item label="完成方式"><el-select v-model="itemForm.completionRule" class="form-full"><el-option label="阅读到底并确认" value="SCROLL_END" /><el-option label="观看至完成进度" value="PLAY_TO_END" /><el-option label="提交测试答案" value="QUIZ_SUBMIT" /></el-select></el-form-item>
-        <el-form-item label="资料文件"><div class="file-input"><el-input :value="itemForm.fileName || '尚未绑定文件'" readonly /><el-button icon="el-icon-upload2" @click="comingSoon">上传资料</el-button></div><span class="form-tip">支持 PDF、MP4/WebM，当前上传功能开发中。</span></el-form-item>
+        <el-form-item label="完成要求"><el-switch v-model="itemForm.isRequired" :active-value="1" :inactive-value="0" active-text="必修" inactive-text="选修" /><span v-if="itemForm.itemType === 'VIDEO'" class="threshold-text">视频完成阈值 {{ itemForm.completionThreshold || 100 }}%</span></el-form-item>
+        <el-form-item v-if="itemForm.itemType === 'VIDEO'" label="完成阈值"><el-slider v-model="itemForm.completionThreshold" :min="80" :max="100" :step="5" show-stops /><span class="form-tip">达到该播放进度后自动完成，后端仍会校验进度。</span></el-form-item>
+        <el-form-item v-if="itemForm.itemType !== 'QUIZ'" label="资料文件">
+          <el-upload ref="assetUpload" class="asset-upload" action="#" :auto-upload="false" :show-file-list="false" :accept="itemAccept" :limit="1" :on-change="handleAssetChange" :on-exceed="handleAssetExceed">
+            <el-button size="small" plain icon="el-icon-upload2" :disabled="assetUploadState === 'UPLOADING'">{{ itemForm.fileName ? '替换文件' : '选择文件' }}</el-button>
+          </el-upload>
+          <div v-if="itemForm.fileName" class="selected-file">
+            <i class="el-icon-paperclip" />
+            <div><strong>{{ itemForm.fileName }}</strong><span>{{ fileSizeText(itemForm.fileSize) }} · {{ assetUploadLabel() }}</span></div>
+            <el-button type="text" size="mini" class="danger-text" :disabled="assetUploadState === 'UPLOADING'" @click="clearAsset">移除</el-button>
+          </div>
+          <div v-if="assetUploadState !== 'IDLE' && assetUploadState !== 'READY'" class="asset-upload-progress">
+            <el-progress :percentage="assetUploadProgress" :status="assetUploadState === 'SUCCESS' ? 'success' : assetUploadState === 'ERROR' ? 'exception' : undefined" :stroke-width="7" />
+            <span :class="'upload-' + assetUploadState.toLowerCase()">{{ assetUploadMessage }}</span>
+          </div>
+          <span class="form-tip">支持 {{ itemForm.itemType === 'VIDEO' ? 'MP4、WebM、MOV，单文件不超过 500MB' : 'PDF、DOCX、PPTX、TXT、ZIP，单文件不超过 50MB' }}。文件上传到服务器资源目录，数据库保存访问路径和文件元数据。</span>
+        </el-form-item>
+        <el-form-item v-else label="题目配置"><el-alert title="章节测试沿用考核题库接口，本轮先保留资料类型和完成规则入口。" type="info" :closable="false" show-icon /></el-form-item>
       </el-form>
-      <div slot="footer"><el-button @click="itemDialogOpen = false">取消</el-button><el-button type="primary" @click="saveItem">保存资料</el-button></div>
+      <div slot="footer"><el-button @click="itemDialogOpen = false">取消</el-button><el-button type="primary" :loading="itemSubmitting" @click="saveItem">保存资料</el-button></div>
     </el-dialog>
 
     <el-drawer :visible.sync="recordDrawerOpen" :with-header="false" direction="rtl" size="720px" append-to-body class="manage-drawer">
@@ -219,11 +248,11 @@
             <el-col v-for="item in recordSummary" :key="item.label" :span="8"><div><span>{{ item.label }}</span><strong>{{ item.value }}</strong><small>{{ item.hint }}</small></div></el-col>
           </el-row>
           <div class="record-toolbar">
-            <el-radio-group v-model="recordStatusFilter" size="small"><el-radio-button label="ALL">全部</el-radio-button><el-radio-button label="IN_PROGRESS">学习中</el-radio-button><el-radio-button label="DONE">已完成</el-radio-button></el-radio-group>
+            <el-radio-group v-model="recordStatusFilter" size="small"><el-radio-button label="ALL">全部</el-radio-button><el-radio-button label="NOT_STARTED">未开始</el-radio-button><el-radio-button label="IN_PROGRESS">学习中</el-radio-button><el-radio-button label="DONE">已完成</el-radio-button></el-radio-group>
             <el-button icon="el-icon-download" size="mini" @click="comingSoon">导出记录</el-button>
           </div>
-          <el-alert class="drawer-alert" title="学习记录暂以演示数据呈现，真实学习进度将在学习记录接口接入后统一汇总。" type="info" :closable="false" show-icon />
-          <el-table :data="filteredRecords" stripe class="record-table" empty-text="暂无符合条件的学习记录">
+          <el-alert class="drawer-alert" title="历史学习记录会永久保留；课程停用、重新编辑和再次发布都不会清除既有进度。" type="info" :closable="false" show-icon />
+          <el-table v-loading="recordLoading" :data="filteredRecords" stripe class="record-table" empty-text="暂无符合条件的学习记录">
             <el-table-column label="实习生" min-width="132"><template slot-scope="scope"><div class="student-cell"><span>{{ scope.row.name.slice(0, 1) }}</span><div><strong>{{ scope.row.name }}</strong><small>{{ scope.row.position }}</small></div></div></template></el-table-column>
             <el-table-column label="学习进度" min-width="160"><template slot-scope="scope"><div class="record-progress"><div><span>{{ scope.row.completed }}/{{ scope.row.total }} 项</span><strong>{{ scope.row.progress }}%</strong></div><el-progress :percentage="scope.row.progress" :show-text="false" :stroke-width="6" /></div></template></el-table-column>
             <el-table-column label="状态" width="92" align="center"><template slot-scope="scope"><el-tag size="mini" :type="recordStatusTag(scope.row.status)">{{ recordStatusLabel(scope.row.status) }}</el-tag></template></el-table-column>
@@ -236,7 +265,20 @@
 </template>
 
 <script>
-import { addCourse, listCourse, listCoursePositions, publishCourse, updateCourse } from '@/api/business/course'
+import { addCourse, disableCourse, listCourse, listCoursePositions, publishCourse, updateCourse } from '@/api/business/course'
+import {
+  addCourseChapter,
+  addStudyItem,
+  deleteCourseChapter,
+  deleteStudyItem,
+  getCourseContents,
+  listCourseStudyRecords,
+  saveCourseContents,
+  updateCourseChapter,
+  updateStudyItem,
+  uploadStudyAsset
+} from '@/api/business/courseContent'
+import draggable from 'vuedraggable'
 
 const CONTENT_STORAGE_KEY = 'intern-course-management-content:'
 
@@ -280,11 +322,11 @@ function clone(value) {
 function defaultContent(course) {
   const courseName = course.courseName || '岗位基础课程'
   return [
-    { id: 'chapter-' + course.id + '-1', chapterName: '第一章 入职与岗位规范', isRequired: 1, items: [
+    { id: 'chapter-' + course.id + '-1', chapterName: '第一章 入职与岗位规范', chapterIntro: '了解岗位职责、工作边界及资料安全要求，为后续学习建立基础。', isRequired: 1, items: [
       { id: 'item-' + course.id + '-1', itemTitle: courseName + '说明', itemType: 'DOC', duration: 18, completionRule: 'SCROLL_END' },
       { id: 'item-' + course.id + '-2', itemTitle: '岗位资料安全操作演示', itemType: 'VIDEO', duration: 14, completionRule: 'PLAY_TO_END' }
     ] },
-    { id: 'chapter-' + course.id + '-2', chapterName: '第二章 协作流程与质量要求', isRequired: 1, items: [
+    { id: 'chapter-' + course.id + '-2', chapterName: '第二章 协作流程与质量要求', chapterIntro: '掌握日常协作流程、交付检查点和基本质量标准。', isRequired: 1, items: [
       { id: 'item-' + course.id + '-3', itemTitle: '流程检查清单', itemType: 'DOC', duration: 20, completionRule: 'SCROLL_END' },
       { id: 'item-' + course.id + '-4', itemTitle: '章节自测', itemType: 'QUIZ', duration: 10, completionRule: 'QUIZ_SUBMIT' }
     ] }
@@ -312,13 +354,19 @@ export default {
         courseType: [{ required: true, message: '请选择课程类型', trigger: 'change' }]
       },
       contentDrawerOpen: false,
+      contentLoading: false,
+      contentSaving: false,
       recordDrawerOpen: false,
+      recordLoading: false,
+      recordList: [],
       currentCourse: null,
       contentStore: {},
+      contentDirty: false,
       chapterDialogOpen: false,
       chapterForm: {},
       chapterRules: { chapterName: [{ required: true, message: '请填写章节名称', trigger: 'blur' }] },
       itemDialogOpen: false,
+      itemSubmitting: false,
       itemForm: {},
       activeChapterId: null,
       itemRules: { itemTitle: [{ required: true, message: '请填写资料名称', trigger: 'blur' }], itemType: [{ required: true, message: '请选择资料类型', trigger: 'change' }] },
@@ -361,7 +409,7 @@ export default {
       const complete = records.filter(item => item.status === 'DONE').length
       const average = total ? Math.round(records.reduce((sum, item) => sum + item.progress, 0) / total) : 0
       return [
-        { label: '已分配学员', value: total + ' 人', hint: '已进入课程学习' },
+        { label: '应学人员', value: total + ' 人', hint: '本岗位应学人员' },
         { label: '已完成课程', value: complete + ' 人', hint: '达到课程完成要求' },
         { label: '平均完成率', value: average + '%', hint: '按学习单项汇总' }
       ]
@@ -369,8 +417,12 @@ export default {
     filteredRecords() {
       const records = this.courseRecords(this.currentCourse)
       return this.recordStatusFilter === 'ALL' ? records : records.filter(item => item.status === this.recordStatusFilter)
+    },
+    itemAccept() {
+      return this.itemForm.itemType === 'VIDEO' ? '.mp4,.webm,.mov' : '.pdf,.doc,.docx,.ppt,.pptx,.txt,.zip'
     }
   },
+  components: { draggable },
   created() {
     this.loadContentStore()
     this.positionOptions = this.filterPositions(clone(fallbackPositions))
@@ -500,20 +552,29 @@ export default {
       this.$modal.msgSuccess(isEdit ? '课程已保存' : '课程已创建，请继续配置章节资料')
     },
     handlePublish(row) {
-      const summary = this.contentSummary(row)
-      if (!summary.chapterCount || !summary.itemCount) {
-        this.$modal.msgWarning('课程至少需要配置一个章节和一项学习资料后才能发布')
+      if (!(this.previewMode && String(row.id).indexOf('preview-') === 0)) {
+        this.loadCourseContents(row).then(() => this.confirmPublish(row))
         return
       }
-      this.$modal.confirm('确认发布课程“' + row.courseName + '”？发布后对应实习生将可以在学习中心查看。').then(() => {
+      this.confirmPublish(row)
+    },
+    confirmPublish(row) {
+      const check = this.contentCheck(row)
+      if (!check.ready) {
+        this.$modal.msgWarning('发布前还需完善：' + check.missing.join('；'))
+        this.openContent(row)
+        return
+      }
+      const republish = row.status === 'DISABLED'
+      this.$modal.confirm('确认' + (republish ? '重新发布' : '发布') + '课程“' + row.courseName + '”？发布后对应部门岗位实习生可在在线学习中查看，已有学习记录保持不变。').then(() => {
         if (this.previewMode && String(row.id).indexOf('preview-') === 0) {
           row.status = 'PUBLISHED'
           row.updateTime = this.nowText()
-          this.$modal.msgSuccess('课程已发布')
+          this.$modal.msgSuccess(republish ? '课程已重新发布' : '课程已发布')
           return null
         }
         return publishCourse(row.id).then(() => {
-          this.$modal.msgSuccess('课程已发布')
+          this.$modal.msgSuccess(republish ? '课程已重新发布' : '课程已发布')
           this.getList()
         })
       }).catch(() => {})
@@ -526,7 +587,7 @@ export default {
           this.$modal.msgSuccess('课程已停用')
           return null
         }
-        return updateCourse({ id: row.id, status: 'DISABLED' }).then(() => {
+        return disableCourse(row.id).then(() => {
           this.$modal.msgSuccess('课程已停用')
           this.getList()
         })
@@ -534,19 +595,53 @@ export default {
     },
     openContent(course) {
       this.currentCourse = course
-      this.ensureContent(course)
+      this.contentDirty = false
       this.contentDrawerOpen = true
+      if (this.previewMode && String(course.id).indexOf('preview-') === 0) {
+        this.ensureContent(course)
+      } else {
+        this.loadCourseContents(course)
+      }
+    },
+    loadCourseContents(course) {
+      if (!course) return Promise.resolve([])
+      this.contentLoading = true
+      return getCourseContents(course.id).then(response => {
+        const chapters = (response.data || []).map(chapter => Object.assign({}, chapter, {
+          items: (chapter.items || []).map(item => Object.assign({}, item, {
+            assetStatus: item.contentUrl ? 'UPLOADED' : 'UNBOUND'
+          }))
+        }))
+        this.$set(this.contentStore, String(course.id), chapters)
+        return chapters
+      }).finally(() => {
+        this.contentLoading = false
+      })
     },
     openRecords(course) {
       this.currentCourse = course
       this.recordStatusFilter = 'ALL'
       this.recordDrawerOpen = true
+      if (this.previewMode && String(course.id).indexOf('preview-') === 0) {
+        this.recordList = this.previewCourseRecords(course)
+        return
+      }
+      this.recordLoading = true
+      this.recordList = []
+      listCourseStudyRecords(course.id, { status: 'ALL' }).then(response => {
+        this.recordList = (response.data || []).map(record => this.normalizeCourseRecord(record, course))
+      }).catch(() => {
+        this.recordList = []
+      }).finally(() => {
+        this.recordLoading = false
+      })
     },
     ensureContent(course) {
       const key = String(course.id)
       if (!this.contentStore[key]) {
-        this.$set(this.contentStore, key, defaultContent(course))
-        this.saveContentStore()
+        const preview = this.previewMode && String(course.id).indexOf('preview-') === 0
+        this.$set(this.contentStore, key, preview ? defaultContent(course) : [])
+        if (preview) this.saveContentStore()
       }
     },
     courseContents(course) {
@@ -555,26 +650,75 @@ export default {
       return this.contentStore[String(course.id)] || []
     },
     contentSummary(course) {
+      const stored = course && this.contentStore[String(course.id)]
+      if (!stored && course && (course.chapterCount !== undefined || course.itemCount !== undefined)) {
+        return { chapterCount: Number(course.chapterCount || 0), itemCount: Number(course.itemCount || 0) }
+      }
       const chapters = this.courseContents(course)
       return { chapterCount: chapters.length, itemCount: chapters.reduce((sum, chapter) => sum + chapter.items.length, 0) }
     },
+    contentCheck(course) {
+      const chapters = this.courseContents(course)
+      const missing = []
+      if (!chapters.length) missing.push('至少新增一个章节')
+      chapters.forEach((chapter, index) => {
+        if (!chapter.items || !chapter.items.length) missing.push('第' + (index + 1) + '章还没有学习资料')
+        ;(chapter.items || []).forEach(item => {
+          if (item.itemType !== 'QUIZ' && !item.fileName && !item.contentUrl) missing.push('“' + item.itemTitle + '”尚未绑定文件')
+        })
+      })
+      return { ready: missing.length === 0, label: missing.length ? '还缺 ' + missing.length + ' 项' : '发布条件已满足', missing: missing.slice(0, 4) }
+    },
+    markContentDirty() {
+      this.contentDirty = true
+      if (this.previewMode) this.saveContentStore()
+    },
+    saveContentDraft() {
+      if (!this.currentCourse) return
+      if (this.previewMode && String(this.currentCourse.id).indexOf('preview-') === 0) {
+        this.saveContentStore()
+        this.contentDirty = false
+        this.$modal.msgSuccess('课程编排已保存')
+        return
+      }
+      this.contentSaving = true
+      saveCourseContents(this.currentCourse.id, { chapters: this.courseContents(this.currentCourse) }).then(() => {
+        this.contentDirty = false
+        this.$modal.msgSuccess('课程编排已保存')
+        return this.loadCourseContents(this.currentCourse)
+      }).then(() => this.getList()).finally(() => {
+        this.contentSaving = false
+      })
+    },
     openChapterDialog(chapter) {
       if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
-      this.chapterForm = chapter ? Object.assign({}, chapter) : { id: undefined, chapterName: '', isRequired: 1 }
+      this.chapterForm = chapter ? Object.assign({}, chapter) : { id: undefined, chapterName: '', chapterIntro: '', isRequired: 1 }
       this.chapterDialogOpen = true
     },
     saveChapter() {
       if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
       this.$refs.chapterForm.validate(valid => {
         if (!valid || !this.currentCourse) return
+        if (!(this.previewMode && String(this.currentCourse.id).indexOf('preview-') === 0)) {
+          const request = this.chapterForm.id
+            ? updateCourseChapter(this.chapterForm.id, this.chapterForm)
+            : addCourseChapter(this.currentCourse.id, this.chapterForm)
+          request.then(() => {
+            this.chapterDialogOpen = false
+            this.$modal.msgSuccess('章节已保存')
+            return this.loadCourseContents(this.currentCourse)
+          }).then(() => this.getList())
+          return
+        }
         const chapters = this.courseContents(this.currentCourse)
         if (this.chapterForm.id) {
           const target = chapters.find(item => item.id === this.chapterForm.id)
           if (target) Object.assign(target, this.chapterForm)
         } else {
-          chapters.push({ id: 'chapter-' + Date.now(), chapterName: this.chapterForm.chapterName, isRequired: this.chapterForm.isRequired, items: [] })
+          chapters.push({ id: 'chapter-' + Date.now(), chapterName: this.chapterForm.chapterName, chapterIntro: this.chapterForm.chapterIntro, isRequired: this.chapterForm.isRequired, items: [] })
         }
         this.saveContentStore()
+        this.contentDirty = true
         this.chapterDialogOpen = false
         this.$modal.msgSuccess('章节已保存')
       })
@@ -582,18 +726,61 @@ export default {
     removeChapter(chapter) {
       if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
       this.$modal.confirm('确认删除章节“' + chapter.chapterName + '”？章节中的资料也会一并移除。').then(() => {
+        if (!(this.previewMode && String(this.currentCourse.id).indexOf('preview-') === 0)) {
+          return deleteCourseChapter(chapter.id).then(() => {
+            this.$modal.msgSuccess('章节已删除，历史学习记录仍保留')
+            return this.loadCourseContents(this.currentCourse)
+          }).then(() => this.getList())
+        }
         const chapters = this.courseContents(this.currentCourse)
         const index = chapters.findIndex(item => item.id === chapter.id)
         if (index > -1) chapters.splice(index, 1)
         this.saveContentStore()
+        this.contentDirty = true
         this.$modal.msgSuccess('章节已删除')
       }).catch(() => {})
     },
     openItemDialog(chapter, item) {
       if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
       this.activeChapterId = chapter.id
-      this.itemForm = item ? Object.assign({}, item) : { id: undefined, itemTitle: '', itemType: 'DOC', duration: 10, completionRule: 'SCROLL_END' }
+      this.itemForm = item ? Object.assign({}, item, { pendingAsset: null }) : { id: undefined, itemTitle: '', itemIntro: '', itemType: 'DOC', duration: 10, completionRule: 'SCROLL_END', isRequired: 1, completionThreshold: 100, fileName: '', fileSize: 0, fileExt: '', assetStatus: 'UNBOUND', pendingAsset: null }
       this.itemDialogOpen = true
+    },
+    handleItemTypeChange(type) {
+      this.itemForm.completionRule = type === 'VIDEO' ? 'PLAY_TO_END' : (type === 'QUIZ' ? 'QUIZ_SUBMIT' : 'SCROLL_END')
+      this.itemForm.fileName = ''
+      this.itemForm.fileSize = 0
+      this.itemForm.fileExt = ''
+      this.itemForm.assetStatus = 'UNBOUND'
+      this.itemForm.pendingAsset = null
+    },
+    handleAssetChange(file) {
+      if (!file || !file.raw) return
+      const raw = file.raw
+      const nameParts = String(raw.name || '').split('.')
+      this.itemForm.fileName = raw.name
+      this.itemForm.fileSize = raw.size || 0
+      this.itemForm.fileExt = nameParts.length > 1 ? nameParts.pop().toLowerCase() : ''
+      this.itemForm.assetStatus = 'LOCAL_ONLY'
+      this.itemForm.pendingAsset = raw
+    },
+    handleAssetExceed() {
+      this.$modal.msgInfo('如需更换资料，请先移除当前文件后再选择')
+    },
+    clearAsset() {
+      this.itemForm.fileName = ''
+      this.itemForm.fileSize = 0
+      this.itemForm.fileExt = ''
+      this.itemForm.assetStatus = 'UNBOUND'
+      this.itemForm.contentUrl = ''
+      this.itemForm.pendingAsset = null
+      if (this.$refs.assetUpload) this.$refs.assetUpload.clearFiles()
+    },
+    fileSizeText(size) {
+      const value = Number(size || 0)
+      if (!value) return '大小待上传后计算'
+      if (value < 1024 * 1024) return Math.max(1, Math.round(value / 1024)) + ' KB'
+      return (value / 1024 / 1024).toFixed(1) + ' MB'
     },
     saveItem() {
       if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
@@ -601,6 +788,34 @@ export default {
         if (!valid || !this.currentCourse) return
         const chapter = this.courseContents(this.currentCourse).find(item => item.id === this.activeChapterId)
         if (!chapter) return
+        if (!(this.previewMode && String(this.currentCourse.id).indexOf('preview-') === 0)) {
+          const pendingAsset = this.itemForm.pendingAsset
+          const payload = Object.assign({}, this.itemForm)
+          delete payload.pendingAsset
+          delete payload.assetStatus
+          if (pendingAsset) {
+            delete payload.fileName
+            delete payload.fileSize
+            delete payload.fileExt
+          }
+          this.itemSubmitting = true
+          const request = payload.id ? updateStudyItem(payload.id, payload) : addStudyItem(chapter.id, payload)
+          request.then(response => {
+            const itemId = payload.id || (response.data && response.data.id)
+            if (!pendingAsset) return null
+            if (!itemId) throw new Error('学习资料保存后未返回ID')
+            const formData = new FormData()
+            formData.append('file', pendingAsset)
+            return uploadStudyAsset(itemId, formData)
+          }).then(() => {
+            this.itemDialogOpen = false
+            this.$modal.msgSuccess(pendingAsset ? '学习资料和文件已保存' : '学习资料已保存')
+            return this.loadCourseContents(this.currentCourse)
+          }).then(() => this.getList()).finally(() => {
+            this.itemSubmitting = false
+          })
+          return
+        }
         if (this.itemForm.id) {
           const target = chapter.items.find(item => item.id === this.itemForm.id)
           if (target) Object.assign(target, this.itemForm)
@@ -608,6 +823,7 @@ export default {
           chapter.items.push(Object.assign({}, this.itemForm, { id: 'item-' + Date.now() }))
         }
         this.saveContentStore()
+        this.contentDirty = true
         this.itemDialogOpen = false
         this.$modal.msgSuccess('学习资料已保存')
       })
@@ -615,9 +831,16 @@ export default {
     removeItem(chapter, item) {
       if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
       this.$modal.confirm('确认删除学习资料“' + item.itemTitle + '”？').then(() => {
+        if (!(this.previewMode && String(this.currentCourse.id).indexOf('preview-') === 0)) {
+          return deleteStudyItem(item.id).then(() => {
+            this.$modal.msgSuccess('学习资料已删除，历史学习记录仍保留')
+            return this.loadCourseContents(this.currentCourse)
+          }).then(() => this.getList())
+        }
         const index = chapter.items.findIndex(content => content.id === item.id)
         if (index > -1) chapter.items.splice(index, 1)
         this.saveContentStore()
+        this.contentDirty = true
         this.$modal.msgSuccess('学习资料已删除')
       }).catch(() => {})
     },
@@ -638,13 +861,31 @@ export default {
     },
     courseRecords(course) {
       if (!course) return []
+      if (!(this.previewMode && String(course.id).indexOf('preview-') === 0)) return this.recordList
+      return this.previewCourseRecords(course)
+    },
+    normalizeCourseRecord(record, course) {
+      const total = Number(record.totalItems || 0)
+      const completed = Number(record.completedItems || 0)
+      return {
+        userId: record.userId,
+        name: record.studentName || '未命名实习生',
+        position: record.positionName || course.positionName || this.positionName(course.positionId) || '实习生',
+        progress: Math.max(0, Math.min(100, Math.round(Number(record.progress || 0)))),
+        completed,
+        total,
+        status: record.status || 'NOT_STARTED',
+        lastStudy: record.lastStudyTime ? this.formatDate(record.lastStudyTime) : '尚未开始'
+      }
+    },
+    previewCourseRecords(course) {
       const count = Math.max(this.expectedCount(course), this.studentCount(course), 0)
       const names = ['李晨', '王静', '陈浩', '刘薇', '张博', '周宁']
-      const progressSeed = [100, 68, 42, 20, 86, 12]
+      const progressSeed = [100, 68, 0, 20, 86, 0]
       const totalItems = Math.max(this.contentSummary(course).itemCount, 1)
       return Array.from({ length: count }, (_, index) => {
         const progress = progressSeed[index % progressSeed.length]
-        return { name: names[index % names.length], position: course.positionName || this.positionName(course.positionId) || '实习生', progress, completed: Math.round(totalItems * progress / 100), total: totalItems, status: progress === 100 ? 'DONE' : 'IN_PROGRESS', lastStudy: index === 0 ? '今天 10:42' : (index + 1) + ' 天前' }
+        return { name: names[index % names.length], position: course.positionName || this.positionName(course.positionId) || '实习生', progress, completed: Math.round(totalItems * progress / 100), total: totalItems, status: progress === 100 ? 'DONE' : (progress > 0 ? 'IN_PROGRESS' : 'NOT_STARTED'), lastStudy: progress > 0 ? (index === 0 ? '今天 10:42' : (index + 1) + ' 天前') : '尚未开始' }
       })
     },
     studentCount(course) {
@@ -654,7 +895,13 @@ export default {
       return Number(course.expectedStudentCount || course.studentCount || 0)
     },
     canEditContent(course) {
-      return Boolean(course && !this.readOnly && course.status === 'DRAFT')
+      return Boolean(course && !this.readOnly && (course.status === 'DRAFT' || course.status === 'DISABLED'))
+    },
+    contentStatusTip(course) {
+      if (!course) return ''
+      if (course.status === 'DISABLED') return '课程已停用，可修改基础信息、章节和资料；历史学习记录会保留，重新发布后对应实习生可继续学习。'
+      if (course.status === 'PUBLISHED') return '已发布课程为只读状态；需要调整内容时，请先停用课程。历史学习记录不会受影响。'
+      return '章节和资料编排保存后写入数据库；文档和视频上传到服务器资源目录，数据库保存访问路径和文件元数据。'
     },
     averageProgress(course) {
       const value = Number(course.avgCompletionRate)
@@ -673,8 +920,8 @@ export default {
     courseTone(course) { return course.courseType === 'PRACTICE' ? 'orange' : 'blue' },
     statusLabel(status) { return { DRAFT: '草稿', PUBLISHED: '已发布', DISABLED: '已停用' }[status] || status || '草稿' },
     statusTagType(status) { return { DRAFT: 'info', PUBLISHED: 'success', DISABLED: 'danger' }[status] || 'info' },
-    recordStatusLabel(status) { return status === 'DONE' ? '已完成' : '学习中' },
-    recordStatusTag(status) { return status === 'DONE' ? 'success' : 'warning' },
+    recordStatusLabel(status) { return { NOT_STARTED: '未开始', IN_PROGRESS: '学习中', DONE: '已完成' }[status] || '未开始' },
+    recordStatusTag(status) { return { NOT_STARTED: 'info', IN_PROGRESS: 'warning', DONE: 'success' }[status] || 'info' },
     formatDate(value) {
       if (!value) return '-'
       const date = new Date(value)
@@ -727,6 +974,29 @@ export default {
 .course-table { border-top: 1px solid #edf0f4; }.course-cell { min-width: 0; gap: 10px; }.course-cover, .drawer-cover { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 36px; height: 36px; border-radius: 5px; background: #edf4ff; color: #347bc2; font-size: 17px; }.course-cover.orange, .drawer-cover.orange { background: #fff4e7; color: #d2872f; }.course-cell > div { min-width: 0; }.course-cell strong, .course-cell small { display: block; }.course-cell strong { overflow: hidden; color: #304357; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }.course-cell small { max-width: 245px; margin-top: 4px; overflow: hidden; color: #8793a1; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }.position-text { color: #536476; font-size: 12px; }.position-text i { margin-right: 4px; color: #4b86c1; }.required-label { display: block; margin-top: 6px; color: #8793a1; font-size: 11px; }.required-label.required { color: #bc6c20; }.table-number { display: block; color: #3a4e63; font-size: 13px; }.table-subtext { display: block; margin-top: 2px; color: #8b96a4; font-size: 11px; }.progress-cell { padding: 3px 3px 0; text-align: left; }.progress-cell span { display: block; margin-bottom: 5px; color: #536476; font-size: 11px; }.progress-cell small { display: block; margin-top: 4px; color: #8c97a5; font-size: 10px; }.course-actions ::v-deep .el-button + .el-button { margin-left: 7px; }.danger-text { color: #c45656 !important; }
 .dialog-tip { margin-bottom: 18px; padding: 10px 12px; background: #f2f7fd; color: #5a718a; font-size: 12px; }.dialog-tip i { margin-right: 5px; color: #3683cc; }.form-full { width: 100%; }.unit-text { margin-left: 8px; color: #8490a0; font-size: 12px; }.file-input { display: flex; gap: 8px; }.file-input .el-input { flex: 1; }.form-tip { display: block; margin-top: 5px; color: #9aa5b1; font-size: 11px; }
 .drawer-heading { min-height: 86px; padding: 20px 24px; border-bottom: 1px solid #e8edf3; background: #fff; }.drawer-heading-main { min-width: 0; gap: 12px; }.drawer-cover { width: 43px; height: 43px; font-size: 20px; }.drawer-heading span:not(.drawer-cover) { display: block; margin-bottom: 5px; color: #7e8b9a; font-size: 11px; }.drawer-heading h3 { margin: 0 0 5px; overflow: hidden; color: #26384c; font-size: 17px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }.drawer-heading p { margin: 0; color: #8490a0; font-size: 12px; }.drawer-body { min-height: calc(100vh - 86px); padding: 20px 24px 32px; background: #f8fafc; }.content-toolbar { margin-bottom: 14px; color: #516174; font-size: 12px; }.content-toolbar strong { color: #35495e; }.drawer-alert { margin-bottom: 14px; }.chapter-list { display: grid; gap: 12px; }.chapter-block { overflow: hidden; border: 1px solid #e4eaf1; background: #fff; }.chapter-heading { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 14px; border-bottom: 1px solid #edf1f5; background: #fbfcfe; }.chapter-heading > div:first-child { display: flex; align-items: center; min-width: 0; }.chapter-order { display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; margin-right: 8px; border-radius: 50%; background: #eaf2fb; color: #397fc1; font-size: 10px; font-weight: 600; }.chapter-heading strong { overflow: hidden; color: #31465a; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }.chapter-heading small { margin-left: 8px; color: #95a0ad; font-size: 11px; white-space: nowrap; }.chapter-actions, .resource-actions { white-space: nowrap; }.chapter-actions .el-button + .el-button, .resource-actions .el-button + .el-button { margin-left: 7px; }.resource-row { display: flex; align-items: center; min-height: 58px; padding: 0 14px; border-bottom: 1px solid #f0f3f6; }.resource-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 29px; height: 29px; margin-right: 9px; border-radius: 4px; background: #edf4ff; color: #4687c8; font-size: 14px; }.resource-icon.video { background: #fff5e9; color: #d28a35; }.resource-icon.quiz { background: #f2effa; color: #7866b2; }.resource-info { min-width: 0; flex: 1; }.resource-info strong, .resource-info span { display: block; }.resource-info strong { overflow: hidden; color: #405267; font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }.resource-info span { margin-top: 3px; color: #95a0ad; font-size: 10px; }.add-resource { width: calc(100% - 28px); margin: 10px 14px 12px; border-style: dashed; color: #4e83b7; }.record-summary { margin-bottom: 17px; }.record-summary > .el-col > div { min-height: 78px; padding: 13px; border: 1px solid #e4eaf1; background: #fff; }.record-summary span, .record-summary strong, .record-summary small { display: block; }.record-summary span, .record-summary small { color: #8995a4; font-size: 11px; }.record-summary strong { margin: 5px 0; color: #33495f; font-size: 19px; font-weight: 600; }.record-toolbar { margin-bottom: 14px; }.record-table { border: 1px solid #e4eaf1; background: #fff; }.student-cell { gap: 8px; }.student-cell > span { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #eaf2fb; color: #397fc1; font-size: 12px; font-weight: 600; }.student-cell strong, .student-cell small { display: block; }.student-cell strong { color: #3c5066; font-size: 12px; font-weight: 600; }.student-cell small { margin-top: 3px; color: #8e9aaa; font-size: 10px; }.record-progress > div { display: flex; justify-content: space-between; margin-bottom: 6px; color: #657587; font-size: 11px; }.record-progress strong { color: #387ab8; font-weight: 600; }
-@media (max-width: 960px) { .course-management { padding: 20px 16px 34px; }.course-table ::v-deep .el-table__fixed-right { box-shadow: -4px 0 8px rgba(31, 49, 67, .06); }.page-heading { align-items: flex-start; }.heading-actions { flex-wrap: wrap; justify-content: flex-end; } }
+.content-toolbar-actions { display: flex; align-items: center; gap: 8px; }
+.content-toolbar-actions .el-tag i { margin-right: 2px; }
+.content-save-state { margin-left: 12px; font-size: 11px; }
+.content-save-state i { margin-right: 3px; }
+.content-save-state.is-saved { color: #2f9b79; }.content-save-state.is-dirty { color: #c78325; }
+.drag-handle { width: 22px; height: 22px; padding: 0; border: 0; color: #a6b2bf; background: transparent; cursor: grab; }
+.drag-handle:hover { color: #397fc1; }.drag-handle:active { cursor: grabbing; }
+.chapter-heading > div:first-child { display: flex; align-items: center; min-width: 0; }
+.chapter-heading { min-height: 64px; gap: 12px; padding-top: 8px; padding-bottom: 8px; }
+.chapter-heading > div:first-child { flex: 1; }
+.chapter-heading-copy { min-width: 0; flex: 1; }
+.chapter-heading-copy strong, .chapter-heading-copy small { display: block; margin-left: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapter-heading-copy small { margin-top: 4px; color: #7f8c9b; }
+.chapter-item-count { margin-left: 12px !important; }
+.resource-list { min-height: 2px; }
+.resource-file-state { display: block; margin-top: 3px; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.resource-intro { display: block; margin-top: 3px; overflow: hidden; color: #657587; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.resource-file-state.is-bound { color: #39856d; }.resource-file-state.is-missing { color: #c78325; }
+.resource-actions { margin-left: 8px; }
+.threshold-text { margin-left: 14px; color: #64748b; font-size: 11px; }
+.asset-upload { display: inline-block; }
+.selected-file { display: flex; align-items: center; gap: 8px; min-height: 38px; margin-top: 8px; padding: 7px 9px; border: 1px solid #dce6ef; background: #f8fbfd; }
+.selected-file > i { color: #397fc1; }.selected-file > div { min-width: 0; flex: 1; }.selected-file strong, .selected-file span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.selected-file strong { color: #405267; font-size: 12px; }.selected-file span { margin-top: 3px; color: #8995a4; font-size: 10px; }@media (max-width: 960px) { .course-management { padding: 20px 16px 34px; }.course-table ::v-deep .el-table__fixed-right { box-shadow: -4px 0 8px rgba(31, 49, 67, .06); }.page-heading { align-items: flex-start; }.heading-actions { flex-wrap: wrap; justify-content: flex-end; } }
+.asset-upload-progress { margin-top: 9px; padding: 8px 10px; border: 1px solid #e4e9f0; background: #f8fafc; }.asset-upload-progress .el-progress { margin-bottom: 5px; }.asset-upload-progress span { display: block; font-size: 12px; }.upload-uploading { color: #2878c7; }.upload-success { color: #23966f; }.upload-error { color: #d9485f; }
 @media (max-width: 700px) { .course-management { padding: 16px 12px 28px; }.page-heading { display: block; }.heading-actions { justify-content: flex-start; margin-top: 14px; }.page-heading h2 { font-size: 23px; }.page-heading p { line-height: 1.6; }.scope-strip { display: block; }.scope-meta { margin-top: 8px; padding-left: 44px; }.panel-heading { align-items: flex-start; gap: 12px; }.panel-heading p { line-height: 1.5; }.panel-heading .el-button { flex: 0 0 auto; }.query-form { padding-bottom: 10px; }.query-form .el-form-item { display: block; margin-right: 0; }.query-form ::v-deep .el-form-item__content, .query-form ::v-deep .el-select, .query-form ::v-deep .el-date-editor { width: 100%; }.query-actions { display: flex !important; gap: 8px; margin-left: 0; }.drawer-heading { padding: 17px 16px; }.drawer-body { padding: 16px 12px 28px; }.drawer-heading h3 { max-width: 235px; }.chapter-heading { padding: 0 10px; }.chapter-heading small { display: none; }.resource-row { padding: 0 10px; }.resource-actions .el-button { padding: 5px 2px; }.record-summary > .el-col > div { min-height: 74px; padding: 10px; }.record-summary strong { font-size: 16px; }.record-summary small { min-height: 26px; line-height: 1.35; }.record-toolbar { align-items: flex-start; gap: 9px; flex-direction: column; }.record-toolbar .el-radio-button__inner { padding: 8px 10px; } }
 </style>

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.StudyRecordMapper">
+    <resultMap id="StudyRecordResult" type="com.ruoyi.business.domain.StudyRecord">
+        <id property="id" column="id" />
+        <result property="userId" column="user_id" />
+        <result property="courseId" column="course_id" />
+        <result property="chapterId" column="chapter_id" />
+        <result property="itemId" column="item_id" />
+        <result property="itemType" column="item_type" />
+        <result property="status" column="status" />
+        <result property="firstOpenTime" column="first_open_time" />
+        <result property="startTime" column="start_time" />
+        <result property="lastStudyTime" column="last_study_time" />
+        <result property="studyDuration" column="study_duration" />
+        <result property="progress" column="progress" />
+        <result property="finishTime" column="finish_time" />
+        <result property="unfinishedReason" column="unfinished_reason" />
+        <result property="readConfirm" column="read_confirm" />
+        <result property="version" column="version" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+        <result property="studentName" column="student_name" />
+        <result property="positionName" column="position_name" />
+        <result property="completedItems" column="completed_items" />
+        <result property="totalItems" column="total_items" />
+    </resultMap>
+
+    <select id="selectCourseRecords" resultMap="StudyRecordResult">
+        SELECT NULL AS id, u.user_id, c.id AS course_id, NULL AS chapter_id, NULL AS item_id,
+               NULL AS item_type,
+               CASE
+                   WHEN COUNT(si.id) = 0 OR COUNT(sr.id) = 0 THEN 'NOT_STARTED'
+                   WHEN SUM(CASE WHEN sr.status = 'DONE' THEN 1 ELSE 0 END) = COUNT(si.id) THEN 'DONE'
+                   ELSE 'IN_PROGRESS'
+               END AS status,
+               MIN(history.first_open_time) AS first_open_time,
+               MIN(history.start_time) AS start_time,
+               MAX(history.last_study_time) AS last_study_time,
+               COALESCE(MAX(history.study_duration), 0) AS study_duration,
+               CASE WHEN COUNT(si.id) = 0 THEN 0
+                    ELSE ROUND(SUM(COALESCE(sr.progress, 0)) / COUNT(si.id), 2)
+               END AS progress,
+               CASE WHEN COUNT(si.id) > 0
+                          AND SUM(CASE WHEN sr.status = 'DONE' THEN 1 ELSE 0 END) = COUNT(si.id)
+                    THEN MAX(sr.finish_time) ELSE NULL END AS finish_time,
+               NULL AS unfinished_reason,
+               0 AS read_confirm,
+               MAX(history.version) AS version,
+               MIN(history.create_time) AS create_time,
+               MAX(history.update_time) AS update_time,
+               COALESCE(u.nick_name, u.user_name) AS student_name,
+               p.position_name,
+               SUM(CASE WHEN sr.status = 'DONE' THEN 1 ELSE 0 END) AS completed_items,
+               COUNT(si.id) AS total_items
+        FROM course c
+        INNER JOIN dept_position dp ON dp.position_id = c.position_id AND dp.status = 1
+        INNER JOIN sys_user u ON u.dept_id = dp.dept_id
+            AND u.position_id = c.position_id
+            AND u.del_flag = '0'
+            AND u.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+        LEFT JOIN course_chapter cc ON cc.course_id = c.id AND cc.deleted = 0
+        LEFT JOIN study_item si ON si.chapter_id = cc.id AND si.deleted = 0
+        LEFT JOIN study_record sr ON sr.user_id = u.user_id
+            AND sr.course_id = c.id
+            AND sr.item_id = si.id
+        LEFT JOIN (
+            SELECT user_id, course_id,
+                   MIN(first_open_time) AS first_open_time,
+                   MIN(start_time) AS start_time,
+                   MAX(last_study_time) AS last_study_time,
+                   SUM(COALESCE(study_duration, 0)) AS study_duration,
+                   MAX(version) AS version,
+                   MIN(create_time) AS create_time,
+                   MAX(update_time) AS update_time
+            FROM study_record
+            GROUP BY user_id, course_id
+        ) history ON history.user_id = u.user_id AND history.course_id = c.id
+        LEFT JOIN position p ON p.id = u.position_id AND p.deleted = 0
+        WHERE c.id = #{courseId}
+        <if test="deptId != null">
+            AND u.dept_id = #{deptId}
+        </if>
+        GROUP BY u.user_id, c.id, u.nick_name, u.user_name, p.position_name
+        <if test="status != null and status != '' and status != 'ALL'">
+            HAVING status = #{status}
+        </if>
+        ORDER BY last_study_time DESC, u.user_id ASC
+    </select>
+
+    <select id="selectUserCourseRecords" resultMap="StudyRecordResult">
+        SELECT sr.*
+        FROM study_record sr
+        WHERE sr.course_id = #{courseId} AND sr.user_id = #{userId}
+        ORDER BY sr.id ASC
+    </select>
+</mapper>

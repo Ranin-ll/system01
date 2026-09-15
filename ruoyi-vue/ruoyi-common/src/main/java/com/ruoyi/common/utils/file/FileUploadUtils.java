@@ -102,13 +102,23 @@ public class FileUploadUtils
             throws FileSizeLimitExceededException, IOException, FileNameLengthLimitExceededException,
             InvalidExtensionException
     {
+        return upload(baseDir, file, allowedExtension, DEFAULT_MAX_SIZE);
+    }
+
+    /**
+     * 文件上传，并按具体业务限制文件大小。
+     */
+    public static final String upload(String baseDir, MultipartFile file, String[] allowedExtension, long maxSize)
+            throws FileSizeLimitExceededException, IOException, FileNameLengthLimitExceededException,
+            InvalidExtensionException
+    {
         int fileNamelength = Objects.requireNonNull(file.getOriginalFilename()).length();
         if (fileNamelength > FileUploadUtils.DEFAULT_FILE_NAME_LENGTH)
         {
             throw new FileNameLengthLimitExceededException(FileUploadUtils.DEFAULT_FILE_NAME_LENGTH);
         }
 
-        assertAllowed(file, allowedExtension);
+        assertAllowed(file, allowedExtension, maxSize);
 
         String fileName = extractFilename(file);
 
@@ -158,10 +168,16 @@ public class FileUploadUtils
     public static final void assertAllowed(MultipartFile file, String[] allowedExtension)
             throws FileSizeLimitExceededException, InvalidExtensionException
     {
+        assertAllowed(file, allowedExtension, DEFAULT_MAX_SIZE);
+    }
+
+    public static final void assertAllowed(MultipartFile file, String[] allowedExtension, long maxSize)
+            throws FileSizeLimitExceededException, InvalidExtensionException
+    {
         long size = file.getSize();
-        if (size > DEFAULT_MAX_SIZE)
+        if (size > maxSize)
         {
-            throw new FileSizeLimitExceededException(DEFAULT_MAX_SIZE / 1024 / 1024);
+            throw new FileSizeLimitExceededException(maxSize / 1024 / 1024);
         }
 
         String fileName = file.getOriginalFilename();
