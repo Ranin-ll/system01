@@ -122,7 +122,7 @@ export default {
         idCard: [{ required: true, trigger: 'blur', message: '请输入身份证号' }, { pattern: /^(\d{15}|\d{17}[\dXx])$/, message: '请输入正确的身份证号', trigger: 'blur' }],
         positionId: [{ required: true, message: '请选择意向岗位', trigger: 'change' }],
         code: [{ validator: validateCode, trigger: 'change' }]
-      }, loading: false, captchaEnabled: true
+      }, loading: false, captchaEnabled: false
     }
   },
   computed: {
