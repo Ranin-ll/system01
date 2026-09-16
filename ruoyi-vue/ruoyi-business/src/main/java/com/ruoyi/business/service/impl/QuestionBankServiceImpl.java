@@ -15,7 +15,7 @@ import java.util.List;
  * 题库Service实现
  *
  * 数据范围控制（与课程模块一致）：
- * - 超级管理员：查看全部题库，仅只读。
+ * - 超级管理员：查看全部题库，并可指定部门进行维护。
  * - 部门管理员：查看并管理本部门题库。
  * - 实习生：仅查看本部门题库。
  */
@@ -46,6 +46,12 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
     @Override
     public int insertBank(QuestionBank bank) {
         Long deptId = managerScopeDeptId();
+        if (deptId == null) {
+            deptId = bank.getDeptId();
+        }
+        if (deptId == null) {
+            throw new ServiceException("请选择所属部门");
+        }
         bank.setDeptId(deptId);
         if (bank.getBankType() == null || bank.getBankType().isEmpty()) {
             bank.setBankType("FORMAL");
@@ -103,7 +109,7 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
 
     private Long managerScopeDeptId() {
         if (isGlobalReadOnly()) {
-            throw new ServiceException("超级管理员仅可查看题库，不能执行写入操作");
+            return null;
         }
         Long deptId = SecurityUtils.getDeptId();
         if (deptId == null) {

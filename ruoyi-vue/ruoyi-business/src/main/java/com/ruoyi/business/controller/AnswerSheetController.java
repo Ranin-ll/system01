@@ -24,14 +24,14 @@ public class AnswerSheetController extends BaseController {
     private IAnswerSheetService answerSheetService;
 
     /** 实习生开始考核（抽题） */
-    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @PreAuthorize("@ss.hasRole('PRE_TRAINEE')")
     @PostMapping("/start/{examId}")
     public AjaxResult start(@PathVariable Long examId) {
         return AjaxResult.success(answerSheetService.startExam(examId));
     }
 
     /** 实习生交卷 */
-    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @PreAuthorize("@ss.hasRole('PRE_TRAINEE')")
     @PostMapping("/submit")
     public AjaxResult submit(@RequestBody Map<String, Object> body) {
         Long sheetId = Long.valueOf(body.get("sheetId").toString());
@@ -41,7 +41,7 @@ public class AnswerSheetController extends BaseController {
     }
 
     /** 实习生考核列表（含答卷结果） */
-    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @PreAuthorize("@ss.hasAnyRoles('PRE_TRAINEE,FORMAL_TRAINEE')")
     @GetMapping("/my")
     public AjaxResult myList(@RequestParam(value = "examMode", required = false) String examMode) {
         return AjaxResult.success(answerSheetService.myExamList(examMode));

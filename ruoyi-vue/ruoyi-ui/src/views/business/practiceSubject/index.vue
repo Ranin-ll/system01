@@ -5,13 +5,13 @@
         <div class="eyebrow">学习考核 / 部门运营</div>
         <div class="title-line">
           <h2>模拟实操管理</h2>
-          <el-tag size="mini" effect="plain" :type="readOnly ? 'info' : 'success'">{{ readOnly ? '全局只读' : '本部门范围' }}</el-tag>
+          <el-tag size="mini" effect="plain" :type="isSuperAdmin ? 'warning' : 'success'">{{ isSuperAdmin ? '全局管理' : '本部门范围' }}</el-tag>
         </div>
-        <p>{{ readOnly ? '查看各部门已发布的模拟实操题。超级管理员不参与实操题的发布维护。' : '发布模拟考核的实操题目（题干必填，附件可选、可上传多个）。实习生可在「模拟考核 → 实操练习」查看题干并下载附件，无需上传作答。' }}</p>
+        <p>{{ isSuperAdmin ? '查看并维护各部门模拟实操题，创建时指定所属部门。' : '发布模拟考核的实操题目（题干必填，附件可选、可上传多个）。实习生可在「模拟考核 → 实操练习」查看题干并下载附件，无需上传作答。' }}</p>
       </div>
       <div class="heading-actions">
         <el-button icon="el-icon-refresh" size="small" @click="loadList">刷新数据</el-button>
-        <el-button v-if="!readOnly" v-hasPermi="['business:psubject:add']" type="primary" icon="el-icon-plus" size="small" @click="handleAdd">发布实操题</el-button>
+        <el-button v-hasPermi="['business:psubject:add']" type="primary" icon="el-icon-plus" size="small" @click="handleAdd">发布实操题</el-button>
       </div>
     </header>
 
@@ -19,8 +19,8 @@
       <div class="scope-main">
         <span class="scope-icon"><i class="el-icon-documentation" /></span>
         <div>
-          <strong>{{ readOnly ? '全局实操题视图' : (deptName || '当前部门') }}</strong>
-          <span>{{ readOnly ? '可查看各部门已发布的实操题' : '仅维护本部门实操题；启用的题目实习生可见' }}</span>
+          <strong>{{ isSuperAdmin ? '全局实操题管理' : (deptName || '当前部门') }}</strong>
+          <span>{{ isSuperAdmin ? '可按部门筛选并维护实操题' : '仅维护本部门实操题；启用的题目实习生可见' }}</span>
         </div>
       </div>
       <div class="scope-meta"><span><i class="el-icon-lock" /> 数据范围由登录账号决定</span></div>
@@ -32,6 +32,11 @@
       </div>
 
       <el-form :inline="true" size="small" class="query-form" @submit.native.prevent>
+        <el-form-item v-if="isSuperAdmin" label="所属部门">
+          <el-select v-model="queryParams.deptId" clearable filterable placeholder="全部部门" style="width:180px" @change="handleQuery">
+            <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="关键词">
           <el-input v-model="queryParams.content" clearable placeholder="题干关键词" style="width:200px" @keyup.enter.native="handleQuery" />
         </el-form-item>
@@ -79,10 +84,9 @@
         </el-table-column>
         <el-table-column label="操作" width="210" align="center">
           <template slot-scope="scope">
-            <el-button v-if="!readOnly" v-hasPermi="['business:psubject:edit']" type="text" size="mini" icon="el-icon-edit" @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button v-if="!readOnly" v-hasPermi="['business:psubject:edit']" type="text" size="mini" :icon="scope.row.status === 1 ? 'el-icon-turn-off' : 'el-icon-open'" @click="handleToggleStatus(scope.row)">{{ scope.row.status === 1 ? '停用' : '启用' }}</el-button>
-            <el-button v-if="!readOnly" v-hasPermi="['business:psubject:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click="handleDelete(scope.row)">删除</el-button>
-            <span v-if="readOnly" class="muted">只读</span>
+            <el-button v-hasPermi="['business:psubject:edit']" type="text" size="mini" icon="el-icon-edit" @click="handleEdit(scope.row)">编辑</el-button>
+            <el-button v-hasPermi="['business:psubject:edit']" type="text" size="mini" :icon="scope.row.status === 1 ? 'el-icon-turn-off' : 'el-icon-open'" @click="handleToggleStatus(scope.row)">{{ scope.row.status === 1 ? '停用' : '启用' }}</el-button>
+            <el-button v-hasPermi="['business:psubject:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -93,6 +97,11 @@
     <!-- 发布 / 编辑弹窗 -->
     <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="680px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="80px">
+        <el-form-item v-if="isSuperAdmin && !form.id" label="所属部门" prop="deptId">
+          <el-select v-model="form.deptId" filterable placeholder="请选择所属部门" style="width:100%">
+            <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="题干" prop="content">
           <el-input v-model="form.content" type="textarea" :rows="5" placeholder="请输入实操题题干 / 操作要求" maxlength="5000" show-word-limit />
         </el-form-item>
@@ -138,6 +147,7 @@ import {
   listPracticeSubject, addPracticeSubject, updatePracticeSubject,
   changePracticeSubjectStatus, delPracticeSubject, uploadFile
 } from '@/api/business/practiceSubject'
+import { listDept } from '@/api/system/dept'
 import { parseTime } from '@/utils/ruoyi'
 import { mapGetters } from 'vuex'
 
@@ -148,11 +158,13 @@ export default {
       loading: false,
       list: [],
       total: 0,
-      queryParams: { pageNum: 1, pageSize: 10, content: '', status: undefined },
+      queryParams: { pageNum: 1, pageSize: 10, content: '', status: undefined, deptId: null },
+      deptOptions: [],
       dialogVisible: false,
       dialogTitle: '',
-      form: { id: null, content: '', attachments: [], status: 1 },
+      form: { id: null, deptId: null, content: '', attachments: [], status: 1 },
       rules: {
+        deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }],
         content: [{ required: true, message: '请输入题干', trigger: 'blur' }]
       },
       uploading: false,
@@ -161,13 +173,19 @@ export default {
   },
   computed: {
     ...mapGetters(['deptName', 'roles']),
-    readOnly() { return this.roles.indexOf('SUPER_ADMIN') > -1 },
+    isSuperAdmin() { return this.roles.indexOf('SUPER_ADMIN') > -1 },
     baseApi() { return process.env.VUE_APP_BASE_API || '' }
   },
   created() {
+    if (this.isSuperAdmin) this.loadDepartments()
     this.loadList()
   },
   methods: {
+    loadDepartments() {
+      listDept({ status: '0' }).then(res => {
+        this.deptOptions = (res.data || []).filter(dept => dept.parentId !== 0)
+      })
+    },
     loadList() {
       this.loading = true
       listPracticeSubject(this.queryParams).then(res => {
@@ -181,11 +199,11 @@ export default {
       this.loadList()
     },
     resetQuery() {
-      this.queryParams = { pageNum: 1, pageSize: 10, content: '', status: undefined }
+      this.queryParams = { pageNum: 1, pageSize: 10, content: '', status: undefined, deptId: null }
       this.loadList()
     },
     handleAdd() {
-      this.form = { id: null, content: '', attachments: [], status: 1 }
+      this.form = { id: null, deptId: null, content: '', attachments: [], status: 1 }
       this.dialogTitle = '发布实操题'
       this.dialogVisible = true
       this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
@@ -193,6 +211,7 @@ export default {
     handleEdit(row) {
       this.form = {
         id: row.id,
+        deptId: row.deptId,
         content: row.content,
         attachments: this.parseAttachments(row.attachmentsJson).slice(),
         status: row.status
@@ -225,6 +244,7 @@ export default {
         this.submitting = true
         const payload = {
           id: this.form.id,
+          deptId: this.form.deptId,
           content: this.form.content,
           status: this.form.status,
           // 注意：清空附件时必须回传空串而不是 null，否则后端 <if test="attachmentsJson != null"> 不会更新，旧附件会残留

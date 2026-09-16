@@ -18,9 +18,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 答卷Service实现
@@ -42,9 +44,14 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
 
     @Override
     public Map<String, Object> startExam(Long examId) {
+        assertPreTrainee();
         Exam exam = examMapper.selectExamById(examId, null);
         if (exam == null) {
             throw new ServiceException("考核不存在");
+        }
+        Long deptId = SecurityUtils.getDeptId();
+        if (deptId == null || !deptId.equals(exam.getDeptId())) {
+            throw new ServiceException("考核不存在或不适用于当前部门");
         }
         if (!"PUBLISHED".equals(exam.getStatus())) {
             throw new ServiceException("该考核未发布，暂不能参加");
@@ -134,6 +141,7 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
 
     @Override
     public Map<String, Object> submit(Long sheetId, List<Map<String, String>> answers) {
+        assertPreTrainee();
         Long userId = SecurityUtils.getUserId();
         AnswerSheet sheet = answerSheetMapper.selectSheetById(sheetId);
         if (sheet == null || !sheet.getUserId().equals(userId)) {
@@ -225,6 +233,9 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
     public List<Map<String, Object>> myExamList(String examMode) {
         Long userId = SecurityUtils.getUserId();
         Long deptId = SecurityUtils.getDeptId();
+        if (deptId == null) {
+            throw new ServiceException("当前账号未配置部门，无法参加考核");
+        }
         Exam query = new Exam();
         query.setScopeDeptId(deptId);
         if (examMode != null && !examMode.isEmpty()) {
@@ -261,19 +272,13 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
 
     @Override
     public List<Map<String, Object>> gradingList(Long examId) {
-        Long deptId = SecurityUtils.getDeptId();
-        if (deptId == null) {
-            throw new ServiceException("当前账号未配置部门");
-        }
-        return answerSheetMapper.selectGradingList(examId, deptId);
+        Exam exam = getAccessibleExam(examId);
+        return answerSheetMapper.selectGradingList(examId, exam.getDeptId());
     }
 
     @Override
     public Map<String, Object> sheetDetail(Long sheetId) {
-        AnswerSheet sheet = answerSheetMapper.selectSheetById(sheetId);
-        if (sheet == null) {
-            throw new ServiceException("答卷不存在");
-        }
+        AnswerSheet sheet = getAccessibleSheet(sheetId);
         List<AnswerSheetItem> items = answerSheetMapper.selectItemsBySheetId(sheetId);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("sheet", sheet);
@@ -284,18 +289,22 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
     @Override
     public int grade(Long sheetId, List<AnswerSheetItem> items) {
         Long userId = SecurityUtils.getUserId();
-        AnswerSheet sheet = answerSheetMapper.selectSheetById(sheetId);
-        if (sheet == null) {
-            throw new ServiceException("答卷不存在");
-        }
+        AnswerSheet sheet = getAccessibleSheet(sheetId);
         if ("PUBLISHED".equals(sheet.getStatus())) {
             throw new ServiceException("成绩已发布，不能再批改");
         }
         BigDecimal manualScore = BigDecimal.ZERO;
+        Set<Long> sheetItemIds = new HashSet<>();
+        for (AnswerSheetItem sheetItem : answerSheetMapper.selectItemsBySheetId(sheetId)) {
+            sheetItemIds.add(sheetItem.getId());
+        }
         if (items != null) {
             for (AnswerSheetItem it : items) {
                 if (it.getId() == null) {
                     continue;
+                }
+                if (!sheetItemIds.contains(it.getId())) {
+                    throw new ServiceException("答题明细不存在或不属于当前答卷");
                 }
                 AnswerSheetItem upd = new AnswerSheetItem();
                 upd.setId(it.getId());
@@ -319,11 +328,7 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
 
     @Override
     public int gradePractically(Long sheetId, BigDecimal manualScore, String manualComment) {
-        Long userId = SecurityUtils.getUserId();
-        AnswerSheet sheet = answerSheetMapper.selectSheetById(sheetId);
-        if (sheet == null) {
-            throw new ServiceException("答卷不存在");
-        }
+        AnswerSheet sheet = getAccessibleSheet(sheetId);
         if ("PUBLISHED".equals(sheet.getStatus())) {
             throw new ServiceException("成绩已发布，不能再批改");
         }
@@ -338,10 +343,7 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
 
     @Override
     public int publishResult(Long examId, boolean disableExam, boolean publishUnanswered) {
-        Exam exam = examMapper.selectExamById(examId, SecurityUtils.getDeptId());
-        if (exam == null) {
-            throw new ServiceException("考核不存在或无权操作");
-        }
+        Exam exam = getAccessibleExam(examId);
         List<AnswerSheet> sheets = answerSheetMapper.selectSheetListByExam(examId);
         int count = 0;
         // 已作答：算总分并发布
@@ -398,6 +400,41 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         return count;
     }
 
+    private AnswerSheet getAccessibleSheet(Long sheetId) {
+        AnswerSheet sheet = answerSheetMapper.selectSheetById(sheetId);
+        if (sheet == null) {
+            throw new ServiceException("答卷不存在");
+        }
+        getAccessibleExam(sheet.getExamId());
+        return sheet;
+    }
+
+    private Exam getAccessibleExam(Long examId) {
+        if (examId == null) {
+            throw new ServiceException("考核ID不能为空");
+        }
+        Exam exam = examMapper.selectExamById(examId, currentManagerDeptScope());
+        if (exam == null) {
+            throw new ServiceException("考核不存在或无权操作");
+        }
+        return exam;
+    }
+
+    private Long currentManagerDeptScope() {
+        if (isGlobalManager()) {
+            return null;
+        }
+        Long deptId = SecurityUtils.getDeptId();
+        if (deptId == null) {
+            throw new ServiceException("当前账号未配置部门，无法管理考核");
+        }
+        return deptId;
+    }
+
+    private boolean isGlobalManager() {
+        return SecurityUtils.hasRole("SUPER_ADMIN") || SecurityUtils.isAdmin(SecurityUtils.getUserId());
+    }
+
     private Long toLong(Object v) {
         if (v == null) {
             return null;
@@ -412,6 +449,13 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
             return Long.valueOf(v.toString());
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private void assertPreTrainee() {
+        String userStatus = SecurityUtils.getLoginUser().getUser().getUserStatus();
+        if (!"PRE_TRAINEE".equals(userStatus)) {
+            throw new ServiceException("当前账号已不处于预备实习阶段，不能参加考核");
         }
     }
 

@@ -98,27 +98,23 @@ WHERE menu_id IN (@assessment_id, @department_id, @bank_id, @bank_query_id, @ban
                    @question_list_id, @question_query_id, @question_add_id, @question_edit_id, @question_remove_id, @question_import_id)
   AND @dept_role_id IS NOT NULL;
 
--- 3.2 超级管理员：只读（题库列表+查询、题目列表+查询）
+-- 3.2 超级管理员：继承部门管理员全部管理权限，后端数据范围为全局
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 SELECT @super_role_id, menu_id FROM sys_menu
-WHERE menu_id IN (@assessment_id, @department_id, @bank_id, @bank_query_id, @question_list_id, @question_query_id)
+WHERE menu_id IN (@assessment_id, @department_id, @bank_id, @bank_query_id, @bank_add_id, @bank_edit_id, @bank_remove_id,
+                  @question_list_id, @question_query_id, @question_add_id, @question_edit_id, @question_remove_id, @question_import_id)
   AND @super_role_id IS NOT NULL;
 
-DELETE FROM sys_role_menu
-WHERE role_id = @super_role_id
-  AND menu_id IN (@bank_add_id, @bank_edit_id, @bank_remove_id,
-                   @question_add_id, @question_edit_id, @question_remove_id, @question_import_id);
-
--- 3.3 预备实习生 & 正式实习生：题库列表（看题库）+ 考试中心菜单（参与考核）
+-- 3.3 仅预备实习生参与备考、模拟与正式考核；正式实习生保留历史记录入口但不新增考试入口
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 SELECT @pre_role_id, menu_id FROM sys_menu
 WHERE menu_id IN (@assessment_id, @intern_id, @bank_id, @exam_center_id)
   AND @pre_role_id IS NOT NULL;
 
-INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
-SELECT @formal_role_id, menu_id FROM sys_menu
-WHERE menu_id IN (@assessment_id, @intern_id, @bank_id, @exam_center_id)
-  AND @formal_role_id IS NOT NULL;
+-- 清理旧版本脚本可能遗留的正式实习生新考核入口；历史记录由只读接口和隐藏路由提供。
+DELETE FROM sys_role_menu
+WHERE role_id = @formal_role_id
+  AND menu_id IN (@bank_id, @exam_center_id);
 
 -- ==============================
 -- 完成

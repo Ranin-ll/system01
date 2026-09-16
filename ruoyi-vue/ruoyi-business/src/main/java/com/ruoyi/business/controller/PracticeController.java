@@ -24,14 +24,14 @@ public class PracticeController extends BaseController {
     private IPracticeService practiceService;
 
     /** 开始模拟考核：从本部门模拟题库随机抽 10 题 */
-    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @PreAuthorize("@ss.hasRole('PRE_TRAINEE')")
     @PostMapping("/start")
     public AjaxResult start() {
         return AjaxResult.success(practiceService.startPractice());
     }
 
     /** 提交模拟考核并判分 */
-    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @PreAuthorize("@ss.hasRole('PRE_TRAINEE')")
     @PostMapping("/submit")
     public AjaxResult submit(@RequestBody Map<String, Object> body) {
         Long bankId = Long.valueOf(body.get("bankId").toString());
@@ -41,14 +41,14 @@ public class PracticeController extends BaseController {
     }
 
     /** 查询本人模拟考核记录 */
-    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @PreAuthorize("@ss.hasAnyRoles('PRE_TRAINEE,FORMAL_TRAINEE')")
     @GetMapping("/my")
     public AjaxResult myRecords() {
         return AjaxResult.success(practiceService.myRecords());
     }
 
     /** 查看某条模拟记录的题目与作答详情（仅本人可见） */
-    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @PreAuthorize("@ss.hasAnyRoles('PRE_TRAINEE,FORMAL_TRAINEE')")
     @GetMapping("/record/{recordId}")
     public AjaxResult recordDetail(@PathVariable("recordId") Long recordId) {
         return AjaxResult.success(practiceService.recordDetail(recordId));

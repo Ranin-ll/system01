@@ -5,15 +5,38 @@
         <div class="eyebrow">学习考核 / 部门运营</div>
         <div class="title-line">
           <h2>考核管理</h2>
-          <el-tag size="mini" effect="plain" :type="readOnly ? 'info' : 'success'">{{ readOnly ? '全局只读' : '本部门范围' }}</el-tag>
+          <el-tag size="mini" effect="plain" :type="isSuperAdmin ? 'warning' : 'success'">{{ isSuperAdmin ? '全局管理' : '本部门范围' }}</el-tag>
         </div>
-        <p>{{ readOnly ? '查看全组织考核安排。' : '创建理论考核与实操考核，发布考核、批改答卷并发布成绩。' }}</p>
+        <p>{{ isSuperAdmin ? '查看并维护全组织考核，可按部门筛选并进入答卷批阅。' : '创建理论考核与实操考核，发布考核、批改答卷并发布成绩。' }}</p>
       </div>
       <div class="heading-actions">
         <el-button icon="el-icon-refresh" size="small" @click="loadList">刷新</el-button>
-        <el-button v-if="!readOnly" v-hasPermi="['business:bank:add']" type="primary" icon="el-icon-plus" size="small" @click="handleAdd">新建考核</el-button>
+        <el-button v-hasPermi="['business:bank:add']" type="primary" icon="el-icon-plus" size="small" @click="handleAdd">新建考核</el-button>
       </div>
     </header>
+
+    <el-form :inline="true" size="small" class="query-form" @submit.native.prevent>
+      <el-form-item v-if="isSuperAdmin" label="所属部门">
+        <el-select v-model="queryParams.deptId" clearable filterable placeholder="全部部门" style="width:180px" @change="handleQuery">
+          <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="考核名称">
+        <el-input v-model="queryParams.examName" clearable placeholder="请输入考核名称" style="width:200px" @keyup.enter.native="handleQuery" />
+      </el-form-item>
+      <el-form-item label="状态">
+        <el-select v-model="queryParams.status" clearable placeholder="全部状态" style="width:130px">
+          <el-option label="待发布" value="DRAFT" />
+          <el-option label="已发布" value="PUBLISHED" />
+          <el-option label="待批改" value="GRADING" />
+          <el-option label="已停用" value="DISABLED" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" icon="el-icon-search" @click="handleQuery">查询</el-button>
+        <el-button icon="el-icon-refresh-left" @click="resetQuery">重置</el-button>
+      </el-form-item>
+    </el-form>
 
     <el-table v-loading="loading" :data="examList" stripe empty-text="暂无考核">
       <el-table-column label="考核名称" min-width="200">
@@ -43,11 +66,11 @@
       <el-table-column label="操作" width="330" align="center">
         <template slot-scope="scope">
           <el-button type="text" size="mini" icon="el-icon-view" @click="goGrading(scope.row)">查看详情</el-button>
-          <el-button v-if="scope.row.status === 'DRAFT' && !readOnly" v-hasPermi="['business:bank:edit']" type="text" size="mini" icon="el-icon-upload" class="primary-text" @click="handlePublish(scope.row)">发布</el-button>
-          <el-button v-if="scope.row.status === 'PUBLISHED' && !readOnly" v-hasPermi="['business:bank:edit']" type="text" size="mini" @click="handleChangeStatus(scope.row, 'DISABLED')">停用</el-button>
-          <el-button v-if="scope.row.status === 'DISABLED' && !readOnly" v-hasPermi="['business:bank:edit']" type="text" size="mini" class="primary-text" @click="handleChangeStatus(scope.row, 'PUBLISHED')">启用</el-button>
-          <el-button v-if="(scope.row.status === 'DRAFT' || scope.row.status === 'PUBLISHED' || scope.row.status === 'DISABLED') && !readOnly" v-hasPermi="['business:bank:edit']" type="text" size="mini" icon="el-icon-edit" @click="handleEdit(scope.row)">编辑</el-button>
-          <el-button v-if="!readOnly" v-hasPermi="['business:bank:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click="handleDelete(scope.row)">删除</el-button>
+          <el-button v-if="scope.row.status === 'DRAFT'" v-hasPermi="['business:bank:edit']" type="text" size="mini" icon="el-icon-upload" class="primary-text" @click="handlePublish(scope.row)">发布</el-button>
+          <el-button v-if="scope.row.status === 'PUBLISHED'" v-hasPermi="['business:bank:edit']" type="text" size="mini" @click="handleChangeStatus(scope.row, 'DISABLED')">停用</el-button>
+          <el-button v-if="scope.row.status === 'DISABLED'" v-hasPermi="['business:bank:edit']" type="text" size="mini" class="primary-text" @click="handleChangeStatus(scope.row, 'PUBLISHED')">启用</el-button>
+          <el-button v-if="scope.row.status === 'DRAFT' || scope.row.status === 'DISABLED'" v-hasPermi="['business:bank:edit']" type="text" size="mini" icon="el-icon-edit" @click="handleEdit(scope.row)">编辑</el-button>
+          <el-button v-hasPermi="['business:bank:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click="handleDelete(scope.row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -57,6 +80,11 @@
     <!-- 新建/编辑弹窗 -->
     <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="560px" append-to-body>
       <el-form ref="examForm" :model="form" :rules="rules" label-width="100px">
+        <el-form-item v-if="isSuperAdmin && !form.id" label="所属部门" prop="deptId">
+          <el-select v-model="form.deptId" filterable placeholder="请选择所属部门" style="width:100%" @change="handleFormDeptChange">
+            <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="考核名称" prop="examName"><el-input v-model="form.examName" placeholder="请输入考核名称" /></el-form-item>
         <el-form-item label="考核类型" prop="examType">
           <el-radio-group v-model="form.examType" :disabled="!!form.id">
@@ -67,7 +95,7 @@
 
         <template v-if="form.examType === 'THEORY'">
           <el-form-item label="所属题库" prop="bankId">
-            <el-select v-model="form.bankId" placeholder="选择题库" style="width:100%">
+            <el-select v-model="form.bankId" :disabled="isSuperAdmin && !form.deptId" placeholder="选择当前部门题库" style="width:100%">
               <el-option v-for="b in bankOptions" :key="b.id" :label="b.bankName" :value="b.id" />
             </el-select>
           </el-form-item>
@@ -101,6 +129,7 @@
 <script>
 import { listExam, addExam, updateExam, delExam, publishExam, changeExamStatus, uploadFile } from '@/api/business/exam'
 import { listBank } from '@/api/business/questionBank'
+import { listDept } from '@/api/system/dept'
 import { mapGetters } from 'vuex'
 
 export default {
@@ -110,12 +139,14 @@ export default {
       loading: false,
       examList: [],
       total: 0,
-      queryParams: { pageNum: 1, pageSize: 10, examMode: '' },
+      queryParams: { pageNum: 1, pageSize: 10, examMode: '', examName: '', status: '', deptId: null },
       bankOptions: [],
+      deptOptions: [],
       dialogVisible: false,
       dialogTitle: '',
-      form: { id: null, examName: '', examMode: 'FORMAL', examType: 'THEORY', bankId: null, singleCount: 5, multiCount: 3, judgeCount: 2, singleScore: 2, multiScore: 4, judgeScore: 2, subjectContent: '', subjectAttachment: '', passLine: 60 },
+      form: { id: null, deptId: null, examName: '', examMode: 'FORMAL', examType: 'THEORY', bankId: null, singleCount: 5, multiCount: 3, judgeCount: 2, singleScore: 2, multiScore: 4, judgeScore: 2, subjectContent: '', subjectAttachment: '', passLine: 60 },
       rules: {
+        deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }],
         examName: [{ required: true, message: '请输入考核名称', trigger: 'blur' }],
         bankId: [{ required: true, message: '请选择题库', trigger: 'change' }],
         subjectContent: [{ required: true, message: '请输入实操题干', trigger: 'blur' }]
@@ -125,13 +156,19 @@ export default {
   },
   computed: {
     ...mapGetters(['roles']),
-    readOnly() { return this.roles.indexOf('SUPER_ADMIN') > -1 }
+    isSuperAdmin() { return this.roles.indexOf('SUPER_ADMIN') > -1 }
   },
   created() {
+    if (this.isSuperAdmin) this.loadDepartments()
     this.loadList()
-    this.loadBanks()
+    if (!this.isSuperAdmin) this.loadBanks()
   },
   methods: {
+    loadDepartments() {
+      listDept({ status: '0' }).then(res => {
+        this.deptOptions = (res.data || []).filter(dept => dept.parentId !== 0)
+      })
+    },
     loadList() {
       this.loading = true
       listExam(this.queryParams).then(res => {
@@ -140,8 +177,12 @@ export default {
         this.loading = false
       }).catch(() => { this.loading = false })
     },
-    loadBanks() {
-      listBank({}).then(res => { this.bankOptions = res.rows || [] })
+    loadBanks(deptId) {
+      if (this.isSuperAdmin && !deptId) {
+        this.bankOptions = []
+        return
+      }
+      listBank({ deptId, pageNum: 1, pageSize: 1000, status: 'ENABLED' }).then(res => { this.bankOptions = res.rows || [] })
     },
     examTypeDesc(row) {
       if (row.examType === 'PRACTICAL') {
@@ -154,22 +195,28 @@ export default {
       return (row.bankName || '未关联题库') + ' · ' + parts.join(' / ') + ' · 通过线 ' + row.passLine + ' 分'
     },
     handleAdd() {
-      this.form = { id: null, examName: '', examMode: 'FORMAL', examType: 'THEORY', bankId: null, singleCount: 5, multiCount: 3, judgeCount: 2, singleScore: 2, multiScore: 4, judgeScore: 2, subjectContent: '', subjectAttachment: '', passLine: 60 }
+      this.form = { id: null, deptId: null, examName: '', examMode: 'FORMAL', examType: 'THEORY', bankId: null, singleCount: 5, multiCount: 3, judgeCount: 2, singleScore: 2, multiScore: 4, judgeScore: 2, subjectContent: '', subjectAttachment: '', passLine: 60 }
+      this.bankOptions = this.isSuperAdmin ? [] : this.bankOptions
       this.dialogTitle = '新建考核'
       this.dialogVisible = true
       this.$nextTick(() => this.$refs.examForm && this.$refs.examForm.clearValidate())
     },
     handleEdit(row) {
       this.form = {
-        id: row.id, examName: row.examName, examMode: row.examMode || 'FORMAL', examType: row.examType || 'THEORY',
+        id: row.id, deptId: row.deptId, examName: row.examName, examMode: row.examMode || 'FORMAL', examType: row.examType || 'THEORY',
         bankId: row.bankId, singleCount: row.singleCount || 0, multiCount: row.multiCount || 0, judgeCount: row.judgeCount || 0,
         singleScore: row.singleScore, multiScore: row.multiScore, judgeScore: row.judgeScore,
         subjectContent: row.subjectContent || '', subjectAttachment: row.subjectAttachment || '',
         passLine: row.passLine
       }
+      this.loadBanks(row.deptId)
       this.dialogTitle = '编辑考核'
       this.dialogVisible = true
       this.$nextTick(() => this.$refs.examForm && this.$refs.examForm.clearValidate())
+    },
+    handleFormDeptChange(deptId) {
+      this.form.bankId = null
+      this.loadBanks(deptId)
     },
     onSubjectFile(file) {
       const formData = new FormData()
@@ -223,6 +270,10 @@ export default {
       this.queryParams.pageNum = 1
       this.loadList()
     },
+    resetQuery() {
+      this.queryParams = { pageNum: 1, pageSize: 10, examMode: '', examName: '', status: '', deptId: null }
+      this.loadList()
+    },
     handleChangeStatus(row, status) {
       const label = status === 'PUBLISHED' ? '启用' : '停用'
       this.$modal.confirm(`确认${label}考核「${row.examName}」吗？`).then(() => {
@@ -246,6 +297,7 @@ export default {
 .page-heading h2 { margin: 6px 0 8px; font-size: 22px; font-weight: 600; color: #1d2939; }
 .page-heading p { margin: 0; color: #667085; font-size: 13px; }
 .heading-actions { text-align: right; }
+.query-form { margin-bottom: 14px; padding: 12px 14px 0; border: 1px solid #e7ecf3; background: #fff; }
 .exam-cell strong, .exam-cell small { display: block; }
 .exam-cell strong { color: #1d2939; font-size: 14px; }
 .exam-cell small { color: #98a2b3; font-size: 12px; margin-top: 3px; }

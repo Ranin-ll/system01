@@ -54,7 +54,7 @@
 
       <div class="action-bar">
         <el-button size="medium" @click="goList">返回列表</el-button>
-        <el-button type="primary" size="medium" @click="rePractice">再练一次</el-button>
+        <el-button v-if="!isFormal" type="primary" size="medium" @click="rePractice">再练一次</el-button>
       </div>
     </div>
   </div>
@@ -72,6 +72,11 @@ export default {
       loading: false,
       record: null,
       items: []
+    }
+  },
+  computed: {
+    isFormal() {
+      return this.$store.getters.roles.indexOf('FORMAL_TRAINEE') > -1
     }
   },
   watch: {

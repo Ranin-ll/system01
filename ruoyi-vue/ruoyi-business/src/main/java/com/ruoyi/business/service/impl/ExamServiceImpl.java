@@ -2,7 +2,9 @@ package com.ruoyi.business.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ruoyi.business.domain.Exam;
+import com.ruoyi.business.domain.QuestionBank;
 import com.ruoyi.business.mapper.ExamMapper;
+import com.ruoyi.business.mapper.QuestionBankMapper;
 import com.ruoyi.business.service.IExamService;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.SecurityUtils;
@@ -14,15 +16,17 @@ import java.util.List;
 /**
  * 考核Service实现
  *
- * 数据范围：超级管理员看全部（只读），部门管理员管理本部门考核。
+ * 数据范围：超级管理员查看全部并可指定部门管理，部门管理员管理本部门考核。
  */
 @Service
 public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IExamService {
 
     private final ExamMapper examMapper;
+    private final QuestionBankMapper questionBankMapper;
 
-    public ExamServiceImpl(ExamMapper examMapper) {
+    public ExamServiceImpl(ExamMapper examMapper, QuestionBankMapper questionBankMapper) {
         this.examMapper = examMapper;
+        this.questionBankMapper = questionBankMapper;
     }
 
     @Override
@@ -43,6 +47,12 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
     @Override
     public int insertExam(Exam exam) {
         Long deptId = managerScopeDeptId();
+        if (deptId == null) {
+            deptId = exam.getDeptId();
+        }
+        if (deptId == null) {
+            throw new ServiceException("请选择所属部门");
+        }
         exam.setDeptId(deptId);
         exam.setStatus("DRAFT");
         String type = exam.getExamType() == null ? "THEORY" : exam.getExamType();
@@ -54,6 +64,7 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
             if (exam.getBankId() == null) {
                 throw new ServiceException("理论考核必须关联题库");
             }
+            validateBankDept(exam.getBankId(), deptId);
             if (exam.getSingleCount() == null) exam.setSingleCount(0);
             if (exam.getMultiCount() == null) exam.setMultiCount(0);
             if (exam.getJudgeCount() == null) exam.setJudgeCount(0);
@@ -96,11 +107,13 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
     @Override
     public int updateExam(Exam exam) {
         managerScopeDeptId();
-        getAccessibleExam(exam.getId());
+        Exam exist = getAccessibleExam(exam.getId());
         // 已发布/批改中的考核不允许修改基本信息
-        Exam exist = examMapper.selectExamById(exam.getId(), null);
         if (exist != null && !"DRAFT".equals(exist.getStatus()) && !"DISABLED".equals(exist.getStatus())) {
             throw new ServiceException("考核已发布或批改中，不能修改");
+        }
+        if ("THEORY".equals(exist.getExamType()) && exam.getBankId() != null) {
+            validateBankDept(exam.getBankId(), exist.getDeptId());
         }
         exam.setDeptId(null);
         exam.setDeleted(null);
@@ -163,7 +176,7 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
 
     private Long managerScopeDeptId() {
         if (isGlobalReadOnly()) {
-            throw new ServiceException("超级管理员仅可查看考核，不能执行写入操作");
+            return null;
         }
         Long deptId = SecurityUtils.getDeptId();
         if (deptId == null) {
@@ -181,6 +194,13 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
             throw new ServiceException("考核不存在或无权操作");
         }
         return exam;
+    }
+
+    private void validateBankDept(Long bankId, Long deptId) {
+        QuestionBank bank = questionBankMapper.selectBankById(bankId, deptId);
+        if (bank == null || !deptId.equals(bank.getDeptId())) {
+            throw new ServiceException("所选题库不存在或不属于考核部门");
+        }
     }
 
     private boolean isGlobalReadOnly() {

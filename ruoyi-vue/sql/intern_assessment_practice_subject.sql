@@ -75,15 +75,11 @@ SELECT @dept_role_id, menu_id FROM sys_menu
 WHERE menu_id IN (@assessment_id, @department_id, @psubject_id, @ps_query_id, @ps_add_id, @ps_edit_id, @ps_remove_id)
   AND @dept_role_id IS NOT NULL;
 
--- 3.2 超级管理员：只读（菜单 + 查询），显式收回写按钮
+-- 3.2 超级管理员：继承部门管理员全部管理权限，后端数据范围为全局
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 SELECT @super_role_id, menu_id FROM sys_menu
-WHERE menu_id IN (@assessment_id, @department_id, @psubject_id, @ps_query_id)
+WHERE menu_id IN (@assessment_id, @department_id, @psubject_id, @ps_query_id, @ps_add_id, @ps_edit_id, @ps_remove_id)
   AND @super_role_id IS NOT NULL;
-
-DELETE FROM sys_role_menu
-WHERE role_id = @super_role_id
-  AND menu_id IN (@ps_add_id, @ps_edit_id, @ps_remove_id);
 
 -- 说明：实习生无需新菜单/新权限 —— 实操列表通过 /business/practice-subject/published
 --       暴露，沿用实习生已有的 business:bank:list 权限，入口在「模拟考核」页内。

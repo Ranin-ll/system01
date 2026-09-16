@@ -9,16 +9,16 @@
     <!-- 阶段一：考核列表 -->
     <template v-if="stage === 'list'">
       <header class="exam-heading">
-        <div><span class="eyebrow">{{ examMode === 'PRACTICE' ? 'PRACTICE CENTER' : 'EXAM CENTER' }}</span><h1>{{ examMode === 'PRACTICE' ? '模拟考核' : '参与考核' }}</h1><p>{{ examMode === 'PRACTICE' ? '选择模拟考核进行练习，巩固所学内容。' : '选择已发布的正式考核参加，每人每场考核仅可作答一次。' }}</p></div>
+        <div><span class="eyebrow">{{ isFormal ? 'ASSESSMENT HISTORY' : (examMode === 'PRACTICE' ? 'PRACTICE CENTER' : 'EXAM CENTER') }}</span><h1>{{ isFormal ? '考核记录' : (examMode === 'PRACTICE' ? '模拟考核' : '参与考核') }}</h1><p>{{ isFormal ? '转正前的考核结果会继续保留，可在此查看。' : (examMode === 'PRACTICE' ? '选择模拟考核进行练习，巩固所学内容。' : '选择已发布的正式考核参加，每人每场考核仅可作答一次。') }}</p></div>
       </header>
 
       <section v-loading="loading" class="bank-section">
-        <div v-if="!exams.length && !loading" class="empty-state">
+        <div v-if="!visibleExams.length && !loading" class="empty-state">
           <i class="el-icon-document" />
-          <strong>暂无可参加的考核</strong>
-          <span>部门发布考核后，会出现在这里。</span>
+          <strong>{{ isFormal ? '暂无历史考核记录' : '暂无可参加的考核' }}</strong>
+          <span>{{ isFormal ? '转正前参加过的考核会保留在这里。' : '部门发布考核后，会出现在这里。' }}</span>
         </div>
-        <div v-for="exam in exams" :key="exam.examId" class="exam-row">
+        <div v-for="exam in visibleExams" :key="exam.examId" class="exam-row">
           <div class="exam-icon"><i :class="exam.examType === 'PRACTICAL' ? 'el-icon-upload2' : 'el-icon-document'" /></div>
           <div class="exam-info">
             <h3>{{ exam.examName }}</h3>
@@ -41,7 +41,7 @@
             </template>
           </div>
           <div class="exam-action">
-            <el-button v-if="!exam.sheet && exam.status === 'PUBLISHED'" type="primary" size="small" icon="el-icon-arrow-right" @click="startExam(exam)">参加考核</el-button>
+            <el-button v-if="!isFormal && !exam.sheet && exam.status === 'PUBLISHED'" type="primary" size="small" icon="el-icon-arrow-right" @click="startExam(exam)">参加考核</el-button>
             <span v-else-if="exam.sheet && exam.sheet.status === 'PUBLISHED'" class="done-text">已完成</span>
           </div>
         </div>
@@ -141,6 +141,8 @@ export default {
   },
   computed: {
     baseApi() { return process.env.VUE_APP_BASE_API || '' },
+    isFormal() { return this.$store.getters.roles.indexOf('FORMAL_TRAINEE') > -1 },
+    visibleExams() { return this.isFormal ? this.exams.filter(exam => !!exam.sheet) : this.exams },
     examMode() { return this.$route.name === 'InternMockExam' ? 'PRACTICE' : 'FORMAL' },
     progress() {
       const answered = this.answers.filter(a => {

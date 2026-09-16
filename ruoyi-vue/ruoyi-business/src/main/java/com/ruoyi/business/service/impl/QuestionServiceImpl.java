@@ -27,7 +27,7 @@ import java.util.Map;
  * 题目Service实现
  *
  * 数据范围控制（与题库/课程模块一致）：
- * - 超级管理员：查看全部题目，仅只读。
+ * - 超级管理员：查看全部题目，并可维护任一部门题库中的题目。
  * - 部门管理员：查看并管理本部门题库下的题目。
  * - 实习生：仅查看本部门题库，用于参与考核。
  */
@@ -388,7 +388,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     private Long managerScopeDeptId() {
         if (isGlobalReadOnly()) {
-            throw new ServiceException("超级管理员仅可查看题目，不能执行写入操作");
+            return null;
         }
         Long deptId = SecurityUtils.getDeptId();
         if (deptId == null) {

@@ -38,6 +38,9 @@
         <where>
             b.deleted = 0
             <include refid="bankScope" />
+            <if test="deptId != null">
+                AND b.dept_id = #{deptId}
+            </if>
             <if test="bankName != null and bankName != ''">
                 AND b.bank_name LIKE CONCAT('%', #{bankName}, '%')
             </if>

@@ -14,7 +14,7 @@ import java.util.List;
  * 模拟考核实操题 Service 实现
  *
  * 数据范围控制（与题库/课程模块保持一致）：
- * - 超级管理员：查看全部实操题，仅只读。
+ * - 超级管理员：查看全部实操题，并可指定部门进行维护。
  * - 部门管理员：发布并维护本部门实操题。
  * - 实习生：只看本部门「已启用」的实操题，只读、只下载附件。
  */
@@ -47,7 +47,14 @@ public class PracticeSubjectServiceImpl implements IPracticeSubjectService {
             throw new ServiceException("请填写题干");
         }
         subject.setId(null);
-        subject.setDeptId(managerScopeDeptId());
+        Long deptId = managerScopeDeptId();
+        if (deptId == null) {
+            deptId = subject.getDeptId();
+        }
+        if (deptId == null) {
+            throw new ServiceException("请选择所属部门");
+        }
+        subject.setDeptId(deptId);
         subject.setContent(subject.getContent().trim());
         subject.setStatus(subject.getStatus() == null ? 1 : subject.getStatus());
         subject.setCreateBy(SecurityUtils.getUsername());
@@ -147,7 +154,7 @@ public class PracticeSubjectServiceImpl implements IPracticeSubjectService {
 
     private Long managerScopeDeptId() {
         if (isGlobalReadOnly()) {
-            throw new ServiceException("超级管理员仅可查看实操题，不能执行写入操作");
+            return null;
         }
         Long deptId = SecurityUtils.getDeptId();
         if (deptId == null) {

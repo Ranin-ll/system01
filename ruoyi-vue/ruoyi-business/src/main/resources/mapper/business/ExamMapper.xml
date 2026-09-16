@@ -61,6 +61,9 @@
         <where>
             e.deleted = 0
             <include refid="examScope" />
+            <if test="deptId != null">
+                AND e.dept_id = #{deptId}
+            </if>
             <if test="examName != null and examName != ''">
                 AND e.exam_name LIKE CONCAT('%', #{examName}, '%')
             </if>

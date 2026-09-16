@@ -51,6 +51,7 @@ public class PracticeServiceImpl implements IPracticeService {
 
     @Override
     public Map<String, Object> startPractice() {
+        assertPreTrainee();
         Long deptId = SecurityUtils.getDeptId();
         if (deptId == null) {
             throw new ServiceException("当前账号未配置部门，无法进行模拟考核");
@@ -82,6 +83,7 @@ public class PracticeServiceImpl implements IPracticeService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> submitPractice(Long bankId, List<Map<String, Object>> answers) {
+        assertPreTrainee();
         Long userId = SecurityUtils.getUserId();
         Long deptId = SecurityUtils.getDeptId();
 
@@ -230,5 +232,12 @@ public class PracticeServiceImpl implements IPracticeService {
         }
         Collections.sort(list);
         return String.join(",", list);
+    }
+
+    private void assertPreTrainee() {
+        String userStatus = SecurityUtils.getLoginUser().getUser().getUserStatus();
+        if (!"PRE_TRAINEE".equals(userStatus)) {
+            throw new ServiceException("当前账号已不处于预备实习阶段，不能参加模拟考核");
+        }
     }
 }

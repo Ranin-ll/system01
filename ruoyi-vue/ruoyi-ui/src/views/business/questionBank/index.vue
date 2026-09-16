@@ -5,18 +5,18 @@
         <div class="eyebrow">学习考核 / 部门运营</div>
         <div class="title-line">
           <h2>题库管理</h2>
-          <el-tag size="mini" effect="plain" :type="readOnly ? 'info' : 'success'">{{ readOnly ? '全局只读' : '本部门范围' }}</el-tag>
+          <el-tag size="mini" effect="plain" :type="isSuperAdmin ? 'warning' : 'success'">{{ isSuperAdmin ? '全局管理' : '本部门范围' }}</el-tag>
         </div>
-        <p>{{ readOnly ? '查看全组织题库与题目。超级管理员不参与题库和题目的编辑维护。' : '维护本部门题库与题目，题目支持 Excel 批量导入；发布后实习生可在考试中心参与考核。' }}</p>
+        <p>{{ isSuperAdmin ? '查看全组织题库与题目，可按部门筛选并维护任一部门数据。' : '维护本部门题库与题目，题目支持 Excel 批量导入；发布后实习生可在考试中心参与考核。' }}</p>
       </div>
       <div class="heading-actions">
         <el-button icon="el-icon-refresh" size="small" @click="loadBanks">刷新数据</el-button>
-        <el-button v-if="!readOnly" v-hasPermi="['business:bank:add']" type="primary" icon="el-icon-plus" size="small" @click="handleAddBank">新建题库</el-button>
+        <el-button v-hasPermi="['business:bank:add']" type="primary" icon="el-icon-plus" size="small" @click="handleAddBank">新建题库</el-button>
       </div>
     </header>
 
     <section class="scope-strip">
-      <div class="scope-main"><span class="scope-icon"><i class="el-icon-office-building" /></span><div><strong>{{ readOnly ? '全局题库视图' : (deptName || '当前部门') }}</strong><span>{{ readOnly ? '可查看五个部门的题库数据' : '仅管理本部门题库与题目' }}</span></div></div>
+      <div class="scope-main"><span class="scope-icon"><i class="el-icon-office-building" /></span><div><strong>{{ isSuperAdmin ? '全局题库管理' : (deptName || '当前部门') }}</strong><span>{{ isSuperAdmin ? '可查看并维护五个部门的题库数据' : '仅管理本部门题库与题目' }}</span></div></div>
       <div class="scope-meta"><span><i class="el-icon-lock" /> 数据范围由登录账号决定</span></div>
     </section>
 
@@ -42,8 +42,8 @@
         <el-table-column label="操作" width="230" align="center">
           <template slot-scope="scope">
             <el-button type="text" size="mini" icon="el-icon-s-management" @click.stop="selectBank(scope.row)">管理题目</el-button>
-            <el-button v-if="!readOnly" v-hasPermi="['business:bank:edit']" type="text" size="mini" icon="el-icon-edit" @click.stop="handleEditBank(scope.row)">编辑</el-button>
-            <el-button v-if="!readOnly && scope.row.bankType !== 'PRACTICE'" v-hasPermi="['business:bank:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click.stop="handleDeleteBank(scope.row)">删除</el-button>
+            <el-button v-hasPermi="['business:bank:edit']" type="text" size="mini" icon="el-icon-edit" @click.stop="handleEditBank(scope.row)">编辑</el-button>
+            <el-button v-if="scope.row.bankType !== 'PRACTICE'" v-hasPermi="['business:bank:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click.stop="handleDeleteBank(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -54,8 +54,8 @@
       <div class="panel-heading">
         <div><h3>题目管理 <el-tag size="mini" type="primary" effect="plain">{{ currentBank.bankName }}</el-tag></h3><p>维护单选、多选、判断题目，支持 Excel 批量导入。</p></div>
         <div class="panel-actions">
-          <el-button v-if="!readOnly" v-hasPermi="['business:question:import']" size="mini" icon="el-icon-upload2" @click="openImport">批量导入</el-button>
-          <el-button v-if="!readOnly" v-hasPermi="['business:question:add']" type="primary" plain size="mini" icon="el-icon-plus" @click="handleAddQuestion">新增题目</el-button>
+          <el-button v-hasPermi="['business:question:import']" size="mini" icon="el-icon-upload2" @click="openImport">批量导入</el-button>
+          <el-button v-hasPermi="['business:question:add']" type="primary" plain size="mini" icon="el-icon-plus" @click="handleAddQuestion">新增题目</el-button>
         </div>
       </div>
 
@@ -88,8 +88,8 @@
         </el-table-column>
         <el-table-column label="操作" width="140" align="center">
           <template slot-scope="scope">
-            <el-button v-if="!readOnly" v-hasPermi="['business:question:edit']" type="text" size="mini" icon="el-icon-edit" @click="handleEditQuestion(scope.row)">编辑</el-button>
-            <el-button v-if="!readOnly" v-hasPermi="['business:question:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click="handleDeleteQuestion(scope.row)">删除</el-button>
+            <el-button v-hasPermi="['business:question:edit']" type="text" size="mini" icon="el-icon-edit" @click="handleEditQuestion(scope.row)">编辑</el-button>
+            <el-button v-hasPermi="['business:question:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click="handleDeleteQuestion(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -100,6 +100,11 @@
     <!-- 题库编辑弹窗 -->
     <el-dialog :title="bankDialogTitle" :visible.sync="bankDialogVisible" width="520px" append-to-body>
       <el-form ref="bankForm" :model="bankForm" :rules="bankRules" label-width="90px">
+        <el-form-item v-if="isSuperAdmin && !bankForm.id" label="所属部门" prop="deptId">
+          <el-select v-model="bankForm.deptId" placeholder="请选择所属部门" style="width:100%">
+            <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="题库名称" prop="bankName"><el-input v-model="bankForm.bankName" placeholder="请输入题库名称" maxlength="128" /></el-form-item>
         <el-form-item label="题库说明"><el-input v-model="bankForm.description" type="textarea" :rows="3" placeholder="填写题库说明（可选）" maxlength="500" /></el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="bankForm.status"><el-radio label="ENABLED">启用</el-radio><el-radio label="DISABLED">停用</el-radio></el-radio-group></el-form-item>
@@ -177,6 +182,7 @@
 <script>
 import { listBank, addBank, updateBank, delBank } from '@/api/business/questionBank'
 import { listQuestion, addQuestion, updateQuestion, delQuestion, downloadTemplate as downloadQuestionTemplate, importQuestions, uploadFile } from '@/api/business/question'
+import { listDept } from '@/api/system/dept'
 import { mapGetters } from 'vuex'
 
 export default {
@@ -186,6 +192,7 @@ export default {
       bankLoading: false,
       bankList: [],
       currentBank: null,
+      deptOptions: [],
 
       queryParams: { pageNum: 1, pageSize: 10, qtype: '', stem: '' },
       questionLoading: false,
@@ -194,8 +201,11 @@ export default {
 
       bankDialogVisible: false,
       bankDialogTitle: '',
-      bankForm: { id: null, bankName: '', description: '', status: 'ENABLED' },
-      bankRules: { bankName: [{ required: true, message: '请输入题库名称', trigger: 'blur' }] },
+      bankForm: { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED' },
+      bankRules: {
+        deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }],
+        bankName: [{ required: true, message: '请输入题库名称', trigger: 'blur' }]
+      },
       bankSubmitting: false,
 
       questionDialogVisible: false,
@@ -214,7 +224,7 @@ export default {
   },
   computed: {
     ...mapGetters(['deptName', 'roles']),
-    readOnly() { return this.roles.indexOf('SUPER_ADMIN') > -1 },
+    isSuperAdmin() { return this.roles.indexOf('SUPER_ADMIN') > -1 },
     bankDialogTitle() { return this.bankForm.id ? '编辑题库' : '新建题库' },
     questionDialogTitle() { return this.questionForm.id ? '编辑题目' : '新增题目' },
     validOptionKeys() { return this.optionKeys.filter(k => (this.questionForm.options[k] || '').trim() !== '') },
@@ -224,9 +234,15 @@ export default {
     }
   },
   created() {
+    if (this.isSuperAdmin) this.loadDepartments()
     this.loadBanks()
   },
   methods: {
+    loadDepartments() {
+      listDept({ status: '0' }).then(res => {
+        this.deptOptions = (res.data || []).filter(dept => dept.parentId !== 0)
+      })
+    },
     loadBanks() {
       this.bankLoading = true
       listBank({}).then(res => {
@@ -255,11 +271,11 @@ export default {
       this.loadQuestions()
     },
     handleAddBank() {
-      this.bankForm = { id: null, bankName: '', description: '', status: 'ENABLED' }
+      this.bankForm = { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED' }
       this.bankDialogVisible = true
     },
     handleEditBank(row) {
-      this.bankForm = { id: row.id, bankName: row.bankName, description: row.description, status: row.status }
+      this.bankForm = { id: row.id, deptId: row.deptId, bankName: row.bankName, description: row.description, status: row.status }
       this.bankDialogVisible = true
     },
     submitBank() {

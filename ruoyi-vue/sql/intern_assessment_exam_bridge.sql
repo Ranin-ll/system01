@@ -29,6 +29,13 @@ SET @s := IF(@c = 0,
 PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
 
 SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'exam' AND COLUMN_NAME = 'question_count');
+SET @s := IF(@c = 0,
+  'ALTER TABLE `exam` ADD COLUMN `question_count` INT NOT NULL DEFAULT 10 COMMENT ''客观题抽题数量'' AFTER `bank_id`',
+  'DO 0');
+PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'exam' AND COLUMN_NAME = 'single_count');
 SET @s := IF(@c = 0,
   'ALTER TABLE `exam` ADD COLUMN `single_count` INT NOT NULL DEFAULT 0 COMMENT ''单选题数量'' AFTER `question_count`',
@@ -111,20 +118,29 @@ SET @s := IF(@c = 0,
 PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
 
 -- ----------------------------------------------------------------------------
--- 5. question_bank 示例题库（id = 2 / 3）
---    原因：intern_assessment_seed_questions.sql 硬编码 bank_id = 2 和 3（各 24 题），
---          但建表脚本只建空表，没有任何脚本插入这两行 → 种子题目会 bank_id 悬空，
---          前端按题库筛选时看不到任何题目。
---    TODO 可按实际调整「题库名称 / 归属部门 / 类型」；下列默认放在开发部门(104)。
---    如需为其它部门启用模拟考核，请参考文末注释块补建 PRACTICE 题库。
+-- 5. 为五个业务部门初始化正式题库和模拟题库
+--    通过部门名称取 dept_id，避免在其它环境迁移时依赖固定主键。
+--    只补缺失的题库，不覆盖管理员已经维护的数据。
 -- ----------------------------------------------------------------------------
-INSERT INTO `question_bank` (`id`, `bank_name`, `bank_type`, `dept_id`, `description`, `status`, `question_count`)
-SELECT 2, '开发部门模拟题库', 'PRACTICE', 104, '模拟考核用题库（默认归属开发部门，可调整）', 'ENABLED', 0
-WHERE NOT EXISTS (SELECT 1 FROM `question_bank` WHERE `id` = 2);
+INSERT INTO `question_bank` (`bank_name`, `bank_type`, `dept_id`, `description`, `status`, `question_count`)
+SELECT CONCAT(d.`dept_name`, '模拟题库'), 'PRACTICE', d.`dept_id`, '本部门模拟考核题库', 'ENABLED', 0
+FROM `sys_dept` d
+WHERE d.`dept_name` IN ('交付部门', '开发部门', '设计部门', '质检部门', '建模部门')
+  AND d.`del_flag` = '0'
+  AND NOT EXISTS (
+      SELECT 1 FROM `question_bank` b
+      WHERE b.`dept_id` = d.`dept_id` AND b.`bank_type` = 'PRACTICE' AND b.`deleted` = 0
+  );
 
-INSERT INTO `question_bank` (`id`, `bank_name`, `bank_type`, `dept_id`, `description`, `status`, `question_count`)
-SELECT 3, '开发部门正式题库', 'FORMAL', 104, '正式考核用题库（默认归属开发部门，可调整）', 'ENABLED', 0
-WHERE NOT EXISTS (SELECT 1 FROM `question_bank` WHERE `id` = 3);
+INSERT INTO `question_bank` (`bank_name`, `bank_type`, `dept_id`, `description`, `status`, `question_count`)
+SELECT CONCAT(d.`dept_name`, '正式题库'), 'FORMAL', d.`dept_id`, '本部门正式考核题库', 'ENABLED', 0
+FROM `sys_dept` d
+WHERE d.`dept_name` IN ('交付部门', '开发部门', '设计部门', '质检部门', '建模部门')
+  AND d.`del_flag` = '0'
+  AND NOT EXISTS (
+      SELECT 1 FROM `question_bank` b
+      WHERE b.`dept_id` = d.`dept_id` AND b.`bank_type` = 'FORMAL' AND b.`deleted` = 0
+  );
 
 -- ----------------------------------------------------------------------------
 -- 6. 验证
@@ -144,22 +160,3 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'answer_sheet'
   AND `COLUMN_NAME` IN ('manual_score','manual_comment');
 
 SELECT `id`, `bank_name`, `bank_type`, `dept_id`, `status` FROM `question_bank` ORDER BY `id`;
-
--- ============================================================================
--- 附：为其余部门补建模拟题库（按需取消注释后执行）
--- 说明：selectPracticeBankByDept 按「实习生所属部门」查找 PRACTICE 题库，
---       缺少该行的部门，实习生进入模拟考核会提示找不到题库。
---       题库名称可自行调整；id 交由自增分配。
--- ============================================================================
--- INSERT INTO `question_bank` (`bank_name`, `bank_type`, `dept_id`, `description`, `status`, `question_count`)
--- SELECT '交付部门模拟题库', 'PRACTICE', 103, '模拟考核用题库', 'ENABLED', 0
--- WHERE NOT EXISTS (SELECT 1 FROM `question_bank` WHERE `dept_id` = 103 AND `bank_type` = 'PRACTICE');
--- INSERT INTO `question_bank` (`bank_name`, `bank_type`, `dept_id`, `description`, `status`, `question_count`)
--- SELECT '设计部门模拟题库', 'PRACTICE', 105, '模拟考核用题库', 'ENABLED', 0
--- WHERE NOT EXISTS (SELECT 1 FROM `question_bank` WHERE `dept_id` = 105 AND `bank_type` = 'PRACTICE');
--- INSERT INTO `question_bank` (`bank_name`, `bank_type`, `dept_id`, `description`, `status`, `question_count`)
--- SELECT '质检部门模拟题库', 'PRACTICE', 106, '模拟考核用题库', 'ENABLED', 0
--- WHERE NOT EXISTS (SELECT 1 FROM `question_bank` WHERE `dept_id` = 106 AND `bank_type` = 'PRACTICE');
--- INSERT INTO `question_bank` (`bank_name`, `bank_type`, `dept_id`, `description`, `status`, `question_count`)
--- SELECT '建模部门模拟题库', 'PRACTICE', 107, '模拟考核用题库', 'ENABLED', 0
--- WHERE NOT EXISTS (SELECT 1 FROM `question_bank` WHERE `dept_id` = 107 AND `bank_type` = 'PRACTICE');

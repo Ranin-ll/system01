@@ -3,21 +3,21 @@
     <div class="exam-breadcrumb">
       <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回工作台</el-button>
       <span>/</span>
-      <b>模拟考核</b>
+      <b>{{ isFormal ? '模拟考核记录' : '模拟考核' }}</b>
     </div>
 
     <!-- 阶段一：入口 + 历史成绩 -->
     <template v-if="stage === 'list'">
       <header class="exam-heading">
         <div>
-          <span class="eyebrow">PRACTICE CENTER</span>
-          <h1>模拟考核</h1>
-          <p>每次随机抽取 10 道题，交卷自动判分，成绩仅供本人查看，不计入正式成绩。</p>
+          <span class="eyebrow">{{ isFormal ? 'PRACTICE HISTORY' : 'PRACTICE CENTER' }}</span>
+          <h1>{{ isFormal ? '模拟考核记录' : '模拟考核' }}</h1>
+          <p>{{ isFormal ? '转正前的模拟考核记录会继续保留，可逐题回看。' : '每次随机抽取 10 道题，交卷自动判分，成绩仅供本人查看，不计入正式成绩。' }}</p>
         </div>
-        <el-button size="medium" icon="el-icon-suitcase" @click="goSubjectList">实操练习</el-button>
+        <el-button v-if="!isFormal" size="medium" icon="el-icon-suitcase" @click="goSubjectList">实操练习</el-button>
       </header>
 
-      <div class="start-card">
+      <div v-if="!isFormal" class="start-card">
         <div class="start-info">
           <div class="start-icon"><i class="el-icon-edit-outline" /></div>
           <div>
@@ -33,7 +33,7 @@
           <h3>我的模拟记录</h3>
           <span class="section-tip">点击「查看详情」进入回顾页，可回看当次题目、你的作答与正确答案</span>
         </div>
-        <div v-if="!records.length" class="empty-state"><i class="el-icon-tickets" /><span>还没有模拟记录，先来一次吧</span></div>
+        <div v-if="!records.length" class="empty-state"><i class="el-icon-tickets" /><span>{{ isFormal ? '暂无转正前的模拟记录' : '还没有模拟记录，先来一次吧' }}</span></div>
         <el-table v-else :data="records" stripe>
           <el-table-column label="成绩" width="140" align="center">
             <template slot-scope="scope"><strong class="score-text">{{ scope.row.correctCount }} / {{ scope.row.totalCount }}</strong></template>
@@ -130,7 +130,7 @@
 
         <div class="result-actions">
           <el-button size="medium" @click="goList">返回列表</el-button>
-          <el-button type="primary" size="medium" @click="startPractice">再练一次</el-button>
+          <el-button v-if="!isFormal" type="primary" size="medium" @click="startPractice">再练一次</el-button>
         </div>
       </div>
     </template>
@@ -158,6 +158,9 @@ export default {
     }
   },
   computed: {
+    isFormal() {
+      return this.$store.getters.roles.indexOf('FORMAL_TRAINEE') > -1
+    },
     progress() {
       const answered = this.answers.filter(a => {
         if (Array.isArray(a)) return a.length > 0
@@ -169,7 +172,7 @@ export default {
   created() {
     this.loadRecords()
     // 从回顾页「再练一次」跳回时自动开始抽题（先清掉 query，避免刷新重复触发）
-    if (this.$route.query.start === '1') {
+    if (!this.isFormal && this.$route.query.start === '1') {
       this.$router.replace({ path: this.$route.path })
       this.startPractice()
     }
@@ -196,6 +199,10 @@ export default {
       }).catch(() => { this.loading = false })
     },
     startPractice() {
+      if (this.isFormal) {
+        this.$modal.msgWarning('正式实习生仅可查看转正前的模拟考核记录')
+        return
+      }
       this.loading = true
       startPractice().then(res => {
         const data = res.data
