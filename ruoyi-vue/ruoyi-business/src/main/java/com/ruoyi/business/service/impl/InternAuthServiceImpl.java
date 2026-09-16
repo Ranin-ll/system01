@@ -7,13 +7,18 @@ import com.ruoyi.business.domain.RegisterApplication;
 import com.ruoyi.business.mapper.InternAuthMapper;
 import com.ruoyi.business.service.IInternAuthService;
 import com.ruoyi.business.service.IRegisterApplicationService;
+import com.ruoyi.common.constant.CacheConstants;
 import com.ruoyi.common.constant.UserConstants;
 import com.ruoyi.common.core.domain.entity.SysUser;
+import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.common.exception.user.CaptchaException;
+import com.ruoyi.common.exception.user.CaptchaExpireException;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.ServletUtils;
 import com.ruoyi.common.utils.ip.IpUtils;
+import com.ruoyi.system.service.ISysConfigService;
 import com.ruoyi.system.service.ISysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,10 +47,17 @@ public class InternAuthServiceImpl implements IInternAuthService {
     @Autowired
     private InternAuthMapper internAuthMapper;
 
+    @Autowired
+    private ISysConfigService configService;
+
+    @Autowired
+    private RedisCache redisCache;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String register(InternRegisterBody body) {
         validate(body);
+        validateCaptcha(body.getCode(), body.getUuid());
 
         Position position = internAuthMapper.selectEnabledPositionById(body.getPositionId());
         if (position == null || !Integer.valueOf(1).equals(position.getStatus())) {
@@ -185,6 +197,21 @@ public class InternAuthServiceImpl implements IInternAuthService {
         }
         if (body.getExpectedEntryDate() != null && !body.getExpectedEntryDate().isEmpty()) {
             parseDate(body.getExpectedEntryDate());
+        }
+    }
+
+    private void validateCaptcha(String code, String uuid) {
+        if (!configService.selectCaptchaEnabled()) {
+            return;
+        }
+        String verifyKey = CacheConstants.CAPTCHA_CODE_KEY + StringUtils.nvl(uuid, "");
+        String captcha = redisCache.getCacheObject(verifyKey);
+        redisCache.deleteObject(verifyKey);
+        if (captcha == null) {
+            throw new CaptchaExpireException();
+        }
+        if (StringUtils.isEmpty(code) || !code.equalsIgnoreCase(captcha)) {
+            throw new CaptchaException();
         }
     }
 

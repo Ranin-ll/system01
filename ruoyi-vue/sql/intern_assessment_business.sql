@@ -204,6 +204,7 @@ CREATE TABLE `course_chapter` (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT,
     `course_id`  BIGINT       NOT NULL COMMENT '课程ID',
     `chapter_name` VARCHAR(128) NOT NULL COMMENT '章节名',
+    `chapter_intro` VARCHAR(300) DEFAULT NULL COMMENT '章节内容简介',
     `sort_no`    INT          NOT NULL DEFAULT 0 COMMENT '排序',
     `is_required` TINYINT     NOT NULL DEFAULT 1 COMMENT '是否必修',
     `create_time` DATETIME             DEFAULT CURRENT_TIMESTAMP,
@@ -219,6 +220,7 @@ CREATE TABLE `study_item` (
     `id`            BIGINT       NOT NULL AUTO_INCREMENT,
     `chapter_id`    BIGINT       NOT NULL COMMENT '所属章节',
     `item_title`    VARCHAR(128) NOT NULL COMMENT '单项标题',
+    `item_intro`    VARCHAR(500)          DEFAULT NULL COMMENT '学习资料内容简介',
     `item_type`     VARCHAR(24)  NOT NULL COMMENT 'DOC文档理论/VIDEO视频实操/QUIZ章节测试',
     `content_url`   VARCHAR(255)          DEFAULT NULL COMMENT '文档/视频地址或文件',
     `duration`      INT                   DEFAULT 0 COMMENT '时长(秒/分钟,视频)',
@@ -229,6 +231,10 @@ CREATE TABLE `study_item` (
     `create_time`   DATETIME              DEFAULT CURRENT_TIMESTAMP,
     `update_time`   DATETIME              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted`       TINYINT      NOT NULL DEFAULT 0,
+    `file_name`     VARCHAR(255)          DEFAULT NULL COMMENT '原始文件名',
+    `file_size`     BIGINT                DEFAULT NULL COMMENT '文件字节数',
+    `file_ext`      VARCHAR(16)           DEFAULT NULL COMMENT '文件扩展名',
+    `completion_threshold` INT             DEFAULT NULL COMMENT '视频完成阈值',
     PRIMARY KEY (`id`),
     KEY `idx_item_chapter` (`chapter_id`)
 ) ENGINE=InnoDB COMMENT='学习单项表';

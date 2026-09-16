@@ -8,7 +8,9 @@ import com.ruoyi.common.annotation.Excel;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
  * 课程对象 course
@@ -80,7 +82,28 @@ public class Course implements Serializable {
     private Integer chapterCount;
 
     @TableField(exist = false)
+    private Integer itemCount;
+
+    @TableField(exist = false)
+    private Integer completedItems;
+
+    @TableField(exist = false)
+    private Integer duration;
+
+    @TableField(exist = false)
+    private Integer progress;
+
+    @TableField(exist = false)
+    private Date lastStudyTime;
+
+    @TableField(exist = false)
+    private List<CourseChapter> chapters = new ArrayList<>();
+
+    @TableField(exist = false)
     private Integer studentCount;
+
+    @TableField(exist = false)
+    private Integer expectedStudentCount;
 
     @TableField(exist = false)
     private Double avgCompletionRate;

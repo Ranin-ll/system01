@@ -27,6 +27,20 @@ public interface CourseMapper extends BaseMapper<Course> {
     /** 校验岗位是否绑定到指定部门。 */
     int countPositionInDept(@Param("positionId") Long positionId, @Param("deptId") Long deptId);
 
+    /** 发布前校验课程至少有一个有效章节。 */
+    int countActiveChapters(@Param("courseId") Long courseId);
+
+    /** 发布前校验每个有效章节都至少有一项有效学习资料。 */
+    int countEmptyChapters(@Param("courseId") Long courseId);
+
+    /** 发布前校验文档和视频资料均已上传文件。 */
+    int countUnboundAssets(@Param("courseId") Long courseId);
+
     /** 查询课程管理可用岗位；部门管理员只返回本部门绑定的岗位。 */
     List<Position> selectCoursePositions(@Param("scopeDeptId") Long scopeDeptId);
+
+    /** 实习生仅可查看本部门、本岗位的已发布课程。 */
+    List<Course> selectLearningCourses(@Param("userId") Long userId);
+
+    Course selectLearningCourseById(@Param("courseId") Long courseId, @Param("userId") Long userId);
 }

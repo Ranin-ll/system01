@@ -24,4 +24,6 @@ public interface ICourseService extends IService<Course> {
     int deleteByIds(Long[] ids);
 
     int publish(Long id);
+
+    int disable(Long id);
 }

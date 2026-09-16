@@ -20,7 +20,9 @@
         <result property="positionName" column="position_name"/>
         <result property="deptName"     column="dept_name"    />
         <result property="chapterCount" column="chapter_count"/>
+        <result property="itemCount" column="item_count"/>
         <result property="studentCount" column="student_count"/>
+        <result property="expectedStudentCount" column="expected_student_count"/>
         <result property="avgCompletionRate" column="avg_completion_rate"/>
     </resultMap>
 
@@ -35,7 +37,45 @@
          WHERE dp_name.position_id = c.position_id AND dp_name.status = 1
          ORDER BY dp_name.id ASC LIMIT 1) AS dept_name,
         (SELECT COUNT(1) FROM course_chapter cc WHERE cc.course_id = c.id AND cc.deleted = 0) AS chapter_count,
-        (SELECT COUNT(DISTINCT sr.user_id) FROM study_record sr WHERE sr.course_id = c.id) AS student_count
+        (SELECT COUNT(1) FROM study_item si
+         INNER JOIN course_chapter cc_item ON cc_item.id = si.chapter_id AND cc_item.deleted = 0
+         WHERE cc_item.course_id = c.id AND si.deleted = 0) AS item_count,
+        (SELECT COUNT(DISTINCT sr.user_id)
+         FROM study_record sr
+         INNER JOIN sys_user learned_user ON learned_user.user_id = sr.user_id
+             AND learned_user.del_flag = '0'
+             AND learned_user.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+         INNER JOIN dept_position learned_scope ON learned_scope.dept_id = learned_user.dept_id
+             AND learned_scope.position_id = c.position_id
+             AND learned_scope.status = 1
+         WHERE sr.course_id = c.id) AS student_count,
+        (SELECT COUNT(DISTINCT expected_user.user_id)
+         FROM sys_user expected_user
+         INNER JOIN dept_position expected_scope ON expected_scope.dept_id = expected_user.dept_id
+             AND expected_scope.position_id = c.position_id
+             AND expected_scope.status = 1
+         WHERE expected_user.position_id = c.position_id
+           AND expected_user.del_flag = '0'
+           AND expected_user.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')) AS expected_student_count,
+        COALESCE((
+            SELECT ROUND(SUM(COALESCE(progress_record.progress, 0)) /
+                NULLIF(COUNT(DISTINCT progress_user.user_id) * COUNT(DISTINCT progress_item.id), 0), 0)
+            FROM sys_user progress_user
+            INNER JOIN dept_position progress_scope ON progress_scope.dept_id = progress_user.dept_id
+                AND progress_scope.position_id = c.position_id
+                AND progress_scope.status = 1
+            CROSS JOIN study_item progress_item
+            INNER JOIN course_chapter progress_chapter ON progress_chapter.id = progress_item.chapter_id
+                AND progress_chapter.course_id = c.id
+                AND progress_chapter.deleted = 0
+            LEFT JOIN study_record progress_record ON progress_record.user_id = progress_user.user_id
+                AND progress_record.course_id = c.id
+                AND progress_record.item_id = progress_item.id
+            WHERE progress_user.position_id = c.position_id
+              AND progress_user.del_flag = '0'
+              AND progress_user.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+              AND progress_item.deleted = 0
+        ), 0) AS avg_completion_rate
     </sql>
 
     <sql id="courseScope">
@@ -92,6 +132,33 @@
           AND status = 1
     </select>
 
+    <select id="countActiveChapters" resultType="int">
+        SELECT COUNT(1)
+        FROM course_chapter
+        WHERE course_id = #{courseId} AND deleted = 0
+    </select>
+
+    <select id="countEmptyChapters" resultType="int">
+        SELECT COUNT(1)
+        FROM course_chapter cc
+        WHERE cc.course_id = #{courseId}
+          AND cc.deleted = 0
+          AND NOT EXISTS (
+              SELECT 1 FROM study_item si
+              WHERE si.chapter_id = cc.id AND si.deleted = 0
+          )
+    </select>
+
+    <select id="countUnboundAssets" resultType="int">
+        SELECT COUNT(1)
+        FROM study_item si
+        INNER JOIN course_chapter cc ON cc.id = si.chapter_id AND cc.deleted = 0
+        WHERE cc.course_id = #{courseId}
+          AND si.deleted = 0
+          AND si.item_type IN ('DOC', 'VIDEO')
+          AND (si.content_url IS NULL OR TRIM(si.content_url) = '')
+    </select>
+
     <resultMap type="Position" id="CoursePositionResult">
         <id property="id" column="position_id" />
         <result property="positionCode" column="position_code" />
@@ -123,6 +190,34 @@
             AND dp.dept_id = #{scopeDeptId}
         </if>
         ORDER BY p.sort_no ASC, p.id ASC
+    </select>
+
+    <sql id="learningCourseScope">
+        INNER JOIN sys_user learner ON learner.user_id = #{userId}
+            AND learner.del_flag = '0'
+            AND learner.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+        INNER JOIN dept_position learner_scope ON learner_scope.dept_id = learner.dept_id
+            AND learner_scope.position_id = learner.position_id
+            AND learner_scope.status = 1
+            AND learner_scope.position_id = c.position_id
+    </sql>
+
+    <select id="selectLearningCourses" resultMap="CourseResult">
+        SELECT <include refid="courseColumns" />
+        FROM course c
+        <include refid="learningCourseScope" />
+        LEFT JOIN position p ON p.id = c.position_id AND p.deleted = 0
+        WHERE c.deleted = 0 AND c.status = 'PUBLISHED'
+        ORDER BY c.is_required DESC, c.published_at DESC, c.id DESC
+    </select>
+
+    <select id="selectLearningCourseById" resultMap="CourseResult">
+        SELECT <include refid="courseColumns" />
+        FROM course c
+        <include refid="learningCourseScope" />
+        LEFT JOIN position p ON p.id = c.position_id AND p.deleted = 0
+        WHERE c.id = #{courseId} AND c.deleted = 0 AND c.status = 'PUBLISHED'
+        LIMIT 1
     </select>
 
 </mapper>
