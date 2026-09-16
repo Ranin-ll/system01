@@ -353,7 +353,7 @@ export default {
       const payload = {
         progress: Number(item.itemType === 'VIDEO' && isCurrentItem() ? this.videoProgress : item.progress || 0),
         studyDuration: Number(item.studyDuration || 0),
-        readConfirm: item.readConfirm ? 1 : 0,
+        readConfirm: item.itemType === 'DOC' && isCurrentItem() ? (this.readerReachedEnd ? 1 : 0) : (item.readConfirm ? 1 : 0),
         completed: Boolean(completed)
       }
       return saveLearningProgress(item.id, payload).then(response => {

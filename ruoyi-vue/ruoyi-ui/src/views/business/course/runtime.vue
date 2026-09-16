@@ -192,21 +192,19 @@ export default Object.assign({}, CoursePage, {
           itemTitle: this.itemForm.itemTitle,
           itemIntro: this.itemForm.itemIntro,
           itemType: this.itemForm.itemType,
-          contentUrl: this.itemForm.contentUrl,
           duration: this.itemForm.duration,
           isRequired: this.itemForm.isRequired,
           completionRule: this.itemForm.completionRule,
           quizJson: this.itemForm.quizJson,
-          fileName: this.pendingAsset ? this.itemForm.fileName : undefined,
-          fileSize: this.pendingAsset ? this.itemForm.fileSize : undefined,
-          fileExt: this.pendingAsset ? this.itemForm.fileExt : undefined,
           completionThreshold: this.itemForm.completionThreshold
         }
         const request = this.itemForm.id
           ? updateStudyItem(this.itemForm.id, payload)
           : addStudyItem(this.activeChapterId, payload)
         this.itemSubmitting = true
+        let itemSaved = false
         request.then(response => {
+          itemSaved = true
           const itemId = this.itemForm.id || (response.data && response.data.id)
           if (!this.pendingAsset || !itemId) return null
           const formData = new FormData()
@@ -233,6 +231,10 @@ export default Object.assign({}, CoursePage, {
           this.assetUploadState = 'ERROR'
           this.assetUploadProgress = 100
           this.assetUploadMessage = this.uploadErrorMessage(error)
+          if (itemSaved) {
+            this.reloadContents().catch(() => {})
+            this.$modal.msgWarning('基础信息已保存，但文件上传失败，请重新选择文件后重试')
+          }
         }).finally(() => {
           this.itemSubmitting = false
         })

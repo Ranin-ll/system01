@@ -101,6 +101,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         if (courseMapper.countEmptyChapters(id) > 0) {
             throw new ServiceException("发布前请为每个章节至少配置一项学习资料");
         }
+        if (courseMapper.countUnboundAssets(id) > 0) {
+            throw new ServiceException("发布前请为所有文档和视频资料上传文件");
+        }
         Course course = new Course();
         course.setId(id);
         course.setStatus("PUBLISHED");

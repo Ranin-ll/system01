@@ -1,7 +1,8 @@
 package com.ruoyi.business.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONException;
 import com.ruoyi.business.domain.Course;
 import com.ruoyi.business.domain.CourseChapter;
 import com.ruoyi.business.domain.CourseContentSaveBody;
@@ -13,13 +14,19 @@ import com.ruoyi.business.mapper.StudyItemMapper;
 import com.ruoyi.business.mapper.StudyRecordMapper;
 import com.ruoyi.business.service.ICourseContentService;
 import com.ruoyi.common.config.RuoYiConfig;
+import com.ruoyi.common.constant.Constants;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.file.FileUploadUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
@@ -119,6 +126,7 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
                 item.setDeleted(1);
                 item.setUpdateTime(now);
                 itemMapper.updateById(item);
+                deleteStoredAssetAfterCommit(item.getContentUrl());
             }
         }
     }
@@ -144,10 +152,15 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
                 }
                 item.setSortNo(itemIndex + 1);
             }
-            copyItemFields(input, item);
+            String oldContentUrl = item.getContentUrl();
+            String oldItemType = item.getItemType();
+            copyEditableItemFields(input, item);
+            boolean typeChanged = oldItemType != null && !oldItemType.equals(item.getItemType());
+            if (typeChanged) clearAssetFields(item);
             item.setChapterId(chapter.getId());
             item.setUpdateTime(now);
             if (item.getId() == null) itemMapper.insert(item); else itemMapper.updateById(item);
+            if (typeChanged) deleteStoredAssetAfterCommit(oldContentUrl);
             keptItems.add(item.getId());
         }
     }
@@ -189,6 +202,7 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         items.stream().filter(item -> chapterId.equals(item.getChapterId())).forEach(item -> {
             item.setDeleted(1);
             itemMapper.updateById(item);
+            deleteStoredAssetAfterCommit(item.getContentUrl());
         });
     }
 
@@ -198,7 +212,7 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         ensureDraftForWrite(chapter.getCourseId());
         validateItem(input);
         StudyItem item = new StudyItem();
-        copyItemFields(input, item);
+        copyEditableItemFields(input, item);
         item.setChapterId(chapterId);
         item.setSortNo(nextItemSort(chapterId));
         item.setDeleted(0);
@@ -212,8 +226,13 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         CourseChapter chapter = getAccessibleChapter(item.getChapterId());
         ensureDraftForWrite(chapter.getCourseId());
         validateItem(input);
-        copyItemFields(input, item);
+        String oldContentUrl = item.getContentUrl();
+        String oldItemType = item.getItemType();
+        copyEditableItemFields(input, item);
+        boolean typeChanged = oldItemType != null && !oldItemType.equals(item.getItemType());
+        if (typeChanged) clearAssetFields(item);
         itemMapper.updateById(item);
+        if (typeChanged) deleteStoredAssetAfterCommit(oldContentUrl);
     }
 
     @Override
@@ -223,6 +242,7 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         ensureDraftForWrite(chapter.getCourseId());
         item.setDeleted(1);
         itemMapper.updateById(item);
+        deleteStoredAssetAfterCommit(item.getContentUrl());
     }
 
     @Override
@@ -234,17 +254,21 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         boolean video = "VIDEO".equals(item.getItemType());
         String[] extensions = video ? VIDEO_EXTENSIONS : DOCUMENT_EXTENSIONS;
         long maxSize = video ? VIDEO_MAX_SIZE : DOCUMENT_MAX_SIZE;
+        String path = null;
+        String oldPath = item.getContentUrl();
         try {
-            String path = FileUploadUtils.upload(RuoYiConfig.getUploadPath(), file, extensions, maxSize);
+            path = FileUploadUtils.upload(RuoYiConfig.getUploadPath(), file, extensions, maxSize);
             item.setContentUrl(path);
             item.setFileName(file.getOriginalFilename());
             item.setFileSize(file.getSize());
             item.setFileExt(FileUploadUtils.getExtension(file).toLowerCase());
             item.setUpdateTime(new Date());
             if (item.getCompletionThreshold() == null && "VIDEO".equals(item.getItemType())) item.setCompletionThreshold(100);
-            itemMapper.updateById(item);
+            if (itemMapper.updateById(item) != 1) throw new ServiceException("学习资料更新失败");
+            deleteStoredAssetAfterCommit(oldPath);
             return path;
         } catch (Exception e) {
+            deleteStoredAsset(path);
             throw new ServiceException("文件上传失败：" + e.getMessage());
         }
     }
@@ -335,23 +359,67 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
             if (threshold < 80 || threshold > 100) throw new ServiceException("视频完成阈值应在80%到100%之间");
             item.setCompletionThreshold(threshold);
         }
+        validateQuizJson(item);
     }
 
-    private void copyItemFields(StudyItem source, StudyItem target) {
+    /** 文件地址及元数据只能由上传接口写入，普通编辑请求不得覆盖。 */
+    private void copyEditableItemFields(StudyItem source, StudyItem target) {
         target.setItemTitle(source.getItemTitle().trim());
         target.setItemIntro(normalizeItemIntro(source.getItemIntro()));
         target.setItemType(source.getItemType());
-        target.setContentUrl(source.getContentUrl());
         target.setDuration(source.getDuration() == null ? 0 : source.getDuration());
         target.setIsRequired(requiredValue(source.getIsRequired()));
         target.setCompletionRule(source.getCompletionRule() == null ? defaultRule(source.getItemType()) : source.getCompletionRule());
-        target.setQuizJson(source.getQuizJson());
-        if (source.getFileName() != null || source.getFileSize() != null || source.getFileExt() != null) {
-            target.setFileName(source.getFileName());
-            target.setFileSize(source.getFileSize());
-            target.setFileExt(source.getFileExt());
-        }
+        target.setQuizJson("QUIZ".equals(source.getItemType()) ? normalizeQuizJson(source.getQuizJson()) : null);
         target.setCompletionThreshold("VIDEO".equals(source.getItemType()) ? (source.getCompletionThreshold() == null ? 100 : source.getCompletionThreshold()) : null);
+    }
+
+    private void validateQuizJson(StudyItem item) {
+        if (!"QUIZ".equals(item.getItemType()) || item.getQuizJson() == null || item.getQuizJson().trim().isEmpty()) return;
+        if (item.getQuizJson().length() > 65535) throw new ServiceException("测试内容过长");
+        try {
+            JSON.parse(item.getQuizJson());
+        } catch (JSONException e) {
+            throw new ServiceException("测试内容格式不正确");
+        }
+    }
+
+    private String normalizeQuizJson(String quizJson) {
+        return quizJson == null || quizJson.trim().isEmpty() ? null : quizJson.trim();
+    }
+
+    private void clearAssetFields(StudyItem item) {
+        item.setContentUrl(null);
+        item.setFileName(null);
+        item.setFileSize(null);
+        item.setFileExt(null);
+    }
+
+    private void deleteStoredAssetAfterCommit(String contentUrl) {
+        if (contentUrl == null || contentUrl.trim().isEmpty()) return;
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    deleteStoredAsset(contentUrl);
+                }
+            });
+        } else {
+            deleteStoredAsset(contentUrl);
+        }
+    }
+
+    /** 只删除 profile 根目录内由本系统上传的文件，拒绝远程地址和路径穿越。 */
+    private void deleteStoredAsset(String contentUrl) {
+        if (contentUrl == null || !contentUrl.startsWith(Constants.RESOURCE_PREFIX + "/")) return;
+        try {
+            String relative = contentUrl.substring((Constants.RESOURCE_PREFIX + "/").length());
+            Path root = Paths.get(RuoYiConfig.getProfile()).toAbsolutePath().normalize();
+            Path asset = root.resolve(relative).normalize();
+            if (asset.startsWith(root)) Files.deleteIfExists(asset);
+        } catch (Exception ignored) {
+            // File cleanup must not roll back successfully persisted course metadata.
+        }
     }
 
     private String normalizeItemIntro(String intro) {

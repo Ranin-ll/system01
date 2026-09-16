@@ -9,6 +9,9 @@ import java.util.List;
 
 @Mapper
 public interface StudyRecordMapper extends BaseMapper<StudyRecord> {
+    /** 原子合并学习进度，避免首次保存时并发插入触发唯一键冲突。 */
+    int upsertProgress(StudyRecord record);
+
     List<StudyRecord> selectCourseRecords(@Param("courseId") Long courseId,
                                           @Param("status") String status,
                                           @Param("deptId") Long deptId);

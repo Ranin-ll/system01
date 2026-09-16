@@ -27,6 +27,35 @@
         <result property="totalItems" column="total_items" />
     </resultMap>
 
+    <insert id="upsertProgress" parameterType="com.ruoyi.business.domain.StudyRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO study_record
+            (user_id, course_id, chapter_id, item_id, item_type, status,
+             first_open_time, start_time, last_study_time, study_duration,
+             progress, finish_time, read_confirm, version, create_time, update_time)
+        VALUES
+            (#{userId}, #{courseId}, #{chapterId}, #{itemId}, #{itemType}, #{status},
+             #{firstOpenTime}, #{startTime}, #{lastStudyTime}, #{studyDuration},
+             #{progress}, #{finishTime}, #{readConfirm}, #{version}, #{createTime}, #{updateTime})
+        ON DUPLICATE KEY UPDATE
+            course_id = VALUES(course_id),
+            chapter_id = VALUES(chapter_id),
+            item_type = VALUES(item_type),
+            status = IF(status = 'DONE' OR VALUES(status) = 'DONE', 'DONE', 'IN_PROGRESS'),
+            first_open_time = COALESCE(first_open_time, VALUES(first_open_time)),
+            start_time = COALESCE(start_time, VALUES(start_time)),
+            last_study_time = VALUES(last_study_time),
+            study_duration = GREATEST(study_duration, VALUES(study_duration)),
+            progress = GREATEST(progress, VALUES(progress)),
+            finish_time = CASE
+                WHEN finish_time IS NOT NULL THEN finish_time
+                WHEN VALUES(status) = 'DONE' THEN VALUES(finish_time)
+                ELSE NULL
+            END,
+            read_confirm = GREATEST(read_confirm, VALUES(read_confirm)),
+            version = version + 1,
+            update_time = VALUES(update_time)
+    </insert>
+
     <select id="selectCourseRecords" resultMap="StudyRecordResult">
         SELECT NULL AS id, u.user_id, c.id AS course_id, NULL AS chapter_id, NULL AS item_id,
                NULL AS item_type,

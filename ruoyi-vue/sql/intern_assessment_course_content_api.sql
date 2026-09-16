@@ -58,4 +58,22 @@ SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
               'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+               WHERE table_schema = @db AND table_name = 'study_record' AND column_name = 'read_confirm') = 0,
+              'ALTER TABLE study_record ADD COLUMN read_confirm TINYINT NOT NULL DEFAULT 0 COMMENT ''文档阅读确认'' AFTER unfinished_reason',
+              'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+               WHERE table_schema = @db AND table_name = 'study_record' AND column_name = 'version') = 0,
+              'ALTER TABLE study_record ADD COLUMN version INT NOT NULL DEFAULT 0 AFTER read_confirm',
+              'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.statistics
+               WHERE table_schema = @db AND table_name = 'study_record' AND index_name = 'uk_record_user_item') = 0,
+              'ALTER TABLE study_record ADD UNIQUE KEY uk_record_user_item (user_id,item_id)',
+              'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SELECT 'course content migration ready' AS result;

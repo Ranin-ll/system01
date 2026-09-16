@@ -231,6 +231,10 @@ CREATE TABLE `study_item` (
     `create_time`   DATETIME              DEFAULT CURRENT_TIMESTAMP,
     `update_time`   DATETIME              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `deleted`       TINYINT      NOT NULL DEFAULT 0,
+    `file_name`     VARCHAR(255)          DEFAULT NULL COMMENT '原始文件名',
+    `file_size`     BIGINT                DEFAULT NULL COMMENT '文件字节数',
+    `file_ext`      VARCHAR(16)           DEFAULT NULL COMMENT '文件扩展名',
+    `completion_threshold` INT             DEFAULT NULL COMMENT '视频完成阈值',
     PRIMARY KEY (`id`),
     KEY `idx_item_chapter` (`chapter_id`)
 ) ENGINE=InnoDB COMMENT='学习单项表';

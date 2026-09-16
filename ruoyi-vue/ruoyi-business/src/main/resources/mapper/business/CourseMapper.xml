@@ -149,6 +149,16 @@
           )
     </select>
 
+    <select id="countUnboundAssets" resultType="int">
+        SELECT COUNT(1)
+        FROM study_item si
+        INNER JOIN course_chapter cc ON cc.id = si.chapter_id AND cc.deleted = 0
+        WHERE cc.course_id = #{courseId}
+          AND si.deleted = 0
+          AND si.item_type IN ('DOC', 'VIDEO')
+          AND (si.content_url IS NULL OR TRIM(si.content_url) = '')
+    </select>
+
     <resultMap type="Position" id="CoursePositionResult">
         <id property="id" column="position_id" />
         <result property="positionCode" column="position_code" />

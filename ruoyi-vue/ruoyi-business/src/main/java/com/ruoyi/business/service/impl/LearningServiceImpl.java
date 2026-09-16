@@ -29,6 +29,11 @@ import java.util.stream.Collectors;
 @Service
 public class LearningServiceImpl implements ILearningService {
 
+    private static final int VIDEO_PROGRESS_PERCENT_PER_SECOND = 2;
+    private static final int PROGRESS_GRACE_PERCENT = 1;
+    private static final int DURATION_GRACE_SECONDS = 2;
+    private static final int MIN_DOCUMENT_OPEN_SECONDS = 10;
+
     private final CourseMapper courseMapper;
     private final CourseChapterMapper chapterMapper;
     private final StudyItemMapper itemMapper;
@@ -75,8 +80,7 @@ public class LearningServiceImpl implements ILearningService {
                 .eq(StudyRecord::getItemId, itemId)
                 .last("LIMIT 1"));
         Date now = new Date();
-        boolean insert = record == null;
-        if (insert) {
+        if (record == null) {
             record = new StudyRecord();
             record.setUserId(userId);
             record.setCourseId(item.getCourseId());
@@ -100,21 +104,36 @@ public class LearningServiceImpl implements ILearningService {
         record.setItemType(item.getItemType());
 
         BigDecimal oldProgress = value(record.getProgress());
-        BigDecimal submitted = clamp(body.getProgress());
-        BigDecimal progress = oldProgress.max(submitted);
-        int duration = Math.max(record.getStudyDuration() == null ? 0 : record.getStudyDuration(),
-                Math.max(body.getStudyDuration() == null ? 0 : body.getStudyDuration(), 0));
-        int readConfirm = Math.max(record.getReadConfirm() == null ? 0 : record.getReadConfirm(),
-                body.getReadConfirm() != null && body.getReadConfirm() == 1 ? 1 : 0);
+        long elapsedSeconds = elapsedSeconds(record, now);
+        int oldDuration = record.getStudyDuration() == null ? 0 : record.getStudyDuration();
+        int submittedDuration = Math.max(body.getStudyDuration() == null ? 0 : body.getStudyDuration(), 0);
+        int duration = Math.max(oldDuration, Math.min(submittedDuration,
+                safeAdd(oldDuration, elapsedSeconds + DURATION_GRACE_SECONDS)));
+
+        BigDecimal progress = oldProgress;
+        if ("VIDEO".equals(item.getItemType())) {
+            BigDecimal maxProgress = oldProgress.add(BigDecimal.valueOf(
+                    elapsedSeconds * VIDEO_PROGRESS_PERCENT_PER_SECOND + PROGRESS_GRACE_PERCENT));
+            progress = oldProgress.max(clamp(body.getProgress()).min(maxProgress)).min(BigDecimal.valueOf(100));
+        }
+
+        int oldReadConfirm = record.getReadConfirm() == null ? 0 : record.getReadConfirm();
+        boolean documentReadAllowed = elapsedSinceFirstOpen(record, now) >= MIN_DOCUMENT_OPEN_SECONDS;
+        int readConfirm = oldReadConfirm;
+        if ("DOC".equals(item.getItemType()) && documentReadAllowed
+                && body.getReadConfirm() != null && body.getReadConfirm() == 1) {
+            readConfirm = 1;
+            progress = BigDecimal.valueOf(100);
+        }
 
         boolean completed = "DONE".equals(record.getStatus());
         if ("DOC".equals(item.getItemType())) {
-            completed = completed || (readConfirm == 1 && Boolean.TRUE.equals(body.getCompleted()));
+            completed = completed || (readConfirm == 1 && documentReadAllowed && Boolean.TRUE.equals(body.getCompleted()));
         } else if ("VIDEO".equals(item.getItemType())) {
             int threshold = item.getCompletionThreshold() == null ? 100 : item.getCompletionThreshold();
             completed = completed || (Boolean.TRUE.equals(body.getCompleted()) && progress.compareTo(BigDecimal.valueOf(threshold)) >= 0);
-        } else if ("QUIZ".equals(item.getItemType())) {
-            completed = completed || Boolean.TRUE.equals(body.getCompleted());
+        } else if ("QUIZ".equals(item.getItemType()) && Boolean.TRUE.equals(body.getCompleted())) {
+            throw new ServiceException("章节测试尚未接入服务端判分，暂不能标记完成");
         }
         if (completed) progress = BigDecimal.valueOf(100);
 
@@ -124,10 +143,13 @@ public class LearningServiceImpl implements ILearningService {
         record.setStatus(completed ? "DONE" : "IN_PROGRESS");
         record.setLastStudyTime(now);
         if (completed && record.getFinishTime() == null) record.setFinishTime(now);
-        record.setVersion((record.getVersion() == null ? 0 : record.getVersion()) + 1);
+        record.setVersion(record.getVersion() == null ? 0 : record.getVersion());
         record.setUpdateTime(now);
-        if (insert) recordMapper.insert(record); else recordMapper.updateById(record);
-        return record;
+        recordMapper.upsertProgress(record);
+        return recordMapper.selectOne(new LambdaQueryWrapper<StudyRecord>()
+                .eq(StudyRecord::getUserId, userId)
+                .eq(StudyRecord::getItemId, itemId)
+                .last("LIMIT 1"));
     }
 
     private void fillLearningContent(Course course, Long userId) {
@@ -188,5 +210,22 @@ public class LearningServiceImpl implements ILearningService {
     private BigDecimal clamp(BigDecimal value) {
         if (value == null) return BigDecimal.ZERO;
         return value.max(BigDecimal.ZERO).min(BigDecimal.valueOf(100));
+    }
+
+    private long elapsedSeconds(StudyRecord record, Date now) {
+        Date anchor = record.getLastStudyTime() != null ? record.getLastStudyTime() : record.getStartTime();
+        if (anchor == null) return 0;
+        return Math.max(0, (now.getTime() - anchor.getTime()) / 1000L);
+    }
+
+    private long elapsedSinceFirstOpen(StudyRecord record, Date now) {
+        Date firstOpen = record.getFirstOpenTime();
+        if (firstOpen == null) return 0;
+        return Math.max(0, (now.getTime() - firstOpen.getTime()) / 1000L);
+    }
+
+    private int safeAdd(int value, long increment) {
+        long result = Math.max(0L, value) + Math.max(0L, increment);
+        return result > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) result;
     }
 }
