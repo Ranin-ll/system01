@@ -129,10 +129,34 @@ export const dynamicRoutes = [
         meta: { title: '备考资料', activeMenu: '/index' }
       },
       {
+        path: 'exam',
+        component: () => import('@/views/assessment/exam/index'),
+        name: 'InternExam',
+        meta: { title: '参与考核', activeMenu: '/index' }
+      },
+      {
         path: 'mock-exam',
-        component: () => import('@/views/assessment/index'),
+        component: () => import('@/views/assessment/practice/index'),
         name: 'InternMockExam',
         meta: { title: '模拟考核', activeMenu: '/index' }
+      },
+      {
+        path: 'mock-exam/record/:recordId(\\d+)',
+        component: () => import('@/views/assessment/practice/record'),
+        name: 'InternMockExamRecord',
+        meta: { title: '模拟考核回顾', activeMenu: '/index' }
+      },
+      {
+        path: 'practice-subject',
+        component: () => import('@/views/assessment/practice/subject'),
+        name: 'InternPracticeSubject',
+        meta: { title: '实操练习', activeMenu: '/index' }
+      },
+      {
+        path: 'practice-subject/:id(\\d+)',
+        component: () => import('@/views/assessment/practice/subjectDetail'),
+        name: 'InternPracticeSubjectDetail',
+        meta: { title: '实操题详情', activeMenu: '/index' }
       }
     ]
   },
@@ -235,6 +259,27 @@ export const dynamicRoutes = [
         component: () => import('@/views/business/register/index'),
         meta: { title: '注册审核', icon: 'user', activeMenu: '/assessment/department/register-review' },
         permissions: ['business:register:list']
+      },
+      {
+        path: 'exam',
+        name: 'BusinessExam',
+        component: () => import('@/views/business/exam/index'),
+        meta: { title: '考核管理', icon: 'list' },
+        permissions: ['business:bank:list']
+      }
+    ]
+  },
+  {
+    path: '/assessment/department/exam/grading',
+    component: Layout,
+    hidden: true,
+    permissions: ['business:bank:list'],
+    children: [
+      {
+        path: ':examId',
+        component: () => import('@/views/business/exam/grading'),
+        name: 'BusinessExamGrading',
+        meta: { title: '答卷批改', activeMenu: '/assessment/department/exam' }
       }
     ]
   }

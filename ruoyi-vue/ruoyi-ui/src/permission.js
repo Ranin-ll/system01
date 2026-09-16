@@ -15,7 +15,10 @@ const formalInternBlockedPaths = [
   '/assessment/intern/practice',
   '/assessment/intern/study-guide',
   '/assessment/intern/mock-exam',
-  '/assessment/intern/theory-exam'
+  '/assessment/intern/theory-exam',
+  // 实操练习为独立页面（含详情页），需单独声明；
+  // 其前缀 /assessment/intern/practice 亦已覆盖，此处显式列出避免后续调整时漏拦。
+  '/assessment/intern/practice-subject'
 ]
 
 function isIntern() {

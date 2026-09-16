@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.PracticeSubjectMapper">
+
+    <resultMap type="PracticeSubject" id="PracticeSubjectResult">
+        <id     property="id"              column="id"               />
+        <result property="deptId"          column="dept_id"          />
+        <result property="content"         column="content"          />
+        <result property="attachmentsJson" column="attachments_json" />
+        <result property="status"          column="status"           />
+        <result property="createBy"        column="create_by"        />
+        <result property="createTime"      column="create_time"      />
+        <result property="updateTime"      column="update_time"      />
+        <result property="deleted"         column="deleted"          />
+        <result property="deptName"        column="dept_name"        />
+    </resultMap>
+
+    <sql id="subjectColumns">
+        s.id, s.dept_id, s.content, s.attachments_json, s.status,
+        s.create_by, s.create_time, s.update_time, s.deleted,
+        d.dept_name
+    </sql>
+
+    <select id="selectSubjectList" resultMap="PracticeSubjectResult">
+        SELECT <include refid="subjectColumns" />
+        FROM practice_subject s
+        LEFT JOIN sys_dept d ON d.dept_id = s.dept_id AND d.del_flag = '0'
+        <where>
+            s.deleted = 0
+            <if test="scopeDeptId != null">
+                AND s.dept_id = #{scopeDeptId}
+            </if>
+            <if test="deptId != null">
+                AND s.dept_id = #{deptId}
+            </if>
+            <if test="status != null">
+                AND s.status = #{status}
+            </if>
+            <if test="content != null and content != ''">
+                AND s.content LIKE CONCAT('%', #{content}, '%')
+            </if>
+        </where>
+        ORDER BY s.status DESC, s.id DESC
+    </select>
+
+    <select id="selectSubjectById" resultMap="PracticeSubjectResult">
+        SELECT <include refid="subjectColumns" />
+        FROM practice_subject s
+        LEFT JOIN sys_dept d ON d.dept_id = s.dept_id AND d.del_flag = '0'
+        WHERE s.id = #{id} AND s.deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectPublishedByDept" resultMap="PracticeSubjectResult">
+        SELECT <include refid="subjectColumns" />
+        FROM practice_subject s
+        LEFT JOIN sys_dept d ON d.dept_id = s.dept_id AND d.del_flag = '0'
+        WHERE s.deleted = 0
+          AND s.status = 1
+          AND s.dept_id = #{deptId}
+        ORDER BY s.id ASC
+    </select>
+
+    <insert id="insertSubject" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO practice_subject (dept_id, content, attachments_json, status, create_by, create_time, update_time, deleted)
+        VALUES (#{deptId}, #{content}, #{attachmentsJson}, #{status}, #{createBy}, NOW(), NOW(), 0)
+    </insert>
+
+    <update id="updateSubject">
+        UPDATE practice_subject
+        <set>
+            <if test="content != null">content = #{content},</if>
+            <if test="attachmentsJson != null">attachments_json = #{attachmentsJson},</if>
+            <if test="status != null">status = #{status},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteSubjectById">
+        UPDATE practice_subject SET deleted = 1, update_time = NOW() WHERE id = #{id}
+    </update>
+
+</mapper>

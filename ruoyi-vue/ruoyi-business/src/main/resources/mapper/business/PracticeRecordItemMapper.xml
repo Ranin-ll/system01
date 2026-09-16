@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.PracticeRecordItemMapper">
+
+    <resultMap type="PracticeRecordItem" id="PracticeRecordItemResult">
+        <id     property="id"            column="id"             />
+        <result property="recordId"      column="record_id"      />
+        <result property="questionId"    column="question_id"    />
+        <result property="sortNo"        column="sort_no"        />
+        <result property="qtype"         column="qtype"          />
+        <result property="stem"          column="stem"           />
+        <result property="optionsJson"   column="options_json"   />
+        <result property="userAnswer"    column="user_answer"    />
+        <result property="correctAnswer" column="correct_answer" />
+        <result property="isCorrect"     column="is_correct"     />
+        <result property="analysis"      column="analysis"       />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <insert id="insertBatch">
+        INSERT INTO practice_record_item
+            (record_id, question_id, sort_no, qtype, stem, options_json,
+             user_answer, correct_answer, is_correct, analysis, create_time)
+        VALUES
+        <foreach collection="list" item="it" separator=",">
+            (#{it.recordId}, #{it.questionId}, #{it.sortNo}, #{it.qtype}, #{it.stem}, #{it.optionsJson},
+             #{it.userAnswer}, #{it.correctAnswer}, #{it.isCorrect}, #{it.analysis}, NOW())
+        </foreach>
+    </insert>
+
+    <select id="selectByRecordId" resultMap="PracticeRecordItemResult">
+        SELECT id, record_id, question_id, sort_no, qtype, stem, options_json,
+               user_answer, correct_answer, is_correct, analysis, create_time
+        FROM practice_record_item
+        WHERE record_id = #{recordId}
+        ORDER BY sort_no ASC, id ASC
+    </select>
+
+</mapper>
