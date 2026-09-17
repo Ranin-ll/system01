@@ -35,7 +35,11 @@ export default {
       const first = matched[0]
 
       if (!this.isDashboard(first)) {
-        matched = [{ path: '/index', meta: { title: '首页' }}].concat(matched)
+        // 部门管理员端（/department/**）的根是部门工作台，面包屑首项指向它而不是通用工作台 /index
+        const isDeptScope = (this.$route.path || '').indexOf('/department') === 0
+        matched = [isDeptScope
+          ? { path: '/department/dashboard', meta: { title: '工作台' } }
+          : { path: '/index', meta: { title: '首页' } }].concat(matched)
       }
 
       this.levelList = matched.filter(item => item.meta && item.meta.title && item.meta.breadcrumb !== false)
@@ -45,7 +49,9 @@ export default {
       if (!name) {
         return false
       }
-      return name.trim() === 'Index'
+      const trimmed = name.trim()
+      // 通用工作台 Index 与部门工作台 DeptDashboard 都视为「根」，不再前置首页/工作台
+      return trimmed === 'Index' || trimmed === 'DeptDashboard'
     },
     handleLink(item) {
       const { redirect, path } = item

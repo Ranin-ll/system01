@@ -111,31 +111,202 @@ export const dynamicRoutes = [
     roles: ['PRE_TRAINEE', 'FORMAL_TRAINEE'],
     children: [
       {
+        // 「学习与考核」页签壳：承载 5 个页签子路由（在线学习 / 备考资料 / 模拟考核 / 正式考核 / 考核成绩与转正申请）
         path: 'learning',
-        component: () => import('@/views/assessment/learning/index'),
-        name: 'InternLearning',
-        meta: { title: '在线学习', activeMenu: '/index' }
+        component: () => import('@/views/assessment/learning/shell'),
+        name: 'InternLearningShell',
+        redirect: '/assessment/intern/learning/courses',
+        meta: { title: '学习与考核', activeMenu: '/assessment/intern/learning' },
+        children: [
+          {
+            path: 'courses',
+            component: () => import('@/views/assessment/learning/index'),
+            name: 'InternLearning',
+            meta: { title: '在线学习', activeMenu: '/assessment/intern/learning', tab: 'InternLearning' }
+          },
+          {
+            path: 'guide',
+            component: () => import('@/views/assessment/guide/index'),
+            name: 'InternGuide',
+            meta: { title: '备考资料', activeMenu: '/assessment/intern/learning', tab: 'InternGuide' }
+          },
+          {
+            path: 'mock',
+            component: () => import('@/views/assessment/practice/index'),
+            name: 'InternMockExam',
+            meta: { title: '模拟考核', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+          },
+          {
+            path: 'exam',
+            component: () => import('@/views/assessment/exam/index'),
+            name: 'InternLearningExam',
+            meta: { title: '正式考核', activeMenu: '/assessment/intern/learning', tab: 'InternLearningExam' }
+          },
+          {
+            path: 'result',
+            component: () => import('@/views/assessment/result/index'),
+            name: 'InternResult',
+            meta: { title: '考核成绩与转正申请', activeMenu: '/assessment/intern/learning', tab: 'InternResult' }
+          }
+        ]
       },
       {
         path: 'learning/course/:courseId',
         component: () => import('@/views/assessment/learning/detail'),
         name: 'InternLearningCourse',
-        meta: { title: '课程学习', activeMenu: '/index' }
+        meta: { title: '课程学习', activeMenu: '/assessment/intern/learning', tab: 'InternLearning' }
       },
       {
+        // 旧路径兼容：备考资料已并入「学习与考核」页签
         path: 'study-guide',
-        component: () => import('@/views/assessment/index'),
-        name: 'InternStudyGuide',
-        meta: { title: '备考资料', activeMenu: '/index' }
+        redirect: '/assessment/intern/learning/guide'
       },
       {
+        path: 'exam',
+        component: () => import('@/views/assessment/exam/index'),
+        name: 'InternExam',
+        meta: { title: '参与考核', activeMenu: '/index' }
+      },
+      {
+        // 旧路径兼容：模拟考核已并入「学习与考核」页签。
+        // 用函数式 redirect 保留 query —— record.vue 的「再练一次」依赖 ?start=1 触发自动抽题。
         path: 'mock-exam',
-        component: () => import('@/views/assessment/index'),
-        name: 'InternMockExam',
-        meta: { title: '模拟考核', activeMenu: '/index' }
+        redirect: to => ({ path: '/assessment/intern/learning/mock', query: to.query })
+      },
+      {
+        path: 'mock-exam/record/:recordId(\\d+)',
+        component: () => import('@/views/assessment/practice/record'),
+        name: 'InternMockExamRecord',
+        meta: { title: '模拟考核回顾', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+      },
+      {
+        path: 'practice-subject',
+        component: () => import('@/views/assessment/practice/subject'),
+        name: 'InternPracticeSubject',
+        meta: { title: '实操练习', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+      },
+      {
+        path: 'practice-subject/:id(\\d+)',
+        component: () => import('@/views/assessment/practice/subjectDetail'),
+        name: 'InternPracticeSubjectDetail',
+        meta: { title: '实操题详情', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+      },
+      {
+        // 能力画像详情（工作台「能力画像 · 详情」下钻，设计稿 i9）。
+        // dynamicRoutes 先于后端菜单路由 addRoutes，会遮蔽 sys_menu 里同路径的骨架页菜单。
+        path: 'portrait',
+        component: () => import('@/views/assessment/portrait/index'),
+        name: 'InternPortrait',
+        meta: { title: '能力画像', activeMenu: '/index' }
+      },
+      {
+        // 旧路径兼容：考核记录已并入「学习与考核 · 考核成绩与转正申请」页签
+        path: 'scores',
+        redirect: '/assessment/intern/learning/result'
       }
     ]
   },
+
+  // ==========================================================================
+  // 部门管理员端（设计稿 §一：四目录 —— 工作台 / 人员管理 / 学习与考核管理 / 任务与通知）
+  //
+  // 与实习生端同一套思路：本段只声明「真实路由」，**侧栏分组**由
+  // store/modules/permission.js 的 buildDeptAdminSidebar() 按四目录重排。
+  // 之所以不在 router 里嵌套分组组件：分组纯属展示需求，路由保持扁平更好维护。
+  //
+  // 这里的 path 用了 'people/students' 这类两段式，是为了让侧栏分组节点
+  // （/department/people）与其子项（students）拼出的链接与真实路由一致。
+  // ==========================================================================
+  {
+    path: '/department',
+    component: Layout,
+    hidden: true,
+    roles: ['DEPT_ADMIN'],
+    children: [
+      // ---------- ① 工作台 ----------
+      {
+        path: 'dashboard',
+        component: () => import('@/views/department/dashboard/index'),
+        name: 'DeptDashboard',
+        meta: { title: '工作台', icon: 'dashboard', activeMenu: '/department/dashboard' }
+      },
+
+      // ---------- ② 人员管理 ----------
+      {
+        path: 'people/register-review',
+        component: () => import('@/views/business/register/index'),
+        name: 'DeptRegisterReview',
+        meta: { title: '注册审核', icon: 'user', activeMenu: '/department/people/register-review' }
+      },
+      {
+        path: 'people/students',
+        component: () => import('@/views/department/people/students'),
+        name: 'DeptStudents',
+        meta: { title: '实习生管理', icon: 'peoples', activeMenu: '/department/people/students' }
+      },
+      {
+        path: 'people/promotion',
+        component: () => import('@/views/department/people/promotion'),
+        name: 'DeptPromotion',
+        meta: { title: '实习转正审核', icon: 'star', activeMenu: '/department/people/promotion' }
+      },
+      {
+        // 个人全景档案（花名册下钻页）
+        path: 'people/profile/:userId(\\d+)',
+        component: () => import('@/views/department/people/profile'),
+        name: 'DeptStudentProfile',
+        hidden: true,
+        meta: { title: '个人全景档案', activeMenu: '/department/people/students' }
+      },
+
+      // ---------- ③ 学习与考核管理 ----------
+      {
+        path: 'study/courses',
+        component: () => import('@/views/business/course/runtime'),
+        name: 'DeptCourse',
+        meta: { title: '课程管理', icon: 'education', activeMenu: '/department/study/courses' }
+      },
+      {
+        path: 'study/banks',
+        component: () => import('@/views/business/questionBank/index'),
+        name: 'DeptBank',
+        meta: { title: '题库管理', icon: 'list', activeMenu: '/department/study/banks' }
+      },
+      {
+        path: 'study/prep',
+        component: () => import('@/views/department/study/prep/index'),
+        name: 'DeptPrep',
+        meta: { title: '模拟备考管理', icon: 'documentation', activeMenu: '/department/study/prep' }
+      },
+      {
+        path: 'study/exam',
+        component: () => import('@/views/business/exam/index'),
+        name: 'DeptExam',
+        meta: { title: '正式考核管理', icon: 'form', activeMenu: '/department/study/exam' }
+      },
+      {
+        path: 'study/scores',
+        component: () => import('@/views/department/study/scores/index'),
+        name: 'DeptScores',
+        meta: { title: '成绩管理', icon: 'chart', activeMenu: '/department/study/scores' }
+      },
+
+      // ---------- ④ 任务与通知 ----------
+      {
+        path: 'messages/tasks',
+        component: () => import('@/views/department/messages/tasks'),
+        name: 'DeptTasks',
+        meta: { title: '任务管理', icon: 'job', activeMenu: '/department/messages/tasks' }
+      },
+      {
+        path: 'messages/notices',
+        component: () => import('@/views/department/messages/notices'),
+        name: 'DeptNotices',
+        meta: { title: '通知管理', icon: 'message', activeMenu: '/department/messages/notices' }
+      }
+    ]
+  },
+
   {
     path: '/system/user-auth',
     component: Layout,
@@ -235,6 +406,27 @@ export const dynamicRoutes = [
         component: () => import('@/views/business/register/index'),
         meta: { title: '注册审核', icon: 'user', activeMenu: '/assessment/department/register-review' },
         permissions: ['business:register:list']
+      },
+      {
+        path: 'exam',
+        name: 'BusinessExam',
+        component: () => import('@/views/business/exam/index'),
+        meta: { title: '考核管理', icon: 'list' },
+        permissions: ['business:bank:list']
+      }
+    ]
+  },
+  {
+    path: '/assessment/department/exam/grading',
+    component: Layout,
+    hidden: true,
+    permissions: ['business:bank:list'],
+    children: [
+      {
+        path: ':examId',
+        component: () => import('@/views/business/exam/grading'),
+        name: 'BusinessExamGrading',
+        meta: { title: '答卷批改', activeMenu: '/assessment/department/exam' }
       }
     ]
   }

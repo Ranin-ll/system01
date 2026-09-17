@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.QuestionMapper">
+
+    <resultMap type="Question" id="QuestionResult">
+        <id     property="id"            column="id"             />
+        <result property="bankId"        column="bank_id"        />
+        <result property="questionNo"    column="question_no"    />
+        <result property="positionId"    column="position_id"    />
+        <result property="qtype"         column="qtype"          />
+        <result property="difficulty"    column="difficulty"     />
+        <result property="knowledgePoint" column="knowledge_point"/>
+        <result property="stem"          column="stem"           />
+        <result property="optionsJson"   column="options_json"   />
+        <result property="attachmentUrl" column="attachment_url" />
+        <result property="answer"        column="answer"         />
+        <result property="analysis"      column="analysis"       />
+        <result property="score"         column="score"          />
+        <result property="isSubjective"  column="is_subjective"  />
+        <result property="status"        column="status"         />
+        <result property="importBatch"   column="import_batch"   />
+        <result property="version"       column="version"        />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="deleted"       column="deleted"        />
+        <result property="bankName"      column="bank_name"      />
+        <result property="deptName"      column="dept_name"      />
+    </resultMap>
+
+    <sql id="questionColumns">
+        q.id, q.bank_id, q.question_no, q.position_id, q.qtype, q.difficulty, q.knowledge_point,
+        q.stem, q.options_json, q.attachment_url, q.answer, q.analysis, q.score, q.is_subjective, q.status,
+        q.import_batch, q.version, q.create_by, q.create_time, q.update_time, q.deleted,
+        b.bank_name,
+        d.dept_name
+    </sql>
+
+    <sql id="questionScope">
+        <if test="scopeDeptId != null">
+            AND b.dept_id = #{scopeDeptId}
+        </if>
+    </sql>
+
+    <select id="selectQuestionList" resultMap="QuestionResult">
+        SELECT <include refid="questionColumns" />
+        FROM question q
+        LEFT JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
+        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <where>
+            q.deleted = 0
+            <include refid="questionScope" />
+            <if test="bankId != null">
+                AND q.bank_id = #{bankId}
+            </if>
+            <if test="qtype != null and qtype != ''">
+                AND q.qtype = #{qtype}
+            </if>
+            <if test="knowledgePoint != null and knowledgePoint != ''">
+                AND q.knowledge_point LIKE CONCAT('%', #{knowledgePoint}, '%')
+            </if>
+            <if test="stem != null and stem != ''">
+                AND q.stem LIKE CONCAT('%', #{stem}, '%')
+            </if>
+            <if test="status != null">
+                AND q.status = #{status}
+            </if>
+        </where>
+        ORDER BY q.id DESC
+    </select>
+
+    <select id="selectQuestionById" resultMap="QuestionResult">
+        SELECT <include refid="questionColumns" />
+        FROM question q
+        LEFT JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
+        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <where>
+            q.id = #{id}
+            AND q.deleted = 0
+            <include refid="questionScope" />
+        </where>
+        LIMIT 1
+    </select>
+
+    <select id="selectQuestionsForExam" resultMap="QuestionResult">
+        SELECT <include refid="questionColumns" />
+        FROM question q
+        INNER JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
+        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <where>
+            q.deleted = 0
+            AND q.bank_id = #{bankId}
+            AND q.status = 1
+            AND q.is_subjective = 0
+            <include refid="questionScope" />
+        </where>
+        ORDER BY RAND()
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectQuestionsByType" resultMap="QuestionResult">
+        SELECT <include refid="questionColumns" />
+        FROM question q
+        INNER JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
+        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <where>
+            q.deleted = 0
+            AND q.bank_id = #{bankId}
+            AND q.status = 1
+            AND q.is_subjective = 0
+            AND q.qtype = #{qtype}
+            <include refid="questionScope" />
+        </where>
+        ORDER BY RAND()
+        <if test="limit != null and limit > 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <select id="selectSubjectQuestions" resultMap="QuestionResult">
+        SELECT <include refid="questionColumns" />
+        FROM question q
+        INNER JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
+        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <where>
+            q.deleted = 0
+            AND q.bank_id = #{bankId}
+            AND q.status = 1
+            AND q.is_subjective = 1
+            <include refid="questionScope" />
+        </where>
+        ORDER BY RAND()
+        <if test="limit != null and limit > 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <select id="selectQuestionsByIds" resultMap="QuestionResult">
+        SELECT <include refid="questionColumns" />
+        FROM question q
+        LEFT JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
+        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <where>
+            q.deleted = 0
+            AND q.id IN
+            <foreach collection="ids" item="item" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+            <include refid="questionScope" />
+        </where>
+    </select>
+
+    <insert id="insertQuestion" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO question (bank_id, question_no, position_id, qtype, difficulty, knowledge_point,
+                              stem, options_json, attachment_url, answer, analysis, score, is_subjective, status,
+                              import_batch, version, create_by, create_time, update_time, deleted)
+        VALUES (#{bankId}, #{questionNo}, #{positionId}, #{qtype}, #{difficulty}, #{knowledgePoint},
+                #{stem}, #{optionsJson}, #{attachmentUrl}, #{answer}, #{analysis}, #{score}, #{isSubjective}, #{status},
+                #{importBatch}, #{version}, #{createBy}, #{createTime}, #{createTime}, #{deleted})
+    </insert>
+
+    <update id="updateQuestion">
+        UPDATE question
+        <set>
+            <if test="qtype != null">qtype = #{qtype},</if>
+            <if test="difficulty != null">difficulty = #{difficulty},</if>
+            <if test="knowledgePoint != null">knowledge_point = #{knowledgePoint},</if>
+            <if test="stem != null">stem = #{stem},</if>
+            <if test="optionsJson != null">options_json = #{optionsJson},</if>
+            <if test="attachmentUrl != null">attachment_url = #{attachmentUrl},</if>
+            <if test="answer != null">answer = #{answer},</if>
+            <if test="analysis != null">analysis = #{analysis},</if>
+            <if test="score != null">score = #{score},</if>
+            <if test="isSubjective != null">is_subjective = #{isSubjective},</if>
+            <if test="status != null">status = #{status},</if>
+            update_time = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteQuestionById">
+        UPDATE question SET deleted = 1 WHERE id = #{id}
+    </update>
+
+</mapper>

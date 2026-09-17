@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.ExamRuleMapper">
+
+    <resultMap type="ExamKnowledgeRule" id="KnowledgeRuleResult">
+        <id     property="id"             column="id"             />
+        <result property="examId"         column="exam_id"        />
+        <result property="knowledgePoint" column="knowledge_point"/>
+        <result property="questionCount"  column="question_count" />
+        <result property="ratio"          column="ratio"          />
+        <result property="singleRatio"    column="single_ratio"   />
+        <result property="sortNo"         column="sort_no"        />
+        <result property="createTime"     column="create_time"    />
+        <result property="availableCount" column="available_count"/>
+        <result property="availableSingle" column="available_single"/>
+    </resultMap>
+
+    <!-- 已配置的知识分布，附带题库该知识点的可用题量（校验「抽题数量 ≤ 题库可用」） -->
+    <select id="selectKnowledgeRules" resultMap="KnowledgeRuleResult">
+        SELECT r.id, r.exam_id, r.knowledge_point, r.question_count, r.ratio, r.single_ratio, r.sort_no, r.create_time,
+               (SELECT COUNT(1) FROM question q
+                 WHERE q.deleted = 0 AND q.bank_id = e.bank_id
+                   AND q.knowledge_point = r.knowledge_point)                       AS available_count,
+               (SELECT COUNT(1) FROM question q
+                 WHERE q.deleted = 0 AND q.bank_id = e.bank_id AND q.qtype = 'SINGLE'
+                   AND q.knowledge_point = r.knowledge_point)                       AS available_single
+        FROM exam_knowledge_rule r
+        LEFT JOIN exam e ON e.id = r.exam_id
+        WHERE r.exam_id = #{examId}
+        ORDER BY r.sort_no, r.id
+    </select>
+
+    <delete id="deleteKnowledgeRules">
+        DELETE FROM exam_knowledge_rule WHERE exam_id = #{examId}
+    </delete>
+
+    <insert id="insertKnowledgeRules">
+        INSERT INTO exam_knowledge_rule
+            (exam_id, knowledge_point, question_count, ratio, single_ratio, sort_no, create_time)
+        VALUES
+        <foreach collection="list" item="it" separator=",">
+            (#{it.examId}, #{it.knowledgePoint}, #{it.questionCount}, #{it.ratio}, #{it.singleRatio}, #{it.sortNo}, NOW())
+        </foreach>
+    </insert>
+
+    <!-- 题库知识点聚合（配置页「从题库导入知识点」） -->
+    <select id="selectBankKnowledgePoints" resultType="java.util.LinkedHashMap">
+        SELECT IFNULL(q.knowledge_point, '未分类')                AS knowledgePoint,
+               COUNT(1)                                           AS totalCount,
+               SUM(CASE WHEN q.qtype = 'SINGLE' THEN 1 ELSE 0 END) AS singleCount,
+               SUM(CASE WHEN q.qtype = 'MULTI'  THEN 1 ELSE 0 END) AS multiCount,
+               SUM(CASE WHEN q.qtype = 'JUDGE'  THEN 1 ELSE 0 END) AS judgeCount
+        FROM question q
+        WHERE q.deleted = 0 AND q.bank_id = #{bankId}
+        GROUP BY IFNULL(q.knowledge_point, '未分类')
+        ORDER BY totalCount DESC, knowledgePoint
+    </select>
+
+    <!-- 按知识点抽题：同知识点内随机，已抽到的题目通过 excludeIds 排除，避免重复 -->
+    <select id="selectQuestionsByPoint" resultType="Question">
+        SELECT q.id, q.bank_id, q.question_no, q.position_id, q.qtype, q.difficulty, q.knowledge_point,
+               q.stem, q.options_json, q.attachment_url, q.answer, q.analysis, q.score, q.is_subjective, q.status
+        FROM question q
+        WHERE q.deleted = 0 AND q.status = 1
+          AND q.bank_id = #{bankId}
+        <if test="point != null and point != ''">
+          AND q.knowledge_point = #{point}
+        </if>
+        <if test="qtype != null and qtype != ''">
+          AND q.qtype = #{qtype}
+        </if>
+        <if test="excludeIds != null and excludeIds.size() > 0">
+          AND q.id NOT IN
+          <foreach collection="excludeIds" item="eid" open="(" separator="," close=")">#{eid}</foreach>
+        </if>
+        ORDER BY RAND()
+        LIMIT #{limit}
+    </select>
+
+    <!-- 指定人员 -->
+    <resultMap type="ExamParticipant" id="ParticipantResult">
+        <id     property="id"           column="id"           />
+        <result property="examId"       column="exam_id"      />
+        <result property="userId"       column="user_id"      />
+        <result property="createTime"   column="create_time"  />
+        <result property="userName"     column="user_name"    />
+        <result property="positionName" column="position_name"/>
+        <result property="userStatus"   column="user_status"  />
+    </resultMap>
+
+    <select id="selectParticipants" resultMap="ParticipantResult">
+        SELECT p.id, p.exam_id, p.user_id, p.create_time,
+               u.nick_name AS user_name,
+               pos.position_name,
+               u.user_status
+        FROM exam_participant p
+        LEFT JOIN sys_user u ON u.user_id = p.user_id AND u.del_flag = '0'
+        LEFT JOIN position pos ON pos.id = u.position_id
+        WHERE p.exam_id = #{examId}
+        ORDER BY p.id
+    </select>
+
+    <select id="selectParticipantUserIds" resultType="java.lang.Long">
+        SELECT user_id FROM exam_participant WHERE exam_id = #{examId}
+    </select>
+
+    <delete id="deleteParticipants">
+        DELETE FROM exam_participant WHERE exam_id = #{examId}
+    </delete>
+
+    <insert id="insertParticipants">
+        INSERT INTO exam_participant (exam_id, user_id, create_time)
+        VALUES
+        <foreach collection="list" item="it" separator=",">
+            (#{it.examId}, #{it.userId}, NOW())
+        </foreach>
+    </insert>
+
+    <!-- 本部门已生效的模拟理论配置（取最近发布的一条） -->
+    <select id="selectActivePracticeConfig" resultType="java.util.LinkedHashMap">
+        SELECT e.id            AS examId,
+               e.exam_name     AS examName,
+               e.bank_id       AS bankId,
+               e.single_count  AS singleCount,
+               e.multi_count   AS multiCount,
+               e.judge_count   AS judgeCount,
+               e.single_score  AS singleScore,
+               e.multi_score   AS multiScore,
+               e.judge_score   AS judgeScore,
+               e.question_count AS questionCount,
+               e.duration      AS duration,
+               e.pass_line     AS passLine
+        FROM exam e
+        WHERE e.deleted = 0
+          AND e.exam_mode = 'PRACTICE'
+          AND e.exam_type = 'THEORY'
+          AND e.status = 'PUBLISHED'
+          AND e.dept_id = #{deptId}
+        ORDER BY e.published_at DESC, e.id DESC
+        LIMIT 1
+    </select>
+
+</mapper>

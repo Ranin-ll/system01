@@ -51,6 +51,11 @@ spring:
   messages:
     # 国际化资源文件路径
     basename: i18n/messages
+  # JSON 日期格式：与前端 el-date-picker 的 value-format="yyyy-MM-dd HH:mm:ss" 对齐
+  # （考核发布时间、时间窗等 datetime 字段依赖此处，缺省时 Jackson 只认 ISO8601）
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
   profiles:
     active: druid
   # 文件上传

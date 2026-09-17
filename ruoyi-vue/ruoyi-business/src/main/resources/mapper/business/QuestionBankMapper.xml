@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.QuestionBankMapper">
+
+    <resultMap type="QuestionBank" id="QuestionBankResult">
+        <id     property="id"            column="id"             />
+        <result property="bankName"      column="bank_name"      />
+        <result property="bankType"      column="bank_type"      />
+        <result property="deptId"        column="dept_id"        />
+        <result property="description"   column="description"    />
+        <result property="status"        column="status"         />
+        <result property="questionCount" column="question_count" />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="deleted"       column="deleted"        />
+        <result property="deptName"      column="dept_name"      />
+    </resultMap>
+
+    <sql id="bankColumns">
+        b.id, b.bank_name, b.bank_type, b.dept_id, b.description, b.status,
+        (SELECT COUNT(1) FROM question q WHERE q.bank_id = b.id AND q.deleted = 0) AS question_count,
+        b.create_by, b.create_time, b.update_time, b.deleted,
+        d.dept_name
+    </sql>
+
+    <sql id="bankScope">
+        <if test="scopeDeptId != null">
+            AND b.dept_id = #{scopeDeptId}
+        </if>
+    </sql>
+
+    <select id="selectBankList" resultMap="QuestionBankResult">
+        SELECT <include refid="bankColumns" />
+        FROM question_bank b
+        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <where>
+            b.deleted = 0
+            <include refid="bankScope" />
+            <if test="deptId != null">
+                AND b.dept_id = #{deptId}
+            </if>
+            <if test="bankName != null and bankName != ''">
+                AND b.bank_name LIKE CONCAT('%', #{bankName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND b.status = #{status}
+            </if>
+        </where>
+        ORDER BY b.create_time DESC
+    </select>
+
+    <select id="selectBankById" resultMap="QuestionBankResult">
+        SELECT <include refid="bankColumns" />
+        FROM question_bank b
+        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <where>
+            b.id = #{id}
+            AND b.deleted = 0
+            <include refid="bankScope" />
+        </where>
+        LIMIT 1
+    </select>
+
+    <insert id="insertBank" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO question_bank (bank_name, bank_type, dept_id, description, status, question_count, create_by, create_time, update_time, deleted)
+        VALUES (#{bankName}, #{bankType}, #{deptId}, #{description}, #{status}, #{questionCount}, #{createBy}, #{createTime}, #{createTime}, #{deleted})
+    </insert>
+
+    <update id="updateBank">
+        UPDATE question_bank
+        <set>
+            <if test="bankName != null">bank_name = #{bankName},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="questionCount != null">question_count = #{questionCount},</if>
+            update_time = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteBankById">
+        UPDATE question_bank SET deleted = 1 WHERE id = #{id}
+    </update>
+
+    <select id="selectPracticeBankByDept" resultMap="QuestionBankResult">
+        SELECT <include refid="bankColumns" />
+        FROM question_bank b
+        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        WHERE b.deleted = 0
+          AND b.bank_type = 'PRACTICE'
+          AND b.dept_id = #{deptId}
+        LIMIT 1
+    </select>
+
+</mapper>

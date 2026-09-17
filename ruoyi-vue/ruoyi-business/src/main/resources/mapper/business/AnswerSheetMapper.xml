@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.AnswerSheetMapper">
+
+    <resultMap type="AnswerSheet" id="SheetResult">
+        <id     property="id"            column="id"             />
+        <result property="examId"        column="exam_id"        />
+        <result property="userId"        column="user_id"        />
+        <result property="sheetType"     column="sheet_type"     />
+        <result property="status"        column="status"         />
+        <result property="startTime"     column="start_time"     />
+        <result property="submitTime"    column="submit_time"    />
+        <result property="submitType"    column="submit_type"    />
+        <result property="subjectAnswer" column="subject_answer" />
+        <result property="questionCount" column="question_count" />
+        <result property="aiScore"       column="ai_score"       />
+        <result property="manualScore"   column="manual_score"   />
+        <result property="manualComment" column="manual_comment" />
+        <result property="finalScore"    column="final_score"    />
+        <result property="passFlag"      column="pass_flag"      />
+        <result property="retakeSeq"     column="retake_seq"     />
+        <result property="version"       column="version"        />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="examName"      column="exam_name"      />
+        <result property="userName"      column="user_name"      />
+        <result property="loginName"     column="login_name"     />
+        <result property="deptName"      column="dept_name"      />
+    </resultMap>
+
+    <sql id="sheetColumns">
+        s.id, s.exam_id, s.user_id, s.sheet_type, s.status, s.start_time, s.submit_time, s.submit_type, s.subject_answer,
+        s.question_count, s.ai_score, s.manual_score, s.manual_comment, s.final_score, s.pass_flag, s.retake_seq, s.version,
+        s.create_time, s.update_time,
+        e.exam_name,
+        u.user_name, u.user_name AS login_name,
+        d.dept_name
+    </sql>
+
+    <select id="selectByExamAndUser" resultMap="SheetResult">
+        SELECT <include refid="sheetColumns" />
+        FROM answer_sheet s
+        LEFT JOIN exam e ON e.id = s.exam_id
+        LEFT JOIN sys_user u ON u.user_id = s.user_id
+        LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+        WHERE s.exam_id = #{examId} AND s.user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="selectSheetById" resultMap="SheetResult">
+        SELECT <include refid="sheetColumns" />
+        FROM answer_sheet s
+        LEFT JOIN exam e ON e.id = s.exam_id
+        LEFT JOIN sys_user u ON u.user_id = s.user_id
+        LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+        WHERE s.id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectSheetListByExam" resultMap="SheetResult">
+        SELECT <include refid="sheetColumns" />
+        FROM answer_sheet s
+        LEFT JOIN exam e ON e.id = s.exam_id
+        LEFT JOIN sys_user u ON u.user_id = s.user_id
+        LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+        WHERE s.exam_id = #{examId}
+        ORDER BY s.id ASC
+    </select>
+
+    <select id="selectGradingList" resultType="java.util.HashMap">
+        SELECT
+            u.user_id AS userId,
+            u.user_name AS userName,
+            u.dept_id AS deptId,
+            d.dept_name AS deptName,
+            s.id AS sheetId,
+            s.status AS sheetStatus,
+            s.ai_score AS aiScore,
+            s.manual_score AS manualScore,
+            s.manual_comment AS manualComment,
+            s.final_score AS finalScore,
+            s.pass_flag AS passFlag,
+            s.subject_answer AS subjectAnswer,
+            s.submit_time AS submitTime
+        FROM sys_user u
+        LEFT JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
+        LEFT JOIN answer_sheet s ON s.user_id = u.user_id AND s.exam_id = #{examId}
+        WHERE u.del_flag = '0'
+          AND u.status = '0'
+          AND u.dept_id = #{deptId}
+          AND u.user_id IN (
+              SELECT ur.user_id
+              FROM sys_user_role ur
+              INNER JOIN sys_role r ON r.role_id = ur.role_id AND r.del_flag = '0'
+              WHERE r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+          )
+        ORDER BY (s.id IS NULL) ASC, s.submit_time ASC, u.user_id ASC
+    </select>
+
+    <insert id="insertSheet" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO answer_sheet (exam_id, user_id, sheet_type, status, start_time, submit_time, submit_type, subject_answer,
+                                  question_count, ai_score, manual_score, final_score, pass_flag, retake_seq, version, create_time, update_time)
+        VALUES (#{examId}, #{userId}, #{sheetType}, #{status}, #{startTime}, #{submitTime}, #{submitType}, #{subjectAnswer},
+                #{questionCount}, #{aiScore}, #{manualScore}, #{finalScore}, #{passFlag}, #{retakeSeq}, #{version}, #{createTime}, #{createTime})
+    </insert>
+
+    <update id="updateSheet">
+        UPDATE answer_sheet
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="submitTime != null">submit_time = #{submitTime},</if>
+            <if test="submitType != null">submit_type = #{submitType},</if>
+            <if test="subjectAnswer != null">subject_answer = #{subjectAnswer},</if>
+            <if test="aiScore != null">ai_score = #{aiScore},</if>
+            <if test="manualScore != null">manual_score = #{manualScore},</if>
+            <if test="manualComment != null">manual_comment = #{manualComment},</if>
+            <if test="finalScore != null">final_score = #{finalScore},</if>
+            <if test="passFlag != null">pass_flag = #{passFlag},</if>
+            update_time = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <resultMap type="AnswerSheetItem" id="ItemResult">
+        <id     property="id"            column="id"             />
+        <result property="answerSheetId" column="answer_sheet_id"/>
+        <result property="questionId"    column="question_id"    />
+        <result property="seq"           column="seq"            />
+        <result property="qtype"         column="qtype"          />
+        <result property="isSubjective"  column="is_subjective"  />
+        <result property="userAnswer"    column="user_answer"    />
+        <result property="isCorrect"     column="is_correct"     />
+        <result property="aiScore"       column="ai_score"       />
+        <result property="manualScore"   column="manual_score"   />
+        <result property="manualComment" column="manual_comment" />
+        <result property="manualUserId"  column="manual_user_id" />
+        <result property="manualTime"    column="manual_time"    />
+        <result property="stem"          column="stem"           />
+        <result property="answer"        column="answer"         />
+        <result property="attachmentUrl" column="attachment_url" />
+        <result property="score"         column="score"          />
+    </resultMap>
+
+    <select id="selectItemsBySheetId" resultMap="ItemResult">
+        SELECT i.id, i.answer_sheet_id, i.question_id, i.seq, i.qtype, i.is_subjective,
+               i.user_answer, i.is_correct, i.ai_score, i.manual_score, i.manual_comment,
+               i.manual_user_id, i.manual_time,
+               q.stem, q.answer, q.attachment_url, q.score
+        FROM answer_sheet_item i
+        LEFT JOIN question q ON q.id = i.question_id
+        WHERE i.answer_sheet_id = #{sheetId}
+        ORDER BY i.seq ASC
+    </select>
+
+    <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO answer_sheet_item (answer_sheet_id, question_id, seq, qtype, is_subjective,
+                                       user_answer, is_correct, ai_score, manual_score, manual_comment,
+                                       manual_user_id, manual_time, create_time)
+        VALUES (#{answerSheetId}, #{questionId}, #{seq}, #{qtype}, #{isSubjective},
+                #{userAnswer}, #{isCorrect}, #{aiScore}, #{manualScore}, #{manualComment},
+                #{manualUserId}, #{manualTime}, CURRENT_TIMESTAMP)
+    </insert>
+
+    <update id="updateItem">
+        UPDATE answer_sheet_item
+        <set>
+            <if test="isCorrect != null">is_correct = #{isCorrect},</if>
+            <if test="aiScore != null">ai_score = #{aiScore},</if>
+            <if test="manualScore != null">manual_score = #{manualScore},</if>
+            <if test="manualComment != null">manual_comment = #{manualComment},</if>
+            <if test="manualUserId != null">manual_user_id = #{manualUserId},</if>
+            <if test="manualTime != null">manual_time = #{manualTime},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+</mapper>

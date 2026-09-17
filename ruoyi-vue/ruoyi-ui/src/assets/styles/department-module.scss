@@ -1,0 +1,309 @@
+/* ==========================================================================
+   部门管理员端 · 公共样式基线（design system）
+   对齐《实习生与部门管理员端整体设计稿.html》部门管理员端（.rd）作用域的
+   视觉规范：同一套 :root 变量 + 同一套组件语汇。
+
+   ⚠️ 本文件被各页以 `@import '~@/assets/styles/department-module.scss';`
+   引入到 <style lang="scss" scoped> 中。**因此不能出现 :root 选择器** ——
+   scoped 会把 :root 编译成 `:root[data-v-xxx]`，永远匹配不到，变量全部失效。
+   所以这里一律用 SCSS 变量（编译期常量），不用 CSS 自定义属性。
+
+   命名前缀 d（dept）用于区分实习生端同名语汇，避免与 practice-module.scss 撞名。
+   ========================================================================== */
+
+/* ---- 设计令牌（取自设计稿 :root） ---- */
+$bg:          #eef2f7;
+$panel:       #ffffff;
+$panel-2:     #f7f9fc;
+$line:        #e4e9f0;
+$line-2:      #eef1f6;
+$ink:         #1d2939;
+$ink-2:       #344054;
+$ink-3:       #667085;
+$ink-4:       #98a2b3;
+$blue:        #1764f5;
+$blue-soft:   #e8f1fd;
+$blue-soft-2: #d7e7fc;
+$green:       #12b76a;
+$green-soft:  #e7f7ef;
+$green-ink:   #067647;
+$orange:      #f79009;
+$orange-soft: #fff4e5;
+$orange-ink:  #b54708;
+$purple:      #7a5af8;
+$purple-soft: #f4eeff;
+$purple-ink:  #5c37d6;
+$gray-soft:   #f2f4f7;
+$red:         #f04438;
+$red-soft:    #feecea;
+$red-ink:     #b42318;
+
+/* ---- 页面外壳 ---- */
+.dept-page { min-height: 100%; padding: 24px 26px 60px; color: #283544; background: $bg; }
+.dept-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: $ink-4; font-size: 12px; }
+.dept-breadcrumb .el-button { padding: 0; color: $blue; font-size: 12px; }
+.dept-breadcrumb b { color: #475467; font-weight: 500; }
+.dept-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.dept-heading h1 { margin: 5px 0 7px; color: $ink; font-size: 26px; font-weight: 600; }
+.dept-heading p { margin: 0; color: $ink-3; font-size: 13px; line-height: 1.6; }
+.dept-heading .eyebrow { color: $blue; font-size: 11px; letter-spacing: .08em; }
+.dept-heading-actions { display: flex; flex: none; align-items: center; gap: 10px; }
+
+/* ---- 区块（sec） ---- */
+.dsec { margin-bottom: 18px; padding: 20px 22px 22px; background: $panel; border: 1px solid $line; border-radius: 10px; }
+.dsec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 16px; margin-bottom: 4px; border-bottom: 1px solid $line-2; }
+.dsec-head > div { display: flex; align-items: flex-start; gap: 11px; }
+.dsec-no { display: inline-flex; width: 24px; height: 24px; flex: none; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 600; background: $blue; border-radius: 6px; }
+.dsec-no.p { background: $purple; }
+.dsec-head h2 { margin: 0 0 5px; color: $ink; font-size: 17px; font-weight: 600; }
+.dsec-head p { margin: 0; color: $ink-4; font-size: 12px; line-height: 1.6; }
+.dsec-body { padding-top: 16px; }
+.dsec-note { margin: 12px 0 0; color: $ink-4; font-size: 11px; line-height: 1.7; }
+
+/* ---- KPI 指标 ---- */
+.dkpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.dkpi-grid.c6 { grid-template-columns: repeat(6, 1fr); }
+.dkpi { padding: 15px 16px; background: $panel; border: 1px solid $line; border-radius: 10px; }
+.dkpi-label { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; color: $ink-3; font-size: 12px; }
+.dkpi-val { color: $ink; font-size: 23px; font-weight: 600; line-height: 1.15; }
+.dkpi-val.sm { font-size: 18px; }
+.dkpi-val.mute { color: $ink-4; }
+.dkpi-sub { margin-top: 6px; color: $ink-4; font-size: 11px; }
+.dkpi-sub b { color: $blue; font-weight: 600; }
+.dkpi-sub b.ok { color: $green-ink; }
+.dkpi-sub b.bad { color: $red-ink; }
+
+/* ---- KPI 迷你条（比率类指标下方） ---- */
+.dbar-mini { height: 5px; margin-top: 9px; overflow: hidden; background: $gray-soft; border-radius: 3px; }
+.dbar-mini i { display: block; height: 100%; background: $blue; border-radius: 3px; }
+.dbar-mini i.g { background: $green; }
+.dbar-mini i.o { background: $orange; }
+.dbar-mini i.r { background: $red; }
+
+/* ---- 可点击 KPI（待办中心用） ---- */
+.dkpi.clickable { cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.dkpi.clickable:hover { border-color: $blue-soft-2; box-shadow: 0 4px 14px rgba(23, 100, 245, .1); transform: translateY(-1px); }
+.dkpi .d { display: inline-block; width: 6px; height: 6px; flex: none; border-radius: 50%; background: $blue; }
+
+/* ---- KPI 直接放进 .dgrid 时的跨列（c2 = 6 个一行，c3 = 4 个一行） ---- */
+.dkpi.c2 { grid-column: span 2; }
+.dkpi.c3 { grid-column: span 3; }
+.dkpi.c4 { grid-column: span 4; }
+.dkpi.c6 { grid-column: span 6; }
+
+/* ---- KPI 副文案着色 ---- */
+.dkpi-sub.ok { color: $green-ink; }
+.dkpi-sub.bad { color: $red-ink; }
+.dkpi-sub.warn { color: $orange-ink; }
+
+/* ---- 部门身份条 ---- */
+.didentity { display: flex; align-items: center; gap: 16px; }
+.didentity .big-ph { display: inline-flex; width: 46px; height: 46px; flex: none; align-items: center; justify-content: center; color: #fff; font-size: 19px; font-weight: 600; background: linear-gradient(140deg, #4d8bf7, $blue); border-radius: 12px; }
+.didentity .who { flex: 1; min-width: 0; }
+.didentity .who b { display: block; margin-bottom: 4px; color: $ink; font-size: 17px; font-weight: 600; }
+.didentity .who p { margin: 0; color: $ink-3; font-size: 12.5px; }
+.didentity .facts { display: flex; flex: none; }
+.didentity .fact { padding: 0 20px; border-left: 1px solid $line; }
+.didentity .fact:first-child { padding-left: 0; border-left: 0; }
+.didentity .fact span { display: block; margin-bottom: 5px; color: $ink-4; font-size: 11.5px; }
+.didentity .fact b { color: $ink; font-size: 17px; font-weight: 600; }
+.didentity .fact b.ok { color: $green-ink; }
+.didentity .fact b.warn { color: $orange-ink; }
+
+/* ---- 「示例数据」标记 ---- */
+.dsample { display: inline-flex; align-items: center; height: 19px; padding: 0 7px; color: $orange-ink; font-size: 10.5px; background: $orange-soft; border: 1px solid #fbdba7; border-radius: 4px; }
+
+/* ---- 卡片网格 ---- */
+.dgrid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+.dcard { padding: 18px 20px; background: $panel; border: 1px solid $line; border-radius: 10px; }
+.dcard.c4 { grid-column: span 4; }
+.dcard.c5 { grid-column: span 5; }
+.dcard.c6 { grid-column: span 6; }
+.dcard.c7 { grid-column: span 7; }
+.dcard.c8 { grid-column: span 8; }
+.dcard.c12 { grid-column: span 12; }
+.dcard-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.dcard-h .tt { display: flex; align-items: center; gap: 9px; }
+.dcard-h .idx { display: inline-flex; width: 20px; height: 20px; flex: none; align-items: center; justify-content: center; color: $blue; font-size: 11px; font-weight: 700; background: $blue-soft; border-radius: 50%; }
+.dcard-h h3 { margin: 0; color: $ink; font-size: 14.5px; font-weight: 600; }
+.dcard-h .more { color: $blue; font-size: 12px; cursor: pointer; }
+.dcard-h .more:hover { text-decoration: underline; }
+
+/* ---- 徽标 / 药丸 ---- */
+.dbadge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; color: $ink-2; font-size: 11.5px; background: $gray-soft; border-radius: 11px; }
+.dbadge.blue { color: $blue; background: $blue-soft; }
+.dbadge.green { color: $green-ink; background: $green-soft; }
+.dbadge.orange { color: $orange-ink; background: $orange-soft; }
+.dbadge.purple { color: $purple-ink; background: $purple-soft; }
+.dbadge.red { color: $red-ink; background: $red-soft; }
+.dbadge.gray { color: $ink-3; background: $gray-soft; }
+
+/* ---- 筛选 chip 条 ---- */
+.dchips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.dchip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 13px; color: $ink-2; font-size: 12.5px; background: $panel; border: 1px solid $line; border-radius: 15px; cursor: pointer; user-select: none; transition: all .15s; }
+.dchip:hover { border-color: $blue-soft-2; color: $blue; }
+.dchip.on { color: #fff; background: $blue; border-color: $blue; }
+.dchip .n { opacity: .7; font-size: 11px; }
+
+/* ---- 表格 ---- */
+.dtbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dtbl th { padding: 11px 12px; color: $ink-3; font-size: 12px; font-weight: 500; text-align: left; background: $panel-2; border-bottom: 1px solid $line; white-space: nowrap; }
+.dtbl td { padding: 12px; color: $ink-2; border-bottom: 1px solid $line-2; vertical-align: middle; }
+.dtbl tbody tr:hover td { background: $panel-2; }
+.dtbl td .strong { color: $ink; font-weight: 600; }
+.dtbl .acts { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.dtbl .acts .el-button { padding: 0 4px; font-size: 12px; }
+
+/* ---- 通用网格跨列：提示条 / 键值格 / 步骤条放进 .dgrid 时按 cN 跨列 ---- */
+@each $n in (4, 5, 6, 7, 8) {
+  .dcallout.c#{$n} { grid-column: span #{$n}; }
+  .dkv.c#{$n} { grid-column: span #{$n}; }
+  .dsteps.c#{$n} { grid-column: span #{$n}; }
+  .dsec.c#{$n} { grid-column: span #{$n}; }
+}
+
+/* ---- 横向条形（分布 / 得分率） ---- */
+.dhbar { margin-bottom: 14px; }
+.dhbar:last-child { margin-bottom: 0; }
+.dhbar-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.dhbar-name { color: $ink-2; font-size: 12.5px; }
+.dhbar-meta { color: $ink-4; font-size: 11px; }
+.dhbar-meta b { font-weight: 600; }
+.dhbar-meta b.good { color: $green-ink; }
+.dhbar-meta b.mid { color: $orange-ink; }
+.dhbar-meta b.poor { color: $red-ink; }
+.dhbar-track { height: 9px; overflow: hidden; background: $gray-soft; border-radius: 5px; }
+.dhbar-fill { height: 100%; border-radius: 5px; background: $blue; }
+.dhbar-fill.good { background: $green; }
+.dhbar-fill.mid { background: $orange; }
+.dhbar-fill.poor { background: $red; }
+.dhbar-fill.avg { background: $blue; }
+.dhbar-fill.line { background: $ink-4; }
+
+/* ---- 竖直柱（趋势） ---- */
+.dvcols { display: flex; align-items: flex-end; gap: 10px; height: 132px; padding-top: 8px; }
+.dvcol { display: flex; flex: 1; height: 100%; flex-direction: column; align-items: center; justify-content: flex-end; gap: 7px; }
+.dvcol-bar { width: 100%; max-width: 38px; background: linear-gradient(180deg, #5b91f8, $blue); border-radius: 5px 5px 0 0; }
+.dvcol-bar.mute { background: #d7e2f2; }
+.dvcol-x { color: $ink-4; font-size: 11px; white-space: nowrap; }
+
+/* ---- 步骤条 ---- */
+.dsteps { display: flex; }
+.dstep { position: relative; flex: 1; padding-right: 12px; }
+.dstep::after { position: absolute; top: 12px; right: 4px; left: 26px; height: 2px; background: $line; content: ''; }
+.dstep:last-child::after { display: none; }
+.dstep .dot { position: relative; z-index: 1; display: flex; width: 24px; height: 24px; align-items: center; justify-content: center; color: $ink-4; font-size: 12px; background: $gray-soft; border-radius: 50%; }
+.dstep.done .dot { color: #fff; background: $green; }
+.dstep.now .dot { color: #fff; background: $blue; }
+.dstep.done::after { background: $green; }
+.dstep-t { margin: 9px 0 3px; color: $ink-2; font-size: 12.5px; font-weight: 600; }
+.dstep.d .dstep-t { color: $ink; }
+.dstep-s { color: $ink-4; font-size: 11px; }
+
+/* ---- 竖直步骤（个人档案 · 培养进度） ---- */
+.dvsteps { position: relative; }
+.dvstep { position: relative; display: flex; gap: 11px; padding-bottom: 18px; }
+.dvstep:last-child { padding-bottom: 0; }
+.dvstep::before { position: absolute; top: 24px; bottom: 0; left: 11px; width: 2px; background: $line; content: ''; }
+.dvstep:last-child::before { display: none; }
+.dvstep .mark { position: relative; z-index: 1; display: flex; width: 24px; height: 24px; flex: none; align-items: center; justify-content: center; color: $ink-4; font-size: 12px; background: $gray-soft; border-radius: 50%; }
+.dvstep.done .mark { color: #fff; background: $green; }
+.dvstep.now .mark { color: #fff; background: $blue; }
+.dvstep .txt b { display: block; margin-bottom: 3px; color: $ink-2; font-size: 13px; font-weight: 600; }
+.dvstep .txt span { color: $ink-4; font-size: 11.5px; }
+
+/* ---- 表单域（配置型页面的静态呈现） ---- */
+.dfield { margin-top: 12px; }
+.dfield:first-child { margin-top: 0; }
+.dfield > label { display: block; margin-bottom: 6px; color: $ink-3; font-size: 11.5px; }
+.dfield > label b { color: $red; }
+.dinp { padding: 8px 12px; color: $ink-2; font-size: 12.5px; line-height: 1.6; background: $panel; border: 1px solid $line; border-radius: 8px; }
+.dinp.mute { color: $ink-4; background: $gray-soft; }
+.dinp.ta { min-height: 66px; line-height: 1.7; }
+.dbtn-row { display: flex; align-items: center; gap: 10px; }
+.dbtn-row.right { justify-content: flex-end; }
+
+/* ---- 复选行（发布对象 / 配置开关） ---- */
+.dchkrow { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; color: $ink-2; font-size: 12.5px; line-height: 1.6; cursor: pointer; }
+.dchkrow .box { display: inline-flex; width: 17px; height: 17px; flex: none; align-items: center; justify-content: center; margin-top: 1px; color: transparent; font-size: 11px; background: $panel; border: 1px solid #cfd8e3; border-radius: 5px; }
+.dchkrow .box.on { color: #fff; background: $blue; border-color: $blue; }
+.dchkrow .box.sw { color: #fff; background: $green; border-color: $green; }
+.dchkrow b { font-weight: 600; }
+
+/* ---- 嵌套卡片（卡片里的卡片） ---- */
+.dcard.flat { background: $panel-2; border-color: $line-2; }
+
+/* ---- 次级文案 ---- */
+.hint-text { color: $ink-4; font-size: 11.5px; }
+
+/* ---- 键值格 ---- */
+.dkv { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 18px; }
+.dkv > div { min-width: 0; }
+.dkv span { display: block; margin-bottom: 5px; color: $ink-4; font-size: 11px; }
+.dkv strong { color: $ink; font-size: 13px; font-weight: 600; word-break: break-all; }
+.dkv strong.mute { color: $ink-4; font-weight: 400; }
+
+/* ---- 提示条 ---- */
+.dcallout { display: flex; align-items: flex-start; gap: 8px; padding: 11px 14px; margin-bottom: 14px; color: #475467; font-size: 12px; line-height: 1.65; background: $blue-soft; border: 1px solid $blue-soft-2; border-radius: 8px; }
+.dcallout i { margin-top: 2px; color: $blue; }
+.dcallout.ok { color: #05603a; background: $green-soft; border-color: #b7e3d2; }
+.dcallout.ok i { color: $green-ink; }
+.dcallout.warn { color: $orange-ink; background: $orange-soft; border-color: #fbdba7; }
+.dcallout.warn i { color: $orange; }
+.dcallout b { font-weight: 600; }
+
+/* ---- 空状态 ---- */
+.dempty { display: flex; min-height: 150px; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: $ink-4; }
+.dempty.small { min-height: 100px; }
+.dempty i { color: #b7c1cc; font-size: 32px; }
+.dempty.small i { font-size: 22px; }
+.dempty strong { color: $ink-3; font-size: 14px; font-weight: 500; }
+.dempty span { max-width: 560px; font-size: 12px; line-height: 1.65; text-align: center; }
+
+/* ---- 待办 ---- */
+.dtodo { display: flex; flex-direction: column; }
+.dtodo-row { display: flex; align-items: center; gap: 11px; padding: 12px 0; border-bottom: 1px dashed $line-2; }
+.dtodo-row:last-child { border-bottom: 0; }
+.dtodo-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: $ink-4; }
+.dtodo-dot.o { background: $orange; }
+.dtodo-dot.g { background: $green; }
+.dtodo-dot.b { background: $blue; }
+.dtodo-main { flex: 1; min-width: 0; }
+.dtodo-t { color: $ink; font-size: 13px; font-weight: 500; }
+.dtodo-s { margin-top: 3px; color: $ink-4; font-size: 11.5px; line-height: 1.5; }
+.dtodo-row .el-button { flex: none; }
+
+/* ---- 页签（页签壳用） ---- */
+.dtabs { display: flex; gap: 4px; padding: 0 18px; margin: 0 -22px 18px; background: $panel; border-bottom: 1px solid $line; }
+.dtab { position: relative; padding: 13px 15px; color: $ink-3; font-size: 13.5px; cursor: pointer; user-select: none; }
+.dtab:hover { color: $blue; }
+.dtab.on { color: $blue; font-weight: 500; }
+.dtab.on::after { position: absolute; right: 12px; bottom: -1px; left: 12px; height: 2px; background: $blue; border-radius: 1px; content: ''; }
+
+/* ---- 表单栅格 ---- */
+.dfg2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 18px; }
+.dfg3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 18px; }
+
+/* ---- 上传拖拽区 ---- */
+.ddrop { display: flex; min-height: 92px; align-items: center; justify-content: center; flex-direction: column; gap: 6px; color: $ink-4; font-size: 12.5px; background: $panel-2; border: 1px dashed #cfd8e3; border-radius: 10px; cursor: pointer; transition: all .15s; }
+.ddrop:hover { color: $blue; background: $blue-soft; border-color: $blue-soft-2; }
+.ddrop i { font-size: 24px; }
+.ddrop small { color: $ink-4; font-size: 11px; }
+
+/* ---- 响应式 ---- */
+@media (max-width: 1280px) {
+  .dkpi-grid, .dkpi-grid.c6 { grid-template-columns: repeat(3, 1fr); }
+  .dcard.c4, .dcard.c5, .dcard.c6, .dcard.c7, .dcard.c8 { grid-column: span 12; }
+  .dkpi.c2, .dkpi.c3, .dkpi.c4 { grid-column: span 6; }
+  .dcallout[class*=' c'], .dkv[class*=' c'], .dsteps[class*=' c'], .dsec[class*=' c'] { grid-column: span 12; }
+}
+@media (max-width: 820px) {
+  .dept-page { padding: 16px 12px 48px; }
+  .dept-heading { align-items: flex-start; flex-direction: column; }
+  .dept-heading h1 { font-size: 22px; }
+  .dkpi-grid, .dkpi-grid.c6 { grid-template-columns: repeat(2, 1fr); }
+  .dkpi.c2, .dkpi.c3, .dkpi.c4, .dkpi.c6 { grid-column: span 12; }
+  .dkv, .dfg2, .dfg3 { grid-template-columns: 1fr; }
+  .dsec { padding: 16px 13px; }
+  .dtabs { overflow-x: auto; }
+}

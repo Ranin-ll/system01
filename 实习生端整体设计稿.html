@@ -1,0 +1,1629 @@
+<!doctype html>
+<html lang="zh-CN" data-page-node-id="LcZRp92cTlFk8vh5BLf7Xs">
+<head data-page-node-id="6lqzEu0Rfc861tyOTzuE9g">
+<meta charset="utf-8" data-page-node-id="CASoXnD3SJ8SXjoH0422CE" />
+<meta name="viewport" content="width=device-width,initial-scale=1" data-page-node-id="TSfEIWL6amridRgsZ6YDDX" />
+<title>实习生学习考核系统 · 实习生端整体设计稿 V1.2</title>
+<style>
+  :root{
+    --bg:#eef2f7; --panel:#ffffff; --panel-2:#f7f9fc;
+    --line:#e4e9f0; --line-2:#eef1f6;
+    --ink:#1d2939; --ink-2:#344054; --ink-3:#667085; --ink-4:#98a2b3;
+    --blue:#1764f5; --blue-soft:#e8f1fd; --blue-soft-2:#d7e7fc;
+    --green:#12b76a; --green-soft:#e7f7ef;
+    --orange:#f79009; --orange-soft:#fff4e5; --orange-ink:#b54708;
+    --purple:#7a5af8; --purple-soft:#f4eeff;
+    --gray-soft:#f2f4f7; --red:#f04438; --red-soft:#feecea;
+    --font:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  a{color:var(--blue);text-decoration:none;}
+
+  .doc{max-width:1300px;margin:0 auto;padding:0 24px 96px;}
+  .doc-hero{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px 32px;margin:24px 0 22px;}
+  .doc-hero h1{margin:0 0 6px;font-size:24px;letter-spacing:.3px;}
+  .doc-hero .sub{color:var(--ink-3);font-size:13px;}
+  .doc-hero .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+  .tag{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;background:var(--gray-soft);color:var(--ink-2);font-size:12px;}
+  .tag.blue{background:var(--blue-soft);color:var(--blue);}
+  .tag.green{background:var(--green-soft);color:#067647;}
+  .tag.orange{background:var(--orange-soft);color:var(--orange-ink);}
+  .tag.purple{background:var(--purple-soft);color:#5c37d6;}
+
+  .doc-nav{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;gap:6px;background:rgba(238,242,247,.93);backdrop-filter:blur(6px);padding:12px 0;margin-bottom:8px;}
+  .doc-nav a{height:30px;display:inline-flex;align-items:center;padding:0 12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--ink-2);font-size:12.5px;}
+  .doc-nav a:hover{border-color:var(--blue);color:var(--blue);}
+  .doc-nav a.hot{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+  .sec{margin-top:40px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;}
+  .sec-no{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:var(--blue);color:#fff;font-size:13px;font-weight:600;flex:none;}
+  .sec-no.p{background:var(--purple);}
+  .sec-head h2{margin:0;font-size:19px;}
+  .sec-desc{color:var(--ink-3);font-size:13.5px;margin:0 0 16px 38px;max-width:1000px;}
+  .sec-desc b{color:var(--ink-2);font-weight:600;}
+
+  .frame{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .frame-bar{display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--panel-2);}
+  .dot{width:10px;height:10px;border-radius:50%;background:#dfe4ec;}
+  .dot.r{background:#f6c9c4;}
+  .url{margin-left:10px;flex:1;height:24px;display:flex;align-items:center;padding:0 12px;background:#fff;border:1px solid var(--line);border-radius:6px;color:var(--ink-4);font-size:12px;}
+
+  .app{display:flex;min-height:640px;background:var(--panel-2);}
+  .rail{width:208px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;}
+  .rail-brand{height:58px;display:flex;align-items:center;gap:9px;padding:0 18px;border-bottom:1px solid var(--line-2);font-weight:600;color:var(--ink);}
+  .rail-brand .logo{width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+  .rail-brand .logo.p{background:var(--purple);}
+  .rail-group{padding:12px 10px 0;color:var(--ink-4);font-size:11px;letter-spacing:.6px;}
+  .rail-item{display:flex;align-items:center;gap:10px;margin:3px 10px;padding:9px 12px;border-radius:7px;color:var(--ink-2);font-size:13.5px;cursor:default;}
+  .rail-item .ic{width:16px;text-align:center;color:var(--ink-3);font-size:14px;}
+  .rail-item.active{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+  .rail-item.active .ic{color:var(--blue);}
+  .rail-item.act-p{background:var(--purple-soft);color:#5c37d6;font-weight:600;}
+  .rail-foot{margin-top:auto;padding:14px 18px;border-top:1px solid var(--line-2);color:var(--ink-4);font-size:11.5px;}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--panel-2);}
+  .topbar{height:58px;flex:none;display:flex;align-items:center;gap:14px;padding:0 22px;background:#fff;border-bottom:1px solid var(--line);}
+  .crumb{font-size:13.5px;color:var(--ink-3);}
+  .crumb b{color:var(--ink);font-weight:600;}
+  .topbar .spacer{flex:1;}
+  .bell{position:relative;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink-2);}
+  .bell i{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;font-style:normal;display:flex;align-items:center;justify-content:center;}
+  .avatar{display:flex;align-items:center;gap:8px;}
+  .avatar .ph{width:30px;height:30px;border-radius:50%;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
+  .avatar .ph.p{background:var(--purple-soft);color:#5c37d6;}
+  .body{padding:18px 22px 26px;overflow:hidden;}
+
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;}
+  .card.flat{background:var(--panel-2);}
+  .c3{grid-column:span 3;} .c4{grid-column:span 4;} .c5{grid-column:span 5;}
+  .c6{grid-column:span 6;} .c7{grid-column:span 7;} .c8{grid-column:span 8;}
+  .c12{grid-column:span 12;}
+  .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .card-h h3{margin:0;font-size:14.5px;font-weight:600;color:var(--ink);}
+  .card-h .hint{font-size:11.5px;color:var(--ink-4);}
+  .idx{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;margin-right:8px;flex:none;}
+  .idx.g{background:var(--green-soft);color:#067647;} .idx.o{background:var(--orange-soft);color:var(--orange-ink);}
+  .card-h .tt{display:flex;align-items:center;}
+  .note{font-size:11.5px;color:var(--ink-4);margin-top:10px;line-height:1.5;}
+
+  .ph-page-title{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;gap:14px;}
+  .ph-page-title h2{margin:0 0 2px;font-size:19px;}
+  .ph-page-title .d{color:var(--ink-3);font-size:12.5px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--ink-2);font-size:13px;white-space:nowrap;}
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .btn.ghost{background:var(--blue-soft);border-color:transparent;color:var(--blue);}
+  .btn.dis{opacity:.45;}
+  .btn.sm{height:28px;font-size:12px;padding:0 11px;}
+  .btn-row{display:flex;gap:8px;}
+
+  .identity{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+  .identity .big-ph{width:46px;height:46px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex:none;}
+  .identity .who b{font-size:15.5px;color:var(--ink);}
+  .identity .who p{margin:2px 0 0;color:var(--ink-3);font-size:12.5px;}
+  .identity .facts{margin-left:auto;display:flex;gap:26px;flex-wrap:wrap;}
+  .fact{min-width:78px;}
+  .fact span{display:block;color:var(--ink-4);font-size:11.5px;margin-bottom:3px;}
+  .fact b{font-size:13.5px;color:var(--ink);}
+  .fact b.ok{color:#067647;} .fact b.warn{color:var(--orange-ink);} .fact b.idle{color:var(--ink-4);}
+
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .kpi .lb{display:flex;align-items:center;gap:6px;color:var(--ink-3);font-size:12px;margin-bottom:8px;}
+  .kpi .lb .d{width:6px;height:6px;border-radius:50%;background:var(--blue);}
+  .kpi .vl{font-size:24px;font-weight:700;letter-spacing:.4px;color:var(--ink);line-height:1.1;}
+  .kpi .vl small{font-size:12px;font-weight:500;color:var(--ink-4);margin-left:3px;}
+  .kpi .ft{font-size:11.5px;color:var(--ink-4);margin-top:7px;}
+  .kpi .ft.up{color:#067647;} .kpi .ft.warn{color:var(--orange-ink);}
+  .kpi.hl{border-color:var(--blue-soft-2);}
+  .bar-mini{height:5px;border-radius:3px;background:var(--gray-soft);margin-top:9px;overflow:hidden;}
+  .bar-mini i{display:block;height:100%;border-radius:3px;background:var(--blue);}
+  .bar-mini i.g{background:var(--green);} .bar-mini i.o{background:var(--orange);}
+
+  svg{display:block;width:100%;height:auto;}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--ink-3);}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+
+  .portrait{display:flex;gap:14px;align-items:center;}
+  .portrait .radar{flex:none;width:180px;}
+  .portrait .meta{flex:1;min-width:0;}
+  .dim-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:12px;}
+  .dim-row .nm{width:62px;color:var(--ink-2);flex:none;}
+  .dim-row .bar{flex:1;height:6px;border-radius:3px;background:var(--gray-soft);overflow:hidden;}
+  .dim-row .bar i{display:block;height:100%;border-radius:3px;}
+  .dim-row .vv{width:62px;text-align:right;color:var(--ink-3);flex:none;font-size:11.5px;}
+  .completeness{margin-top:4px;padding-top:12px;border-top:1px dashed var(--line);}
+  .completeness .t{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3);margin-bottom:6px;}
+  .completeness .t b{color:var(--ink);}
+
+  .hbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:12.5px;}
+  .hbar .nm{width:144px;color:var(--ink-2);flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .hbar .track{flex:1;height:9px;border-radius:5px;background:var(--gray-soft);overflow:hidden;}
+  .hbar .track i{display:block;height:100%;border-radius:5px;background:var(--blue);}
+  .hbar .pc{width:42px;text-align:right;color:var(--ink-2);font-weight:600;flex:none;font-size:12px;}
+  .hbar.low .track i{background:var(--orange);}
+  .hbar.done .track i{background:var(--green);}
+
+  .vchart{display:flex;align-items:flex-end;gap:14px;height:132px;padding:0 4px;}
+  .vcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+  .vcol .bar{width:100%;max-width:38px;border-radius:6px 6px 0 0;background:var(--blue-soft-2);border:1px solid var(--blue-soft-2);display:flex;align-items:flex-start;justify-content:center;padding-top:4px;font-size:10.5px;color:var(--blue);}
+  .vcol .bar.hi{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .vcol .bar.g{background:var(--green);border-color:var(--green);color:#fff;}
+  .vcol .bar.o{background:var(--orange);border-color:var(--orange);color:#fff;}
+  .vcol .bar.none{background:var(--gray-soft);border-color:var(--gray-soft);color:var(--ink-4);}
+  .vcol .lb{font-size:11px;color:var(--ink-4);}
+
+  .steps{display:flex;flex-direction:column;gap:0;}
+  .step{display:flex;gap:12px;position:relative;padding-bottom:16px;}
+  .step:last-child{padding-bottom:0;}
+  .step .mark{width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;z-index:2;background:var(--gray-soft);color:var(--ink-4);}
+  .step.done .mark{background:var(--green);color:#fff;}
+  .step.now .mark{background:var(--blue);color:#fff;}
+  .step:not(:last-child)::before{content:"";position:absolute;left:10.5px;top:22px;bottom:0;width:2px;background:var(--line);}
+  .step.done:not(:last-child)::before{background:var(--green-soft);}
+  .step .txt b{font-size:13px;color:var(--ink);display:block;}
+  .step .txt span{font-size:11.5px;color:var(--ink-4);}
+
+  .todo{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line-2);border-radius:8px;margin-bottom:9px;background:#fff;}
+  .todo:last-child{margin-bottom:0;}
+  .todo .tdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--blue);}
+  .todo .tdot.o{background:var(--orange);} .todo .tdot.g{background:var(--green);}
+  .todo .tx{flex:1;min-width:0;}
+  .todo .tx b{font-size:13px;color:var(--ink);display:block;}
+  .todo .tx span{font-size:11.5px;color:var(--ink-3);}
+
+  .notice{padding:11px 0;border-bottom:1px dashed var(--line);}
+  .notice:last-child{border-bottom:0;padding-bottom:0;}
+  .notice b{font-size:13px;color:var(--ink);display:block;margin-bottom:2px;}
+  .notice span{font-size:11.5px;color:var(--ink-4);}
+
+  .record-band{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+  .record-band .lbl{color:var(--ink-2);font-size:13.5px;flex:none;}
+  .pill{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 16px;border:0;border-radius:8px;background:var(--blue-soft);color:var(--blue);font-size:13.5px;font-family:var(--font);}
+  .pill em{padding:1px 7px;border-radius:10px;background:rgba(23,100,245,.12);font-size:11px;font-style:normal;}
+  .pill.pending{background:var(--orange-soft);color:var(--orange-ink);}
+  .pill.pending em{background:rgba(181,71,8,.12);}
+  .pill.idle{background:var(--gray-soft);color:var(--ink-4);}
+  .pill.idle em{background:rgba(152,162,179,.18);}
+
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 16px;overflow-x:auto;}
+  .tab{padding:10px 16px;font-size:13.5px;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+  .tab.active{color:var(--blue);font-weight:600;border-bottom-color:var(--blue);}
+  .tab .n{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--gray-soft);color:var(--ink-3);font-size:10.5px;}
+  .tab.active .n{background:var(--blue-soft);color:var(--blue);}
+
+  .overview{display:flex;align-items:center;gap:26px;}
+  .donut{flex:none;width:104px;height:104px;position:relative;}
+  .donut .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .donut .center b{font-size:21px;color:var(--ink);line-height:1;}
+  .donut .center span{font-size:11px;color:var(--ink-4);margin-top:3px;}
+  .ov-facts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex:1;}
+  .ov-fact{background:var(--panel-2);border-radius:8px;padding:11px 13px;}
+  .ov-fact span{display:block;font-size:11.5px;color:var(--ink-4);margin-bottom:3px;}
+  .ov-fact b{font-size:17px;color:var(--ink);}
+  .ov-fact b small{font-size:11.5px;color:var(--ink-4);font-weight:500;}
+
+  .filter{display:flex;align-items:center;gap:12px;margin:14px 0;flex-wrap:wrap;}
+  .seg{display:inline-flex;background:var(--gray-soft);border-radius:8px;padding:3px;}
+  .seg span{padding:5px 13px;border-radius:6px;font-size:12.5px;color:var(--ink-3);}
+  .seg span.on{background:#fff;color:var(--ink);font-weight:600;}
+  .sel{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;color:var(--ink-2);background:#fff;}
+  .filter .spacer{flex:1;}
+
+  .course{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line-2);border-radius:10px;margin-bottom:10px;background:#fff;}
+  .course:last-child{margin-bottom:0;}
+  .ctype{width:38px;height:38px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--blue-soft);color:var(--blue);}
+  .ctype.v{background:var(--purple-soft);color:#5c37d6;} .ctype.p{background:var(--orange-soft);color:var(--orange-ink);}
+  .course .info{flex:1;min-width:0;}
+  .course .info .tt{display:flex;align-items:center;gap:8px;}
+  .course .info .tt b{font-size:13.5px;color:var(--ink);}
+  .badge{font-size:10.5px;padding:1px 7px;border-radius:5px;background:var(--red-soft);color:#b42318;font-weight:600;}
+  .badge.opt{background:var(--gray-soft);color:var(--ink-3);font-weight:500;}
+  .badge.done{background:var(--green-soft);color:#067647;}
+  .badge.blue{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+  .badge.purple{background:var(--purple-soft);color:#5c37d6;font-weight:600;}
+  .badge.pub{background:var(--green-soft);color:#067647;font-weight:600;}
+  .course .info p{margin:4px 0 0;font-size:11.5px;color:var(--ink-4);}
+  .course .prog{width:150px;flex:none;}
+  .course .prog .top{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3);margin-bottom:5px;}
+  .course .prog .top b{color:var(--ink-2);}
+  .course .go{flex:none;}
+
+  .full-top{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:#fff;}
+  .full-top .bk{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-2);}
+  .full-top .tt{font-size:14.5px;font-weight:600;}
+  .full-top .spacer{flex:1;}
+  .full-body{display:flex;min-height:520px;}
+  .toc{width:250px;flex:none;border-right:1px solid var(--line);background:#fff;padding:14px 12px;}
+  .toc .ch{margin-bottom:10px;}
+  .toc .ch > b{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);padding:6px 8px;}
+  .toc .it{display:flex;align-items:center;gap:8px;padding:7px 8px 7px 18px;border-radius:6px;font-size:12.5px;color:var(--ink-3);position:relative;}
+  .toc .it::before{content:"";position:absolute;left:8px;top:50%;transform:translateY(-50%);width:5px;height:5px;border-radius:50%;background:var(--line);}
+  .toc .it.on{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+  .toc .it.on::before{background:var(--blue);width:3px;height:16px;border-radius:2px;left:6px;}
+  .toc .it.done::before{background:var(--green);}
+  .toc .it .r{margin-left:auto;font-size:11px;color:var(--ink-4);}
+  .content{flex:1;padding:22px 26px;background:var(--panel-2);position:relative;}
+  .content .reader{background:#fff;border:1px solid var(--line);border-radius:10px;height:100%;min-height:420px;display:flex;align-items:center;justify-content:center;color:var(--ink-4);font-size:13px;}
+  .saveflag{position:absolute;top:30px;right:40px;font-size:11.5px;color:#067647;}
+  .full-foot{display:flex;align-items:center;gap:16px;padding:12px 20px;border-top:1px solid var(--line);background:#fff;}
+  .full-foot .mm{flex:none;padding:8px 16px;border:1px solid var(--line);border-radius:7px;font-size:13px;color:var(--ink-2);}
+  .full-foot .mid{flex:1;text-align:center;color:var(--ink-4);font-size:12px;}
+  .full-foot .ok{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+  .ia{background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px 30px;}
+  .ia-row{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+  .ia-node{border:1px solid var(--line);border-radius:9px;padding:12px 18px;font-size:13.5px;color:var(--ink-2);background:#fff;}
+  .ia-node.root{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;}
+  .ia-node.lv1{background:var(--blue-soft);border-color:var(--blue-soft-2);color:var(--blue);font-weight:600;}
+  .ia-node.lv2{background:var(--panel-2);font-size:12.5px;}
+  .ia-node.hid{background:var(--gray-soft);color:var(--ink-4);font-size:12.5px;border-style:dashed;}
+  .ia-node.adm{background:var(--purple-soft);border-color:#e2d9ff;color:#5c37d6;font-weight:600;}
+  .ia-line{width:34px;height:2px;background:var(--line);flex:none;}
+  .ia-col{display:flex;flex-direction:column;gap:8px;flex:1;}
+  .ia-note{font-size:11.5px;color:var(--ink-4);margin-left:4px;}
+
+  .tb{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .tb th{text-align:left;font-weight:600;color:var(--ink-3);background:var(--panel-2);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  .tb td{padding:11px 12px;border-bottom:1px solid var(--line-2);color:var(--ink-2);}
+  .tb tr:last-child td{border-bottom:0;}
+  .tb .op{display:flex;flex-direction:column;gap:3px;font-size:11px;text-align:center;}
+  .tb .op a{color:var(--blue);} .tb .op a.del{color:var(--ink-4);}
+  .tb-scroll{overflow-x:auto;}
+  .st{display:inline-flex;padding:2px 8px;border-radius:5px;font-size:11px;}
+  .st.pass{background:var(--green-soft);color:#067647;}
+  .st.wait{background:var(--orange-soft);color:var(--orange-ink);}
+  .st.none{background:var(--gray-soft);color:var(--ink-4);}
+
+  .cert{display:flex;gap:18px;align-items:center;border:1px solid var(--blue-soft-2);border-radius:10px;background:var(--blue-soft);padding:16px 18px;}
+  .cert .seal{width:60px;height:60px;border-radius:50%;background:#fff;border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:11px;font-weight:700;flex:none;text-align:center;line-height:1.2;}
+  .cert .ct b{font-size:14.5px;color:var(--ink);}
+  .cert .ct p{margin:3px 0 0;font-size:12px;color:var(--ink-3);}
+  .cert.off{background:var(--panel-2);border-color:var(--line);}
+  .cert.off .seal{border-color:var(--ink-4);color:var(--ink-4);}
+
+  .lg{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-3);background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 9px;}
+  .lg i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+  .kbd{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:var(--gray-soft);padding:1px 6px;border-radius:4px;color:var(--ink-2);}
+
+  /* 统计条 */
+  .stat-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+  .stat span{font-size:11.5px;color:var(--ink-4);display:block;margin-bottom:5px;}
+  .stat b{font-size:21px;color:var(--ink);line-height:1.1;}
+  .stat b small{font-size:12px;color:var(--ink-4);font-weight:500;margin-left:2px;}
+  .stat .sub{font-size:11px;color:var(--ink-4);margin-top:5px;}
+
+  /* 考试信息键值 */
+  .kv{display:grid;grid-template-columns:repeat(2,1fr);gap:11px 28px;}
+  .kv .row{display:flex;align-items:center;gap:10px;font-size:12.5px;}
+  .kv .row > span{color:var(--ink-4);width:78px;flex:none;}
+  .kv .row > b{color:var(--ink);font-weight:600;}
+  .kv .row .inp{flex:1;height:30px;border:1px solid var(--line);border-radius:6px;background:#fff;display:flex;align-items:center;padding:0 10px;color:var(--ink-2);font-size:12.5px;}
+
+  /* 配置块（管理端） */
+  .blk{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px;}
+  .blk:last-child{margin-bottom:0;}
+  .blk-h{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .blk-h h3{margin:0;font-size:15px;}
+  .blk-h .d{font-size:11.5px;color:var(--ink-4);margin-top:2px;}
+  .blk-h .spacer{flex:1;}
+  .blk-grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start;}
+  .blk-sub{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:12px;}
+  .pub-bar{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid var(--line);background:#fff;font-size:12px;color:var(--ink-4);flex-wrap:wrap;}
+  .pub-bar .spacer{flex:1;}
+
+  .filecard{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line-2);border-radius:9px;background:var(--panel-2);flex-wrap:wrap;}
+  .filecard .fi{width:34px;height:34px;border-radius:8px;background:var(--red-soft);color:#b42318;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none;}
+  .filecard .fn b{font-size:13px;color:var(--ink);display:block;}
+  .filecard .fn span{font-size:11.5px;color:var(--ink-4);}
+  .filecard .spacer{flex:1;}
+
+  .chk-list{display:flex;flex-direction:column;gap:9px;}
+  .chk{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+  .chk .ok{width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;flex:none;}
+  .chk .no{width:16px;height:16px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;flex:none;}
+  .chk b{color:var(--ink);}
+  .chk .spacer{flex:1;}
+
+  .tile{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line-2);border-radius:9px;margin-bottom:9px;background:#fff;}
+  .tile:last-child{margin-bottom:0;}
+  .tile .no{width:44px;height:26px;border-radius:6px;background:var(--gray-soft);color:var(--ink-3);font-size:11px;display:flex;align-items:center;justify-content:center;flex:none;}
+  .tile .tx{flex:1;min-width:0;}
+  .tile .tx b{font-size:13px;color:var(--ink);}
+  .tile .tx p{margin:3px 0 0;font-size:11.5px;color:var(--ink-4);}
+
+  /* ===== 模拟考核 / 实操题库 ===== */
+  .sec-sub{display:flex;align-items:baseline;gap:10px;margin:26px 0 12px;}
+  .sec-sub b{font-size:14.5px;color:var(--ink);}
+  .sec-sub span{font-size:12px;color:var(--ink-4);}
+
+  .hero{display:flex;align-items:center;gap:24px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 24px;}
+  .hero-l{flex:1;min-width:280px;}
+  .hero-l h3{margin:10px 0 6px;font-size:20px;}
+  .hero-l p{margin:0;font-size:12.5px;color:var(--ink-3);}
+  .hero-stats{display:flex;flex:none;}
+  .hero-stats > div{padding:0 26px;text-align:center;border-left:1px solid var(--line);}
+  .hero-stats > div:first-child{border-left:0;}
+  .hero-stats b{display:block;font-size:26px;color:var(--blue);line-height:1.1;}
+  .hero-stats b small{font-size:12px;color:var(--ink-4);font-weight:500;}
+  .hero-stats span{font-size:11.5px;color:var(--ink-4);}
+
+  .grp{margin-top:22px;}
+  .grp-h{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px;gap:12px;}
+  .grp-h h4{margin:0 0 2px;font-size:15px;}
+  .grp-h p{margin:0;font-size:11.5px;color:var(--ink-4);}
+  .grp-h .hint{font-size:12px;color:var(--ink-4);}
+
+  .qgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+  .qcard{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .thumb{height:104px;background:var(--panel-2);display:flex;align-items:flex-end;border-bottom:1px solid var(--line-2);}
+  .thumb svg{width:100%;height:100%;display:block;}
+  .qc-b{padding:10px 12px 11px;}
+  .qc-b > b{display:block;font-size:12.5px;color:var(--ink);margin-bottom:8px;line-height:1.4;}
+  .qc-f{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--ink-4);}
+  .qc-f b{color:var(--ink-2);font-size:11.5px;}
+
+  .bigimg{background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;height:340px;display:flex;align-items:flex-end;overflow:hidden;}
+  .bigimg svg{width:100%;height:100%;}
+  .tstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px;}
+  .tstrip .t{height:58px;border:1px solid var(--line-2);border-radius:7px;background:var(--panel-2);overflow:hidden;display:flex;align-items:flex-end;}
+  .tstrip .t.on{border:2px solid var(--blue);}
+  .info2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 4px;}
+  .info2 > div{border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;background:var(--panel-2);}
+  .info2 span{display:block;font-size:11px;color:var(--ink-4);margin-bottom:3px;}
+  .info2 b{font-size:13px;}
+  .grp-sub{font-size:12.5px;font-weight:600;color:var(--ink-2);margin:14px 0 7px;}
+  .ul{margin:0;padding-left:18px;}
+  .ul li{font-size:12.5px;color:var(--ink-2);margin-bottom:5px;line-height:1.5;}
+  .box{border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;margin-top:10px;background:var(--panel-2);}
+  .box span{display:block;font-size:11px;color:var(--ink-4);margin-bottom:3px;}
+  .box b{font-size:12.5px;color:var(--ink);font-family:ui-monospace,Consolas,monospace;word-break:break-all;}
+  /* —— 在线学习页 / 课程学习页（对齐真实页面） —— */
+  .eyebrow{display:block;color:var(--blue);font-size:11px;letter-spacing:.08em;margin-bottom:6px;}
+  .ov-lead{display:flex;align-items:center;gap:13px;flex:1.15;min-width:0;}
+  .ov-lead .ic{width:50px;height:50px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--blue);color:#fff;font-size:22px;}
+  .ov-lead .lb{font-size:11.5px;color:var(--ink-4);}
+  .ov-lead h3{margin:4px 0 4px;font-size:16px;color:var(--ink);}
+  .ov-lead p{margin:0;font-size:11.5px;color:var(--ink-3);line-height:1.5;}
+  .cat-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--line);}
+  .cat-head .idx{color:var(--blue);font-size:11px;font-weight:700;flex:none;padding-top:3px;}
+  .cat-head h3{margin:0 0 4px;font-size:16px;color:var(--ink);}
+  .cat-head p{margin:0;font-size:11.5px;color:var(--ink-4);}
+  .cat-head .cnt{color:var(--ink-3);font-size:12px;flex:none;}
+  .course .kicker{display:block;font-size:10.5px;color:var(--blue);}
+  .course .meta{display:flex;flex-wrap:wrap;gap:13px;margin-top:6px;font-size:11px;color:var(--ink-4);}
+  .course .lastt{display:block;margin-top:6px;font-size:11px;color:var(--ink-4);}
+  .course .side{flex:none;width:98px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+  .rule-strip{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 15px;border:1px solid var(--blue-soft-2);border-radius:9px;background:var(--blue-soft);}
+  .rule-strip .rc{width:24px;height:24px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--blue);font-size:13px;font-weight:700;}
+  .rule-strip b{display:block;font-size:12.5px;color:var(--ink-2);}
+  .rule-strip p{margin:3px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.5;}
+  .crumbline{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;color:var(--ink-3);}
+  .crumbline .bk{color:var(--blue);}
+  .crumbline b{color:var(--ink-2);font-weight:500;}
+  .course-hero{display:flex;align-items:center;gap:16px;padding:16px 18px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:14px;}
+  .course-hero .mark{width:52px;height:52px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--green);color:#fff;font-size:23px;}
+  .course-hero .mark.v{background:var(--blue);}
+  .course-hero .cp{flex:1;min-width:0;}
+  .course-hero .cp .k{font-size:10.5px;color:var(--blue);}
+  .course-hero .cp h3{margin:3px 0 0;font-size:17px;color:var(--ink);display:inline-block;}
+  .course-hero .cp p{margin:6px 0 0;font-size:11.5px;color:var(--ink-3);}
+  .course-hero .cp .meta{display:flex;gap:14px;margin-top:7px;font-size:11px;color:var(--ink-4);}
+  .course-hero .hp{flex:none;width:128px;}
+  .course-hero .hp span{font-size:11px;color:var(--ink-4);}
+  .course-hero .hp b{display:block;font-size:20px;color:var(--ink);margin:3px 0 7px;}
+  .boxed{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;}
+</style>
+</head>
+<body data-page-node-id="eoenDCJHQWmku41rR8iNyp">
+<div class="doc" data-page-node-id="76cKAOda1jD8UCaNzOyjJ3">
+
+  <header class="doc-hero" data-page-node-id="vvGls69ZgKzqdArIlCY0T1">
+    <h1 data-page-node-id="tvOCHzEofeaAhwIyDTwD03">实习生学习考核系统 · 实习生端整体设计稿 V1.2</h1>
+    <div class="sub" data-page-node-id="HSQQegKyRjEPbWvLzj7cAf">一级目录「工作台 + 学习与考核」· 示例岗位：开发部门 · 开发实习生 · 正式考核由部门管理员发布 · 模拟考核（理论随机抽 + 实操题库）· 正式考核成绩查询与统计</div>
+    <div class="meta" data-page-node-id="WZOZq7uMZfkFllGibnWlBG">
+      <span class="tag blue" data-page-node-id="y5AS3g4rJdAXH75LWYjLs8">V1.2 设计稿</span>
+      <span class="tag" data-page-node-id="uiIFKkr7tc0zLJFUYMpq11">2026-09-16</span>
+      <span class="tag green" data-page-node-id="tXKGdWeOOm8GXHIG2DA5G5">实习生端：PRE / FORMAL_TRAINEE</span>
+      <span class="tag purple" data-page-node-id="894bApmqgeyedHkEtbpSPo">管理端：DEPT_ADMIN 发布正式考核</span>
+      <span class="tag orange" data-page-node-id="5Vo0bOkmcBJxtOKjjKqD1G">页签 5 项已重排</span>
+      <span class="tag blue">示例：开发部门 · 开发实习生</span>
+    </div>
+  </header>
+
+  <nav class="doc-nav" data-page-node-id="QRlX7dpHLEWrTHV7oWdQxD">
+    <a href="#s0">⓪ 组织与岗位</a>
+    <a href="#s1" data-page-node-id="RUWq7bWpCLnxKqkdPtoPfJ">① 信息架构</a>
+    <a href="#s2" data-page-node-id="F2qdcdGQoBpVC925SuJcKn">② 工作台</a>
+    <a href="#s3" data-page-node-id="rNX5cGjbdjEG5fdasJuG7e">③ 在线学习</a>
+    <a href="#s4" class="hot" data-page-node-id="Kre8LEcChXqbmraGB7ZAHu">④ 模拟考核（新）</a>
+    <a href="#s5" class="hot" data-page-node-id="tFY7FXIfDtJVn4hNucKIbJ">⑤ 管理端发布（新）</a>
+    <a href="#s6" class="hot" data-page-node-id="BgTmtEHxLi8ERQL6YWRlUa">⑥ 正式考核（新）</a>
+    <a href="#s7" class="hot" data-page-node-id="Jf4BI1sE5sBhKYH7I7jhbB">⑦ 正式考核成绩（新）</a>
+    <a href="#s8" data-page-node-id="P1AyuEKF10LLFksHfV8qke">⑧ 课程学习页</a>
+    <a href="#s9" data-page-node-id="Kh6HPNAcx3IXBa1uM4I558">⑨ 能力画像</a>
+  </nav>
+
+  <!-- ============ 0. 系统组织与岗位（真实数据） ============ -->
+  <section class="sec" id="s0">
+    <div class="sec-head"><span class="sec-no">0</span><h2>系统组织与岗位 · 本稿示例选取</h2></div>
+    <p class="sec-desc">
+      系统共 <b>5 个业务部门</b>、<b>5 种实习生岗位</b>，部门与岗位<b>一一绑定</b>（<span class="kbd">dept_position</span>）；业务角色 4 个。
+      本稿以 <b>开发部门 · 开发实习生</b> 为实例——研发培养链路最完整、也最有代表性。
+    </p>
+    <div class="grid">
+      <div class="card c8">
+        <div class="card-h"><h3>部门 / 岗位 / 实习生账号</h3><span class="hint">来源：sys_dept · position · dept_position · sys_user</span></div>
+        <table class="tb">
+          <thead><tr><th>部门</th><th>绑定岗位</th><th>岗位编码</th><th>测试实习生账号</th><th>本稿</th></tr></thead>
+          <tbody>
+            <tr><td>交付部门</td><td>实施实习生</td><td>IMPLEMENTATION</td><td>test_impl_intern（正式）</td><td>—</td></tr>
+            <tr style="background:var(--blue-soft)"><td><b>开发部门</b></td><td><b>开发实习生</b></td><td>DEVELOPMENT</td><td>test_dev_intern（预备 · 导师 李导师）</td><td><span class="badge blue">★ 本稿实例</span></td></tr>
+            <tr><td>设计部门</td><td>设计实习生</td><td>DESIGN</td><td>test_design_intern（预备）</td><td>—</td></tr>
+            <tr><td>质检部门</td><td>质检实习生</td><td>QA</td><td>test_qa_intern（预备）</td><td>—</td></tr>
+            <tr><td>建模部门</td><td>建模实习生</td><td>MODELING</td><td>test_model_intern（预备 · 导师 陈导师）</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <div class="note">5 个部门同属「深圳总公司」(dept_id 101)；开发部门 dept_id = 104，岗位 position_id = 2。</div>
+      </div>
+      <div class="card c4">
+        <div class="card-h"><h3>业务角色与数据边界</h3></div>
+        <div class="chk-list">
+          <div class="chk"><span class="ok">1</span><span>超级管理员 <span class="kbd">SUPER_ADMIN</span></span><span class="spacer"></span><b>全局只读统计</b></div>
+          <div class="chk"><span class="ok">2</span><span>部门管理员 <span class="kbd">DEPT_ADMIN</span></span><span class="spacer"></span><b>本部门可写</b></div>
+          <div class="chk"><span class="ok">3</span><span>预备实习生 <span class="kbd">PRE_TRAINEE</span></span><span class="spacer"></span><b>仅本人</b></div>
+          <div class="chk"><span class="ok">4</span><span>正式实习生 <span class="kbd">FORMAL_TRAINEE</span></span><span class="spacer"></span><b>仅本人</b></div>
+        </div>
+        <div class="note">真实课程：<b>开发流程与代码交付规范</b>（THEORY · 必修 · 已发布）、<b>开发工具与项目环境</b>（PRACTICE · 选修 · 已发布）。工作台与课程列表中的其余课程名、题库题目均为<b>示例数据</b>，用于撑起版面密度。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 1. 信息架构 ============ -->
+  <section class="sec" id="s1" data-page-node-id="e1aGv07F6Fh0F4oSP40vFI">
+    <div class="sec-head" data-page-node-id="tP5ao7cYSphBEo4usJ5PHe"><span class="sec-no" data-page-node-id="A3dolv5aSCBlKjBBBnl6aZ">1</span><h2 data-page-node-id="T30VZiWxEfEd8FPlGMy4y8">信息架构：一级目录只留两项，正式考核由部门管理员发布</h2></div>
+    <p class="sec-desc" data-page-node-id="qGdTNwC3lNGGEjUIBEed1O">
+      实习生端侧栏只留「工作台」「学习与考核」，中间层用顶部页签。<b data-page-node-id="pEfuWj1rthFhFVQXhUua9I">正式考核不由实习生或超管创建，而由对应部门管理员配置并发布</b>，实习生端只读消费；
+      超管仅做只读统计，不修改业务实例。页签由原来的「成绩与证书」改为「正式考核成绩」，「我的课程」更名为「在线学习」——<b>仅改入口与名称，页面本体与后端联动逻辑完全不变</b>。
+    </p>
+    <div class="ia" data-page-node-id="czcxBuwkdSj8Xz0mwL5OOG">
+      <div class="ia-row" data-page-node-id="qRXrO2h8NyP92DMk89uga9">
+        <span class="ia-node root" data-page-node-id="Fz3Ac1LL8FFrg34WgBoeXG">实习生门户 /intern</span>
+        <span class="ia-line" data-page-node-id="DYslxuwzlZ3nDaYYHBkPyr"></span>
+        <div class="ia-col" data-page-node-id="4HFdIUeIRFbW8bDGS3SJ2O">
+          <div class="ia-row" style="margin:0" data-page-node-id="bMe0sGg73nF7go1KPk7HFU">
+            <span class="ia-node lv1" data-page-node-id="5wOxK64Uv2cNkpeAUCCjCc">工作台 /intern/dashboard</span>
+            <span class="ia-note" data-page-node-id="jrrBR1Sr6xVbjoeEPR5xEP">单页 · 不设页签 · 数据分析与可视化中心</span>
+          </div>
+          <div class="ia-row" style="margin:0;align-items:flex-start" data-page-node-id="rPFvSOANRI3P0LN3VmCimD">
+            <span class="ia-node lv1" data-page-node-id="d3NFaX2qW9mClIC9jsomtj">学习与考核 /intern/learning</span>
+            <span class="ia-line" style="margin-top:18px" data-page-node-id="fmW9pi1ZJdzHfU39n6Kv0G"></span>
+            <div class="ia-col" data-page-node-id="rorQs3VJtt3Y9TDWRFekN7">
+              <span class="ia-node lv2" data-page-node-id="aQYUmj7iH4D69VVkopGSTW">在线学习 /learning/courses</span>
+              <span class="ia-node lv2" data-page-node-id="buZ81muooVjLaL4hBPYdW2">备考资料 /learning/guide</span>
+              <span class="ia-node lv2" data-page-node-id="oDsU6KMCtmVaobYWLwK7as">模拟考核 /learning/mock —— 统计 + 理论随机抽 + 实操题库</span>
+              <span class="ia-node lv2" data-page-node-id="IS0CVNWDagPR7IgZJHXBH6">正式考核 /learning/exam —— 消费部门管理员发布内容</span>
+              <span class="ia-node lv2" data-page-node-id="eE3nBNfyKpcDSxv8Tymijx">正式考核成绩 /learning/result —— 查询与统计</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="border-top:1px dashed var(--line);margin:20px 0 18px" data-page-node-id="Y2r6ZQzIgbIDJMN8dqSGD2"></div>
+      <div style="font-size:12.5px;color:var(--ink-3);margin-bottom:10px;font-weight:600" data-page-node-id="3Fw3uTAqf7u54TAvDO4YgF">内容来源（管理端 · 部门管理员）</div>
+      <div class="ia-row" style="flex-wrap:wrap;margin-bottom:0" data-page-node-id="tGz2cIKAROIkfEQyL7l0fD">
+        <span class="ia-node adm" data-page-node-id="xcJGBDbwvvNHphnKAUTp5X">考核配置与发布 · 备考资料</span>
+        <span class="ia-node adm" data-page-node-id="wC5qJW7dgvahcNtRGlTs67">考核配置与发布 · 理论考试</span>
+        <span class="ia-node adm" data-page-node-id="SefyYT9bDG3WubiNVHQYjP">考核配置与发布 · 实操考试</span>
+        <span class="ia-node adm" data-page-node-id="uuT2JShG3xYpVLU1AMEmfb">保存并发布 → 实习生端生效</span>
+      </div>
+      <div class="ia-row" style="margin-top:18px;flex-wrap:wrap" data-page-node-id="4C6TtF3s0lLSTnqjkKIu8I">
+        <span style="font-size:12.5px;color:var(--ink-3);font-weight:600" data-page-node-id="NxpGKpZ6g5x4toeRrkmHFl">全屏下钻页：</span>
+        <span class="ia-node hid" data-page-node-id="d5xiiM3GGIkJgpzEZwAvIv">课程学习 course/:courseId</span>
+        <span class="ia-node hid" data-page-node-id="5Zz0xT0Qtwa9WSqWdsR9WJ">理论答题 exam/taking/:examId</span>
+        <span class="ia-node hid" data-page-node-id="8oG1G46w3znPvBqVB54yUt">实操详情 exam/task/:taskId</span>
+        <span class="ia-node hid">实操题库详情 mock/question/:id</span>
+        <span class="ia-node hid" data-page-node-id="4WiSFmGSc0BQ8LDVH0hjmk">证书详情 result/certificate/:id</span>
+        <span class="ia-node hid" data-page-node-id="CVqaXvEbXMyQ30hvn2mnD2">能力画像详情 dashboard/portrait/:period</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 2. 工作台 ============ -->
+  <section class="sec" id="s2" data-page-node-id="uL25rWDAWojfg8OuB3Cxrp">
+    <div class="sec-head" data-page-node-id="t8i3AW58OGyIC1mWGriMDO"><span class="sec-no" data-page-node-id="xcaYX8mGHIo2F6vx19Ap6H">2</span><h2 data-page-node-id="IlKX3LVlY6kaQL1sEgGkQv">工作台 · 数据分析与可视化中心</h2></div>
+    <p class="sec-desc" data-page-node-id="dXjEk3o8KKY1CQHgleGOd4">
+      11 个区块：身份条 → 6 个 KPI → 完成率趋势（带 <b data-page-node-id="ICwJdjudw6V99GgpE2H7Ry">70% 考核门槛虚线</b>）→ <b data-page-node-id="C5491uu9PcumE0YKVQZUQV">能力画像雷达</b> → 课程完成分布 → 学习时长 → 考核成绩 → 培养进度 → 待办 → 通知 → 协议与证书条。
+      未生成数据一律 <span class="kbd" data-page-node-id="4qJTOxGxSW5BrH19VdnhNH">--</span> + 去向，不以 0 占位。
+    </p>
+    <div class="frame" data-page-node-id="gCMwWpulF4BDUV48tFDYMP">
+      <div class="frame-bar" data-page-node-id="76n2XygGbWM6Li6pnYaLgH"><span class="dot r" data-page-node-id="vjCksL4dQi3pi8juFdbkts"></span><span class="dot" data-page-node-id="ul5jzGWzn6mubT3hhWLfAP"></span><span class="dot" data-page-node-id="J6pgNiOQRfIlEqD7zfSGn8"></span><span class="url" data-page-node-id="oP2WEIKqZclsmZx2S6Cy7t">127.0.0.1:9530/intern/dashboard</span></div>
+      <div class="app" data-page-node-id="FKrwBNrg36fsxIh1RCdIZE">
+        <aside class="rail" data-page-node-id="Ls39Uf42NFKwyUxIbfaJ8n">
+          <div class="rail-brand" data-page-node-id="dm9e97SohBnyJ76jwZMDkI"><span class="logo" data-page-node-id="jHBWRxqN0rjYaSG9AQpguD">实</span>实习生门户</div>
+          <div class="rail-group" data-page-node-id="4oXQVT709hIBOuBUv6xzJE">导航</div>
+          <div class="rail-item active" data-page-node-id="NHsO5Cu0veN3Z8vp9HZhbu"><span class="ic" data-page-node-id="jmgd9bIKNKnHrhZxv4AWKD">▦</span>工作台</div>
+          <div class="rail-item" data-page-node-id="S0Fa3cvAhB0RRDxFxQgRfS"><span class="ic" data-page-node-id="jnDUeAPJUYunjgC5C2rWut">▤</span>学习与考核</div>
+          <div class="rail-foot" data-page-node-id="aLsHtssL1vgODGYFEWW6Ro">实习生端 · 仅两项一级目录</div>
+        </aside>
+        <div class="main" data-page-node-id="m92DAykUma8IqAgUmNdj1W">
+          <div class="topbar" data-page-node-id="gTUyRfXBSx7hFuhIBEHQDB">
+            <div class="crumb" data-page-node-id="vBA8uiEPTLTdaBbiihpvA5">实习生门户 / <b data-page-node-id="eKZgt5zMx8tf3gfigHFLoW">工作台</b></div>
+            <div class="spacer" data-page-node-id="tXNK2Ayk92wgl2tue9EJeY"></div>
+            <div class="bell" data-page-node-id="I6jcMm9HBRXnOMCezsg3gK">🔔<i data-page-node-id="WlSoD1jHacy4UxPRPkLWG0">3</i></div>
+            <div class="avatar" data-page-node-id="WQD5J9NOTRpYEqqx04tBxH"><span class="ph" data-page-node-id="tgxUBkDGecMpdEtsyDqNdJ">李</span><span style="font-size:13px;color:var(--ink-2)" data-page-node-id="s89gzzogsPZRwkzX8x5kaM">李思远</span></div>
+          </div>
+          <div class="body" data-page-node-id="UTkJnVDLxpPHjJ0tm1lfUh">
+            <div class="ph-page-title" data-page-node-id="bh0bRiTgy4nQYOHUkuagAb">
+              <div data-page-node-id="UhkkSnzFHRf0VFtXpMSthJ">
+                <h2 data-page-node-id="hjtAcxy9YixcBZogjDunC6">早上好，李思远</h2>
+                <div class="d" data-page-node-id="zdZNW1mFX0tHjFgltzFJtT">开发实习生 · 开发部门 · 导师：李导师 · 入职 2026-06-01</div>
+              </div>
+              <div class="btn-row" data-page-node-id="Swgo7xPswzJt9k2UhALJKf"><span class="btn" data-page-node-id="ox39HfUn6mv1ICqnuODxVN">切换周期</span><span class="btn" data-page-node-id="YnYoTOTVXlwUlHFE5476ke">刷新</span><span class="btn primary" data-page-node-id="FsVJxYTJeJ1bPUrTqTfZzd">继续学习</span></div>
+            </div>
+
+            <div class="grid" data-page-node-id="CK5hNeyoRQ7Skt1eI7y8jv">
+              <div class="card c12" style="padding:14px 18px" data-page-node-id="3G2nT9sYnISRFbHru4oKH5">
+                <div class="card-h" style="margin-bottom:10px" data-page-node-id="2y9G7M8mNJiPc5Q3iy4FcN"><div class="tt" data-page-node-id="IESO4agNOUv9cv7FEjgX7o"><span class="idx" data-page-node-id="C4OH24ljikQeRFfEte1hD1">1</span><h3 data-page-node-id="4ZX8wRL6jaXylOzANOeNdV">我的身份</h3></div><span class="hint" data-page-node-id="wPIpLVKSH26bCRwsCRVR83">数据更新于 11:28</span></div>
+                <div class="identity" data-page-node-id="ljXJff7Zi0Neo8LDuEtiFR">
+                  <span class="big-ph" data-page-node-id="Qr9UUvG5YKIRo9J368S9m3">李</span>
+                  <div class="who" data-page-node-id="GwIow8AzH7LtfS3JWOKl6W"><b data-page-node-id="oeSBEwqRYuKDNaZ0y6VDHw">李思远</b><p data-page-node-id="jus06sjv66bO46KOt6vEMj">预备实习生 · 开发实习生 · 开发部门 · 导师 李导师</p></div>
+                  <div class="facts" data-page-node-id="rz58DB3ggX66v5wHLJPRJn">
+                    <div class="fact" data-page-node-id="fVDEmzvq6dhpP0w7pwK73D"><span data-page-node-id="QAjp2E6JTLWnPYlBCVmIlw">保密协议</span><b class="ok" data-page-node-id="7PbZzBbUiUwChsHH85SzSi">已签署</b></div>
+                    <div class="fact" data-page-node-id="vAzPiHE9pREndwjmJ6hwAx"><span data-page-node-id="YaD9GPGOA6bbygWMVGkkvu">培养阶段</span><b data-page-node-id="NBzEoOQiIins8ejAYc431n">预备 → 待转正</b></div>
+                    <div class="fact" data-page-node-id="Hg7t6oC42LX0POy1hIurUz"><span data-page-node-id="6BJBrA28LQVOSC28Ukfm1S">距考核门槛</span><b class="warn" data-page-node-id="z9DxW8PW00p8nS2UlPecgc">还差 8%</b></div>
+                    <div class="fact" data-page-node-id="OTtMSqMxmtVj6qWrCRJESm"><span data-page-node-id="Er8wOTXpd5tEpjnd249edI">入职天数</span><b data-page-node-id="GXMR8EbmCdQEDXlgUImzVR">107 天</b></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="kpi c3" data-page-node-id="TtmMEFGjipXOBHs9Batnzm"><div class="lb" data-page-node-id="YXIRfZuz55Bm02WSDTlLL0"><i class="d" data-page-node-id="nzVlZLgffDNzk9Et5LArvR"></i>必修完成率</div><div class="vl" data-page-node-id="rMdRObPke7h4Tk3l0CXOZO">62<small data-page-node-id="kbtD7XX9d7DvgepZPUFmgN">%</small></div><div class="bar-mini" data-page-node-id="PxneEEPWvQswd7M3HmdAu0"><i style="width:62%" data-page-node-id="P8DZugoNgOLWnmNc8EXhEj"></i></div><div class="ft warn" data-page-node-id="WCjPmjof30ulCACmRofKQh">距 70% 门槛还差 8%</div></div>
+              <div class="kpi c3" data-page-node-id="aZET6kcpEA2djaxgpg3UPw"><div class="lb" data-page-node-id="DFk5DVRg69Voy1jrDqs0wN"><i class="d" style="background:#12b76a" data-page-node-id="DkAF5tRaCw2GmgzE9wqFDE"></i>累计学习时长</div><div class="vl" data-page-node-id="LKTM6ZhQIcVDYFyywT055i">14.5<small data-page-node-id="Z8CTGLFWRO9ZWRi0jZb2kC">小时</small></div><div class="ft up" data-page-node-id="haMmIvh4whIClqMRO5CG88">本周 +2.3h，节奏稳定</div></div>
+              <div class="kpi c3" data-page-node-id="Jb5zfdMEnZ1OL7iT6sxuZe"><div class="lb" data-page-node-id="HaB53kdZEkgkd1X3HKSlZE"><i class="d" style="background:#7a5af8" data-page-node-id="V1aq72zSGADE0GuskCgwEc"></i>已完成单项</div><div class="vl" data-page-node-id="mzsjgi3StpaOsA3jlvoPPH">18<small data-page-node-id="07kUuJjjEuAQevEnegCVq9">/ 29</small></div><div class="ft" data-page-node-id="mg6n2aCP76SWtC3cMr6Iel">视频 9 · 文档 7 · 习题 2</div></div>
+              <div class="kpi c3" data-page-node-id="XGWGPNmrmovHcK69tS80M8"><div class="lb" data-page-node-id="0ZxIG9gWFTB4UAyuaVmTIO"><i class="d" style="background:#f79009" data-page-node-id="tO3xC61NtyasBh1FbNsMDv"></i>待完成课程</div><div class="vl" data-page-node-id="HzRtPqbEcWECLTdwAvHtLS">3<small data-page-node-id="ecTRxmwFY50ZymAhvuVDpa">门</small></div><div class="ft warn" data-page-node-id="HtDvxwOd1b6hbBcfDv1Ci8">其中必修 2 门</div></div>
+              <div class="kpi c3" data-page-node-id="dqbcJF3Q1u1gqlTz5BGZBz"><div class="lb" data-page-node-id="nbRH4WDgcguJECC8Yay7uy"><i class="d" style="background:#f04438" data-page-node-id="ECUbZ9nVhwlE8Kuc8oml8f"></i>模拟正确率</div><div class="vl" data-page-node-id="HotyX5tzJ60RHe9VNUTFl7">86<small data-page-node-id="3HE6KEzq8dOqIQ1OdfzJNX">%</small></div><div class="ft up" data-page-node-id="pykmUkAV0EhHvOPKu0qSxD">最近 3 次均 80%+</div></div>
+              <div class="kpi c3 hl" data-page-node-id="TREHfCAakDzPM9wWjA2n9B"><div class="lb" data-page-node-id="dNpHxF6hZ8Pis4LsJGAcYT"><i class="d" data-page-node-id="O5FzLN2C639LNnoTc6UmC0"></i>能力综合值</div><div class="vl" data-page-node-id="9Bh8EPc3ofL2KuCxaj3DFO">--</div><div class="bar-mini" data-page-node-id="3EoFNAoSqu4FHlJFAOw5tl"><i class="o" style="width:60%" data-page-node-id="N54gB2zoUX2oFFdDSCXrao"></i></div><div class="ft" data-page-node-id="blmpCgoHwECKoe8FMbWjXa">完整度 60%，待考核后生成</div></div>
+
+              <div class="card c8" data-page-node-id="KHZE3BYaZVFEH833ELurLE">
+                <div class="card-h" data-page-node-id="vk3fHrFVJGWnUDYVES7Utt"><div class="tt" data-page-node-id="AcHokGG6O8Q65WPm9QpC23"><span class="idx" data-page-node-id="IsP9nc8C6bq9XZ4sI1CfHP">3</span><h3 data-page-node-id="jI0MVj5wBTxk5zH1beUUZd">学习完成率趋势</h3></div><span class="hint" data-page-node-id="WfMwR2kIFDsyLG6C1HwCC7">近 6 周</span></div>
+                <svg viewBox="0 0 660 210" preserveAspectRatio="none" style="height:200px" data-page-node-id="F5OKx76XNf6FIlhQstK3pt">
+                  <g stroke="#eef1f6" stroke-width="1" data-page-node-id="IBzp8BjtEyPcGIVApC6HuT">
+                    <line x1="46" y1="20" x2="640" y2="20" data-page-node-id="vm1yMIGAPrLsJCRYww1OMg"/><line x1="46" y1="60" x2="640" y2="60" data-page-node-id="NkdtEVT1SvIrxOjglJzmg1"/>
+                    <line x1="46" y1="100" x2="640" y2="100" data-page-node-id="qhcJg0UoN3GQpvmCa2uG46"/><line x1="46" y1="140" x2="640" y2="140" data-page-node-id="hvPkF6AiOOCvehuGPY2lNm"/>
+                    <line x1="46" y1="180" x2="640" y2="180" data-page-node-id="lYDJ2SwA8BfpI4SoH6G5o5"/>
+                  </g>
+                  <g fill="#98a2b3" font-size="11" text-anchor="end" data-page-node-id="8ErrJ15SjoC1s8Txkr2qZW">
+                    <text x="38" y="24" data-page-node-id="H7MkdjDXVs0FdYgyTDtPXS">100%</text><text x="38" y="64" data-page-node-id="nj7J3eCFncISQ9x3chxvDj">75%</text><text x="38" y="104" data-page-node-id="oeRA6svlBquyn0An8v4QTq">50%</text>
+                    <text x="38" y="144" data-page-node-id="fIAuiAimZwbSFDgQofRqVe">25%</text><text x="38" y="184" data-page-node-id="dYoPh4rxFvuZFvfZ9OBHhn">0%</text>
+                  </g>
+                  <line x1="46" y1="68" x2="640" y2="68" stroke="#f79009" stroke-width="1.5" stroke-dasharray="6 5" data-page-node-id="EDZ0MZ3TYcqKkGMokSdRii"/>
+                  <text x="646" y="65" fill="#b54708" font-size="11" text-anchor="start" data-page-node-id="lf43SUXfdRHKSAhUmm1Q3r">考核门槛 70%</text>
+                  <path d="M46,180 L110,150 L204,120 L298,102 L392,86 L486,80 L580,74 L580,180 Z" fill="#e8f1fd" opacity="0.9" data-page-node-id="wrORyYHmDyCLb9KwEWPKpo"/>
+                  <polyline points="46,180 110,150 204,120 298,102 392,86 486,80 580,74" fill="none" stroke="#1764f5" stroke-width="2.5" stroke-linejoin="round" data-page-node-id="GSXDmreEEYs7FXdYD2C26z"/>
+                  <g fill="#fff" stroke="#1764f5" stroke-width="2.5" data-page-node-id="caWMATkFHlNekQNbiN8MUC">
+                    <circle cx="46" cy="180" r="4" data-page-node-id="Re4NEaBPbC9qSS8xfD0GoT"/><circle cx="110" cy="150" r="4" data-page-node-id="zAEeEcFo2MfAOClh2qz3AP"/><circle cx="204" cy="120" r="4" data-page-node-id="yLr9fQgOrO34g0Z7HFTaTK"/>
+                    <circle cx="298" cy="102" r="4" data-page-node-id="uekELdUHGxWPS3GyLebiOx"/><circle cx="392" cy="86" r="4" data-page-node-id="1O76tt3nQvMIvXaMnFA3yR"/><circle cx="486" cy="80" r="4" data-page-node-id="0FeR0XqGZAcNEJHPkBNQ1S"/><circle cx="580" cy="74" r="4" data-page-node-id="9rFWreQevfoVpEUC0pIKUo"/>
+                  </g>
+                  <rect x="536" y="34" width="92" height="26" rx="6" fill="#1764f5" data-page-node-id="8IZDvnivG3sMLZZJrcex55"/>
+                  <text x="582" y="51" fill="#fff" font-size="12" text-anchor="middle" data-page-node-id="gIrT5NEjQVfvjeZquMztC8">本周 62%</text>
+                  <g fill="#98a2b3" font-size="11" text-anchor="middle" data-page-node-id="5rFuunvg6iEQXRvn9AXBxS">
+                    <text x="46" y="200" data-page-node-id="zSQglJsYQfBBfZcX5NIwS1">W1</text><text x="110" y="200" data-page-node-id="rl7sMA4t7CXErQIjH0h99L">W2</text><text x="204" y="200" data-page-node-id="5S8qLuqih8zAdvEqb672Ey">W3</text>
+                    <text x="298" y="200" data-page-node-id="5yv9LmATU45brqOMdDJVYv">W4</text><text x="392" y="200" data-page-node-id="62ISoVqNyUC33SmqDjBCUF">W5</text><text x="486" y="200" data-page-node-id="v4ULkwAs6h09mvFucRRhz0">W6</text><text x="580" y="200" data-page-node-id="AFybAFmi0xxeEvUm5RAcdo">本周</text>
+                  </g>
+                </svg>
+                <div class="legend" data-page-node-id="OpWmXSeZQCTcnoG5s8O10A"><span data-page-node-id="GHEd6PTgW9DYdkhuqQcOTt"><i style="background:#1764f5" data-page-node-id="aqGNcqevcMf6DBdVFKVPa4"></i>实际完成率</span><span data-page-node-id="9YXdwuNIc0U6BiQVegViJB"><i style="background:#f79009" data-page-node-id="tBcT8lXyEaQyCI0kFYgg3F"></i>考核门槛 70%</span></div>
+                <div class="note" data-page-node-id="5JJgzB8uBgax12VRCjqtp0">口径：本人岗位全部已发布必修课程的完成率简单平均，与「在线学习」列表页同源。</div>
+              </div>
+
+              <div class="card c4" data-page-node-id="cFCCfegoTDjqKHE0D5ZZee">
+                <div class="card-h" data-page-node-id="nsvf4RBLZnVmaHstrHFe7H"><div class="tt" data-page-node-id="ZptVckAHcDoPX22u1oRm6t"><span class="idx" data-page-node-id="ySOD7CJUIPKWhnDY7wf7uv">4</span><h3 data-page-node-id="sNUTuFKZ76ohAYRf7bKIUG">能力画像</h3></div><span class="hint" data-page-node-id="LHdtY2a0LZU4CJxzc7KscE">详情 ›</span></div>
+                <div class="portrait" data-page-node-id="qBRZNWMQauFBtShCGABYme">
+                  <div class="radar" data-page-node-id="zzS3BUV5ErPbghSG9uD3ft">
+                    <svg viewBox="0 0 200 190" data-page-node-id="7wbfEJJD4H7sPBymiqmUfc">
+                      <g fill="none" stroke="#eef1f6" data-page-node-id="4BtmhKbxK2TVrusK0aFh2i">
+                        <polygon points="100,22 162,84 100,146 38,84" data-page-node-id="1ayUKEWf4MtBMT6jaTce8d"/>
+                        <polygon points="100,46 135,84 100,122 65,84" data-page-node-id="N2o6y9CIcRZ4yXoT1EBZ0a"/>
+                        <polygon points="100,70 108,84 100,98 92,84" data-page-node-id="p2XtCzk6yGohPC6F2iaCCG"/>
+                      </g>
+                      <g stroke="#e4e9f0" stroke-width="1" data-page-node-id="CBiBqik2KLJfEnzvyMD4qm">
+                        <line x1="100" y1="22" x2="100" y2="146" data-page-node-id="uoo0jUAhKoElVnJNtrGTo8"/><line x1="38" y1="84" x2="162" y2="84" data-page-node-id="McuSy3aiNv4DBtSVmErVNu"/>
+                        <line x1="62" y1="46" x2="138" y2="122" data-page-node-id="mJ4YbcROPP70R1NYxxCBbE"/><line x1="138" y1="46" x2="62" y2="122" data-page-node-id="f5R6TerjT7ooHrBlWv4mAE"/>
+                      </g>
+                      <polygon points="100,44 150,84 100,132 56,84" fill="#1764f5" fill-opacity="0.16" stroke="#1764f5" stroke-width="2" data-page-node-id="SzJ9aBZoZIRJ1x5xJ1DiC0"/>
+                      <g fill="#1764f5" data-page-node-id="KBjrPQecZG5MSS1rU3SGGj"><circle cx="100" cy="44" r="3.4" data-page-node-id="obnnqw2M4GJFeeZiJf4R3n"/><circle cx="150" cy="84" r="3.4" data-page-node-id="5jGP9tGyDN8oOZ5KRd7At1"/><circle cx="56" cy="84" r="3.4" data-page-node-id="EKgxdDndbWxJfQIJxw5dHc"/></g>
+                      <line x1="100" y1="146" x2="100" y2="168" stroke="#98a2b3" stroke-width="1.5" stroke-dasharray="4 4" data-page-node-id="sEyyPwtKHAntZjDu9FjEFU"/>
+                      <circle cx="100" cy="132" r="3.4" fill="#fff" stroke="#98a2b3" stroke-width="1.6" data-page-node-id="kup1AVR2mxBnpgMli7Uh9M"/>
+                      <text x="100" y="180" fill="#98a2b3" font-size="10" text-anchor="middle" data-page-node-id="G0zNR6NaS0MzcKk96EtHLD">待测评</text>
+                      <g fill="#667085" font-size="11" text-anchor="middle" data-page-node-id="U3UD2k4cXninKKpM5oNAnj">
+                        <text x="100" y="14" data-page-node-id="xOoY5znva73uGNjLmaDCXi">学习投入</text><text x="182" y="88" data-page-node-id="5MxKjWRGEfFW8rV1DIdZVh">理论掌握</text><text x="18" y="88" data-page-node-id="fIvKvx9YpCZkpQp5y9MOMP">规范遵从</text>
+                      </g>
+                    </svg>
+                  </div>
+                  <div class="meta" data-page-node-id="fhRR54sphQQkfjqlpgxyGD">
+                    <div class="dim-row" data-page-node-id="PqVmNsHGNxxORQhLqNry2b"><span class="nm" data-page-node-id="xYXfLaJjxoQIbsaKIQAKeC">学习投入</span><span class="bar" data-page-node-id="ZCvHL8f29PnE3WrnsCIl6y"><i style="width:78%;background:#1764f5" data-page-node-id="4UuCaA05uGjuejT7T2YXLa"></i></span><span class="vv" data-page-node-id="0hBPOgm3taLpiPj0TOsDli">78</span></div>
+                    <div class="dim-row" data-page-node-id="DLJbgyA0fPYQ1vli6PEI8v"><span class="nm" data-page-node-id="3OIhgV6Ce9n8Yhpim0vndC">理论掌握</span><span class="bar" data-page-node-id="D2ZYX4Yt5tzp1oKCWMouyi"><i style="width:100%;background:repeating-linear-gradient(90deg,#cfd6e0 0 5px,transparent 5px 9px)" data-page-node-id="v7h9OqY0ioXoYEoMYnKnlB"></i></span><span class="vv" data-page-node-id="CpUwqvaELZ8Zm4ZEGY3PMT">-- 待考核</span></div>
+                    <div class="dim-row" data-page-node-id="zzNCPHWJPKH0PtWRecHsju"><span class="nm" data-page-node-id="NQcCZ5C40fmvwGYbz3RiUV">实践能力</span><span class="bar" data-page-node-id="4mV8IaGz1vFIrScebQRUdD"><i style="width:100%;background:repeating-linear-gradient(90deg,#cfd6e0 0 5px,transparent 5px 9px)" data-page-node-id="FUhUqbvRrV1qDGFpk4H8EZ"></i></span><span class="vv" data-page-node-id="8hJFb3AnlpF81I33GGHKwC">-- 待批阅</span></div>
+                    <div class="dim-row" data-page-node-id="rat21I6fv2A57ivX5BqylF"><span class="nm" data-page-node-id="MM62S6NZTKcFtctwAx06t2">规范遵从</span><span class="bar" data-page-node-id="XeXpgNiEYX3Gh507e80zDY"><i style="width:88%;background:#12b76a" data-page-node-id="7i22tTb2RD7gS8mBfqBZtO"></i></span><span class="vv" data-page-node-id="pGZcAWgUxBiIq39gvVRT9u">88</span></div>
+                    <div class="completeness" data-page-node-id="GtxyZP1PE3ISZtwxXUqxDj">
+                      <div class="t" data-page-node-id="r8L91wIsbVK80gugDzL1Hh"><span data-page-node-id="rTGQZvtBvBAQxXbaNkv2PP">数据完整度</span><b data-page-node-id="DwYE6LHFAX4kkoEKVvcfbB">60%（3 / 5 来源）</b></div>
+                      <div class="bar-mini" data-page-node-id="2tkCpm7G0HuqDwcLPjvjt6"><i class="o" style="width:60%" data-page-node-id="BUs29V8AatcHsBXEJh7PqU"></i></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="note" data-page-node-id="E2r2THU02qfsF4uVrqYDGO">未测评维度画虚线轴并标"待测评"（0 分 ≠ 未测评）。</div>
+              </div>
+
+              <div class="card c6" data-page-node-id="22aIEnHamBe5N5hJTMXfjZ">
+                <div class="card-h" data-page-node-id="VmiGSsSK44oPm4RbpHdFCj"><div class="tt" data-page-node-id="5kyK6BpJ3DV2UvAux34CXO"><span class="idx" data-page-node-id="AndpOrGSXfDcGapQVpyrOM">5</span><h3 data-page-node-id="4STsU873dGwcksM7oBzCil">课程完成情况</h3></div><span class="hint" data-page-node-id="K7mz3m5VdtrQ91ZFrnAEcC">按完成率排序</span></div>
+                <div class="hbar done" data-page-node-id="L1Utk2W3J2p3Becp49tcBT"><span class="nm" data-page-node-id="xEBtEhAaqeV3OzgRyE4CAQ">Java 语言与面向对象</span><span class="track" data-page-node-id="VXy0oRq5FitT6EEvQ3Ag1e"><i style="width:100%" data-page-node-id="HUuILTB6CBXrHQG54VmtpX"></i></span><span class="pc" data-page-node-id="xeIy3Y4ElbdRtlL5vMEXE3">100%</span></div>
+                <div class="hbar done" data-page-node-id="W1NgygRGxB04HSnAD5RHt2"><span class="nm" data-page-node-id="dTBMYw96GVgKLUhrExVA91">Spring Boot 与接口开发</span><span class="track" data-page-node-id="txDv5LMtkubw2zwLUAeNlq"><i style="width:100%" data-page-node-id="wzHT907D5HDl6i030VamaP"></i></span><span class="pc" data-page-node-id="kSzrBsIDWgIjFozBQOvolX">100%</span></div>
+                <div class="hbar" data-page-node-id="eCJG6xLSKls0UyDUKEdyVj"><span class="nm" data-page-node-id="hKjaTBuUJHZuvADultcQxC">MySQL 与数据访问</span><span class="track" data-page-node-id="2SpIjLLLq15oEzPIEOkJXS"><i style="width:72%" data-page-node-id="y7M0tEzfWq1kJMaIHaBN36"></i></span><span class="pc" data-page-node-id="wCIcay1PRWV4Bjjj4oG1Ut">72%</span></div>
+                <div class="hbar" data-page-node-id="kwRe9eYv2xcVWoPvf3nrsX"><span class="nm" data-page-node-id="gbSegm5MYL8FI9O1gqXFae">开发流程与代码交付规范</span><span class="track" data-page-node-id="JwUsdChM0ifN245C3pmMsk"><i style="width:55%" data-page-node-id="biL6vai2EN1xWZmIAbxQKo"></i></span><span class="pc" data-page-node-id="aC5NEfhoqMY0FlSrFlDHQI">55%</span></div>
+                <div class="hbar low" data-page-node-id="HZWt03yHVQE42y1qz0GMYS"><span class="nm" data-page-node-id="7WsIEUjXAIDC3EsI4PQuRo">开发工具与项目环境</span><span class="track" data-page-node-id="lirCCLUSLy7yKfhWkI2tAP"><i style="width:28%" data-page-node-id="icvXRi7l8CMnDAH61CEKWt"></i></span><span class="pc" data-page-node-id="epyJ5G2BZBAJojHuWFKFu7">28%</span></div>
+                <div class="hbar low" data-page-node-id="HxFoJGVmbwV4XQ4g3ZchR0"><span class="nm" data-page-node-id="10dueT9P9QuFo8yRF54LbQ">信息安全与保密</span><span class="track" data-page-node-id="VMRFcV8OaXpfBmTZV7IVke"><i style="width:12%" data-page-node-id="JySao87kjYZJupAELkZsio"></i></span><span class="pc" data-page-node-id="uYfhFD2MelfHJiq5P5nxp8">12%</span></div>
+                <div class="note" data-page-node-id="fiWLD79rofP7Ag7kG3yH6V">橙色为低于 50% 的短板课程，一眼定位"该补哪门"。</div>
+              </div>
+
+              <div class="card c6" data-page-node-id="9J7Xeij8pbtxTe1Y6isk2Y">
+                <div class="card-h" data-page-node-id="PezokQ11HohOjSBZmr1CYc"><div class="tt" data-page-node-id="5uDNt7c2Gv90MnhizKUL23"><span class="idx" data-page-node-id="jizARRJkIQB6tO5kgU9u1x">6</span><h3 data-page-node-id="n9iHAbsPhLOg7seV7CkUSZ">学习时长分布</h3></div><span class="hint" data-page-node-id="ca1a0PDpkc2trBcmAPHPtj">近 6 周 / 小时</span></div>
+                <div class="vchart" data-page-node-id="Xuc1E9VAcmlRptxPjNYEPA">
+                  <div class="vcol" data-page-node-id="woewb9mYnWHGlVQvuVuLYv"><span class="bar" style="height:42%" data-page-node-id="vCNPymrpEcoOzPGbowCcJE">1.2</span><span class="lb" data-page-node-id="YI9IYdpbL7UMytwNPABYYK">W1</span></div>
+                  <div class="vcol" data-page-node-id="jEjkxyKcXxnGKJsg5LAOFm"><span class="bar" style="height:58%" data-page-node-id="L8ACvypairyRYcOO10wsqs">1.8</span><span class="lb" data-page-node-id="QhtwwZFLK7ACGbhrL0VK6o">W2</span></div>
+                  <div class="vcol" data-page-node-id="9cup3RvFCHE6315JOTUMcs"><span class="bar hi" style="height:80%" data-page-node-id="bQa5sayr71fESXAbzQcHFb">2.6</span><span class="lb" data-page-node-id="bLnKEpBbPPEEJpZ8dSvcw2">W3</span></div>
+                  <div class="vcol" data-page-node-id="pBABnx7z39wNrOpfHHG6KL"><span class="bar" style="height:52%" data-page-node-id="CZDFCGfEEqgnUObWvkaLmn">1.6</span><span class="lb" data-page-node-id="ufdSzA6lFywhAlkFepwjhu">W4</span></div>
+                  <div class="vcol" data-page-node-id="4xG3xpSDDgRbjvhsAgdDb9"><span class="bar" style="height:36%" data-page-node-id="LGD5xCkAsKbjtRLxZL5VGe">1.1</span><span class="lb" data-page-node-id="2ety6nu6EUCnfQLBjeyq3q">W5</span></div>
+                  <div class="vcol" data-page-node-id="fkkS65skwRN4jj5FLr0kjH"><span class="bar hi" style="height:72%" data-page-node-id="HaVVPOoo9Oun42wBiuEdDV">2.3</span><span class="lb" data-page-node-id="GacHtulXBaeBa184NkV5NU">本周</span></div>
+                </div>
+                <div class="legend" data-page-node-id="qBmPFmlsMoQHF8e4Xf7hXx"><span data-page-node-id="xbTyCivy4eH1GYN1Gatp9v"><i style="background:#1764f5" data-page-node-id="0jw2aCFbIYHBSlhDoQC5Wb"></i>当周学习时长</span><span data-page-node-id="7UV4llB7EnCu36l63EQTr1">累计 14.5 小时</span></div>
+              </div>
+
+              <div class="card c6" data-page-node-id="bNKKMzoeLXVyHhKCUCrBjq">
+                <div class="card-h" data-page-node-id="Yq6Z7QvkhXd8wCXxrO4h9H"><div class="tt" data-page-node-id="x2le0nA55jAnyGd7KMAonX"><span class="idx" data-page-node-id="TlKlMqudgvzfATO0md2RDl">7</span><h3 data-page-node-id="T4GzFpiCjJVfqDYCMeB5fx">考核成绩</h3></div><span class="hint" data-page-node-id="HR1q4LXbOBTnWUAk5fCZQ7">满分 100</span></div>
+                <div class="vchart" data-page-node-id="oEQmAhDQvkY9LUugFTchYL">
+                  <div class="vcol" data-page-node-id="Zp66uDwlYVPG0abfch5CPc"><span class="bar g" style="height:86%" data-page-node-id="RHIQfPjiEvNrm4TZsiJzOZ">86</span><span class="lb" data-page-node-id="63iT8sHI5MuOtEeYH6DrfA">自测 1</span></div>
+                  <div class="vcol" data-page-node-id="NRxRqQn5R3mFuOoEuaXzi0"><span class="bar g" style="height:80%" data-page-node-id="BVRVDAEPFGyL189Qwc0nyu">80</span><span class="lb" data-page-node-id="sYIp1gZiXF5PjBvvfIH0SH">自测 2</span></div>
+                  <div class="vcol" data-page-node-id="I1t2pse7CHkEKzeF00p5IG"><span class="bar g" style="height:92%" data-page-node-id="F0LPXgSgA0gQ0euiHo5Tez">92</span><span class="lb" data-page-node-id="Ap0uZ7ITgJ2ZPpZoRE3CpP">自测 3</span></div>
+                  <div class="vcol" data-page-node-id="NtXP4b4hRzuVl7D0W3xcrG"><span class="bar none" style="height:8%" data-page-node-id="5Ma9z4v9QrV8p1hrnBSUHO">--</span><span class="lb" data-page-node-id="u0YKASOGt5uGKwv0uz7gEI">正式理论</span></div>
+                  <div class="vcol" data-page-node-id="KRUX26GtBicHMFo3uoPOoh"><span class="bar none" style="height:8%" data-page-node-id="6cqJrrlgtAS5QdBVwq5bHt">--</span><span class="lb" data-page-node-id="6rbj3xbO3iFwtfcFxvCg4q">正式实操</span></div>
+                </div>
+                <div class="legend" data-page-node-id="RUGA5kNqHuEMEie8AYqFGJ"><span data-page-node-id="j8ADnxNxm2H3Oyvps7ZM9M"><i style="background:#12b76a" data-page-node-id="CX9E5w4WYhETHcXn1ekF0o"></i>模拟自测（不计正式成绩）</span><span data-page-node-id="jIIyFYlZLLEDQpDxNrn0Kw"><i style="background:#f2f4f7" data-page-node-id="GQ7Uk2GqvriiZsXS6LhcgY"></i>正式考核未参加</span></div>
+              </div>
+
+              <div class="card c6" data-page-node-id="tvFk1ePmnE4HZVQilEinmW">
+                <div class="card-h" data-page-node-id="UrndVzn5ssVD6LZBAA6C4r"><div class="tt" data-page-node-id="ixhUJuM8B8Xw0xQu0rQDFh"><span class="idx" data-page-node-id="l2qFM6jmeYd3oQIZQ5krtr">8</span><h3 data-page-node-id="px8qPYQQ0fg8y1ckGYf8pb">培养进度</h3></div><span class="hint" data-page-node-id="WF8h6oBAL4hzL4r7BwNTPN">4 步</span></div>
+                <div class="steps" data-page-node-id="XZBrO4dI2ImpQ2treFIRaj">
+                  <div class="step done" data-page-node-id="tG0Od413FtLQBbdHLAS3fq"><span class="mark" data-page-node-id="hWfUbSPgn7doQekSLign9f">✓</span><div class="txt" data-page-node-id="TZo71wO85N917G6q8naH4U"><b data-page-node-id="8KlKR6jmKpW6A8LEqA8oqd">签署保密协议</b><span data-page-node-id="0AGTWsnKnODAd4RVKpjAuv">2026-06-01 已完成</span></div></div>
+                  <div class="step now" data-page-node-id="mK2aEgZDmf3V7tbAODE7NQ"><span class="mark" data-page-node-id="tZGrvzn2MutbGVUmH8I9wM">2</span><div class="txt" data-page-node-id="zXzFoPWsF3OYudFq3sfXeW"><b data-page-node-id="Xn64WPYehyaVHCk3XsoMvH">在线学习</b><span data-page-node-id="cc6yPKAiwknzcxp7tH2pyq">完成率 62% · 还差 8% 解锁考核</span></div></div>
+                  <div class="step" data-page-node-id="Z91BLvhpooZwb5t1la4bCC"><span class="mark" data-page-node-id="0i5bPUxEHo82p9ldTEJxbq">3</span><div class="txt" data-page-node-id="BD1IX9CPt7sbWsxefrUVYA"><b data-page-node-id="0ZiTkSoeZ3hOVJEznGUrGj">正式考核</b><span data-page-node-id="1gJ8a6sPrah624lOJGYuAl">理论 + 实操，未解锁</span></div></div>
+                  <div class="step" data-page-node-id="jEk5GEVLQQoY97KE3aLxee"><span class="mark" data-page-node-id="PZc65THSMOMcx6jhW4Fh4j">4</span><div class="txt" data-page-node-id="A0jDwtmCegDDakQXVetadO"><b data-page-node-id="nZNVRPMsYYEqPnAWPKnCMp">转正发证</b><span data-page-node-id="VCT4ONq8axC2Gv7Cear9Rf">考核通过 + 超管审批后生成电子证书</span></div></div>
+                </div>
+              </div>
+
+              <div class="card c8" data-page-node-id="qettBMEVrkTzqBiGDOYH8Y">
+                <div class="card-h" data-page-node-id="z4KaNbX0zY13TqUQaldXU7"><div class="tt" data-page-node-id="QH73v1AEWW1SvjGqKLLqKQ"><span class="idx" data-page-node-id="SON30Y35I3Bcp0jKrNqSUg">9</span><h3 data-page-node-id="lji2vPlxAQuLm0SPbKbv7J">下一步做什么</h3></div><span class="hint" data-page-node-id="kGIqEReu8QeCbXFZI0Rlo4">按紧急度排序</span></div>
+                <div class="todo" data-page-node-id="89CXgQsOLRQxJgt7pBeFWR"><span class="tdot o" data-page-node-id="tVGxlarR0ABoa5tzwT4B6X"></span><div class="tx" data-page-node-id="S0tcjBGfFzieHIynivphEf"><b data-page-node-id="lEoNh1QJdPGpaIuR7p4pHD">补完「信息安全与保密」课程</b><span data-page-node-id="qWSX4DuyWg4PwOHPj0NUcJ">完成率 12%，为本月必修重头；完成后总完成率可达 66%</span></div><span class="btn ghost sm" data-page-node-id="P4akAqTYSR7V1RfMFNI3lW">去学习</span></div>
+                <div class="todo" data-page-node-id="pgFxCOGQXSWjgJAMsnQptA"><span class="tdot" data-page-node-id="LPzCZsnASVH3RzAudg8SB6"></span><div class="tx" data-page-node-id="OYcU14KuwBET6fGq9dRv2K"><b data-page-node-id="aXthYb1Sdzk3VPVhWQk55r">再提升 4% 完成率以解锁正式考核</b><span data-page-node-id="kxDCM2Yi0yaTYDyukqIrTb">当前 62%，门槛 70%；建议优先完成「MySQL 与数据访问」剩余章节</span></div><span class="btn primary sm" data-page-node-id="54VvIWFrXpq92UimtUnDm7">继续学习</span></div>
+                <div class="todo" data-page-node-id="IfdEF2UvpgWDVCTuET9SEL"><span class="tdot g" data-page-node-id="FxEi146FvZ8OUqrKjSlS4r"></span><div class="tx" data-page-node-id="XDG6wmAZzgJWfTTwT8FpCD"><b data-page-node-id="fyvX6DooyjjefRoKuoqbHY">提交实操题以点亮「实践能力」维度</b><span data-page-node-id="ZMf9IPX5tilHfNyY1JLsVI">画像完整度可由 60% 提升至 80%，让综合评价更有说服力</span></div><span class="btn sm" data-page-node-id="08e9lvp7WUCpAZj5P3JtzB">去提交</span></div>
+              </div>
+
+              <div class="card c4" data-page-node-id="YKAHiSDjA9uyp8MITTYTnB">
+                <div class="card-h" data-page-node-id="OsaN7w96XSYQIPq6ma3kgd"><div class="tt" data-page-node-id="wj7NGIYxND6hZPT6isxF56"><span class="idx" data-page-node-id="uQWDeTIHqBv48FqZuIsFf0">10</span><h3 data-page-node-id="PjtfZ2DecFCkxojAMbIYiE">通知</h3></div><span class="hint" data-page-node-id="HM9Cp9nBrs7KjQAJsmB6Zj">全部 ›</span></div>
+                <div class="notice" data-page-node-id="gTNX2iEoQyAR4CqODGAhJ2"><b data-page-node-id="sHeYkYbMFj0FlKAUIUE697">部门管理员发布了正式考核</b><span data-page-node-id="r6HVsStFDQYEsl3rcFUGim">《2026 秋季开发实习生正式考核 v1.0》已发布 · 2 小时前</span></div>
+                <div class="notice" data-page-node-id="EyVL0hAYCxc3mGroSX4qiH"><b data-page-node-id="V6pH6gL25GOdfUQb8d8Lds">李导师给你留了言</b><span data-page-node-id="SqkrkxpIay7uK57O3HfRKG">"本周重点练下多表关联查询与索引优化" · 昨天 18:20</span></div>
+                <div class="notice" data-page-node-id="NWDEjPjtDqhXTNn0rsK7d9"><b data-page-node-id="FnKLfYFEPmAnoDufZQazcb">模拟考核成绩已生成</b><span data-page-node-id="tkBVqcoiLXosHvSzUXvRSH">正确率 92%，继续保持 · 昨天 15:40</span></div>
+              </div>
+
+              <div class="card c12" style="padding:14px 18px" data-page-node-id="ETN4S5DTuzANajP27JzAVk">
+                <div class="record-band" data-page-node-id="Bvd89BXnKiN5sqSJxBafZo">
+                  <span class="lbl" data-page-node-id="whFzlSsrmy7HApXH4GcbIj">协议与证书：</span>
+                  <button class="pill" data-page-node-id="iRyRDFP8yHAvO9z4kivBVa">🔒 保密协议 <em data-page-node-id="r4NNO6Nbh5KVwiswSV4qrZ">已签署</em></button>
+                  <button class="pill idle" data-page-node-id="gAL4AHkelCAlUvA2NR74Yx">🏅 电子证书 <em data-page-node-id="WfYeO6rncu68Ctq1H8Dfz4">未获得</em></button>
+                  <button class="pill" data-page-node-id="8AEUPj7a8UFAvs5bqSOpSw">📄 签署凭证 <em data-page-node-id="vsrofXjs0P6gcYX0fyDzcC">已生成</em></button>
+                </div>
+                <div class="note" data-page-node-id="LOvXtMQyfj4AxhOnGFxOau">未生成的记录（电子证书）点击不跳空页，而是提示"考核通过并完成转正审批后生成"。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 在线学习 ============ -->
+  <section class="sec" id="s3">
+    <div class="sec-head"><span class="sec-no">3</span><h2>学习与考核 · 在线学习</h2></div>
+    <p class="sec-desc"><b>入口由「工作台按钮」改为侧栏一级目录「学习与考核」的默认页签</b>，页面本体与后端联动逻辑完全不变。结构：页头（LEARNING CENTER + 刷新进度）→ 岗位培养概览（环形完成率 + 4 项事实）→ 课程目录（筛选条 + 课程列表行）→ 底部学习规则提示。数据来自 <span class="kbd">/business/learning/courses</span>。</p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot r"></span><span class="dot"></span><span class="dot"></span><span class="url">127.0.0.1:9530/intern/learning</span></div>
+      <div class="app">
+        <aside class="rail">
+          <div class="rail-brand"><span class="logo">实</span>实习生门户</div>
+          <div class="rail-group">导航</div>
+          <div class="rail-item"><span class="ic">▦</span>工作台</div>
+          <div class="rail-item active"><span class="ic">▤</span>学习与考核</div>
+          <div class="rail-foot">实习生端 · 仅两项一级目录</div>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <div class="crumb">实习生门户 / <b>学习与考核</b> / 在线学习</div>
+            <div class="spacer"></div><div class="bell">🔔<i>3</i></div>
+            <div class="avatar"><span class="ph">李</span><span style="font-size:13px;color:var(--ink-2)">李思远</span></div>
+          </div>
+          <div class="body">
+            <div class="ph-page-title">
+              <div>
+                <span class="eyebrow">LEARNING CENTER</span>
+                <h2>在线学习</h2>
+                <div class="d">按岗位学习已发布课程，完成进度会自动保存并同步到工作台。开发部门 · 开发实习生 · 培养周期 2026-06 ~ 2026-09</div>
+              </div>
+              <span class="btn">⟳ 刷新进度</span>
+            </div>
+            <div class="tabs">
+              <span class="tab active">在线学习<span class="n">5</span></span><span class="tab">备考资料</span><span class="tab">模拟考核</span>
+              <span class="tab">正式考核</span><span class="tab">正式考核成绩</span>
+            </div>
+            <div class="card" style="margin-bottom:14px">
+              <div class="overview">
+                <div class="ov-lead">
+                  <span class="ic">▤</span>
+                  <div style="min-width:0">
+                    <span class="lb">当前岗位培养</span>
+                    <h3>开发实习生</h3>
+                    <p>开发部门 · 预备实习生，按课程进度完成培养</p>
+                  </div>
+                </div>
+                <div class="donut">
+                  <svg viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="#eef1f6" stroke-width="11"/>
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="#1764f5" stroke-width="11" stroke-dasharray="194.8 314" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+                  </svg>
+                  <div class="center"><b>62%</b><span>必修完成率</span></div>
+                </div>
+                <div class="ov-facts">
+                  <div class="ov-fact"><span>课程总数</span><b>5<small> 门</small></b></div>
+                  <div class="ov-fact"><span>已完成课程</span><b>1<small> 门</small></b></div>
+                  <div class="ov-fact"><span>学习中</span><b>3<small> 门</small></b></div>
+                  <div class="ov-fact"><span>已完成单项</span><b>13<small> / 23</small></b></div>
+                </div>
+              </div>
+              <div class="note">完成率达 <b>70%</b> 才解锁正式考核，当前还差 <b style="color:#b54708">8%</b>。</div>
+            </div>
+            <div class="card">
+              <div class="cat-head">
+                <div style="display:flex;gap:12px">
+                  <span class="idx">01</span>
+                  <div>
+                    <h3>课程目录</h3>
+                    <p>课程按岗位自动匹配，已停用课程和其他岗位内容不会出现在这里。</p>
+                  </div>
+                </div>
+                <span class="cnt">5 门课程</span>
+              </div>
+              <div class="filter">
+                <span class="seg"><span class="on">全部课程</span><span>学习中</span><span>已完成</span></span>
+                <span class="spacer"></span><span class="sel">课程类型：全部 ▾</span>
+              </div>
+            <div class="course">
+              <span class="ctype ">▤</span>
+              <div class="info">
+                <div>
+                  <span class="kicker">文档理论课程</span>
+                  <div class="tt"><b>开发流程与代码交付规范</b><span class="badge ">必修</span></div>
+                </div>
+                <p>从需求评审、分支管理到代码评审与交付的完整流程与规范要求。</p>
+                <div class="meta"><span>▤ 3 个章节</span><span>◷ 90 分钟</span><span>✓ 4/6 个单项已完成</span></div>
+                <span class="lastt">最近学习：今天 10:12</span>
+              </div>
+              <div class="prog"><div class="top"><span>进度</span><b>55%</b></div><div class="bar-mini"><i class="" style="width:55%"></i></div></div>
+              <div class="side"><span class="badge blue">学习中</span><span class="btn primary go">继续学习</span></div>
+            </div>
+            <div class="course">
+              <span class="ctype .v">▶</span>
+              <div class="info">
+                <div>
+                  <span class="kicker">视频实操课程</span>
+                  <div class="tt"><b>MySQL 与数据访问</b><span class="badge ">必修</span></div>
+                </div>
+                <p>数据库连接、SQL 编写与 MyBatis 映射的实操演示。</p>
+                <div class="meta"><span>▤ 2 个章节</span><span>◷ 60 分钟</span><span>✓ 5/5 个单项已完成</span></div>
+                <span class="lastt">最近学习：昨天 16:30</span>
+              </div>
+              <div class="prog"><div class="top"><span>进度</span><b>100%</b></div><div class="bar-mini"><i class="g" style="width:100%"></i></div></div>
+              <div class="side"><span class="badge done">已完成</span><span class="btn go">回看课程</span></div>
+            </div>
+            <div class="course">
+              <span class="ctype ">▤</span>
+              <div class="info">
+                <div>
+                  <span class="kicker">文档理论课程</span>
+                  <div class="tt"><b>开发工具与项目环境</b><span class="badge opt">选修</span></div>
+                </div>
+                <p>IDE、构建工具、本地运行环境与团队协作工具的配置说明。</p>
+                <div class="meta"><span>▤ 2 个章节</span><span>◷ 40 分钟</span><span>✓ 0/3 个单项已完成</span></div>
+                <span class="lastt">最近学习：尚未开始</span>
+              </div>
+              <div class="prog"><div class="top"><span>进度</span><b>0%</b></div><div class="bar-mini"><i class="" style="width:0%"></i></div></div>
+              <div class="side"><span class="badge opt">未开始</span><span class="btn primary go">开始学习</span></div>
+            </div>
+            <div class="course">
+              <span class="ctype .v">▶</span>
+              <div class="info">
+                <div>
+                  <span class="kicker">视频实操课程</span>
+                  <div class="tt"><b>Java 语言与面向对象</b><span class="badge ">必修</span></div>
+                </div>
+                <p>面向对象基础、集合与异常处理的实操讲解。</p>
+                <div class="meta"><span>▤ 3 个章节</span><span>◷ 75 分钟</span><span>✓ 3/5 个单项已完成</span></div>
+                <span class="lastt">最近学习：2 天前</span>
+              </div>
+              <div class="prog"><div class="top"><span>进度</span><b>72%</b></div><div class="bar-mini"><i class="" style="width:72%"></i></div></div>
+              <div class="side"><span class="badge blue">学习中</span><span class="btn primary go">继续学习</span></div>
+            </div>
+            <div class="course">
+              <span class="ctype ">▤</span>
+              <div class="info">
+                <div>
+                  <span class="kicker">文档理论课程</span>
+                  <div class="tt"><b>信息安全与保密</b><span class="badge ">必修</span></div>
+                </div>
+                <p>保密要求、数据分级与信息安全的红线与操作规范。</p>
+                <div class="meta"><span>▤ 2 个章节</span><span>◷ 45 分钟</span><span>✓ 1/4 个单项已完成</span></div>
+                <span class="lastt">最近学习：3 天前</span>
+              </div>
+              <div class="prog"><div class="top"><span>进度</span><b>12%</b></div><div class="bar-mini"><i class="o" style="width:12%"></i></div></div>
+              <div class="side"><span class="badge blue">学习中</span><span class="btn primary go">继续学习</span></div>
+            </div>
+            </div>
+            <div class="rule-strip">
+              <span class="rc">i</span>
+              <div style="flex:1"><b>学习记录自动保存</b><p>文档材料需阅读到末尾并确认完成，视频材料会保存最近播放位置；课程完成率由学习单项自动汇总。</p></div>
+              <span class="btn sm">查看学习规则</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. 模拟考核（新） ============ -->
+  <section class="sec" id="s4">
+    <div class="sec-head"><span class="sec-no">4</span><h2>模拟考核 · 理论抽题 + 实操题库</h2></div>
+    <p class="sec-desc">
+      顶部模拟统计条 → <b>② 理论模拟</b>（题库随机抽 10 题 + 历史自测记录）→ <b>③ 实操题库</b>（按开发方向分组的试题卡片网格，点卡片进详情页）。
+      理论随机抽才有知识覆盖价值；<b>实操就是一份题库</b>，按方向分组、卡片直看。模拟成绩不计入正式成绩。
+    </p>
+
+    <div class="sec-sub"><b>4-1 模拟考核页</b><span>顶部统计 + 理论抽题 + 实操题库</span></div>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot r"></span><span class="dot"></span><span class="dot"></span><span class="url">127.0.0.1:9530/intern/learning/mock</span></div>
+      <div class="app">
+        <aside class="rail">
+          <div class="rail-brand"><span class="logo">实</span>实习生门户</div>
+          <div class="rail-group">导航</div>
+          <div class="rail-item"><span class="ic">▦</span>工作台</div>
+          <div class="rail-item active"><span class="ic">▤</span>学习与考核</div>
+          <div class="rail-foot">实习生端 · 仅两项一级目录</div>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <div class="crumb">实习生门户 / <b>学习与考核</b> / 模拟考核</div>
+            <div class="spacer"></div><div class="bell">🔔<i>3</i></div>
+            <div class="avatar"><span class="ph">李</span><span style="font-size:13px;color:var(--ink-2)">李思远</span></div>
+          </div>
+          <div class="body">
+            <div class="ph-page-title">
+              <div><h2>模拟考核</h2><div class="d">不计成绩 · 可重复练习 · 用于考前热身</div></div>
+              <span class="btn">刷新</span>
+            </div>
+            <div class="tabs">
+              <span class="tab">在线学习</span><span class="tab">备考资料</span>
+              <span class="tab active">模拟考核</span><span class="tab">正式考核</span><span class="tab">正式考核成绩</span>
+            </div>
+
+            <div class="stat-strip">
+              <div class="stat"><span>累计自测次数</span><b>12<small>次</small></b><div class="sub">近 30 天 5 次</div></div>
+              <div class="stat"><span>理论平均正确率</span><b>86<small>%</small></b>
+                <svg viewBox="0 0 90 22" style="height:22px;margin-top:6px">
+                  <polyline points="3,17 19,13 35,14 51,8 67,7 87,4" fill="none" stroke="#12b76a" stroke-width="1.8"/>
+                </svg>
+              </div>
+              <div class="stat"><span>理论最高正确率</span><b>92<small>%</small></b><div class="sub">单选一次峰值</div></div>
+              <div class="stat"><span>实操题量</span><b>15<small>题</small></b><div class="sub">3 个开发方向</div></div>
+              <div class="stat"><span>题库覆盖</span><b>4<small> 模块 / 120 题</small></b><div class="sub">已练 68 题</div></div>
+              <div class="stat"><span>最近自测</span><b style="font-size:15px">09-16 15:40</b><div class="sub" style="color:#067647">正确率 92%</div></div>
+            </div>
+
+            <!-- 2) 理论模拟 -->
+            <div class="card" style="margin-top:14px">
+              <div class="card-h">
+                <div class="tt"><span class="idx">理</span><h3>理论模拟</h3></div>
+                <span class="hint">题库随机抽 10 题 · 不计成绩</span>
+                <span class="btn primary sm">开始新自测</span>
+              </div>
+              <div class="grid">
+                <div class="c5">
+                  <div class="card flat" style="padding:12px 14px">
+                    <div style="font-size:12.5px;color:var(--ink-2)">从题库中<b>随机抽取 10 题</b>组成一套自测卷，交卷后给对错解析；不计成绩，可无限次重复。</div>
+                  </div>
+                  <div class="note">随机抽题所以每次题面不同；错题进入「错题本」反复练习。</div>
+                </div>
+                <div class="c7">
+                  <div class="tb-scroll">
+                    <table class="tb">
+                      <thead><tr><th>时间</th><th>题数</th><th>正确率</th><th>用时</th><th>操作</th></tr></thead>
+                      <tbody>
+                        <tr><td>09-16 15:40</td><td>10</td><td><b style="color:#067647">92%</b></td><td>08:12</td><td><a href="#s4">查看错题</a></td></tr>
+                        <tr><td>09-15 20:05</td><td>10</td><td><b style="color:#067647">80%</b></td><td>09:47</td><td><a href="#s4">查看错题</a></td></tr>
+                        <tr><td>09-13 11:30</td><td>10</td><td><b style="color:#b54708">60%</b></td><td>11:02</td><td><a href="#s4">查看错题</a></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3) 实操题库 -->
+            <div style="margin-top:14px">
+              <div class="hero">
+                <div class="hero-l">
+                  <span class="badge blue">模拟试题库</span>
+                  <h3>开发模拟试题</h3>
+                  <p>选择一个题目开始练习，完成后可按题目要求提交成果进行自检。</p>
+                </div>
+                <div class="hero-stats">
+                  <div><b>15</b><span>可练习题目</span></div>
+                  <div><b>3</b><span>开发方向</span></div>
+                  <div><b>180<small> 分钟</small></b><span>最长用时</span></div>
+                </div>
+              </div>
+              <div class="grp">
+                <div class="grp-h">
+                  <div><h4>后端接口开发</h4><p>适合接口设计、参数校验与异常处理训练</p></div>
+                  <span class="hint">5 题</span>
+                </div>
+                <div class="qgrid">
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="15" rx="8" fill="#d7e7fc"/><circle cx="25" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="35" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="45" cy="25.5" r="3" fill="#b6d0f8"/><rect x="26" y="42" width="46" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="54" width="70" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="66" width="34" height="6" rx="3" fill="#cfe0fb"/><rect x="86" y="54" width="24" height="6" rx="3" fill="#cfe0fb"/></svg></div>
+                      <div class="qc-b"><b>用户登录接口开发</b><div class="qc-f"><span>建议用时</span><b>180 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="15" rx="8" fill="#d7e7fc"/><circle cx="25" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="35" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="45" cy="25.5" r="3" fill="#b6d0f8"/><rect x="26" y="42" width="60" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="54" width="40" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="66" width="72" height="6" rx="3" fill="#cfe0fb"/></svg></div>
+                      <div class="qc-b"><b>分页查询接口开发</b><div class="qc-f"><span>建议用时</span><b>150 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="15" rx="8" fill="#d7e7fc"/><circle cx="25" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="35" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="45" cy="25.5" r="3" fill="#b6d0f8"/><rect x="26" y="42" width="34" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="54" width="58" height="6" rx="3" fill="#cfe0fb"/><rect x="82" y="54" width="26" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="66" width="48" height="6" rx="3" fill="#cfe0fb"/></svg></div>
+                      <div class="qc-b"><b>文件上传接口开发</b><div class="qc-f"><span>建议用时</span><b>120 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="15" rx="8" fill="#d7e7fc"/><circle cx="25" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="35" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="45" cy="25.5" r="3" fill="#b6d0f8"/><rect x="26" y="42" width="70" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="54" width="28" height="6" rx="3" fill="#cfe0fb"/><rect x="62" y="54" width="46" height="6" rx="3" fill="#cfe0fb"/></svg></div>
+                      <div class="qc-b"><b>统一异常处理封装</b><div class="qc-f"><span>建议用时</span><b>180 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="15" rx="8" fill="#d7e7fc"/><circle cx="25" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="35" cy="25.5" r="3" fill="#b6d0f8"/><circle cx="45" cy="25.5" r="3" fill="#b6d0f8"/><rect x="26" y="42" width="50" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="54" width="64" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="66" width="26" height="6" rx="3" fill="#cfe0fb"/><rect x="80" y="66" width="30" height="6" rx="3" fill="#cfe0fb"/></svg></div>
+                      <div class="qc-b"><b>接口幂等与重试设计</b><div class="qc-f"><span>建议用时</span><b>180 分钟</b></div></div>
+                    </div>
+                </div>
+              </div>
+              <div class="grp">
+                <div class="grp-h">
+                  <div><h4>数据访问开发</h4><p>适合 SQL 编写、索引优化与 ORM 映射训练</p></div>
+                  <span class="hint">5 题</span>
+                </div>
+                <div class="qgrid">
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="26" y="30" width="108" height="16" rx="8" fill="#d7e7fc"/><rect x="26" y="48" width="108" height="16" rx="8" fill="#cfe0fb"/><rect x="26" y="66" width="108" height="16" rx="8" fill="#e0ebfd"/><rect x="34" y="34" width="92" height="4" rx="2" fill="#b6d0f8"/><rect x="34" y="52" width="92" height="4" rx="2" fill="#b6d0f8"/><rect x="34" y="70" width="92" height="4" rx="2" fill="#b6d0f8"/></svg></div>
+                      <div class="qc-b"><b>单表 CRUD 与 MyBatis 映射</b><div class="qc-f"><span>建议用时</span><b>90 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="29" y="30" width="102" height="16" rx="8" fill="#d7e7fc"/><rect x="29" y="48" width="102" height="16" rx="8" fill="#cfe0fb"/><rect x="29" y="66" width="102" height="16" rx="8" fill="#e0ebfd"/><rect x="37" y="34" width="86" height="4" rx="2" fill="#b6d0f8"/><rect x="37" y="52" width="86" height="4" rx="2" fill="#b6d0f8"/><rect x="37" y="70" width="86" height="4" rx="2" fill="#b6d0f8"/></svg></div>
+                      <div class="qc-b"><b>多表关联查询与分页</b><div class="qc-f"><span>建议用时</span><b>75 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="32" y="30" width="96" height="16" rx="8" fill="#d7e7fc"/><rect x="32" y="48" width="96" height="16" rx="8" fill="#cfe0fb"/><rect x="32" y="66" width="96" height="16" rx="8" fill="#e0ebfd"/><rect x="40" y="34" width="80" height="4" rx="2" fill="#b6d0f8"/><rect x="40" y="52" width="80" height="4" rx="2" fill="#b6d0f8"/><rect x="40" y="70" width="80" height="4" rx="2" fill="#b6d0f8"/></svg></div>
+                      <div class="qc-b"><b>索引优化与慢查询分析</b><div class="qc-f"><span>建议用时</span><b>100 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="28" y="30" width="104" height="16" rx="8" fill="#d7e7fc"/><rect x="28" y="48" width="104" height="16" rx="8" fill="#cfe0fb"/><rect x="28" y="66" width="104" height="16" rx="8" fill="#e0ebfd"/><rect x="36" y="34" width="88" height="4" rx="2" fill="#b6d0f8"/><rect x="36" y="52" width="88" height="4" rx="2" fill="#b6d0f8"/><rect x="36" y="70" width="88" height="4" rx="2" fill="#b6d0f8"/></svg></div>
+                      <div class="qc-b"><b>事务边界与回滚处理</b><div class="qc-f"><span>建议用时</span><b>60 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="30" y="30" width="100" height="16" rx="8" fill="#d7e7fc"/><rect x="30" y="48" width="100" height="16" rx="8" fill="#cfe0fb"/><rect x="30" y="66" width="100" height="16" rx="8" fill="#e0ebfd"/><rect x="38" y="34" width="84" height="4" rx="2" fill="#b6d0f8"/><rect x="38" y="52" width="84" height="4" rx="2" fill="#b6d0f8"/><rect x="38" y="70" width="84" height="4" rx="2" fill="#b6d0f8"/></svg></div>
+                      <div class="qc-b"><b>数据字典与字段规范</b><div class="qc-f"><span>建议用时</span><b>90 分钟</b></div></div>
+                    </div>
+                </div>
+              </div>
+              <div class="grp">
+                <div class="grp-h">
+                  <div><h4>前端页面开发</h4><p>适合组件拆分、表单校验与前后端联调训练</p></div>
+                  <span class="hint">5 题</span>
+                </div>
+                <div class="qgrid">
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="16" rx="8" fill="#e0ebfd"/><rect x="24" y="24.5" width="34" height="4" rx="2" fill="#b6d0f8"/><rect x="24" y="46" width="112" height="10" rx="4" fill="#cfe0fb"/><rect x="24" y="62" width="52" height="18" rx="4" fill="#dbe8fc"/><rect x="84" y="62" width="52" height="18" rx="4" fill="#e0ebfd"/></svg></div>
+                      <div class="qc-b"><b>列表页与分页组件</b><div class="qc-f"><span>建议用时</span><b>90 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="16" rx="8" fill="#e0ebfd"/><rect x="24" y="24.5" width="34" height="4" rx="2" fill="#b6d0f8"/><rect x="24" y="46" width="54" height="34" rx="4" fill="#cfe0fb"/><rect x="86" y="46" width="50" height="14" rx="4" fill="#dbe8fc"/><rect x="86" y="66" width="50" height="14" rx="4" fill="#e0ebfd"/></svg></div>
+                      <div class="qc-b"><b>表单校验与提交交互</b><div class="qc-f"><span>建议用时</span><b>120 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="16" rx="8" fill="#e0ebfd"/><rect x="24" y="24.5" width="34" height="4" rx="2" fill="#b6d0f8"/><rect x="24" y="46" width="112" height="8" rx="4" fill="#dbe8fc"/><rect x="24" y="60" width="112" height="8" rx="4" fill="#cfe0fb"/><rect x="24" y="74" width="70" height="6" rx="3" fill="#e0ebfd"/></svg></div>
+                      <div class="qc-b"><b>弹窗增删改流程</b><div class="qc-f"><span>建议用时</span><b>60 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="16" rx="8" fill="#e0ebfd"/><rect x="24" y="24.5" width="34" height="4" rx="2" fill="#b6d0f8"/><rect x="24" y="46" width="70" height="34" rx="4" fill="#cfe0fb"/><rect x="102" y="46" width="34" height="34" rx="4" fill="#dbe8fc"/></svg></div>
+                      <div class="qc-b"><b>图表数据对接与渲染</b><div class="qc-f"><span>建议用时</span><b>150 分钟</b></div></div>
+                    </div>
+                    <div class="qcard">
+                      <div class="thumb"><svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="16" rx="8" fill="#e0ebfd"/><rect x="24" y="24.5" width="34" height="4" rx="2" fill="#b6d0f8"/><rect x="24" y="46" width="34" height="34" rx="4" fill="#dbe8fc"/><rect x="64" y="46" width="34" height="34" rx="4" fill="#cfe0fb"/><rect x="104" y="46" width="32" height="34" rx="4" fill="#e0ebfd"/></svg></div>
+                      <div class="qc-b"><b>按钮级权限控制</b><div class="qc-f"><span>建议用时</span><b>120 分钟</b></div></div>
+                    </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-sub"><b>4-2 实操题库详情页</b><span>全屏下钻 · 左参考图 + 右交付要求</span></div>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot r"></span><span class="dot"></span><span class="dot"></span><span class="url">127.0.0.1:9530/intern/learning/mock/question/1024</span></div>
+      <div style="background:var(--panel-2);padding:16px 20px 22px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-2)">‹ 返回模拟试题</span>
+          <span style="flex:1"></span>
+          <span style="font-size:12px;color:var(--ink-4)">开发模拟试题 · 试题详情</span>
+        </div>
+        <div class="grid">
+          <div class="card c7">
+            <div class="bigimg">
+              <svg viewBox="0 0 520 300" preserveAspectRatio="none"><rect x="30" y="40" width="460" height="220" rx="12" fill="#f2f7ff"/><rect x="30" y="40" width="460" height="34" rx="12" fill="#d7e7fc"/><circle cx="52" cy="57" r="5" fill="#b6d0f8"/><circle cx="70" cy="57" r="5" fill="#b6d0f8"/><circle cx="88" cy="57" r="5" fill="#b6d0f8"/><rect x="60" y="98" width="140" height="10" rx="5" fill="#b6d0f8"/><rect x="60" y="122" width="210" height="10" rx="5" fill="#cfe0fb"/><rect x="90" y="146" width="170" height="10" rx="5" fill="#dbe8fc"/><rect x="90" y="170" width="120" height="10" rx="5" fill="#cfe0fb"/><rect x="60" y="194" width="90" height="10" rx="5" fill="#b6d0f8"/><rect x="330" y="98" width="130" height="106" rx="8" fill="#e0ebfd"/></svg>
+            </div>
+            <div class="tstrip">
+                    <div class="t on"><svg viewBox="0 0 160 58" preserveAspectRatio="none"><rect x="8" y="8" width="144" height="42" rx="6" fill="#f2f7ff"/><rect x="8" y="8" width="144" height="10" rx="6" fill="#d7e7fc"/><rect x="16" y="18" width="60" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="30" width="90" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="42" width="44" height="5" rx="2.5" fill="#cfe0fb"/></svg></div>
+                    <div class="t"><svg viewBox="0 0 160 58" preserveAspectRatio="none"><rect x="8" y="8" width="144" height="42" rx="6" fill="#f2f7ff"/><rect x="8" y="8" width="144" height="10" rx="6" fill="#d7e7fc"/><rect x="16" y="18" width="90" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="30" width="52" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="42" width="70" height="5" rx="2.5" fill="#cfe0fb"/></svg></div>
+                    <div class="t"><svg viewBox="0 0 160 58" preserveAspectRatio="none"><rect x="8" y="8" width="144" height="42" rx="6" fill="#f2f7ff"/><rect x="8" y="8" width="144" height="10" rx="6" fill="#d7e7fc"/><rect x="16" y="18" width="44" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="30" width="76" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="42" width="58" height="5" rx="2.5" fill="#cfe0fb"/></svg></div>
+                    <div class="t"><svg viewBox="0 0 160 58" preserveAspectRatio="none"><rect x="8" y="8" width="144" height="42" rx="6" fill="#f2f7ff"/><rect x="8" y="8" width="144" height="10" rx="6" fill="#d7e7fc"/><rect x="16" y="18" width="72" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="30" width="38" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="42" width="86" height="5" rx="2.5" fill="#cfe0fb"/></svg></div>
+                    <div class="t"><svg viewBox="0 0 160 58" preserveAspectRatio="none"><rect x="8" y="8" width="144" height="42" rx="6" fill="#f2f7ff"/><rect x="8" y="8" width="144" height="10" rx="6" fill="#d7e7fc"/><rect x="16" y="18" width="56" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="30" width="84" height="5" rx="2.5" fill="#cfe0fb"/><rect x="16" y="42" width="34" height="5" rx="2.5" fill="#cfe0fb"/></svg></div>
+            </div>
+          </div>
+          <div class="card c5">
+            <h3 style="margin:0 0 4px;font-size:18px">用户登录接口开发</h3>
+            <div class="info2">
+              <div><span>试题类型</span><b>后端接口</b></div>
+              <div><span>建议用时</span><b>180 分钟</b></div>
+            </div>
+            <div class="grp-sub">交付要求</div>
+            <ul class="ul">
+              <li>完成登录接口与参数校验</li>
+              <li>梳理异常处理与统一返回结构</li>
+              <li>提交可运行的代码与说明文档</li>
+            </ul>
+            <div class="grp-sub">开发约束</div>
+            <ul class="ul">
+              <li>接口符合 RESTful 命名规范</li>
+              <li>参数校验完整、返回结构统一</li>
+            </ul>
+            <div class="box"><span>提交格式</span><b>.java 源码 + SQL 脚本 + .zip</b></div>
+            <div class="box"><span>命名规则</span><b>MOCK_API-1_用户登录接口开发_v01.zip</b></div>
+            <span class="btn primary" style="width:100%;justify-content:center;margin-top:12px">⤓ 下载附件</span>
+            <div class="note">附件为接口文档与数据表结构；练习成果仅供自检，不计入正式成绩。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5. 管理端发布（新） ============ -->
+  <section class="sec" id="s5" data-page-node-id="FYQc9WM3qPolOpExJwtSAF">
+    <div class="sec-head" data-page-node-id="hdqjCGI8deQzsdCexhRAlE"><span class="sec-no p" data-page-node-id="MB55wa6XjLZiIkkAsHhGEg">5</span><h2 data-page-node-id="3yReoxPHmwAwiINvI1HZrG">管理端 · 部门管理员「考核配置与发布」（正式考核的内容来源）</h2></div>
+    <p class="sec-desc" data-page-node-id="CVJbywV9DtE9V3wPNyLTYj">
+      <b data-page-node-id="DYwJtog1EiApsv2zieUbIP">正式考核由对应部门管理员配置并发布</b>，不是实习生创建、也不是超管创建。页面分三段：备考资料 / 理论考试 / 实操考试，底部「保存并发布」后实习生端生效。
+      部门管理员 <span class="kbd" data-page-node-id="DcpK31aFpgW3nChRYhnVN9">dept_id</span> 强制取本人部门，不可跨部门；超管仅只读统计。
+    </p>
+    <div class="frame" data-page-node-id="pLBPrMjEGx5ZWCzlEdzXll">
+      <div class="frame-bar" data-page-node-id="hcIpB2cwQrojhpGngjCWRR"><span class="dot r" data-page-node-id="NjXheQZARqvAGiK3Tg4PAB"></span><span class="dot" data-page-node-id="EFwBU7qeb9XfMQIGsrkmh1"></span><span class="dot" data-page-node-id="0ZwcaxNWed8ryFN9bXSGM6"></span><span class="url" data-page-node-id="b1rCK3QKQhPAGajUmtM7RS">/business/exam-config（部门管理员）</span></div>
+      <div class="app" data-page-node-id="ehjg9OCSd5bylyFOVEl9V5">
+        <aside class="rail" data-page-node-id="uTKucGci4hSmOkSzm9bf4M">
+          <div class="rail-brand" data-page-node-id="pONs5ruGJ86yZKnVjAbkXy"><span class="logo p" data-page-node-id="JtPj408BztpB6W7NMDbrLg">管</span>考核管理台</div>
+          <div class="rail-group" data-page-node-id="5EyGzj7ephZ4t4NzhZa0yS">导航</div>
+          <div class="rail-item" data-page-node-id="Tt9omCgCtcLbNe90jTpNMj"><span class="ic" data-page-node-id="3bHVsJAz3iLciFNAQHS3ej">▦</span>工作台</div>
+          <div class="rail-item" data-page-node-id="bxRV8p3iEW1P1AZCJ5DxFk"><span class="ic" data-page-node-id="37glSjMMrpbnGwfAmYB0G3">▣</span>注册审核</div>
+          <div class="rail-item" data-page-node-id="mlqwvuyqTl1A64dTk0ZM4V"><span class="ic" data-page-node-id="XPWtYFv4jSvW0nbcgXDAsC">▤</span>课程管理</div>
+          <div class="rail-item act-p" data-page-node-id="NJ6Wof0FledOMWC9MTvvPF"><span class="ic" data-page-node-id="GfX2F4DEa94gXsWYmNsAWT">✎</span>考核配置与发布</div>
+          <div class="rail-item" data-page-node-id="pQpT3B38NPcAOcHern1Xc3"><span class="ic" data-page-node-id="tdKtOPDQTIXNp73HX42EbC">◔</span>数据分析</div>
+          <div class="rail-foot" data-page-node-id="C6HNKCvsO8wPEvUAxVXtgG">开发部门 · 部门管理员</div>
+        </aside>
+        <div class="main" data-page-node-id="wNwECBJfvyIcu2LcqzVkWh">
+          <div class="topbar" data-page-node-id="CGDIvxikI6Urtzf6GDFRgz">
+            <div class="crumb" data-page-node-id="YqCBqHHepP8evRd5KbRG02">考核管理台 / <b data-page-node-id="crnYzkaJSA62tKvHNvw2P1">考核配置与发布</b></div>
+            <div class="spacer" data-page-node-id="wSKO6GSk0qENcqWsHePciB"></div>
+            <div class="avatar" data-page-node-id="eg12WBWwfEZIldME0sLukS"><span class="ph p" data-page-node-id="PjOGtgd6cZw6GFEOPiq26r">管</span><span style="font-size:13px;color:var(--ink-2)" data-page-node-id="LmgRM0K6maPWJMUvuFxHX1">开发部门管理员</span></div>
+          </div>
+          <div class="body" data-page-node-id="3dR34mGjliMFYECyfVuKU5">
+            <div class="ph-page-title" data-page-node-id="GeMapRLPGUszmeHXrZYFEB">
+              <div data-page-node-id="XCWZ6N6ypunSL5Iu6o5lTu"><h2 data-page-node-id="h9t3J3QIMKzmo2XVwHbpdM">考核配置与发布</h2><div class="d" data-page-node-id="H8p6zjLnD157PksCmwtxPU">开发部门 · 开发实习生 · 面向预备实习生</div></div>
+            </div>
+
+            <div class="blk" data-page-node-id="oKyUBse6PLSuAfoyznUizw">
+              <div class="blk-h" data-page-node-id="JyMF6Gu4rkN4tR0n6X4o1t">
+                <div data-page-node-id="d4qs3qGR4SihqcOuiFDgVm"><h3 data-page-node-id="klSesC3XXomZWujwBnGzmP">备考资料</h3><div class="d" data-page-node-id="m8UrPzniojvolFDAFRKDGj">提供给参加实习生考核的人员下载学习和考试说明资料。</div></div>
+                <span class="spacer" data-page-node-id="F3bYlo3Np2KRc5OFmzW7fn"></span>
+                <span class="badge pub" data-page-node-id="eQR8T8mfHC3IWgdTOZ3g8r">● 已发布</span>
+              </div>
+              <div class="filecard" data-page-node-id="gYN8zLPATQTPxwTmhBTCfD">
+                <span class="fi" data-page-node-id="I5e3DuLvcaPUcUp0lLmUBn">PDF</span>
+                <div class="fn" data-page-node-id="WSpkMPl3yO3A1eTeHp2QEY"><b data-page-node-id="2qeTrdY9mW5IHbwfe1pkz5">开发实习生考试指南.pdf</b><span data-page-node-id="ukBRjACMvQaUz8uH9NGNrA">尚未上传考试指南</span></div>
+                <span class="spacer" data-page-node-id="sfpAD03517jJ65kg0m8wnP"></span>
+                <span class="btn sm" data-page-node-id="Nat4A0nc1Uuk7iAlTrLgrL">上传考试指南</span>
+                <span class="btn sm" data-page-node-id="zE5UEQEekFflqQywGzypDC">文件预览</span>
+              </div>
+            </div>
+
+            <div class="blk" data-page-node-id="Zk1KCoNeDIk1vzGkYfHtgX">
+              <div class="blk-h" data-page-node-id="18X2uvFKn3xZNLGCgkmmTQ">
+                <div data-page-node-id="BDZo6cBE4fDG3sFBH4KjM5"><h3 data-page-node-id="72IweCATYkiOIUVtpXxssL">理论考试</h3><div class="d" data-page-node-id="rq2vAmnJ7oSu6lbCLaoWqw">实习生基础理论能力考核配置</div></div>
+                <span class="spacer" data-page-node-id="bs6sWTrnR5t1OzUaIA6kTQ"></span>
+                <span class="badge pub" data-page-node-id="09Bv5KdA7QbwS3luddQ5oB">● 已发布</span>
+                <span class="btn sm" data-page-node-id="CTLnYt8MC9E7pIVLJ6Eroa">＋ 新增</span>
+                <span class="btn sm" data-page-node-id="bAl9pxoawALVkPhpynaxss">保存</span>
+                <span class="btn primary sm" data-page-node-id="daUqZvpaWwaDSERrDCGf7f">保存发布</span>
+              </div>
+              <div class="blk-grid" data-page-node-id="JwlqoLxgW7pwCct2PaeOUt">
+                <div data-page-node-id="zYhNle7z9UzqLyAe6RyIEz">
+                  <div class="blk-sub" data-page-node-id="4yUtUuT3hldEkObPnWUMVv">考试信息</div>
+                  <div class="kv" style="grid-template-columns:1fr" data-page-node-id="4mD1CJybfPd3otBFxGCHlu">
+                    <div class="row" data-page-node-id="hlGD1JM0WhuqE3ptkjC8Pq"><span data-page-node-id="WtaD4jl1W8RocDKDOl2ziz">考试形式</span><span class="inp" data-page-node-id="ZoCq0evMir5jySomFaXB3h">线上考试</span></div>
+                    <div class="row" data-page-node-id="T00ILoW7AT9rLuQ1FBl0Ph"><span data-page-node-id="F70DfaAGVO3RvvFH77KfaS">考试时长</span><span class="inp" data-page-node-id="eylA8Kd5qPJ9RkCXUM8LrF">60 分钟</span></div>
+                    <div class="row" data-page-node-id="FeCOhFKBvVVkmEQItiS5YL"><span data-page-node-id="pw8BnfoOJcgAMh53m8Utf8">通过分数/总分</span><span class="inp" data-page-node-id="ojH4HaBVJ1bfybOE2gAsPF">60 / 100 分</span></div>
+                    <div class="row" data-page-node-id="iQk3gxQCRBkaThHwjCnoB1"><span data-page-node-id="xaoQGdh925SyfP3NgmcGAu">考试题型</span><span class="inp" data-page-node-id="bazjNNm6Dp7LE0Z5bDshFm">单选题 + 多选题</span></div>
+                    <div class="row" data-page-node-id="zjgtBwE2M3mTFztTK6So5i"><span data-page-node-id="E5S0tXnrdjWtLNAIfYcuZy">题目数量</span><span class="inp" data-page-node-id="v6nPBzL1erM7ErCDkQiCaa">20 题</span></div>
+                    <div class="row" data-page-node-id="lN9jRgReCuj22FJEGXiKQE"><span data-page-node-id="Y1GGQePaT4nDGpKJ8NClIm">试题分值</span><span class="inp" data-page-node-id="JPsMQ6muN7L0zq3s8pSahr">单选题 4 分 + 多选题 6 分</span></div>
+                  </div>
+                </div>
+                <div data-page-node-id="XPYtnCSQDDTs1QUTWpCZAE">
+                  <div class="blk-sub" data-page-node-id="WmdnEwfSOJjBc28bEWZlJA">试题分布</div>
+                  <div class="tb-scroll" data-page-node-id="QFScid9oWETRacAiXplTmb">
+                    <table class="tb" data-page-node-id="U3PAvpVHbPwlRW5hU0TbYL">
+                      <thead data-page-node-id="cldcrZLD8tHdWanpBtIIyW"><tr data-page-node-id="6PypK3XycD5wyPkTuUBUPp"><th data-page-node-id="0XWjdZ2yG0X0uM2Jb1csOw">知识模块</th><th data-page-node-id="SplMX6anuVYF2Y28avuG1Y">题目数量</th><th data-page-node-id="i4G9CS4LmWj0BALkOheUEj">知识点占比</th><th data-page-node-id="UvMqkj8lQRIIgqglFreBCV">单选题占比</th><th data-page-node-id="cIFk1vB9pqy96ilqSVnNWb">单选题数量</th><th data-page-node-id="gyXaLDXne7g1eFppRUvFto">多选题占比</th><th data-page-node-id="Y5YVSG9jmG4vXIDxFDFPlW">操作</th></tr></thead>
+                      <tbody data-page-node-id="lV3p2Ba2KXpqlRMvKZ6xPC">
+                        <tr data-page-node-id="KxFSvPGvwFCQfEMTgUM0vY"><td data-page-node-id="NTwegFqQqtUFtogZGAqxgb">Java 语言与面向对象</td><td data-page-node-id="3pdUPzMceujEdVTRByKvX2">5 题</td><td data-page-node-id="kOPHY8RkkZoKuF8Bp9Kuov">25%</td><td data-page-node-id="LFYoNuTNKIz7NDXzULradU">80%</td><td data-page-node-id="swLAu3GwQomBh0zflXPSaM">4 题</td><td data-page-node-id="xWFtcPG9ZzxwCGsVNST9vM">20%</td><td data-page-node-id="mj15zcDYsyBuCZEab8LEY9"><div class="op" data-page-node-id="9CDMbD2xHa1FBNArNJTGDe"><a href="#s5" data-page-node-id="5PSaVTkWQwMwuSv4SoHqqf">编辑</a><a href="#s5" class="del" data-page-node-id="nB9vWeFIqIOYb4tvyuBTWi">删除</a></div></td></tr>
+                        <tr data-page-node-id="Rz6rkwLOBQ4axRawhGTnu4"><td data-page-node-id="3RWLSWkyyob0nwbCMPN6ay">Spring Boot 与接口开发</td><td data-page-node-id="GljeKoUKOMqDZNASQS7DIR">5 题</td><td data-page-node-id="GjQ8R3FyWI4jhrgZkTTKV0">25%</td><td data-page-node-id="X3pEqRRNxc7wnNNjL84FTZ">60%</td><td data-page-node-id="nLQs2DemlI3E2YOYL74Q3d">3 题</td><td data-page-node-id="fyp5nk48Osb20wjdVewD2Z">40%</td><td data-page-node-id="8AryLsvMlgUOJtrH3c5tCB"><div class="op" data-page-node-id="SvY6E3Ctkdr8GbizAjN7ep"><a href="#s5" data-page-node-id="EAH6WCoA8JyHmgU0VAWelZ">编辑</a><a href="#s5" class="del" data-page-node-id="Jbrvm3dL6c2oh0FBOQhndP">删除</a></div></td></tr>
+                        <tr data-page-node-id="s722aQ4sBpr7HWhDbZBCtr"><td data-page-node-id="tyZ4bhZ2IBnBZHyCZECgdo">MySQL 与数据访问</td><td data-page-node-id="rkMqmNcN8BNlQ5BoucQ8Ht">5 题</td><td data-page-node-id="GygdCzvaHg8MNTsqd6kCRP">25%</td><td data-page-node-id="PSWBFlDn9W5vBEmUSGKKgd">80%</td><td data-page-node-id="b0Xfy72BMCAiNMttYnRu7s">4 题</td><td data-page-node-id="5vY6EJI22dAVVAfSGPw0Xm">20%</td><td data-page-node-id="X0aoZn2MQAXeezEBksNkof"><div class="op" data-page-node-id="GI8U9MGkghaPLY76ldEANL"><a href="#s5" data-page-node-id="kJNFiz2wn0v9mDPDPcUJxw">编辑</a><a href="#s5" class="del" data-page-node-id="DbFu1gHpQuvIquJq8Ul7nX">删除</a></div></td></tr>
+                        <tr data-page-node-id="51Qjf5lPvBjHfR8CphfvVE"><td data-page-node-id="FAmDKozXGgoT3HVpc0EvoV">代码规范与分支协作</td><td data-page-node-id="RDXNHpm9obcdt7wHvN8Poo">5 题</td><td data-page-node-id="Ov4nKjAeoHA0DSCFNreZTo">25%</td><td data-page-node-id="nnhwKqf2PPlJChg7IUccAR">60%</td><td data-page-node-id="WXClFCKIwziGis3KErl66h">3 题</td><td data-page-node-id="bmCdsA6IJavZnLbNwYGkGo">40%</td><td data-page-node-id="je3Dj10T9VuSpQRNMWntbf"><div class="op" data-page-node-id="xfDY6nLJrhzGfQgavWxlrF"><a href="#s5" data-page-node-id="rsTGfc5a66iQP0YIodhJNX">编辑</a><a href="#s5" class="del" data-page-node-id="koTXhbFbRY6ACUmc1gCBGU">删除</a></div></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="note" data-page-node-id="gJlrPzNVLmKcjCDQoVFSwB">校验：知识点占比之和须 = 100%，题目数量之和须 = 考试信息里的「题目数量」（20 题），否则不允许发布。</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="blk" data-page-node-id="bbFU6RAa4nLgdL4oVrceUe">
+              <div class="blk-h" data-page-node-id="mhviGYEphOJJR2WoyEI85z">
+                <div data-page-node-id="AOhGsFJxAcqx9TWXhMXytL"><h3 data-page-node-id="P0lEnmGGwvDVZ4WD0eJ3g7">实操考试</h3><div class="d" data-page-node-id="k8V14xIdc4CBDc2ZblKHE4">与实习生考核认证页面同步的开发实操任务</div></div>
+                <span class="spacer" data-page-node-id="qInpPi4Hkdcd36wChE17HH"></span>
+                <span class="badge pub" data-page-node-id="H29mcwcuyP1RD18dMzwRWt">● 已发布</span>
+                <span class="btn sm" data-page-node-id="F1pjMZBYdl1kVA6v7qAuMF">＋ 新增</span>
+                <span class="btn sm" data-page-node-id="6OPOqHy2HTGAOS7oLzQpgq">保存</span>
+                <span class="btn primary sm" data-page-node-id="zsHnDxnnGZlWXPbjuFbZcB">保存发布</span>
+              </div>
+              <div class="blk-grid" data-page-node-id="0K12VZJ84B6tzxzWljETvu">
+                <div data-page-node-id="XYolntdpj9QuV98FRXchmU">
+                  <div class="blk-sub" data-page-node-id="EiIvfUsMEbQSEUvZJksoOY">考试信息</div>
+                  <div class="kv" style="grid-template-columns:1fr" data-page-node-id="HPnft97dXap5aIONOXiM2a">
+                    <div class="row" data-page-node-id="xAaJMjxirqH2tc54iYO9vZ"><span data-page-node-id="S02zjw8PIq52TKtL0c32Bp">考试形式</span><span class="inp" data-page-node-id="Jq9wv9GlE48Lqqf353ikVd">线上考试</span></div>
+                    <div class="row" data-page-node-id="Y0PzalyxMuVEnhWKCx49Ze"><span data-page-node-id="b82BqjZrT8TDT04ahpJzn7">考试时长</span><span class="inp" data-page-node-id="j5ODsfBVEOIUsak7TkggWA">180 分钟</span></div>
+                    <div class="row" data-page-node-id="hyfZyaxmMsVKFuLaDNEEVn"><span data-page-node-id="xHd2Cg3gzdT8pOApbgkte2">通过分数/总分</span><span class="inp" data-page-node-id="K3b2S71yaIwhcH7CpM5Qtk">60 / 100 分</span></div>
+                    <div class="row" data-page-node-id="9zOs6gu5sTYZxsNW6Aig9v"><span data-page-node-id="6TvjHHheaCp1TAb9V448VG">考试题型</span><span class="inp" data-page-node-id="7BEEnGDwse8jVieE5TBGx8">接口开发 + 数据访问</span></div>
+                    <div class="row" data-page-node-id="nQQPsaUVqY1stYsN36LmBk"><span data-page-node-id="TjSJFHxwCBhbulldvWdjy5">题目数量</span><span class="inp" data-page-node-id="BSaU8KApsMK16B9rHV2vAg">2 题</span></div>
+                    <div class="row" data-page-node-id="6w9S4TKxyQTEjA3QTopZrC"><span data-page-node-id="PlJjzV7gXXac08hGqINZwk">试题分值</span><span class="inp" data-page-node-id="K3hfIf9x2nLAQFUqztFzp5">每题 50 分</span></div>
+                  </div>
+                </div>
+                <div data-page-node-id="gc0CLJepf1dlBeTCPc2Gt9">
+                  <div class="blk-sub" data-page-node-id="bieZF3brasihRfxHGaDMbl">考试题目</div>
+                  <div class="tb-scroll" data-page-node-id="e74NLCv5NcKvCNoFXuEFvr">
+                    <table class="tb" data-page-node-id="6pPXE6CmhZsSyjOuqjkygN">
+                      <thead data-page-node-id="pictF8tEDGqeHtDKwmCnEA"><tr data-page-node-id="X88cxIb5sdVLdIvCNJ9eYD"><th data-page-node-id="BZxu4W8FgJEccAraAg6RDp">题目序号</th><th data-page-node-id="1b5mzbKyOGNcip1zEpCofU">题目名称</th><th data-page-node-id="GnfxejZsepvIFqDsAXJuDD">题目描述</th><th data-page-node-id="ZsaqRev7FLyyDM7CyfcXX4">考核要点</th><th data-page-node-id="w49Hb78kQ8zjFvGACu8NXD">操作</th></tr></thead>
+                      <tbody data-page-node-id="AQVBCjEjfxair9Q6zvUJ1y">
+                        <tr data-page-node-id="DDCmMhWeaWNErwjZ5AEGSq">
+                          <td data-page-node-id="Hnwtx7AbYgMvfkOYYVvS3q">题目一</td><td data-page-node-id="DFGl9pURtAUIwITCRq2dv0">用户登录接口开发</td>
+                          <td data-page-node-id="vfTFkO6VdVKpFnBSZEJu0B">根据提供的接口文档与数据表结构，完成登录接口、参数校验与统一返回。</td>
+                          <td data-page-node-id="ytZaOvJ1NwGTya9EwmDgCS">接口符合 RESTful 命名；参数校验完整；密码加密与令牌下发正确；异常返回结构统一</td>
+                          <td data-page-node-id="4LzBDfMaPgjv0c35QqMRpS"><div class="op" data-page-node-id="CpHkjjFWHR3KZ417q0y6J2"><a href="#s5" data-page-node-id="rAc0D0mKID5srl4E18zsMr">编辑</a><a href="#s5" class="del" data-page-node-id="CAb0l8tNmSaMhiHGCmVQIA">删除</a></div></td>
+                        </tr>
+                        <tr data-page-node-id="U30v5mGjNJ3F3KnSYRGeU2">
+                          <td data-page-node-id="SFhIJAdUzL92Ggc5pRKR9j">题目二</td><td data-page-node-id="rC8QGeNjMogDUBFDQdtYpJ">分页查询接口开发</td>
+                          <td data-page-node-id="B1Uh2ShWmFOvhHnjV6KS5O">根据列表页需求，完成分页查询接口与条件过滤、排序支持。</td>
+                          <td data-page-node-id="QIAaK9tbgFXwbc6CgdzKxQ">分页参数校验完整；SQL 走索引；返回结构与前端约定一致；边界值与空结果处理正确</td>
+                          <td data-page-node-id="LIQ1fz7mxAwjQdhQqibVBJ"><div class="op" data-page-node-id="Ap3FP8uMug3YipgGUfGzIo"><a href="#s5" data-page-node-id="6pE5m8z23wsiOIBp5y45C4">编辑</a><a href="#s5" class="del" data-page-node-id="OE4aXI4a2hetdqmPsvNca9">删除</a></div></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pub-bar" data-page-node-id="DgYNu02s9f6ObEHTVG0AMK">
+              <span data-page-node-id="e52xy6a2TlunYsjGBgK19Q">当前版本 v1.0 · 最近更新 2026.08.29 09:00 · 发布后在实习生考核认证页面生效</span>
+              <span class="spacer" data-page-node-id="hMHk5VfetFTDhu2OnQkUJ7"></span>
+              <span class="btn primary sm" data-page-node-id="sUuFRMaN7PeCKvg92RkTaj">● 保存并发布</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6. 正式考核（新） ============ -->
+  <section class="sec" id="s6" data-page-node-id="035TAce8q8rSELMcVa61R5">
+    <div class="sec-head" data-page-node-id="SnAJYrU0TUBACxbet4ajcl"><span class="sec-no" data-page-node-id="2BRo1aYAV2qrKKgwWlOi8S">6</span><h2 data-page-node-id="ldT3AVmjK5aDJcYmKAsV7Y">正式考核 · 实习生只读消费部门管理员发布内容</h2></div>
+    <p class="sec-desc" data-page-node-id="DFjuHuhgJbcvMx1T2OnEyH">
+      页面直接呈现部门管理员发布的三段内容：<b data-page-node-id="ojgtIj7hyNVinNvBofeKra">发布信息条</b>（部门 / 发布人 / 版本 / 时间）→ <b data-page-node-id="ThVFBDE5OpbBxhozwPxdP2">① 备考资料</b> → <b data-page-node-id="3KBgdy4p2F7G8rOdrApGkB">② 资格校验卡</b>（完成率 / 协议 / 次数）→ <b data-page-node-id="MEsBtcHL0uYIVJrr1JAGui">③ 理论考试卡</b> → <b data-page-node-id="gT7xjQodKNvlP7fdSLZxDc">④ 实操考试卡</b>。
+      理论按配置的「试题分布」抽题；实操<b data-page-node-id="XX9ASyf0eLAn7R1YkazDg3">题目列表直看</b>。实习生在正式考核页看不到标准答案与批阅规则。
+    </p>
+    <div class="frame" data-page-node-id="YWkACnn0itMwJ9zXsmqLFc">
+      <div class="frame-bar" data-page-node-id="3NLG9juKC3ukoExZC25tu4"><span class="dot r" data-page-node-id="6HVGkCY9oPx5BBCcHAz2d6"></span><span class="dot" data-page-node-id="PEQFDYp8oU7RJubZw7GSRb"></span><span class="dot" data-page-node-id="vq5HK6iPn8sE0FfV8tgX60"></span><span class="url" data-page-node-id="fIH7v323X03LSSdQPtsBlC">127.0.0.1:9530/intern/learning/exam</span></div>
+      <div class="app" data-page-node-id="CoBxCNtEjCSmugL0HoQNkg">
+        <aside class="rail" data-page-node-id="4NrpUmtNJdgQVqdKVWIV8o">
+          <div class="rail-brand" data-page-node-id="cQjXp8zx5pn8ffKyMEmVnS"><span class="logo" data-page-node-id="M9r3yEoj1woAKeB9pRbIQl">实</span>实习生门户</div>
+          <div class="rail-group" data-page-node-id="INWM9bh1OoLOHXv1FHvYFv">导航</div>
+          <div class="rail-item" data-page-node-id="EPM361GgJHWFhxKGkW81do"><span class="ic" data-page-node-id="iapzoR3jEOZD9BA3pfzw3y">▦</span>工作台</div>
+          <div class="rail-item active" data-page-node-id="Mzy1eCTnJyuYh2O90D0V9Y"><span class="ic" data-page-node-id="ccm6G1YXbaZfFNv16nxHxh">▤</span>学习与考核</div>
+          <div class="rail-foot" data-page-node-id="6iGBlet09Gmgfwkh5iwm6r">实习生端 · 仅两项一级目录</div>
+        </aside>
+        <div class="main" data-page-node-id="k0E5H02aHzioF0pKpusJce">
+          <div class="topbar" data-page-node-id="dmYy3JsRjpWWuDhEwknCu8">
+            <div class="crumb" data-page-node-id="iE9fxOr54PqzlT0PPBogI6">实习生门户 / <b data-page-node-id="cr8PW06JOjAQXe1DPIiQwu">学习与考核</b> / 正式考核</div>
+            <div class="spacer" data-page-node-id="9owRiZMemf3fjAO2P94wot"></div><div class="bell" data-page-node-id="NLLXjDUrmIbOlmEmsHabme">🔔<i data-page-node-id="9QngBvdg0H5rWGkka7CECX">3</i></div>
+            <div class="avatar" data-page-node-id="lv06nFFeDq8ow3iIaIT3rC"><span class="ph" data-page-node-id="nf5ZF9tlEqDuTuM3XDUpWR">李</span><span style="font-size:13px;color:var(--ink-2)" data-page-node-id="rzBeFnc2wnd5W6YYIddKXU">李思远</span></div>
+          </div>
+          <div class="body" data-page-node-id="8qSVNXxl2QZbJC79acC6hc">
+            <div class="ph-page-title" data-page-node-id="BGwRIw3fZpvcBBjhhDcyHG">
+              <div data-page-node-id="rIVsPOZJA1lIDFRRh0zikN"><h2 data-page-node-id="fDSDoFHKWNLufoh2S6PlCI">正式考核</h2><div class="d" data-page-node-id="3NArtcl1AunyuDY3TkiEyG">由开发部门管理员发布 · 通过后进入转正审批</div></div>
+              <span class="badge pub" style="height:26px;display:inline-flex;align-items:center" data-page-node-id="P5Rg7BOffo5M4E5ibDMNTW">● 已发布 v1.0</span>
+            </div>
+            <div class="tabs" data-page-node-id="IIswFvARDKdyXD52uCY0Yo">
+              <span class="tab" data-page-node-id="vq7XTPBR9rdfetzyyGQkDH">在线学习</span><span class="tab" data-page-node-id="z32D9TPuwbhRQclP8Ikvwe">备考资料</span><span class="tab" data-page-node-id="aTZuLOFIIeEpwPqmCjHNKK">模拟考核</span>
+              <span class="tab active" data-page-node-id="RjhQq3YnpAC21XIOcCTAVO">正式考核</span><span class="tab" data-page-node-id="zA72pPnD19iisiP01IxuY6">正式考核成绩</span>
+            </div>
+
+            <div class="card flat" style="padding:12px 16px;margin-bottom:14px;display:flex;gap:28px;flex-wrap:wrap;align-items:center" data-page-node-id="WOmS23Hvchwa9pXFqQGa1N">
+              <div class="fact" data-page-node-id="JAIr5Ld25NcowFFVBUo4sq"><span data-page-node-id="bXEkpWqwR5AoA3rfzJrAi9">发布部门</span><b data-page-node-id="fOVhUvmQsodNrlC3mUtUt5">开发部门</b></div>
+              <div class="fact" data-page-node-id="uZwmRROiSEH80t48103FqA"><span data-page-node-id="YXrzirPfCqOUShbFqRIGeW">发布人</span><b data-page-node-id="MwfPTyfQPIzypJp3FN8xIM">开发部门管理员</b></div>
+              <div class="fact" data-page-node-id="zGGQUuxVaNMQq94yUeqGQ5"><span data-page-node-id="tairrCqTja3UBBpBpj6Ec1">版本</span><b data-page-node-id="2fVF29fXDImxWukR6x68pE">v1.0</b></div>
+              <div class="fact" data-page-node-id="lndsLcCCsE3kPCaMeU6ea8"><span data-page-node-id="RwDyAu9D780TrVPtn9WNAz">发布时间</span><b data-page-node-id="Me1w0CSNfLfD8Fi8kZKwO7">2026-08-29 09:00</b></div>
+              <div class="fact" style="margin-left:auto" data-page-node-id="Fqv0mKubFjmGMYHLrimbRb"><span data-page-node-id="44mIhvA4VgkqbSCnVrM2RA">状态</span><b class="ok" data-page-node-id="UJzLhJ7G9RQw1Ex9E523s3">已发布 · 对本岗位生效</b></div>
+            </div>
+
+            <div class="grid" data-page-node-id="3I468bdFq3yYGTeCguC7KE">
+              <div class="card c12" data-page-node-id="MGzUo3oLvTtqFGEFHeFmT0">
+                <div class="card-h" data-page-node-id="CgdeirHCp1mzGilBEbReiq"><div class="tt" data-page-node-id="S7n0lEA3I4oCBFer8Rnq7e"><span class="idx" data-page-node-id="l6Fm7scp3vX0m98ABtbA7a">1</span><h3 data-page-node-id="7PI9rNQMzg4nMKCqqulyDG">备考资料</h3></div><span class="hint" data-page-node-id="FPNgRyj1N7UTd5cCTyoENm">部门管理员上传</span></div>
+                <div class="filecard" style="background:#fff" data-page-node-id="Fn6d8Byz3WbTa52DeHPb2h">
+                  <span class="fi" data-page-node-id="qrfY8SEuEEsoZBAIeAmIh0">PDF</span>
+                  <div class="fn" data-page-node-id="Av0ltrr3f7w7NlaqVxM3Za"><b data-page-node-id="6CfiuQgWGCuZuy8IGNPFIU">开发实习生考试指南.pdf</b><span data-page-node-id="guNTsI3q3T0lqhIOWp22NO">1.8 MB · 上传于 2026-08-29</span></div>
+                  <span class="spacer" data-page-node-id="CrRREKkSgK3PfX5ZoctXq9"></span>
+                  <span class="btn sm" data-page-node-id="QPCzxFDDTDOGNqRjFWSCeJ">文件预览</span>
+                  <span class="btn primary sm" data-page-node-id="EgBX2L1UBAHswbJ7qnad8I">下载</span>
+                </div>
+              </div>
+
+              <div class="card c4" data-page-node-id="oPNCmLhpu2O0ZzJ1Y6ym6A">
+                <div class="card-h" data-page-node-id="jt34mFOTzwl7bTdOdKOycC"><div class="tt" data-page-node-id="0oNYAQ7mbD1TiRpPVW98pg"><span class="idx o" data-page-node-id="7ShKmBT1XUcSCW4oYhJq5T">2</span><h3 data-page-node-id="glZhyj7lQjX619BWMDux73">资格校验</h3></div><span class="badge" style="background:var(--orange-soft);color:var(--orange-ink)" data-page-node-id="EJpoeugC0foGzN7uTrW4vL">未通过</span></div>
+                <div class="chk-list" data-page-node-id="2Sk4rQjTLReecaIoqrxGGF">
+                  <div class="chk" data-page-node-id="DO4nR3FaNbcYEXKPr6C1Er"><span class="no" data-page-node-id="tNZlxqK326EMehsetQz3Ly">!</span><span data-page-node-id="RO4j3NkNcWisDd5n2ls6iC">必修完成率 ≥ 70%</span><span class="spacer" data-page-node-id="5kr9cH8jP7tcQncnmMEU7A"></span><b style="color:#b54708" data-page-node-id="tbEcdQNxnqWxf3U9Xaq2HJ">当前 62%</b></div>
+                  <div class="chk" data-page-node-id="TL0AZ7VuMMwyCoVQA2Yjc4"><span class="ok" data-page-node-id="TouuKY7BB6FRpGcUFJ8eDE">✓</span><span data-page-node-id="4osMEawjVqGPMfJTts03WO">保密协议已签署</span><span class="spacer" data-page-node-id="diuP17WfwREKYYHKGJKPeB"></span><b data-page-node-id="YDOpE5R6EXbXORQbjT6DIa">已签署</b></div>
+                  <div class="chk" data-page-node-id="dmBmXa5uRYF9D2lTdmFTA7"><span class="ok" data-page-node-id="8Y0p6UkhxFerxzmYJubDUB">✓</span><span data-page-node-id="LFTcRteMJWfH16VAIPQ4Yi">剩余考试次数</span><span class="spacer" data-page-node-id="J2CkPQMCvcO3IlHLFGcFSJ"></span><b data-page-node-id="TmA9vybpxfFxi6IqSthawH">2 次</b></div>
+                </div>
+                <div class="note" data-page-node-id="qxCkxfICkedTy61H6g2kjV">还差 <b style="color:#b54708" data-page-node-id="B8QVn5IeZLFSPUHBRVgBD9">8%</b> 完成率解锁。建议先完成「信息安全与保密」「开发流程与代码交付规范」剩余章节。</div>
+              </div>
+
+              <div class="card c4" data-page-node-id="skcX0GiKvAV6sns7EO8EXD">
+                <div class="card-h" data-page-node-id="bBxrxO2aMAYX0PBoG4wrDy"><div class="tt" data-page-node-id="dgh224JjjBHhMOzKXNfSsh"><span class="idx" data-page-node-id="JnpUoSnZnBjq6HUe4fS7ln">3</span><h3 data-page-node-id="qi3FiInaa2xc5YZlTh8RrZ">理论考试</h3></div><span class="badge blue" data-page-node-id="IXolWfeJ9Hk7lcN08HcxCD">线上考试</span></div>
+                <div class="kv" style="grid-template-columns:1fr;gap:8px" data-page-node-id="eE3g6iizIh5BRs2egpoBFT">
+                  <div class="row" data-page-node-id="neIBDl5WxSQG3QHzrFpMRw"><span data-page-node-id="kWFC38W4pUWEo6HlAqjJf6">考试时长</span><b data-page-node-id="ACQJAl2ARYQ9MtTkidFFN5">60 分钟</b></div>
+                  <div class="row" data-page-node-id="EViVLQJrgd0I6TbF3jawbj"><span data-page-node-id="xlyrhzNQCq2FeJJ5gaJfFd">通过分/总分</span><b data-page-node-id="AvjswYLmMapcvhtsVyCxUP">60 / 100 分</b></div>
+                  <div class="row" data-page-node-id="Z22vmsA4saLZxTY5SsEyNl"><span data-page-node-id="nxKZGnWr25ibyub3tzIEQX">考试题型</span><b data-page-node-id="hcZEREElxrWbQv9VRsDWJL">单选 + 多选</b></div>
+                  <div class="row" data-page-node-id="29N2eSgN7nxGiFE4DB8yAW"><span data-page-node-id="AkoSgbilEjSEqPS4qLN2sS">题目数量</span><b data-page-node-id="KAIeeKA7PpeLu1auuU9xFz">20 题</b></div>
+                  <div class="row" data-page-node-id="emgsiTjEogB5bG5yrVSG0t"><span data-page-node-id="sgxMFbUpexuHEvEDG3dkLF">试题分值</span><b data-page-node-id="FJaD4Lb63ET7VTe6PEWMLu">单选 4 分 / 多选 6 分</b></div>
+                </div>
+                <div class="note" data-page-node-id="2Copz5ShDcvDnBPOu4gcyG">知识模块：Java 语言与面向对象 25% / Spring Boot 与接口开发 25% / MySQL 与数据访问 25% / 开发流程与代码交付规范 25%</div>
+                <div style="display:flex;justify-content:flex-end;margin-top:12px" data-page-node-id="dbM4OrwV678uH0RGELLlmI"><span class="btn primary sm dis" data-page-node-id="HWV4C1fVwhyBh4BE59Su6A">开始考试（未解锁）</span></div>
+              </div>
+
+              <div class="card c4" data-page-node-id="cYnQt08JgT3wYyz6bieTHL">
+                <div class="card-h" data-page-node-id="EgISNX9LhU8FzeFtOstytt"><div class="tt" data-page-node-id="tIfuRFaoLVolVSYRAXBOwM"><span class="idx" data-page-node-id="faUcMy1it1kW1Ktnol9AMG">4</span><h3 data-page-node-id="PUK4QW83FNIFWZrQKsYMTf">实操考试</h3></div><span class="badge purple" data-page-node-id="EGv7rNlnDiZ4aDVl4z3E0D">线上考试</span></div>
+                <div class="kv" style="grid-template-columns:1fr;gap:8px" data-page-node-id="5iskfLQIHPx9rFayhBVa7n">
+                  <div class="row" data-page-node-id="pQzI3i0mj3Da5M2cehDy7b"><span data-page-node-id="izBm3M56PjThk3Vp1MXQ9r">考试时长</span><b data-page-node-id="hwDKNJwDyIPqwU0cjy7BZN">180 分钟</b></div>
+                  <div class="row" data-page-node-id="bDJaF4kI1O5PLQqjBHAFm5"><span data-page-node-id="h25k4jKVJvqRiHDTbQqXvC">通过分/总分</span><b data-page-node-id="TCGOBzKlB3Ft03xAPwK873">60 / 100 分</b></div>
+                  <div class="row" data-page-node-id="L1vgR5H5FboIzImrAEdMTg"><span data-page-node-id="dpo2WS7AM1HGBvE5OuBUie">考试题型</span><b data-page-node-id="G52gmzFAE3BbYeME4VgNQ9">接口开发 + 数据访问</b></div>
+                  <div class="row" data-page-node-id="UQOMTKWiawOJlQw8po4BXs"><span data-page-node-id="pqB7gJqHl66RLkWJivejJw">题目数量</span><b data-page-node-id="WG2yM2rEhzODnFND9hwESZ">2 题</b></div>
+                  <div class="row" data-page-node-id="btBtlhQfQQX2GeHQRVDOP8"><span data-page-node-id="cMKCGZfVTAxPS5HBvIhP56">试题分值</span><b data-page-node-id="fi3HCFuF5GJg1PFP62p068">每题 50 分</b></div>
+                </div>
+                <div class="note" data-page-node-id="9ORWN8glTtk6FdHKMqqkSe">题目列表（直看）：<br data-page-node-id="xu9KxTNamAiPhvTpo1ovr5">· 题目一 用户登录接口开发<br data-page-node-id="cZxJ2CALv5dpMD9DlMuXOZ">· 题目二 分页查询接口开发</div>
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px" data-page-node-id="U8yuzrIoWn9mH2P5ETQimC"><span class="btn sm dis" data-page-node-id="xjajO2LqKpaV3fANBUU4tS">查看题目</span><span class="btn primary sm dis" data-page-node-id="ZqABbMiV2NVR6kGA9aMJf0">提交</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7. 正式考核成绩（新） ============ -->
+  <section class="sec" id="s7" data-page-node-id="HuJ3EOkYaMT2Pqv4HDAWGX">
+    <div class="sec-head" data-page-node-id="loI5EfJMG5rTwEJndFTMSC"><span class="sec-no" data-page-node-id="Rycrl90wFfgjoigK23ojgR">7</span><h2 data-page-node-id="WreGDp68PjcEJhLv1x39Dd">正式考核成绩 · 查询与统计（原「成绩与证书」改名）</h2></div>
+    <p class="sec-desc" data-page-node-id="dBklYtlvVukGGUGms4uvQh">
+      五块：<b data-page-node-id="TkDujI17hJy1z0d3XlnYFc">① 结果总览</b>（是否通过 + 理论/实操/综合分）→ <b data-page-node-id="5XLigMZ48h3iZbeq3NEG5r">② 对比统计</b>（我 vs 部门平均 vs 通过线）→ <b data-page-node-id="sX3tDM8QqDwkRg4fvcIgpj">③ 成绩明细表</b> → <b data-page-node-id="RwEzu4BUmQDyqWmoRnFyOS">④ 薄弱模块分析</b> → <b data-page-node-id="rMoWLjxRzpRFecjgcguTPH">⑤ 证书区</b>。
+      统计口径：<b data-page-node-id="u1tId1qkvrqkVTb7zUuQGS">只统计正式考核成绩</b>，模拟自测不计入；部门平均分仅本部门范围可见。
+    </p>
+    <div class="frame" data-page-node-id="VlE3yu8lHOAko6tNKUriYd">
+      <div class="frame-bar" data-page-node-id="ifQC7RbuATpqOVA0kYzfiG"><span class="dot r" data-page-node-id="gLLSnB7OnPyX7EUd0VFrTx"></span><span class="dot" data-page-node-id="8G5ReLMxWnpEEGgiQXzpQI"></span><span class="dot" data-page-node-id="KaUgMZLJCD9lMCRA6c5xW3"></span><span class="url" data-page-node-id="XuczuqNxQZoAyoYdJbJtYy">127.0.0.1:9530/intern/learning/result</span></div>
+      <div class="app" data-page-node-id="mjlutlbOpjJULhVbRPTGH3">
+        <aside class="rail" data-page-node-id="poVRXHUSq8cItvSWyyX7Er">
+          <div class="rail-brand" data-page-node-id="bF39HLRRpKNSrE0Cw5XjCs"><span class="logo" data-page-node-id="U2NdgBPMhSlmAFLARUazaA">实</span>实习生门户</div>
+          <div class="rail-group" data-page-node-id="5bA5rGcN0R66NCJ7nX4BX8">导航</div>
+          <div class="rail-item" data-page-node-id="ruKv4humAuJJACI9bz3oC2"><span class="ic" data-page-node-id="OxAp41X7B33q2O97NSFSQZ">▦</span>工作台</div>
+          <div class="rail-item active" data-page-node-id="5SzQC2ull18J67VOcccbD4"><span class="ic" data-page-node-id="qI5enLDf6CYJc2Vx6E7JuX">▤</span>学习与考核</div>
+          <div class="rail-foot" data-page-node-id="Alc9BDoPg3KBnhbY3RHBgu">实习生端 · 仅两项一级目录</div>
+        </aside>
+        <div class="main" data-page-node-id="DCxgcWeHEBicTpWVtuNKdy">
+          <div class="topbar" data-page-node-id="0vslFGPbSDIT47iNn7F5jj">
+            <div class="crumb" data-page-node-id="lXV8T5H2MAoJNAPFq4FmKO">实习生门户 / <b data-page-node-id="wOPOQXYur8fVPOLugsTax1">学习与考核</b> / 正式考核成绩</div>
+            <div class="spacer" data-page-node-id="ZI7DE632lZQem1dXCHzT5w"></div><div class="bell" data-page-node-id="WV4P8F53PNFQYTzHpPMp0W">🔔<i data-page-node-id="65MaUXC0LRbODrnzW0cpdC">3</i></div>
+            <div class="avatar" data-page-node-id="6jU3ndN41ApJGHJEeazGG4"><span class="ph" data-page-node-id="itgh1oiG1lcyqyyKaKWN1y">李</span><span style="font-size:13px;color:var(--ink-2)" data-page-node-id="Gq68j7t0zxFCxaRdGokhy1">李思远</span></div>
+          </div>
+          <div class="body" data-page-node-id="5DBpla6EAZeDP39NcQs8RV">
+            <div class="ph-page-title" data-page-node-id="M2xrfKl18Se6oAC1UPTgtq">
+              <div data-page-node-id="L1zMRym0q7CoyYBHoYUSl0"><h2 data-page-node-id="nBrWDqhKdv4GKhczedSO5W">正式考核成绩</h2><div class="d" data-page-node-id="DVTSGxjP3Qmls6do9F4na8">2026 秋季开发实习生正式考核 · v1.0</div></div>
+              <span class="sel" data-page-node-id="J000aCFCBCrm4oujUcqVYG">周期：2026 秋季 ▾</span>
+            </div>
+            <div class="tabs" data-page-node-id="IMezBRrADo2VaeuYEPHRmG">
+              <span class="tab" data-page-node-id="9fxrRaOwK1AT5YOICSoHv4">在线学习</span><span class="tab" data-page-node-id="Bmo6w5A6qGVDuB5t9HRtSE">备考资料</span><span class="tab" data-page-node-id="CQsiYMIHbIHffRKgVW9J8o">模拟考核</span>
+              <span class="tab" data-page-node-id="MFkM8m6HidTgQDEwTamlMs">正式考核</span><span class="tab active" data-page-node-id="g9luTDjGNppOai7LWhwNMG">正式考核成绩</span>
+            </div>
+
+            <div class="grid" data-page-node-id="asgRST8eA0oKLoxku14jIN">
+              <div class="card c4" data-page-node-id="LwUG3CKiHYqblFJXwAumCC">
+                <div class="card-h" data-page-node-id="R5OGgCdlUEnat4t1JXrJ9i"><div class="tt" data-page-node-id="6Oy7J88AET9eFFJg063aAF"><span class="idx" data-page-node-id="76WNgMndXn1J3DZme2Ehl3">1</span><h3 data-page-node-id="Q7d0kvJGaUvKegrSfd3Iny">结果总览</h3></div></div>
+                <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px" data-page-node-id="F60LZ9qUJE9AQp3W5uTQ8S">
+                  <span style="width:52px;height:52px;border-radius:14px;background:var(--orange-soft);color:var(--orange-ink);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none" data-page-node-id="FUr8PvdnhQHh4dGIeNgbDS">!</span>
+                  <div data-page-node-id="SL5HxgTynNRfoaC7PefOWV"><b style="font-size:17px" data-page-node-id="2bZP90yPjZFOKVqGC4gHti">未通过</b><p style="margin:2px 0 0;font-size:12px;color:var(--ink-3)" data-page-node-id="UezG8zLKW3ON2DgNpJ5KUZ">实操未提交 · 理论未参加</p></div>
+                </div>
+                <div class="kv" style="grid-template-columns:1fr;gap:9px" data-page-node-id="1wCX5tkjM76sNdkmmlqBrn">
+                  <div class="row" data-page-node-id="GOuHD9nqycHvCE2AF0pylT"><span data-page-node-id="eO7iJ6xgqdCREeMybYqiTB">理论分</span><b style="color:var(--ink-4)" data-page-node-id="uamzuAttUHabWd46aT12Kj">--</b></div>
+                  <div class="row" data-page-node-id="cat8GuTnnGuMKeIlH3oR0z"><span data-page-node-id="nNf28PYN8sKc4EfVvsvFMs">实操分</span><b style="color:var(--ink-4)" data-page-node-id="KAF9TEjmQyA2COgcGzoIxM">--</b></div>
+                  <div class="row" data-page-node-id="jDRZi5aZKWyfgBdDCVnfis"><span data-page-node-id="U5JBCLJPJD90dTqlb3WHhJ">综合分</span><b style="color:var(--ink-4)" data-page-node-id="BxKWbJil4J4loXtuAH6lia">--</b></div>
+                  <div class="row" data-page-node-id="KCyjgjEhbhFLioK2vIan06"><span data-page-node-id="HmtMAKtSwGUQTxuSAqtjUL">通过线</span><b data-page-node-id="9PHhMBpI3She4nUpnkIGHD">60 分</b></div>
+                </div>
+                <div class="note" data-page-node-id="9SrYf2J6kPekHUycZH0796">综合分 = 理论 × 40% + 实操 × 60%（权重由考核配置决定）。数据未生成时显示 <span class="kbd" data-page-node-id="HQjEhow9LaJeQeCTwHvQEC">--</span>，不以 0 占位。</div>
+              </div>
+
+              <div class="card c4" data-page-node-id="jExSk2C7q3oRjSgtwRHAc4">
+                <div class="card-h" data-page-node-id="BkSRgLDipKQwxaeqwYiFz9"><div class="tt" data-page-node-id="c14nBCn7w4AM7KGcpJFrco"><span class="idx" data-page-node-id="ECNa3aovFj2Czehaxv2g3E">2</span><h3 data-page-node-id="v42ks65249OOfAJmPXuD7D">对比统计</h3></div><span class="hint" data-page-node-id="iMBrRpgHHOoxUXh1v3lDVy">本部门范围</span></div>
+                <div class="vchart" style="height:150px" data-page-node-id="agjQvfW8p1BaoIv1OYgpYT">
+                  <div class="vcol" data-page-node-id="h1MrTsoQSA21bCVBvtInQ2"><span class="bar none" style="height:8%" data-page-node-id="sGkhDXSUQmVbCqsD4YV9Um">--</span><span class="lb" data-page-node-id="5aexNFemSHBY58ARs8jpjZ">我的分</span></div>
+                  <div class="vcol" data-page-node-id="x6JEvPa2WNA9vDiavkKNV1"><span class="bar hi" style="height:74%" data-page-node-id="kkJckTPlpMJWkfHdVi3Uc8">74</span><span class="lb" data-page-node-id="sCvBB2q90Eu5p4WmHeVTeO">部门平均</span></div>
+                  <div class="vcol" data-page-node-id="he982dplqea2HlVrDbaZEB"><span class="bar o" style="height:60%" data-page-node-id="83WHZoDhVNYVIoY5bFVOgC">60</span><span class="lb" data-page-node-id="bHXfjJwnp31AgwL2v6gBSo">通过线</span></div>
+                </div>
+                <div class="legend" data-page-node-id="OvhpipNMSAOSLx4SQJ2yF9"><span data-page-node-id="fCaze5qKwgDqT4XMuO4bWb"><i style="background:#f2f4f7" data-page-node-id="RvCTKVi4X5ytdO9xXHyYXT"></i>我的分（未出）</span><span data-page-node-id="JHbDzVQWAYb4hfDzAGMeDC"><i style="background:#1764f5" data-page-node-id="IKpybKcHonPP2llLUPg5Kt"></i>部门平均</span><span data-page-node-id="pFOmWw493tHaQmIMjMVafh"><i style="background:#f79009" data-page-node-id="Dwbree8xb4bTymgmSbG5of"></i>通过线 60</span></div>
+                <div class="note" data-page-node-id="yrN7727nCOwT1TD7cxZIsY">部门平均仅统计本部门已参加考核人员；跨部门数据不可见。</div>
+              </div>
+
+              <div class="card c4" data-page-node-id="Ch5SVrN8iGXIWys0eFrZa2">
+                <div class="card-h" data-page-node-id="edYws8FtxjfChf60jKzDkD"><div class="tt" data-page-node-id="PXGTBsNygBCo1HFLLwW6eD"><span class="idx" data-page-node-id="Ur2KDR8gwC8nzF7vdZZhhf">3</span><h3 data-page-node-id="dDaLitv0y369DZowhFOJZv">成绩明细</h3></div></div>
+                <div class="tb-scroll" data-page-node-id="JETtFXFo1R7X4lJ3RdXSPk">
+                  <table class="tb" data-page-node-id="AB1grfsmMUV171eYGrOhch">
+                    <thead data-page-node-id="X45Vzpk4StLauHq4uOttDy"><tr data-page-node-id="qhSTQcs52C81xSxYUOCC2o"><th data-page-node-id="Rj3RVRQ2N1ocXnnxm6rJ98">考核项</th><th data-page-node-id="DWxTCNF1LNWRKF69MzE1QM">时间</th><th data-page-node-id="rI2GEzwypwJTJld5JDe2Gc">分数</th><th data-page-node-id="QWJyftXdcJN4CUHacibJWg">状态</th></tr></thead>
+                    <tbody data-page-node-id="BI2t0A3T8iuGQHIG37CrYq">
+                      <tr data-page-node-id="4g9g47QKnyQKd8w8fxlNUh"><td data-page-node-id="cCxRkszWR9Pam7ToyFpbUt">理论考试</td><td data-page-node-id="TczSxESVt6nGdHasmk53Ei">--</td><td data-page-node-id="RMLoSwH36dq2lNox2v4Ihs">--</td><td data-page-node-id="rnnXNcrBEzZj3sAWTsr6NB"><span class="st none" data-page-node-id="fcBZCBCEIZXLlqrFZ84lk5">未参加</span></td></tr>
+                      <tr data-page-node-id="EAeDR62ozK3X3B44dKJoDo"><td data-page-node-id="T5pcG126avujFaDW48dwQq">实操考试</td><td data-page-node-id="ga170sCZNvKRRASl5Ua1Ql">--</td><td data-page-node-id="DB5xOFsSc2rNVhTs51B8qP">--</td><td data-page-node-id="MAtadSC1bCh0FBS52sk9fl"><span class="st none" data-page-node-id="L6nxya2DQcF2SPMFShzxzS">未提交</span></td></tr>
+                      <tr data-page-node-id="ERAQu1nHSnUV1Pln8JKgOw"><td data-page-node-id="XRcUptgbG7XSkrYkNCAwxh">综合评定</td><td data-page-node-id="n8E6LXVAjWgsbikfAwOdnY">--</td><td data-page-node-id="PTOcuB4hDJC1IZEyGagQuY">--</td><td data-page-node-id="0sC8wM0YQjr5PIFtnAS3qX"><span class="st wait" data-page-node-id="evToPjiFKU9OaOGZdYl7rG">待生成</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="note" data-page-node-id="cWenXZva1cbBBAHDntiOa7">模拟自测成绩不在此表统计（见「模拟考核」页）。</div>
+              </div>
+
+              <div class="card c7" data-page-node-id="pdRoicikRGZTWNQlXcjr38">
+                <div class="card-h" data-page-node-id="KVOSkvMBAmY2hCWrjQNzpO"><div class="tt" data-page-node-id="cUeq9Ux8GnnphjMlg1mGZZ"><span class="idx" data-page-node-id="37FrgdSd3lT4w1KicGGEym">4</span><h3 data-page-node-id="QU2WSva0FeYCh3hpacq6Iy">薄弱模块分析</h3></div><span class="hint" data-page-node-id="EyYp9lK34xWEwlVBgztiBB">考后生成</span></div>
+                <div class="hbar" data-page-node-id="Zg53G6Pv3Ma4Wkkk6cI6BO"><span class="nm" data-page-node-id="eSY2RdhAm7wE0tYhNHLqpF">Java 语言与面向对象</span><span class="track" data-page-node-id="zZsooQ8UkFIBxIU8ABswBY"><i style="width:100%;background:repeating-linear-gradient(90deg,#cfd6e0 0 5px,transparent 5px 9px)" data-page-node-id="2oZw8i4MBGAZu7NsudhrVg"></i></span><span class="pc" style="color:var(--ink-4)" data-page-node-id="ldFgwCADAGzEDQ37cgUT35">--</span></div>
+                <div class="hbar" data-page-node-id="Gguln6zCBPwW5BAAQWSiVJ"><span class="nm" data-page-node-id="sbWt4gHJEQeDVPCuc199bf">Spring Boot 与接口开发</span><span class="track" data-page-node-id="M8VjSAqOouIDyCqnwf3Kse"><i style="width:100%;background:repeating-linear-gradient(90deg,#cfd6e0 0 5px,transparent 5px 9px)" data-page-node-id="EQK1JK02s12DjzARePsVoT"></i></span><span class="pc" style="color:var(--ink-4)" data-page-node-id="oBhxtYDhiRnNWmRYCbco4Z">--</span></div>
+                <div class="hbar" data-page-node-id="YI00UknnZEV9JstFtpvNvz"><span class="nm" data-page-node-id="36NT3wNieeBqnZiPPCnrC6">MySQL 与数据访问</span><span class="track" data-page-node-id="XZxJsePZCW4HuMAuGZGxvI"><i style="width:100%;background:repeating-linear-gradient(90deg,#cfd6e0 0 5px,transparent 5px 9px)" data-page-node-id="y3ufLDV0AYfEjXqnKvebkO"></i></span><span class="pc" style="color:var(--ink-4)" data-page-node-id="fwxnYdC3a524XJPb7nMxns">--</span></div>
+                <div class="hbar" data-page-node-id="Cb6lMbAlkw1zeYK7GkGwP8"><span class="nm" data-page-node-id="6LN0sxsUJD1MN0QJPXX77q">开发流程与代码交付规范</span><span class="track" data-page-node-id="o8jb5iCuJLnxrAoQcOfTDm"><i style="width:100%;background:repeating-linear-gradient(90deg,#cfd6e0 0 5px,transparent 5px 9px)" data-page-node-id="qOdXPJ4feiaZd2VDJbXTl2"></i></span><span class="pc" style="color:var(--ink-4)" data-page-node-id="nUVkHVXoWNcDpmt8VmzUaJ">--</span></div>
+                <div class="note" data-page-node-id="oOWBSnoB5nM41zhWH7TTin">按知识模块统计得分率，考后自动定位最弱模块。未考核时画虚线占位并显示 <span class="kbd" data-page-node-id="4WOl25ljXq34USKahL76mh">--</span>。</div>
+              </div>
+
+              <div class="card c5" data-page-node-id="CkpU14O36OuaUGaaP6fF6G">
+                <div class="card-h" data-page-node-id="qZOxzqMwXaB7fjRJ85r0JB"><div class="tt" data-page-node-id="ZEmxpCmUdvkFJ95sXOj6qh"><span class="idx" data-page-node-id="X0lFBpmlWuPLcPTOYT9N6J">5</span><h3 data-page-node-id="ys0TsP5mJ6g4KYLGcEUAwD">证书</h3></div></div>
+                <div class="cert off" data-page-node-id="Oltmv73DkK6Au9jphWfCxw">
+                  <div class="seal" data-page-node-id="O52OWFqifV6oJWRgHzgR1Q">证书<br data-page-node-id="eGErKNWVut0XmdXRClu208"/>预览</div>
+                  <div class="ct" data-page-node-id="6mu7gI66rxsVfekbGTFf5K">
+                    <b data-page-node-id="MKX5SAB7ANH9yqAHrX5EE3">电子结业证书 · 未获得</b>
+                    <p data-page-node-id="IdSPYNftuDPMJYfrFbEMtv">完成培养并审批通过后生成。当前进度：正式考核未参加。</p>
+                  </div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:12px" data-page-node-id="PKBqN64mbdhiIKwm9mLqil"><span class="btn sm dis" data-page-node-id="c2uBLzQ0z0dv0qVenViEzm">下载</span></div>
+                <div class="note" data-page-node-id="dDXerDAGXXZnantgkVi3U3">证书生成条件：正式考核通过 + 超管转正审批通过。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 8. 课程学习页 ============ -->
+  <section class="sec" id="s8">
+    <div class="sec-head"><span class="sec-no">8</span><h2>课程学习页 · 在线学习下钻</h2></div>
+    <p class="sec-desc">从在线学习列表下钻的课程详情页，<b>入口与页面本体均不变</b>。面包屑「‹ 返回在线学习」→ 课程 Hero（类型 / 必修标签 / 岗位 / 章节 / 时长 / 完成率 + 继续学习）→ 全部 / 文档 / 视频 页签（含数量）→ 左课程目录（章节 + 单项状态）→ 右学习区。文档项需<b>滚动到末页</b>且首次打开满 <span class="kbd">MIN_DOCUMENT_OPEN_SECONDS</span>（10 秒）才可确认；视频项达阈值自动完成。数据来自 <span class="kbd">/business/learning/courses/{courseId}</span>，进度上报 <span class="kbd">/business/learning/items/{itemId}/progress</span>。</p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot r"></span><span class="dot"></span><span class="dot"></span><span class="url">127.0.0.1:9530/intern/learning/course/1024</span></div>
+      <div class="app">
+        <aside class="rail">
+          <div class="rail-brand"><span class="logo">实</span>实习生门户</div>
+          <div class="rail-group">导航</div>
+          <div class="rail-item"><span class="ic">▦</span>工作台</div>
+          <div class="rail-item active"><span class="ic">▤</span>学习与考核</div>
+          <div class="rail-foot">实习生端 · 仅两项一级目录</div>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <div class="crumb">实习生门户 / <b>学习与考核</b> / 在线学习 / 开发流程与代码交付规范</div>
+            <div class="spacer"></div><div class="bell">🔔<i>3</i></div>
+            <div class="avatar"><span class="ph">李</span><span style="font-size:13px;color:var(--ink-2)">李思远</span></div>
+          </div>
+          <div class="body">
+            <div class="crumbline"><span class="bk">‹ 返回在线学习</span><span>/</span><b>开发流程与代码交付规范</b></div>
+            <div class="course-hero">
+              <span class="mark">▤</span>
+              <div class="cp">
+                <span class="k">文档理论课程</span>
+                <div style="display:flex;align-items:center;gap:8px"><h3>开发流程与代码交付规范</h3><span class="badge">必修</span></div>
+                <p>从需求评审、分支管理到代码评审与交付的完整流程与规范要求。</p>
+                <div class="meta"><span>◉ 开发实习生</span><span>▤ 3 个章节</span><span>◷ 90 分钟</span></div>
+              </div>
+              <div class="hp">
+                <span>课程完成率</span><b>55%</b>
+                <span class="bar-mini"><i style="width:55%"></i></span>
+              </div>
+              <span class="btn primary">继续学习</span>
+            </div>
+            <div class="tabs">
+              <span class="tab active">全部<span class="n">6</span></span><span class="tab">文档<span class="n">3</span></span><span class="tab">视频<span class="n">3</span></span>
+              <span style="flex:1"></span><span class="tab" style="border:0;color:var(--blue)">展开全部</span>
+            </div>
+            <div class="boxed full-body">
+              <aside class="toc">
+                <div class="ch">
+                  <b>第 1 章 交付流程 <span style="color:var(--ink-4);font-weight:400">3/3</span></b>
+                  <div class="it done">1.1 需求评审与拆解<span class="r">✓</span></div>
+                  <div class="it done">1.2 分支管理与提交规范<span class="r">✓</span></div>
+                  <div class="it done">1.3 代码评审要点（视频）<span class="r">✓</span></div>
+                </div>
+                <div class="ch">
+                  <b>第 2 章 代码规范 <span style="color:var(--ink-4);font-weight:400">1/3</span></b>
+                  <div class="it on">2.1 命名与分层约定<span class="r">学习中</span></div>
+                  <div class="it">2.2 统一异常与日志规范<span class="r">未开始</span></div>
+                  <div class="it">2.3 注释与接口文档<span class="r">未开始</span></div>
+                </div>
+                <div class="ch">
+                  <b>第 3 章 交付与验收 <span style="color:var(--ink-4);font-weight:400">0/2</span></b>
+                  <div class="it">3.1 提测与验收流程<span class="r">未开始</span></div>
+                  <div class="it">3.2 交付物清单与归档（视频）<span class="r">未开始</span></div>
+                </div>
+              </aside>
+              <div class="content">
+                <span class="saveflag">✓ 已自动保存 · 阅读 42%</span>
+                <div style="margin-bottom:14px">
+                  <div style="font-size:11.5px;color:var(--ink-4);margin-bottom:6px">第 2 章 代码规范 / 文档</div>
+                  <div style="font-size:16px;font-weight:600;margin-bottom:7px">2.1 命名与分层约定</div>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <span class="badge blue">文档</span>
+                    <span style="font-size:11.5px;color:var(--ink-4)">PDF · 23 页 · 阈值：滚动到末页 + 打开满 10 秒</span>
+                  </div>
+                </div>
+                <div class="reader">PDF / DOCX / PPTX 阅读器区域（含页码、缩放、全文检索）</div>
+                <div class="rule-strip" style="margin-top:12px">
+                  <span class="rc">i</span>
+                  <div style="flex:1"><b>本节简介</b><p>说明服务层、控制层与数据层的命名约定，以及包结构的划分原则。</p></div>
+                </div>
+              </div>
+            </div>
+            <div class="full-foot boxed" style="border-radius:10px;margin-top:12px">
+              <span class="mm">‹ 上一项</span>
+              <span class="mid">本项进度 42% · 共 6 单项，已完成 4 项</span>
+              <span class="mm">下一项 ›</span>
+              <span class="mm ok">确认完成阅读</span>
+            </div>
+            <div class="rule-strip">
+              <span class="rc">i</span>
+              <div style="flex:1"><b>学习记录会按单项自动保存</b><p>文档需阅读到末尾，视频需达到完成进度后才能标记完成。</p></div>
+              <span class="btn sm">学习规则</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 9. 能力画像 ============ -->
+  <section class="sec" id="s9" data-page-node-id="0W6c0CmzVLFVr4C82bFxGO">
+    <div class="sec-head" data-page-node-id="ULh6vtvOCugkmdXm1yk6dR"><span class="sec-no" data-page-node-id="kjtTNZnB1uBzzFKWujWDWl">9</span><h2 data-page-node-id="AvwHoOee4koOY1xEDQSzp3">能力画像详情页（工作台 ④ 下钻）</h2></div>
+    <p class="sec-desc" data-page-node-id="dsadHk7zSk1d6mPALiySvR">多周期对比 + 维度明细 + 来源追溯 + 评价原文。安全约束：<span class="kbd" data-page-node-id="QRWz4eeRy2F2WgZl5kjfVc">visible_scope = ADMIN_ONLY</span> 的评价 <b data-page-node-id="tq65QSY4rHGUrzGoKIoHxh">后端必须过滤</b>，不得出现在实习生端。</p>
+    <div class="frame" data-page-node-id="GPDfDg1pMZRZdVv30i2qNC">
+      <div class="frame-bar" data-page-node-id="R9XPwJxwiztpVGaUmaAaF4"><span class="dot r" data-page-node-id="uBpdnBMXWMihapJUI5Si38"></span><span class="dot" data-page-node-id="8BrEv09GFHFCOzvK7hz09P"></span><span class="dot" data-page-node-id="4Uzz0xRxuTCSLbIm2DwAeK"></span><span class="url" data-page-node-id="eckkSx20dVQjJ0Mhoh79q7">127.0.0.1:9530/intern/dashboard/portrait/2026-09</span></div>
+      <div style="background:var(--panel-2);padding:18px 22px 26px" data-page-node-id="fKFSkl4vE1BeiQauwdAgvz">
+        <div class="ph-page-title" data-page-node-id="RZTFwwiPuhBw81CBfWXoXg">
+          <div data-page-node-id="rc8yT808YcTOHDvch8YZsq"><h2 data-page-node-id="GtImNpjm3oWqakd3ycCCHj">能力画像 · 2026-09 周期</h2><div class="d" data-page-node-id="ufvQ9BObKrJQZBMcAF4vha">由学习投入 / 理论掌握 / 实践能力 / 规范遵从 四来源合成</div></div>
+          <div class="btn-row" data-page-node-id="fZLtASG8anJP9NAvSW2MmW"><span class="sel" data-page-node-id="PEGtnc3gVFufocLpb2N49Z">周期：2026-09 ▾</span><span class="btn" data-page-node-id="X34yB4fGf7cl7kmnHxRw1O">导出</span></div>
+        </div>
+        <div class="grid" data-page-node-id="SIElqrpx3j0rJdqFrDPUXr">
+          <div class="card c5" data-page-node-id="qYrn4dZhSC7iGOzUUMcxBO">
+            <div class="card-h" data-page-node-id="0EbQN1HSNjlI4m6FePLvPq"><h3 data-page-node-id="2xRADNQObWZJOIKlyuZzvu">多维雷达</h3><span class="hint" data-page-node-id="osZyThBfPdZZl2SfzYw3Xi">4 维度</span></div>
+            <svg viewBox="0 0 240 230" style="max-width:250px;margin:0 auto" data-page-node-id="DazmLPVWpxtfzaB0fbKBdZ">
+              <g fill="none" stroke="#eef1f6" data-page-node-id="HmmVN2zDHe53qmhlh3r6KO">
+                <polygon points="120,20 200,100 120,180 40,100" data-page-node-id="TrVMPsLNMi1dXmIOP56VVQ"/>
+                <polygon points="120,52 168,100 120,148 72,100" data-page-node-id="PRmixuuBL9BkBPwxtefnnC"/>
+                <polygon points="120,84 136,100 120,116 104,100" data-page-node-id="X6A0AN5kdAvZLUg2uTywAj"/>
+              </g>
+              <g stroke="#e4e9f0" data-page-node-id="66tAe8CmyAxUzfwMPdB4y4"><line x1="120" y1="20" x2="120" y2="180" data-page-node-id="6LG45kjN0dUBPMEal4LtRy"/><line x1="40" y1="100" x2="200" y2="100" data-page-node-id="wXWjGdqeANoYAKOnGyHygc"/><line x1="74" y1="54" x2="166" y2="146" data-page-node-id="7fsUZiaxPPhWmyIfTsZhFr"/><line x1="166" y1="54" x2="74" y2="146" data-page-node-id="1ItAnoeLcR8EM1Qm9bDXlF"/></g>
+              <polygon points="120,46 182,100 120,160 62,100" fill="#1764f5" fill-opacity="0.16" stroke="#1764f5" stroke-width="2" data-page-node-id="7WoBQWWfAMRAAJvVQNZF9Q"/>
+              <g fill="#1764f5" data-page-node-id="mHCDFJgfW9nbZgAHXJH0ar"><circle cx="120" cy="46" r="4" data-page-node-id="cSNE7HfS7G75z6B3gH32bI"/><circle cx="182" cy="100" r="4" data-page-node-id="kdtgee6oPvsAhzBVkUMbGq"/><circle cx="62" cy="100" r="4" data-page-node-id="k7pBMoBoIkrparBDvuelR5"/></g>
+              <line x1="120" y1="180" x2="120" y2="205" stroke="#98a2b3" stroke-width="1.5" stroke-dasharray="4 4" data-page-node-id="Xin5mpxNYGrCkGSQUkzNRP"/>
+              <circle cx="120" cy="160" r="4" fill="#fff" stroke="#98a2b3" stroke-width="1.6" data-page-node-id="BB2Eo5VGWPMl3GdbW3VGUg"/>
+              <text x="120" y="218" fill="#98a2b3" font-size="11" text-anchor="middle" data-page-node-id="lIrLnfVUiPukGHiKPaUoaQ">实践能力 待测评</text>
+              <g fill="#667085" font-size="11.5" text-anchor="middle" data-page-node-id="44X72xFFQrtMdaIANmk7zz">
+                <text x="120" y="13" data-page-node-id="4Et4hz7VS69Gv4WoqVEYGI">学习投入 78</text><text x="224" y="104" data-page-node-id="zQwceX8mHBfsnhKmFzRxHf">理论掌握 --</text><text x="16" y="104" data-page-node-id="YvFY3ceqxj57Fzj7TdtKpW">规范遵从 88</text>
+              </g>
+            </svg>
+            <div class="note" data-page-node-id="brgPyZX9Kht3wYD8QDFWaL">虚线轴 = 未测评，不等于 0 分。</div>
+          </div>
+          <div class="card c7" data-page-node-id="9tfziVIsXprDgOWlu2oJuI">
+            <div class="card-h" data-page-node-id="Ww222QCi1HBM6CqezAExFp"><h3 data-page-node-id="vf0NFAROznNvrWCUWH9dte">维度明细与来源</h3><span class="hint" data-page-node-id="4XRZ6BC1FRSSchhK9kPgSC">可追溯</span></div>
+            <table class="tb" data-page-node-id="BXkW4hWe23HACaFeqPtE55">
+              <thead data-page-node-id="s8xLQfBx5StmKDEV5HOeqB"><tr data-page-node-id="HJLK77XeArirkp9Jk7tGGJ"><th data-page-node-id="NzNkZ8zmDoRrtuJCvdf7l8">维度</th><th data-page-node-id="xxXBl5dhwpxEHzzVWD3P1u">分值</th><th data-page-node-id="6TtRWuySNp5b43kFJEYRse">来源与样本量</th><th data-page-node-id="OuBCqnTAIJmGyJ1Atc5VTV">状态</th></tr></thead>
+              <tbody data-page-node-id="vLxedbALnTDYL3Qo6F5lV2">
+                <tr data-page-node-id="mmYzug4FnJUrFmsubbvVzD"><td data-page-node-id="fvKMt31J2TvgnYswCtrlFM">学习投入</td><td data-page-node-id="EVnmNEGQYfY5AP9SDKpY9F"><b data-page-node-id="FYyQ9FVaoGJQTY5YHaLFSb">78</b></td><td data-page-node-id="CI1WsyxQhVNsvul18aj4Es">study_record · 29 单项 / 14.5h</td><td data-page-node-id="RD4RF9LbfW8p8Pn2pySKDx"><span class="st pass" data-page-node-id="a5eUCgomqntTqL0BlNtS1O">已生成</span></td></tr>
+                <tr data-page-node-id="rrIGWLa9UAu8uRVKQlQUjc"><td data-page-node-id="B18VPxc4xPFyfRSpHc2GPI">理论掌握</td><td data-page-node-id="8b9N5blJ1zmDi3G8XcxlKj">--</td><td data-page-node-id="XvZDsOltJSBrZtyCJ97QgS">answer_sheet / assessment_result · 正式考核后生成</td><td data-page-node-id="lKUgAGF5oTX64CbCiLELCZ"><span class="st none" data-page-node-id="goradf8dNY5FxvocABPrED">待考核</span></td></tr>
+                <tr data-page-node-id="EApjiqTZgzt5BvUhi6pAHq"><td data-page-node-id="3cmEOyIWEAhHwCvuQatTR7">实践能力</td><td data-page-node-id="8YBlrEcSXxVJoQUjNY8EB7">--</td><td data-page-node-id="zF4xndHA0jiGY3GHmpOgYg">practical_submission · 待批阅</td><td data-page-node-id="d7BlJwZ1o6weSEREbhaWlc"><span class="st wait" data-page-node-id="8Ye5swNGEYqUh8E42UHjXM">待批阅</span></td></tr>
+                <tr data-page-node-id="OmJtKJbo2ShTZwYCnnb38d"><td data-page-node-id="CTWvSKZjmbJCCuMQuRx3Wu">规范遵从</td><td data-page-node-id="NccgiCa6KG8T0HsZ6l9OPj"><b data-page-node-id="opOCPh5PtuvqGIB2fDjcV3">88</b></td><td data-page-node-id="1RQHC3Q1moTEVXbkYKCmrS">agreement_signature + 按规范完成率</td><td data-page-node-id="2tBMDaZdRhQS1yGbYV7aSn"><span class="st pass" data-page-node-id="C3cYRhwYZaB27WPmyH1uNC">已生成</span></td></tr>
+              </tbody>
+            </table>
+            <div style="margin-top:14px" data-page-node-id="d2Xs4HjybnTq48naFd5RW9">
+              <div style="font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:8px" data-page-node-id="d9YnzrsGqOIdf5yiWe3pKs">阶段评价（仅显示 OPEN 范围）</div>
+              <div class="card flat" style="padding:12px 14px" data-page-node-id="jPXx5qBHlIpqikvvJ3xkum">
+                <div style="font-size:12.5px;color:var(--ink-2)" data-page-node-id="qZnEeZRzlVxkpzVClGMQNY">"学习节奏稳定，Java 基础与接口开发掌握扎实，建议加强数据访问与事务处理的动手量。"</div>
+                <div style="font-size:11.5px;color:var(--ink-4);margin-top:6px" data-page-node-id="WSIdiYjaOY7NEdsKDJjTdO">— 导师 李导师 · 2026-09-10 · visible_scope = OPEN</div>
+              </div>
+            </div>
+          </div>
+          <div class="card c12" data-page-node-id="baGDour9BqHcmFl2iyvlbi">
+            <div class="card-h" data-page-node-id="6rcfYKd9tV2KfF7eeZ5Wdm"><h3 data-page-node-id="w9SLgl63rzJtSgDJE4omRA">多周期趋势</h3><span class="hint" data-page-node-id="Tn5E8VVaTGBm42AAoRZjeu">2026-07 ~ 2026-09</span></div>
+            <svg viewBox="0 0 900 180" preserveAspectRatio="none" style="height:170px" data-page-node-id="bJk99FAYtHhKnqrQm0vFCC">
+              <g stroke="#eef1f6" data-page-node-id="DhZaUF75bxdw36XYZPVQsf"><line x1="40" y1="30" x2="880" y2="30" data-page-node-id="KODNWd9ZgX4XpE1uSXp4xy"/><line x1="40" y1="80" x2="880" y2="80" data-page-node-id="cENh1WrUNfShuVBnZwU95C"/><line x1="40" y1="130" x2="880" y2="130" data-page-node-id="DsZSxOsTCppXjcvIl4Bt9Y"/></g>
+              <g fill="#98a2b3" font-size="11" text-anchor="end" data-page-node-id="jg99W9FX56FNaLdQ0EhM4K"><text x="32" y="34" data-page-node-id="3UdcDLvHGdDqGGPWiMZPQ7">100</text><text x="32" y="84" data-page-node-id="XD1sR6MXB0IjF3iB5Pymjm">50</text><text x="32" y="134" data-page-node-id="uf9Awt4dcBTkEDLO20TKfh">0</text></g>
+              <polyline points="60,110 300,95 540,80 820,72" fill="none" stroke="#1764f5" stroke-width="2.5" data-page-node-id="OECixF1TRk22laDFGG8ZUA"/>
+              <polyline points="60,150 300,140 540,132 820,128" fill="none" stroke="#12b76a" stroke-width="2.5" data-page-node-id="rz9ac9BxFeoZEMtJtOcL2Z"/>
+              <polyline points="60,170 300,164 540,158 820,152" fill="none" stroke="#f79009" stroke-width="2.5" stroke-dasharray="5 4" data-page-node-id="ydgFOOlJ3OIafXWPkAeZ0j"/>
+              <g fill="#fff" stroke="#1764f5" stroke-width="2" data-page-node-id="AAqFEw4PCf3uHI9dluEsFJ"><circle cx="60" cy="110" r="4" data-page-node-id="pEYqDebPtG4H0c8QSsP340"/><circle cx="300" cy="95" r="4" data-page-node-id="DA7ndHF6ZGKxc7zv9x2Tvf"/><circle cx="540" cy="80" r="4" data-page-node-id="hjGvW3GJFxz7RTCE1DpiRk"/><circle cx="820" cy="72" r="4" data-page-node-id="aNdKG1PZZENgl2cJC0lJos"/></g>
+              <g fill="#fff" stroke="#12b76a" stroke-width="2" data-page-node-id="9EAcB59sAPZ8ObhwKONoIv"><circle cx="60" cy="150" r="4" data-page-node-id="bO3m9KYM6hmjXQ9xMXKAEW"/><circle cx="300" cy="140" r="4" data-page-node-id="tUBRDVtHOx9ajgA2dN7SEL"/><circle cx="540" cy="132" r="4" data-page-node-id="rPl6bdpHNV5XsWwOoRzww4"/><circle cx="820" cy="128" r="4" data-page-node-id="MbQpjHtBE3U9Y9niYTOS41"/></g>
+              <g fill="#98a2b3" font-size="11" text-anchor="middle" data-page-node-id="YxbuhAUQMntu7baJXyPgxZ"><text x="60" y="176" data-page-node-id="OGo9nVVIuOaU0diHRL4FB4">2026-07</text><text x="300" y="176" data-page-node-id="XZAvskRx41XQNLtb4E96A6">2026-08</text><text x="540" y="176" data-page-node-id="5XqNfGAXH5oTXTaCSRYT9h">2026-09</text><text x="820" y="176" data-page-node-id="SpEyEfobEkq9A94rCiMmUR">最新</text></g>
+            </svg>
+            <div class="legend" data-page-node-id="reTcbHIoaxrEnWORTkSdnX"><span data-page-node-id="1cWkhJB7EeqlAkOuXKQ60i"><i style="background:#1764f5" data-page-node-id="6SkSr1eP6uQBsQZKuH7JUh"></i>学习投入</span><span data-page-node-id="IqkSVaSBxcmumVPTy0puLN"><i style="background:#12b76a" data-page-node-id="8xY55IQl36wHNoioWTc35U"></i>规范遵从</span><span data-page-node-id="HprNcpJ9Cc0aEjlEUat1QI"><i style="background:#f79009" data-page-node-id="cspsP26oCyKnHZpwa6UkJu"></i>实践能力（未测评，虚线）</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div style="margin-top:40px;color:var(--ink-4);font-size:12px;text-align:center" data-page-node-id="LTWGEWNM7epHrd4rVbfzPy">
+    实习生学习考核系统 · 实习生端整体设计稿 V1.2 · 2026-09-16 · 浅色极简后台 · 示例岗位：开发部门 · 开发实习生（课程/题目部分为示例数据）
+  </div>
+</div>
+</body>
+</html>

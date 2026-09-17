@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.ExamMapper">
+
+    <resultMap type="Exam" id="ExamResult">
+        <id     property="id"            column="id"             />
+        <result property="examName"      column="exam_name"      />
+        <result property="examType"      column="exam_type"      />
+        <result property="examMode"      column="exam_mode"      />
+        <result property="bankId"        column="bank_id"        />
+        <result property="questionCount" column="question_count" />
+        <result property="singleCount"   column="single_count"   />
+        <result property="multiCount"    column="multi_count"    />
+        <result property="judgeCount"    column="judge_count"    />
+        <result property="singleScore"   column="single_score"   />
+        <result property="multiScore"    column="multi_score"    />
+        <result property="judgeScore"    column="judge_score"    />
+        <result property="subjectCount"  column="subject_count"  />
+        <result property="subjectContent"  column="subject_content"  />
+        <result property="subjectAttachment" column="subject_attachment" />
+        <result property="positionId"    column="position_id"    />
+        <result property="deptId"        column="dept_id"        />
+        <result property="status"        column="status"         />
+        <result property="startTime"     column="start_time"     />
+        <result property="endTime"       column="end_time"       />
+        <result property="duration"      column="duration"       />
+        <result property="passLine"      column="pass_line"      />
+        <result property="publishedAt"   column="published_at"   />
+        <result property="publisherId"   column="publisher_id"   />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="deleted"       column="deleted"        />
+        <result property="bankName"      column="bank_name"      />
+        <result property="deptName"      column="dept_name"      />
+        <result property="pendingCount"  column="pending_count"  />
+        <result property="answeredCount" column="answered_count" />
+    </resultMap>
+
+    <sql id="examColumns">
+        e.id, e.exam_name, e.exam_type, e.exam_mode, e.bank_id, e.question_count, e.single_count, e.multi_count, e.judge_count, e.single_score, e.multi_score, e.judge_score, e.subject_count, e.subject_content, e.subject_attachment, e.position_id, e.dept_id,
+        e.status, e.start_time, e.end_time, e.duration, e.pass_line, e.published_at, e.publisher_id,
+        e.create_time, e.update_time, e.deleted,
+        b.bank_name,
+        d.dept_name,
+        (SELECT COUNT(1) FROM answer_sheet s WHERE s.exam_id = e.id AND s.status = 'SUBMITTED') AS pending_count,
+        (SELECT COUNT(1) FROM answer_sheet s WHERE s.exam_id = e.id) AS answered_count
+    </sql>
+
+    <sql id="examScope">
+        <if test="scopeDeptId != null">
+            AND e.dept_id = #{scopeDeptId}
+        </if>
+    </sql>
+
+    <select id="selectExamList" resultMap="ExamResult">
+        SELECT <include refid="examColumns" />
+        FROM exam e
+        LEFT JOIN question_bank b ON b.id = e.bank_id AND b.deleted = 0
+        LEFT JOIN sys_dept d ON d.dept_id = e.dept_id AND d.del_flag = '0'
+        <where>
+            e.deleted = 0
+            <include refid="examScope" />
+            <if test="deptId != null">
+                AND e.dept_id = #{deptId}
+            </if>
+            <if test="examName != null and examName != ''">
+                AND e.exam_name LIKE CONCAT('%', #{examName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND e.status = #{status}
+            </if>
+            <if test="examMode != null and examMode != ''">
+                AND e.exam_mode = #{examMode}
+            </if>
+        </where>
+        ORDER BY e.create_time DESC
+    </select>
+
+    <select id="selectExamById" resultMap="ExamResult">
+        SELECT <include refid="examColumns" />
+        FROM exam e
+        LEFT JOIN question_bank b ON b.id = e.bank_id AND b.deleted = 0
+        LEFT JOIN sys_dept d ON d.dept_id = e.dept_id AND d.del_flag = '0'
+        <where>
+            e.id = #{id}
+            AND e.deleted = 0
+            <include refid="examScope" />
+        </where>
+        LIMIT 1
+    </select>
+
+    <insert id="insertExam" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO exam (exam_name, exam_type, exam_mode, bank_id, question_count, single_count, multi_count, judge_count, single_score, multi_score, judge_score, subject_count, subject_content, subject_attachment, position_id, dept_id, status,
+                          start_time, end_time, duration, pass_line, published_at, publisher_id, create_time, update_time, deleted)
+        VALUES (#{examName}, #{examType}, #{examMode}, #{bankId}, #{questionCount}, #{singleCount}, #{multiCount}, #{judgeCount}, #{singleScore}, #{multiScore}, #{judgeScore}, #{subjectCount}, #{subjectContent}, #{subjectAttachment}, #{positionId}, #{deptId}, #{status},
+                #{startTime}, #{endTime}, #{duration}, #{passLine}, #{publishedAt}, #{publisherId}, #{createTime}, #{createTime}, #{deleted})
+    </insert>
+
+    <update id="updateExam">
+        UPDATE exam
+        <set>
+            <if test="examName != null">exam_name = #{examName},</if>
+            <if test="bankId != null">bank_id = #{bankId},</if>
+            <if test="questionCount != null">question_count = #{questionCount},</if>
+            <if test="singleCount != null">single_count = #{singleCount},</if>
+            <if test="multiCount != null">multi_count = #{multiCount},</if>
+            <if test="judgeCount != null">judge_count = #{judgeCount},</if>
+            <if test="singleScore != null">single_score = #{singleScore},</if>
+            <if test="multiScore != null">multi_score = #{multiScore},</if>
+            <if test="judgeScore != null">judge_score = #{judgeScore},</if>
+            <if test="subjectCount != null">subject_count = #{subjectCount},</if>
+            <if test="subjectContent != null">subject_content = #{subjectContent},</if>
+            <if test="subjectAttachment != null">subject_attachment = #{subjectAttachment},</if>
+            <if test="positionId != null">position_id = #{positionId},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="duration != null">duration = #{duration},</if>
+            <if test="passLine != null">pass_line = #{passLine},</if>
+            <if test="publishedAt != null">published_at = #{publishedAt},</if>
+            <if test="publisherId != null">publisher_id = #{publisherId},</if>
+            update_time = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteExamById">
+        UPDATE exam SET deleted = 1 WHERE id = #{id}
+    </update>
+
+</mapper>
