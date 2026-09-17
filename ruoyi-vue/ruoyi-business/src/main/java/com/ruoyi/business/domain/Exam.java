@@ -114,4 +114,19 @@ public class Exam implements Serializable {
     /** 当前登录账号数据范围 */
     @TableField(exist = false)
     private Long scopeDeptId;
+
+    /**
+     * 知识分布（配置页提交 / 回显用，落 exam_knowledge_rule）
+     * 驱动抽题：每个知识点在其题库范围内随机抽题。
+     */
+    @TableField(exist = false)
+    private java.util.List<ExamKnowledgeRule> knowledgeRules;
+
+    /** 指定人员（正式考核；为空 = 本部门全体在培实习生） */
+    @TableField(exist = false)
+    private java.util.List<Long> participantIds;
+
+    /** 人员范围：ALL 全部在培实习生 / ASSIGNED 指定人员 */
+    @TableField(exist = false)
+    private String assignMode;
 }

@@ -34,3 +34,15 @@ ruoyi-vue/ruoyi-admin/src/main/resources/application-druid.yml
 
 ruoyi-vue/ruoyi-ui/dist-check/
 ruoyi-vue/ruoyi-ui/dist-verify-*/
+
+# Agent workspace: local memory / skills / scratch scripts (private, not for the repo)
+.workbuddy/
+.codex-tmp/
+
+# Local design-draft exports and working notes at repo root
+*_终稿*.docx
+
+# Local one-off backups (design drafts / pre-migration schema dumps)
+*.bak
+*.bak[0-9]
+ruoyi-vue/sql/_backup_*.sql

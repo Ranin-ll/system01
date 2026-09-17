@@ -56,6 +56,7 @@ public class PracticeSubjectServiceImpl implements IPracticeSubjectService {
         }
         subject.setDeptId(deptId);
         subject.setContent(subject.getContent().trim());
+        normalizeForWrite(subject);
         subject.setStatus(subject.getStatus() == null ? 1 : subject.getStatus());
         subject.setCreateBy(SecurityUtils.getUsername());
         subject.setDeleted(0);
@@ -75,11 +76,65 @@ public class PracticeSubjectServiceImpl implements IPracticeSubjectService {
             }
             subject.setContent(subject.getContent().trim());
         }
+        // 题名若传了空串，视为「未修改」，避免把已有题名清掉导致卡片无标题
+        if (subject.getTitle() != null && subject.getTitle().trim().isEmpty()) {
+            subject.setTitle(null);
+        }
+        trimAll(subject);
         // 不允许通过通用编辑接口篡改部门归属、创建信息或删除标志
         subject.setDeptId(null);
         subject.setCreateBy(null);
         subject.setDeleted(null);
         return practiceSubjectMapper.updateSubject(subject);
+    }
+
+    /**
+     * 新增时的字段归一化：
+     * - 题名缺省时用题干前 40 字兜底（保证卡片/详情页一定有标题）
+     * - 方向缺省归入「通用」，并给一句方向说明
+     * - 难度缺省 MEDIUM，排序号缺省 0
+     */
+    private void normalizeForWrite(PracticeSubject subject) {
+        trimAll(subject);
+        if (isBlank(subject.getTitle())) {
+            String c = subject.getContent() == null ? "" : subject.getContent();
+            subject.setTitle(c.length() > 40 ? c.substring(0, 40) : c);
+        }
+        if (isBlank(subject.getDirection())) {
+            subject.setDirection("通用");
+        } else {
+            subject.setDirection(subject.getDirection().trim());
+        }
+        if (isBlank(subject.getDirectionDesc())) {
+            subject.setDirectionDesc("本方向实操练习题");
+        }
+        if (isBlank(subject.getDifficulty())) {
+            subject.setDifficulty("MEDIUM");
+        }
+        if (subject.getSortNo() == null) {
+            subject.setSortNo(0);
+        }
+    }
+
+    /** 可选文本字段统一 trim（null 保持不变，以便 update 的 <if test="!= null"> 生效） */
+    private void trimAll(PracticeSubject s) {
+        s.setTitle(trimN(s.getTitle()));
+        s.setDirection(trimN(s.getDirection()));
+        s.setDirectionDesc(trimN(s.getDirectionDesc()));
+        s.setDifficulty(trimN(s.getDifficulty()));
+        s.setDeliverables(trimN(s.getDeliverables()));
+        s.setDevConstraints(trimN(s.getDevConstraints()));
+        s.setSubmitFormat(trimN(s.getSubmitFormat()));
+        s.setNamingRule(trimN(s.getNamingRule()));
+        s.setReferenceImages(trimN(s.getReferenceImages()));
+    }
+
+    private String trimN(String v) {
+        return v == null ? null : v.trim();
+    }
+
+    private boolean isBlank(String v) {
+        return v == null || v.trim().isEmpty();
     }
 
     @Override

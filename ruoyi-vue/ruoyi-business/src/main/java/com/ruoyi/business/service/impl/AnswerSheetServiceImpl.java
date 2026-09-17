@@ -35,11 +35,15 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
     private final AnswerSheetMapper answerSheetMapper;
     private final ExamMapper examMapper;
     private final QuestionMapper questionMapper;
+    private final com.ruoyi.business.mapper.ExamRuleMapper examRuleMapper;
 
-    public AnswerSheetServiceImpl(AnswerSheetMapper answerSheetMapper, ExamMapper examMapper, QuestionMapper questionMapper) {
+    public AnswerSheetServiceImpl(AnswerSheetMapper answerSheetMapper, ExamMapper examMapper,
+                                  QuestionMapper questionMapper,
+                                  com.ruoyi.business.mapper.ExamRuleMapper examRuleMapper) {
         this.answerSheetMapper = answerSheetMapper;
         this.examMapper = examMapper;
         this.questionMapper = questionMapper;
+        this.examRuleMapper = examRuleMapper;
     }
 
     @Override
@@ -55,6 +59,19 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         }
         if (!"PUBLISHED".equals(exam.getStatus())) {
             throw new ServiceException("该考核未发布，暂不能参加");
+        }
+        // 时间窗校验（部门管理员设定的发布时间）
+        Date now = new Date();
+        if (exam.getStartTime() != null && now.before(exam.getStartTime())) {
+            throw new ServiceException("该考核尚未开放，开放时间 " + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(exam.getStartTime()));
+        }
+        if (exam.getEndTime() != null && now.after(exam.getEndTime())) {
+            throw new ServiceException("该考核已截止，不能再参加");
+        }
+        // 指定人员校验
+        java.util.List<Long> assigned = examRuleMapper.selectParticipantUserIds(examId);
+        if (!assigned.isEmpty() && !assigned.contains(SecurityUtils.getUserId())) {
+            throw new ServiceException("本场考核为指定人员参加，你不在名单内");
         }
         Long userId = SecurityUtils.getUserId();
         AnswerSheet exist = answerSheetMapper.selectByExamAndUser(examId, userId);
@@ -247,6 +264,11 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
             if ("DRAFT".equals(exam.getStatus())) {
                 continue;
             }
+            // 指定人员过滤：该场次有指定名单且本人不在名单内 → 不展示
+            java.util.List<Long> assigned = examRuleMapper.selectParticipantUserIds(exam.getId());
+            if (!assigned.isEmpty() && !assigned.contains(userId)) {
+                continue;
+            }
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("examId", exam.getId());
             m.put("examName", exam.getExamName());
@@ -254,6 +276,17 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
             m.put("status", exam.getStatus());
             m.put("passLine", exam.getPassLine());
             m.put("questionCount", exam.getQuestionCount());
+            m.put("duration", exam.getDuration());
+            m.put("startTime", exam.getStartTime());
+            m.put("endTime", exam.getEndTime());
+            m.put("publishedAt", exam.getPublishedAt());
+            // 指定人员：名单为空 = 本部门全体；非空时仅名单内可见（跨部门一律不可见）
+            boolean assignedOnly = !examRuleMapper.selectParticipantUserIds(exam.getId()).isEmpty();
+            if (assignedOnly) {
+                m.put("assigned", true);
+            } else {
+                m.put("assigned", false);
+            }
             AnswerSheet sheet = answerSheetMapper.selectByExamAndUser(exam.getId(), userId);
             if (sheet != null) {
                 Map<String, Object> sm = new LinkedHashMap<>();

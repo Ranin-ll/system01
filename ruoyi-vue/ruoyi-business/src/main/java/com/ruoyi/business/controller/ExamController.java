@@ -58,8 +58,47 @@ public class ExamController extends BaseController {
     @PreAuthorize("@ss.hasPermi('business:bank:edit')")
     @Log(title = "考核发布", businessType = BusinessType.UPDATE)
     @PutMapping("/publish/{id}")
-    public AjaxResult publish(@PathVariable Long id) {
-        return toAjax(examService.publish(id));
+    public AjaxResult publish(@PathVariable Long id, @RequestBody(required = false) Exam params) {
+        return toAjax(examService.publish(id, params));
+    }
+
+    /**
+     * 题库知识点及题量（理论考试配置页「从题库导入知识点」）
+     * GET /business/exam/bank/{bankId}/knowledge-points
+     * 注意：路径用三段，避免与既有 GET /{id} 冲突。
+     */
+    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @GetMapping("/bank/{bankId}/knowledge-points")
+    public AjaxResult knowledgePoints(@PathVariable("bankId") Long bankId) {
+        return AjaxResult.success(examService.bankKnowledgePoints(bankId));
+    }
+
+    /**
+     * 保存考核配置（知识分布 + 指定人员 + 时间窗），不改发布状态
+     * PUT /business/exam/config/{id}
+     */
+    @PreAuthorize("@ss.hasPermi('business:bank:edit')")
+    @Log(title = "考核配置保存", businessType = BusinessType.UPDATE)
+    @PutMapping("/config/{id}")
+    public AjaxResult saveConfig(@PathVariable Long id, @RequestBody Exam params) {
+        return toAjax(examService.saveConfig(id, params));
+    }
+
+    /** 读取考核配置（知识分布 + 指定人员 + 时间窗） GET /business/exam/config/{id} */
+    @PreAuthorize("@ss.hasPermi('business:bank:query')")
+    @GetMapping("/config/{id}")
+    public AjaxResult configDetail(@PathVariable Long id) {
+        return AjaxResult.success(examService.configDetail(id));
+    }
+
+    /**
+     * 按知识分布试抽一套卷（配置页「试抽一套」校验用，不落库）
+     * POST /business/exam/bank/{bankId}/try-draw  body: { knowledgeRules: [...] }
+     */
+    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @PostMapping("/bank/{bankId}/try-draw")
+    public AjaxResult tryDraw(@PathVariable("bankId") Long bankId, @RequestBody(required = false) Exam params) {
+        return AjaxResult.success(examService.tryDraw(bankId, params));
     }
 
     @PreAuthorize("@ss.hasPermi('business:bank:edit')")

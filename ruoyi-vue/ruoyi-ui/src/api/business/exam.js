@@ -20,9 +20,9 @@ export function updateExam(data) {
 export function delExam(id) {
   return request({ url: '/business/exam/' + id, method: 'delete' })
 }
-// 发布考核
-export function publishExam(id) {
-  return request({ url: '/business/exam/publish/' + id, method: 'put' })
+// 发布考核（可带发布时间窗、指定人员、知识分布）
+export function publishExam(id, data) {
+  return request({ url: '/business/exam/publish/' + id, method: 'put', data })
 }
 // 修改考核状态（启用/停用）
 export function changeExamStatus(id, status) {
@@ -69,4 +69,22 @@ export function uploadFile(formData) {
     data: formData,
     headers: { 'Content-Type': 'multipart/form-data' }
   })
+}
+
+// ---------- 理论考试配置（知识分布 / 指定人员 / 试抽） ----------
+// 题库知识点及题量（配置页「从题库导入知识点」）
+export function listKnowledgePoints(bankId) {
+  return request({ url: '/business/exam/bank/' + bankId + '/knowledge-points', method: 'get' })
+}
+// 按知识分布试抽一套卷（校验用，不落库）
+export function tryDrawPaper(bankId, data) {
+  return request({ url: '/business/exam/bank/' + bankId + '/try-draw', method: 'post', data })
+}
+// 保存考核配置（知识分布 + 指定人员 + 时间窗），不改发布状态
+export function saveExamConfig(id, data) {
+  return request({ url: '/business/exam/config/' + id, method: 'put', data })
+}
+// 读取考核配置（知识分布 + 指定人员 + 时间窗）
+export function getExamConfig(id) {
+  return request({ url: '/business/exam/config/' + id, method: 'get' })
 }

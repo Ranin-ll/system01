@@ -5,6 +5,7 @@ import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { getToken } from '@/utils/auth'
 import { isRelogin } from '@/utils/request'
+import { FORMAL_INTERN_BLOCKED_PATHS } from '@/utils/internTabs'
 
 NProgress.configure({ showSpinner: false })
 
@@ -16,14 +17,38 @@ const formalInternBlockedPaths = [
   '/assessment/intern/theory-exam',
   // 实操练习为独立页面（含详情页），需单独声明；
   // 其前缀 /assessment/intern/practice 亦已覆盖，此处显式列出避免后续调整时漏拦。
-  '/assessment/intern/practice-subject'
+  '/assessment/intern/practice-subject',
+  // 「学习与考核」页签化后，备考资料 / 模拟考核的新地址挪到了 /learning 之下，
+  // 上面几条旧前缀已拦不到，必须单独列出（见 utils/internTabs.js）。
+  ...FORMAL_INTERN_BLOCKED_PATHS
 ]
 
 function isIntern() {
   return store.getters.roles.indexOf('PRE_TRAINEE') > -1 || store.getters.roles.indexOf('FORMAL_TRAINEE') > -1
 }
 
+/**
+ * 部门管理员（非超管）的落点工作台。
+ *
+ * 背景：`/index` 是「通用工作台」页（实习生端 i2 设计 + 超管全局视图共用）。
+ * 部门管理员已有按 d2 设计落地的独立工作台 `/department/dashboard`，
+ * 因此登录后（`/` → `/index`）以及任何指向 `/index` 的跳转，统一改投部门工作台。
+ * 超管（`SUPER_ADMIN` / `admin`）继续使用 `/index`，行为不变。
+ */
+export const DEPT_DASHBOARD_PATH = '/department/dashboard'
+
+function isDeptAdminOnly() {
+  const roles = store.getters.roles || []
+  return roles.indexOf('DEPT_ADMIN') > -1
+    && roles.indexOf('SUPER_ADMIN') === -1
+    && roles.indexOf('admin') === -1
+}
+
 function protectedTarget(to) {
+  // 部门管理员不再进旧的通用工作台，直接落到部门工作台
+  if (isDeptAdminOnly() && (to.path === '/index' || to.path === '/')) {
+    return DEPT_DASHBOARD_PATH
+  }
   if (isIntern() && Number(store.getters.protocolStatus) !== 1 && to.path !== '/index') {
     return '/index'
   }

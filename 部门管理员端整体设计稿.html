@@ -1,0 +1,1571 @@
+<!doctype html>
+<html lang="zh-CN" data-page-node-id="B2eUOVNU9NXIy15xAeofFF">
+<head data-page-node-id="USemMdoHAAKgSBwROOfVct">
+<meta charset="utf-8" data-page-node-id="ny1dFWWxA7WzvT07BlGFGU" />
+<meta name="viewport" content="width=device-width,initial-scale=1" data-page-node-id="HidrOKJ5he84TWnOJbsGNE" />
+<title>实习生学习考核系统 · 部门管理员端整体设计稿 V1.0</title>
+<style>
+  :root{
+    --bg:#eef2f7; --panel:#ffffff; --panel-2:#f7f9fc;
+    --line:#e4e9f0; --line-2:#eef1f6;
+    --ink:#1d2939; --ink-2:#344054; --ink-3:#667085; --ink-4:#98a2b3;
+    --blue:#1764f5; --blue-soft:#e8f1fd; --blue-soft-2:#d7e7fc;
+    --green:#12b76a; --green-soft:#e7f7ef;
+    --orange:#f79009; --orange-soft:#fff4e5; --orange-ink:#b54708;
+    --purple:#7a5af8; --purple-soft:#f4eeff;
+    --gray-soft:#f2f4f7; --red:#f04438; --red-soft:#feecea;
+    --font:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  code{font-size:11px;color:var(--ink-4);background:var(--gray-soft);padding:1px 6px;border-radius:4px;font-family:ui-monospace,Menlo,Consolas,monospace;}
+  .doc{max-width:1320px;margin:0 auto;padding:0 24px 96px;}
+  .doc-hero{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px 32px;margin:24px 0 22px;}
+  .doc-hero h1{margin:0 0 6px;font-size:24px;letter-spacing:.3px;}
+  .doc-hero .sub{color:var(--ink-3);font-size:13px;}
+  .doc-hero .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+  .tag{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;background:var(--gray-soft);color:var(--ink-2);font-size:12px;}
+  .tag.blue{background:var(--blue-soft);color:var(--blue);}
+  .tag.green{background:var(--green-soft);color:#067647;}
+  .tag.orange{background:var(--orange-soft);color:var(--orange-ink);}
+  .tag.purple{background:var(--purple-soft);color:#5c37d6;}
+  .tag.red{background:var(--red-soft);color:#b42318;}
+  .doc-nav{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;gap:6px;background:rgba(238,242,247,.94);backdrop-filter:blur(6px);padding:12px 0;margin-bottom:8px;}
+  .doc-nav a{height:30px;display:inline-flex;align-items:center;padding:0 12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--ink-2);font-size:12.5px;text-decoration:none;}
+  .doc-nav a:hover{border-color:var(--blue);color:var(--blue);}
+  .doc-nav a.hot{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .sec{margin-top:44px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;flex-wrap:wrap;}
+  .sec-no{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:var(--blue);color:#fff;font-size:13px;font-weight:600;flex:none;}
+  .sec-head h2{margin:0;font-size:19px;}
+  .sec-desc{color:var(--ink-3);font-size:13.5px;margin:0 0 16px 38px;max-width:1060px;}
+  .sec-desc b{color:var(--ink-2);}
+
+  .app{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .rail{width:212px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:14px 0 0;}
+  .rail-brand{display:flex;align-items:center;gap:9px;padding:0 16px 16px;}
+  .rail-brand i{width:28px;height:28px;border-radius:8px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-style:normal;font-weight:700;flex:none;}
+  .rail-brand b{display:block;font-size:13.5px;color:var(--ink);line-height:1.3;}
+  .rail-brand span{display:block;font-size:11px;color:var(--ink-4);}
+  .rail-item{display:flex;align-items:center;gap:9px;margin:2px 10px;padding:8px 11px;border-radius:7px;color:var(--ink-2);font-size:13px;}
+  .rail-item .ic{width:15px;text-align:center;color:var(--ink-4);font-size:12px;}
+  .rail-item .arw{margin-left:auto;color:var(--ink-4);font-size:12px;}
+  .rail-item.active{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+  .rail-item.active .ic{color:var(--blue);}
+  .rail-item.lv2{margin:1px 10px 1px 24px;font-size:12.5px;padding:6px 10px;}
+  .rail-item.lv2.active{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+  .rail-item.lv2 .dot{width:5px;height:5px;border-radius:50%;background:var(--line);flex:none;}
+  .rail-item.lv2.active .dot{background:var(--blue);}
+  .rail-foot{margin-top:auto;padding:12px 16px;border-top:1px solid var(--line-2);color:var(--ink-4);font-size:11px;}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--panel-2);}
+  .topbar{height:56px;flex:none;display:flex;align-items:center;gap:13px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line);}
+  .crumb{font-size:13px;color:var(--ink-3);}
+  .crumb b{color:var(--ink);font-weight:600;}
+  .topbar .spacer{flex:1;}
+  .bell{position:relative;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:14px;flex:none;}
+  .bell i{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;font-style:normal;display:flex;align-items:center;justify-content:center;}
+  .avatar{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);}
+  .avatar .ph{width:28px;height:28px;border-radius:50%;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
+  .body{padding:16px 20px 24px;}
+
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:13px;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:15px 16px;}
+  .card.flat{background:var(--panel-2);}
+  .c2{grid-column:span 2;}.c3{grid-column:span 3;}.c4{grid-column:span 4;}
+  .c5{grid-column:span 5;}.c6{grid-column:span 6;}.c7{grid-column:span 7;}
+  .c8{grid-column:span 8;}.c9{grid-column:span 9;}.c12{grid-column:span 12;}
+  .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;gap:10px;flex-wrap:wrap;}
+  .card-h h3{margin:0;font-size:14px;font-weight:600;color:var(--ink);}
+  .card-h .hint{font-size:11.5px;color:var(--ink-4);}
+  .idx{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;margin-right:7px;flex:none;}
+  .idx.g{background:var(--green-soft);color:#067647;}.idx.o{background:var(--orange-soft);color:var(--orange-ink);}
+  .idx.p{background:var(--purple-soft);color:#5c37d6;}
+  .card-h .tt{display:flex;align-items:center;}
+  .note{font-size:11.5px;color:var(--ink-4);margin-top:10px;line-height:1.55;}
+  .note.warn{color:var(--orange-ink);}
+  .mut{color:var(--ink-4);}
+  .btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--ink-2);font-size:12.5px;white-space:nowrap;}
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .btn.ghost{background:var(--blue-soft);border-color:transparent;color:var(--blue);}
+  .btn.sm{height:26px;font-size:11.5px;padding:0 9px;}
+  .btn.dis{opacity:.45;}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+
+  .identity{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .identity .big-ph{width:44px;height:44px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex:none;}
+  .identity .who b{font-size:15px;color:var(--ink);}
+  .identity .who p{margin:2px 0 0;color:var(--ink-3);font-size:12px;}
+  .identity .facts{margin-left:auto;display:flex;gap:24px;flex-wrap:wrap;}
+  .fact{min-width:74px;}
+  .fact span{display:block;color:var(--ink-4);font-size:11.5px;margin-bottom:3px;}
+  .fact b{font-size:13.5px;color:var(--ink);}
+  .fact b.ok{color:#067647;}.fact b.warn{color:var(--orange-ink);}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+  .kpi .lb{display:flex;align-items:center;gap:6px;color:var(--ink-3);font-size:11.5px;margin-bottom:7px;}
+  .kpi .lb .d{width:6px;height:6px;border-radius:50%;background:var(--blue);}
+  .kpi .vl{font-size:23px;font-weight:700;color:var(--ink);line-height:1.1;}
+  .kpi .vl small{font-size:11.5px;font-weight:500;color:var(--ink-4);margin-left:3px;}
+  .kpi .ft{font-size:11px;color:var(--ink-4);margin-top:6px;}
+  .kpi .ft.up{color:#067647;}.kpi .ft.warn{color:var(--orange-ink);}
+  .bar-mini{height:5px;border-radius:3px;background:var(--gray-soft);margin-top:8px;overflow:hidden;}
+  .bar-mini i{display:block;height:100%;border-radius:3px;background:var(--blue);}
+  .bar-mini i.g{background:var(--green);}
+  .todo{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--line-2);border-radius:8px;background:#fff;margin-bottom:9px;}
+  .todo:last-child{margin-bottom:0;}
+  .todo .tdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--blue);}
+  .todo .tdot.o{background:var(--orange);}.todo .tdot.p{background:var(--purple);}
+  .todo .tx{flex:1;min-width:0;}
+  .todo .tx b{font-size:12.5px;color:var(--ink);display:block;}
+  .todo .tx span{font-size:11px;color:var(--ink-4);}
+  .hbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px;}
+  .hbar .nm{width:86px;color:var(--ink-2);flex:none;}
+  .hbar .track{flex:1;height:8px;border-radius:5px;background:var(--gray-soft);overflow:hidden;}
+  .hbar .track i{display:block;height:100%;border-radius:5px;background:var(--blue);}
+  .hbar .pc{width:56px;text-align:right;color:var(--ink-2);font-weight:600;flex:none;font-size:11.5px;}
+  .hbar.low .track i{background:var(--orange);}
+  .hbar.done .track i{background:var(--green);}
+  .vchart{display:flex;align-items:flex-end;gap:12px;height:120px;padding:0 4px;}
+  .vcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+  .vcol .bar{width:100%;max-width:34px;border-radius:6px 6px 0 0;background:var(--blue-soft-2);border:1px solid var(--blue-soft-2);display:flex;align-items:flex-start;justify-content:center;padding-top:3px;font-size:10px;color:var(--blue);}
+  .vcol .bar.hi{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .vcol .bar.g{background:var(--green);border-color:var(--green);color:#fff;}
+  .vcol .bar.o{background:var(--orange);border-color:var(--orange);color:#fff;}
+  .vcol .lb{font-size:10.5px;color:var(--ink-4);text-align:center;line-height:1.3;}
+  .steps{display:flex;flex-direction:column;}
+  .step{display:flex;gap:11px;position:relative;padding-bottom:14px;}
+  .step:last-child{padding-bottom:0;}
+  .step .mark{width:21px;height:21px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;z-index:2;background:var(--gray-soft);color:var(--ink-4);}
+  .step.done .mark{background:var(--green);color:#fff;}
+  .step.now .mark{background:var(--blue);color:#fff;}
+  .step:not(:last-child)::before{content:"";position:absolute;left:10px;top:21px;bottom:0;width:2px;background:var(--line);}
+  .step .txt b{font-size:12.5px;color:var(--ink);display:block;}
+  .step .txt span{font-size:11px;color:var(--ink-4);}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 15px;overflow-x:auto;}
+  .tab{padding:9px 15px;font-size:13px;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+  .tab.active{color:var(--blue);font-weight:600;border-bottom-color:var(--blue);}
+  .tab .n{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--gray-soft);color:var(--ink-3);font-size:10.5px;}
+  .tab.active .n{background:var(--blue-soft);color:var(--blue);}
+  .tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .tbl th{text-align:left;padding:9px 10px;background:var(--panel-2);color:var(--ink-3);font-weight:500;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11.5px;}
+  .tbl td{padding:9px 10px;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:middle;}
+  .tbl tr:last-child td{border-bottom:0;}
+  .tbl .nm{color:var(--ink);font-weight:600;}
+  .tbl .op{color:var(--blue);}
+  .tbl .op i{font-style:normal;color:var(--line);margin:0 6px;}
+  .badge{font-size:10.5px;padding:1px 7px;border-radius:5px;background:var(--gray-soft);color:var(--ink-3);font-weight:500;white-space:nowrap;}
+  .badge.done{background:var(--green-soft);color:#067647;}
+  .badge.blue{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+  .badge.purple{background:var(--purple-soft);color:#5c37d6;font-weight:600;}
+  .badge.orange{background:var(--orange-soft);color:var(--orange-ink);font-weight:600;}
+  .badge.red{background:var(--red-soft);color:#b42318;font-weight:600;}
+  .filter{display:flex;align-items:center;gap:11px;margin:12px 0;flex-wrap:wrap;}
+  .seg{display:inline-flex;background:var(--gray-soft);border-radius:8px;padding:3px;}
+  .seg span{padding:5px 12px;border-radius:6px;font-size:12px;color:var(--ink-3);}
+  .seg span.on{background:#fff;color:var(--ink);font-weight:600;}
+  .sel{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border:1px solid var(--line);border-radius:7px;font-size:12px;color:var(--ink-2);background:#fff;}
+  .filter .spacer{flex:1;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:11.5px;color:var(--ink-3);}
+  .field label b{color:var(--red);font-weight:400;}
+  .inp{min-height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;display:flex;align-items:center;padding:0 11px;font-size:12.5px;color:var(--ink-3);}
+  .inp.ta{height:auto;min-height:62px;align-items:flex-start;padding:9px 11px;line-height:1.6;}
+  .fg2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .fg3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .drop{border:1.5px dashed var(--blue-soft-2);border-radius:10px;background:var(--blue-soft);padding:20px;text-align:center;color:var(--blue);font-size:12.5px;}
+  .drop b{display:block;font-size:13.5px;margin-bottom:3px;}
+  .drop span{color:var(--ink-3);font-size:11.5px;}
+  .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);padding:7px 0;}
+  .chk .box{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+  .chk .box.on{background:var(--blue);border-color:var(--blue);}
+  .chk .box.sw{background:var(--green);border-color:var(--green);}
+  .ia-node{position:relative;display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:#fff;margin:0 0 8px 20px;flex-wrap:wrap;}
+  .ia-node::before{content:"";position:absolute;left:-20px;top:50%;width:18px;height:2px;background:var(--line);}
+  .ia-node.lv2{margin-left:48px;}
+  .ia-node.lv3{margin-left:76px;}
+  .ia-node b{font-size:12.5px;color:var(--ink);}
+  .ia-node .r{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
+  .ia-node.dir{background:var(--panel-2);}
+  .ia-node.dir b{color:var(--ink-2);}
+  .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .callout{border-left:3px solid var(--blue);background:var(--blue-soft);border-radius:0 8px 8px 0;padding:11px 14px;font-size:12.5px;color:var(--ink-2);line-height:1.65;}
+  .callout.warn{border-left-color:var(--orange);background:var(--orange-soft);}
+  .callout.ok{border-left-color:var(--green);background:var(--green-soft);}
+  .callout b{color:var(--ink);}
+  .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .kv .it{background:var(--panel-2);border-radius:8px;padding:10px 12px;}
+  .kv .it span{display:block;font-size:11px;color:var(--ink-4);margin-bottom:3px;}
+  .kv .it b{font-size:15px;color:var(--ink);}
+  .kv .it b small{font-size:11px;color:var(--ink-4);font-weight:500;}
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);}
+  .flow .nd{padding:6px 11px;border-radius:7px;background:var(--panel-2);border:1px solid var(--line);}
+  .flow .nd.on{background:var(--blue-soft);border-color:var(--blue-soft-2);color:var(--blue);font-weight:600;}
+  .flow .ar{color:var(--ink-4);}
+  @media (max-width:1080px){
+    .app{flex-direction:column;} .rail{width:100%;border-right:0;border-bottom:1px solid var(--line);}
+    .c2,.c3,.c4,.c5,.c6,.c7,.c8,.c9{grid-column:span 12;}
+    .fg3,.kv,.grid2{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body data-page-node-id="skSdCbQppHNMHmcUxO9hdH">
+<div class="doc" data-page-node-id="XvcGydNnjny6FHDEtEUML0">
+
+  <header class="doc-hero" data-page-node-id="lJ1eg3aueHS5z0BPU3YdB8">
+    <h1 data-page-node-id="Tpxfn3hbnVegVqKNNttDxJ">实习生学习考核系统 · 部门管理员端整体设计稿</h1>
+    <p class="sub" data-page-node-id="XazHoq0Fm2Bwf2P2l66bOK">V1.1 · 工作台 / 人员管理 / 学习与考核管理 / 任务与通知 · 四目录 · 与实习生端页页联动<br/><b>三个决策已定：部门直接终审 · 分环节发布 · 拆多库 ｜ 理论自动判分 · 实操人工评分</b></p>
+    <div class="meta" data-page-node-id="7jGAORlFd03bkp2tvBZzhy">
+      <span class="tag blue" data-page-node-id="wkZAT5dLAfHK8L50CMBMvQ">角色：DEPT_ADMIN</span>
+      <span class="tag" data-page-node-id="2PDgGMFSXIdeKJCBAhXbgd">数据范围：本部门</span>
+      <span class="tag purple" data-page-node-id="78vwBIHTRdBQ3lBCfpvuvP">实例：开发部门 · 开发实习生</span>
+      <span class="tag green" data-page-node-id="xFmQwpegbbgNiiyL6EWQG8">✅ 已接后端 7 组</span>
+      <span class="tag orange" data-page-node-id="0TyrnzG2gnoxfuMOcwnsrb">★ 新设计 10 处</span>
+      <span class="tag red" data-page-node-id="HDMBmhXZRlLjYnft8imRI4">⚠️ 后端待补 4 组</span>
+      <span class="tag" data-page-node-id="sfwz8qjjRDb8fwzrRppd0v">✅ 三决策已定 2026-09-17</span>
+    </div>
+  </header>
+
+  <nav class="doc-nav" data-page-node-id="LpDIrz3Qg9EfNCkyMimLQR">
+    <a class="hot" href="#s1" data-page-node-id="mNbahZwj4VQYBkJ2A9yERY">① 信息架构</a>
+    <a href="#s2" data-page-node-id="bC2cQI5y9qcfqSfumTsh4D">② 工作台（新）</a>
+    <a href="#s3" data-page-node-id="ESNkXO6GEG6YM0TR47TICO">③ 实习生管理（新）</a>
+    <a href="#s4" data-page-node-id="Ivbyvk7jIJzaghZCG9c7yV">④ 个人全景档案</a>
+    <a href="#s5" data-page-node-id="6Q5SsiMJB3snf3xcszOePx">⑤ 实习转正审核（新）</a>
+    <a href="#s6" data-page-node-id="GOh7i26cNcly88mxCDkauu">⑥ 题库管理（拆多库）</a>
+    <a href="#s7" data-page-node-id="KY5qWokxAAJHzFwZ8cEr3C">⑦ 模拟备考管理（新）</a>
+    <a href="#s8" data-page-node-id="ipeueCBfUui4s563ptUQeM">⑧ 正式考核管理（一页两卡）</a>
+    <a href="#s9" data-page-node-id="SnnXbFHKjYSPtPFkz53bFs">⑨ 成绩管理（自动+人工）</a>
+    <a href="#s10" data-page-node-id="LO3US1IlB74FC9fUZxOKIV">⑩ 任务与通知（新）</a>
+    <a href="#s11" data-page-node-id="ZQ3v0j3Qnc83co8wBAhWf6">⑪ 两角色联动映射</a>
+    <a href="#s12" data-page-node-id="qKljVA5oXNCRV3Lw1B9ioS">⑫ 决策已定与落地</a>
+  </nav>
+
+  <!-- ============ ① ============ -->
+  <section class="sec" id="s1" data-page-node-id="rLlsNozLnh0WdtEBfABBAz">
+    <div class="sec-head" data-page-node-id="2gT4US3WTFbjPb1fi2lUTQ"><span class="sec-no" data-page-node-id="z1vOPfKiGmf8xmSmnQ5ZVj">1</span><h2 data-page-node-id="yu0NfuNeqsQCRjxoE5skh4">部门管理员端信息架构：四目录，按管理者工作流划分</h2></div>
+    <p class="sec-desc" data-page-node-id="y2T5uyRtEam4G2aQCyx5nO">
+      从 DB 现有的「部门运营 / 考核认证管理 / 系统运营」三目录 22 个菜单（其中 14 个是骨架假数据页）重构为
+      <b data-page-node-id="awEebnavPyPkMaadcnntVV">四个按工作流划分的一级目录</b>：看状况（工作台）→ 管人（人员管理）→ 配内容与评分（学习与考核管理）→ 找人与沟通（任务与通知）。
+      <b data-page-node-id="k0BAoYMTkg6TbH1epOEJ2i">侧栏只保留两级</b>，模块内的编辑分区收敛成页签 —— 与实习生端「学习与考核」用页签是同一套做法，两角色同构。
+    </p>
+
+    <div class="grid" data-page-node-id="06d8vs9xgIzN9ikSjNYyjz">
+      <div class="card c8" data-page-node-id="8cnRe9A0r1bvxW9peYhUY2">
+        <div class="card-h" data-page-node-id="88EvTHWf4vQEmPUiPe24Pf"><div class="tt" data-page-node-id="0qDcei0O7bKZhsCSxDm8CG"><span class="idx" data-page-node-id="GiGw22D8TvjZvZqXUrLK5S">树</span><h3 data-page-node-id="5d3Hwna8ehT9uEKTcIcIQo">导航树（路由与 component）</h3></div><span class="hint" data-page-node-id="ukJxIgbsHxUJ6qvn0A0OG6">侧栏两级 · 页签收敛</span></div>
+        <div style="position:relative" data-page-node-id="4QhQb40sYkHsLGZ2lL1NZG">
+          <div class="ia-node" data-page-node-id="QZ5Mrw1SC6q86VbTjwtrGl"><b data-page-node-id="zYYyOJ8X4elRzDPO6Wjg7O">工作台</b><code data-page-node-id="gYnnFC1E2dXGdCYKEOCHMn">/department/dashboard</code><span class="r" data-page-node-id="QP72IZ1spdIfg5PBiDPvCZ"><span class="badge blue" data-page-node-id="c8Lljl27uQxSHtxH8GK3Op">★ 新</span><span class="badge" data-page-node-id="CBh1OCjTN3mZLlmzR42w1K">单页</span></span></div>
+
+          <div class="ia-node dir" data-page-node-id="4dlv9TyAU8y665JuascKtU"><b data-page-node-id="TIJwJG8oFmsGvoiOtf6kzC">人员管理</b><code data-page-node-id="4N2JffFkiEi9v8Nnolob4h">/department/people</code><span class="r" data-page-node-id="tIW5l6EGaLGwlNXDio5FcM"><span class="badge" data-page-node-id="J2OJ3rA20zu0jyFSojEw4B">DIR</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="bDiNxiIzfpr1oukO9lF8kP"><b data-page-node-id="8u0DGhUZ7s6QeLCWjevpUD">注册审核</b><code data-page-node-id="6066PAZmDqQkBT0oxWtNCE">people/register-review</code><span class="r" data-page-node-id="VMDzifEQF7ByGhcLPGNrvB"><span class="badge done" data-page-node-id="tfRKaRpcyPF53K3EznFxNU">✅ 已完成</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="3J0JPq2iapaB53qlDCalQe"><b data-page-node-id="3gW5vmdtALx30FOULFBHbP">实习生管理</b><code data-page-node-id="XjKHBDDNemkFOCLQ1nXAyP">people/students</code><span class="r" data-page-node-id="8WsHkpGEzF5bMSZIU62aIK"><span class="badge blue" data-page-node-id="NyXaTrwNMhwK5eTe9Zz6MH">★ 新 · 含下钻</span></span></div>
+          <div class="ia-node lv3" data-page-node-id="WAb3vVSqPT42n5HhILjCAB"><b data-page-node-id="rTW2SZE5GcwWgF59MIAuXA">↳ 个人全景档案</b><code data-page-node-id="w2Dv6PRAKZVDmb3UHKx9PO">people/students/:id</code><span class="r" data-page-node-id="YqGrcEgRMyYuJhuZAFaQg6"><span class="badge" data-page-node-id="1CyBGtzKFFVZHiXRfngkTE">hidden</span><span class="badge purple" data-page-node-id="AFaiQ8h3vbLVq4lwiAD4aI">复用超管端设计</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="CF6Jp0T5WmZFOkX5FwNQys"><b data-page-node-id="gr9qs9JeW49hKjCGELsdEc">实习转正审核</b><code data-page-node-id="getZDFCG8UjM164rx6rIFD">people/promotion</code><span class="r" data-page-node-id="wgrDKvkdDHH10mMW9l4wvk"><span class="badge blue" data-page-node-id="sBINLOWjFwspXw5kfjJvMS">★ 新</span><span class="badge red" data-page-node-id="lkWl263PQ4sR58fQfbJ02A">⚠️ 后端待补</span></span></div>
+
+          <div class="ia-node dir" data-page-node-id="NPpVfTPM4ZCulX1IDDhfNJ"><b data-page-node-id="AHpkGvDu9xsiwWsprhU2RI">学习与考核管理</b><code data-page-node-id="MEyoxHCHxHhVKchLMY2d2t">/department/study</code><span class="r" data-page-node-id="3xsXCnkeZxs10Dx3lxCIvN"><span class="badge" data-page-node-id="zDoQ1D6TqmPX5rMwCwq1qM">DIR</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="PPBoawFGTFT1ZWrsRwvRGL"><b data-page-node-id="4OuXGYHWkQsDr5JVH4Vi9N">课程管理</b><code data-page-node-id="Lcuj5ABlrxCoUfmHfCsmnJ">study/courses</code><span class="r" data-page-node-id="ko8oWUKsc1k0BdKPNHxW94"><span class="badge done" data-page-node-id="6jlKm0l5CntYJnUiVBGJsH">✅ 已完成</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="O9tTH9OEwMPuLpe8zrSglv"><b data-page-node-id="TerX3NDawfXisnfOABqP5H">题库管理</b><code data-page-node-id="lqLhS5kzMkghppD9PXjlBp">study/banks</code><span class="r" data-page-node-id="1Awpi1XPNcyaw6AQkvXLqK"><span class="badge blue" data-page-node-id="DbD1GwDshBuwjR7LaFWWOR">★ 改造 · 按知识点模块</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="BbsFDaKrbkuMAGWNrNeSIs"><b data-page-node-id="Wuhk7Nlxz10sNTHBW6duQE">模拟备考管理</b><code data-page-node-id="hoPV154cvBjUht8EPEZqop">study/prep</code><span class="r" data-page-node-id="m5y64UJzkB4VzKbWjxBpNP"><span class="badge purple" data-page-node-id="KAOXSIpXBj7LoRLPXDPmGe">页签壳 · 3 页签</span></span></div>
+          <div class="ia-node lv3" data-page-node-id="ADeBN4CdEbbHzrdM8yPIbg"><b data-page-node-id="N2HdmRBind1DbCppfxrN4Z">↳ 备考资料 / 模拟理论考核配置 / 实操题库</b><span class="r" data-page-node-id="kwThCSDHMtiVbsV9mq4ta3"><span class="badge" data-page-node-id="EBAmCHjgYFdvCEVzflwtnQ">1 新 · 1 新 · 1 改造</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="CYIlR3ORTXpv0RmLuqmFZW"><b data-page-node-id="msBo7n2tKtgZPDQgVXN7po">正式考核管理</b><code data-page-node-id="Rbb5uBLMtSBufmljsuLMVF">study/exam</code><span class="r" data-page-node-id="8AGHKB9Ya2wraaOGKc5Dy7"><span class="badge purple" data-page-node-id="nnWKP88XUQ09rb0OPy9hnw">列表 + 编辑器</span></span></div>
+          <div class="ia-node lv3" data-page-node-id="bptmdG3sh6bVpCI3JSOupF"><b data-page-node-id="Vd41FEd47Q7yaQFf7o3nAR">↳ 考核列表(发布记录) / 考试说明 / 理论配置 / 实操配置</b><span class="r" data-page-node-id="FN3e3EqlrtMHdUaJMC4Evx"><span class="badge" data-page-node-id="GKXul1liHVaF5HPw6xbQij">沿用设计稿 §6.8</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="qLGJneApd3YhEXJPK3Nuxw"><b data-page-node-id="eh0EEfM4ftzvC1QtwZSawv">成绩管理</b><code data-page-node-id="YXKuYkKRnoLvj3cbAZBKpF">study/scores</code><span class="r" data-page-node-id="WEeUeHMs9RlAEeFXbwHskP"><span class="badge purple" data-page-node-id="RH4hJtCaxnmT3wbtUxAJGj">页签壳 · 2 页签</span></span></div>
+          <div class="ia-node lv3" data-page-node-id="dJODdz9aG20KNjQukfOila"><b data-page-node-id="b312Fltu0SJksVQfvmoC50">↳ 考核批阅 / 成绩统计</b><span class="r" data-page-node-id="1VO17TRujXXYSPoICqTkSo"><span class="badge" data-page-node-id="KqL8rNH5gED7CGF1lQgQC4">1 改造 · 1 新</span></span></div>
+
+          <div class="ia-node dir" data-page-node-id="B4KPAU2Z5ySpzZ6LEB2kjE"><b data-page-node-id="GNCfVofh469KwLs6lRDNA5">任务与通知</b><code data-page-node-id="HJvLumJUCYAoUuWTVuVYrn">/department/messages</code><span class="r" data-page-node-id="Ze7I8MFL1SNpDnnN5x2hDg"><span class="badge" data-page-node-id="msDVFRplYZ6HzCDQyCTrX5">DIR</span><span class="badge red" data-page-node-id="mZFG39wGbb0S8thsBfQLw0">⚠️ 后端待补</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="GVseiD2FPKI9wqtD2qlJjE"><b data-page-node-id="jv3kkBm2mewN9UGBtoVIL9">任务管理</b><code data-page-node-id="yeCZhuf1wqyTcdR4VjOaRG">messages/tasks</code><span class="r" data-page-node-id="KXOMa8jkVD2vs4MYwvReOb"><span class="badge blue" data-page-node-id="FPv9Zjq7ikjjpqxHbofjal">★ 新</span></span></div>
+          <div class="ia-node lv2" data-page-node-id="0jB3zBimOAR7okPPDOAXIW"><b data-page-node-id="zsmhwadEBw0zjajTuEKxBf">通知管理</b><code data-page-node-id="9xcOCZDDOABlnbC7HQekxh">messages/notices</code><span class="r" data-page-node-id="MLP5Yd6Q5U8uDTsb6riqcA"><span class="badge blue" data-page-node-id="r5B96ZTF4edEinvtm9aFNX">★ 新</span></span></div>
+        </div>
+      </div>
+
+      <div class="card c4" data-page-node-id="p2Yl1t2jOiYManaKni2rqu">
+        <div class="card-h" data-page-node-id="ZlhGwos5GXhgklqz98aflG"><div class="tt" data-page-node-id="ecad934ff7NVrgqJ8kDQNG"><span class="idx o" data-page-node-id="o0E5EczgpzPnoO3ZYhujMT">改</span><h3 data-page-node-id="HbSPTho45oMpl4rSOIAZdS">对你原方案的 6 处修正</h3></div></div>
+        <div class="todo" data-page-node-id="2amKWDXLk5qL5dek28KAJQ"><span class="tdot o" data-page-node-id="8SlLFKDMmqea3WcFZ86ipD"></span><div class="tx" data-page-node-id="2MjdifQTCUummK4ZSFVdlr"><b data-page-node-id="3DuTcd5fDJpCfWEKf1dH9O">1 · 三层侧栏过深</b><span data-page-node-id="iS1E08Oydjrm7gxXVAZuYh">模拟备考 / 正式考核 / 成绩管理各带 2~4 子项 → 落进侧栏就是三级。侧栏只到两级，子项收敛成页签</span></div></div>
+        <div class="todo" data-page-node-id="UKdxSIjRYHEHfkBgmcJuud"><span class="tdot o" data-page-node-id="yGsNMcj21UlyY8ijxrGUom"></span><div class="tx" data-page-node-id="jiyUJTQClPLvWGPzwoCmDE"><b data-page-node-id="tburyw3ku6ogCjyFcUxLLH">2 · 题库管理 vs 考试配置会打架</b><span data-page-node-id="pR6j9CcTAw7l5BumgQOOFT">明确「题库 = 唯一题源，考试配置只选题不录题」——现有后端就是这个模型，零改动可跑</span></div></div>
+        <div class="todo" data-page-node-id="E2pBexRd3BChVklbRSS9HY"><span class="tdot o" data-page-node-id="j7lehRWMYi161CZiaDV8Tm"></span><div class="tx" data-page-node-id="ERjhuBFEtBPKX1MhvBViCT"><b data-page-node-id="ORm3BPoxZd4f2Cgaa3pGVB">3 · 「实操模拟题题库」命名</b><span data-page-node-id="nfj9ElvgTuqP5UQqzAbFGQ">它同时服务模拟与正式，改名「实操题库」；正式考核的实操从它引用，避免录两遍</span></div></div>
+        <div class="todo" data-page-node-id="fXLKEuUNkTx84P3xMTXbLN"><span class="tdot o" data-page-node-id="67O6PGLZKvcGLgEiHAFTpk"></span><div class="tx" data-page-node-id="Ab08j9SY3FDC2tm0C9HZIN"><b data-page-node-id="iYfqKJ1KZ9u8r27apx2NH6">4 · 「任务通知」缺"发完怎么样"</b><span data-page-node-id="8UFgt4k2jruAiohVHA5Z5p">更名「任务与通知」，二级两项，每页上方发布 + 下方跟踪表</span></div></div>
+        <div class="todo" data-page-node-id="vFV3n0aS3SGJ0bE3IY4Omg"><span class="tdot o" data-page-node-id="BN7UPC4zQBEkiR3BvUz7p3"></span><div class="tx" data-page-node-id="IIMEZhxSnDzGqhnCH021kw"><b data-page-node-id="SM3iyegf69qlQSh0oP9IVO">5 · 实习生管理的统计列</b><span data-page-node-id="0JK2MbGWmKtIwYo3bmpxqT">花名册可用真数据；比率类需聚合接口，本期先示例数据打标</span></div></div>
+        <div class="todo" data-page-node-id="2gqRVWQ85M2YnAOf9USP79"><span class="tdot p" data-page-node-id="9znD8MjpoHHZepj2GU6UTg"></span><div class="tx" data-page-node-id="28rJ5GC5ew3Qpd0AlEqBMi"><b data-page-node-id="7o87ejvfKNtyzKxITHv770">6 · 超管端会不同步</b><span data-page-node-id="C5C7yCTQBuIpjxjSWIvBIi">现有超管设计稿的业务管理只有 5 项，需同步扩成同构 10 项，否则「全局超集」不成立</span></div></div>
+      </div>
+    </div>
+
+    <div class="card flat" style="margin-top:13px" data-page-node-id="VUKVG5a92WsbgPfFSlkFBB">
+      <div class="card-h" data-page-node-id="XzOEu7BJJ603v9BKEbnMqv"><div class="tt" data-page-node-id="Ma43dXtZBU5vmVsw9UrX19"><span class="idx g" data-page-node-id="cMnjOZiqRCoHBGuXAof0fm">迁</span><h3 data-page-node-id="iPbTlKb3XB6bdJKGjSDRtj">与现有 sys_menu 的迁移对照（一律「移动」不新建，保住 role_menu 授权）</h3></div></div>
+      <table class="tbl" data-page-node-id="MdKrsTJDxeWDnDuXyUJoJl">
+        <thead data-page-node-id="1ED5WbQ9joLQ4suqWh5lOV"><tr data-page-node-id="Z4sx3dI2Dt3Fwm8IKyFpT5"><th style="width:20%" data-page-node-id="IZAXOqeJHnqjnEXAkeBFzf">新菜单</th><th style="width:18%" data-page-node-id="CCtJmnVP9DaC4iKH2FIM1a">来源 menu_id</th><th style="width:26%" data-page-node-id="k7l98o64IcUvgTlwQqOnUN">动作</th><th data-page-node-id="EbSKuUV2OGbDIW2BFcqjcW">说明</th></tr></thead>
+        <tbody data-page-node-id="7PvTPxOJWsHuXBeoB7PeZw">
+          <tr data-page-node-id="7dUJJtbXP2gYhbch6A9ZGA"><td class="nm" data-page-node-id="bV9N64HLaNUoZV2HGN6O1b">工作台</td><td data-page-node-id="9b7z4vVOZyJ8BlnNlGIxHh">2032 部门工作台</td><td data-page-node-id="EY7DwB0GxiBid00fyyANgQ">改 component → <code data-page-node-id="6fyOgR12D0wGovxFQ1IIUu">business/dashboard/index</code></td><td class="mut" data-page-node-id="DejMyOeXNTEEKfV3ni5B08">原为 assessment/index 骨架页，重建</td></tr>
+          <tr data-page-node-id="tlTtVkuvlzDJKPlFBk3CLD"><td class="nm" data-page-node-id="X9043zgtbmDiV8AKFDNeIg">注册审核</td><td data-page-node-id="sC0HJb6hCWSoaRpAPn6DTc">2012</td><td data-page-node-id="WUOL6kHH8gGz8yS68WWvTs">UPDATE parent_id → 人员管理</td><td class="mut" data-page-node-id="KE9r2rETxaDXP45stjSfcu">component 不变（business/register/index）</td></tr>
+          <tr data-page-node-id="xbSVCUJXnl4lnB1IsXfAEQ"><td class="nm" data-page-node-id="D8sJeWAdDD20gqxaIwFdAO">实习生管理</td><td data-page-node-id="qQDVpByMjHTGRobj0UDE7H">2033</td><td data-page-node-id="nsahDiVMN7x9voN9UtSyBI">改 component → <code data-page-node-id="BgHTKySLfmYJCexhGEgpC3">business/student/index</code></td><td class="mut" data-page-node-id="tvCGMmOMQPv4511W9eJHML">原骨架页</td></tr>
+          <tr data-page-node-id="TwfaFm94d8EaoBv1cF6GeL"><td class="nm" data-page-node-id="mbqYRvPeHZ8xnYTGuEk6Id">实习转正审核</td><td data-page-node-id="E1nGtzemjbR1Nme54YGj0H">—</td><td data-page-node-id="YHF2isk2raUWVduzkVDeZn">新建 <code data-page-node-id="6DWRFceCdKzW5B20le1Dh5">business/promotion/index</code></td><td class="mut" data-page-node-id="5czt4bJJ3f9BcKikJRm7ua">后端未就绪</td></tr>
+          <tr data-page-node-id="FzGsRARh1D2xgizKla0tKo"><td class="nm" data-page-node-id="A34W7bK0uuVMvLvZcPC1qH">课程管理</td><td data-page-node-id="iO1FA9H8Lgw5dGgPV3c6J2">2006</td><td data-page-node-id="H38mmWzC2NYw9G8CPjxHlt">UPDATE parent_id → 学习与考核管理</td><td class="mut" data-page-node-id="rsnrilCOYSa8t8dvStfhAb">component 不变（仍在跑）</td></tr>
+          <tr data-page-node-id="KBr8TSyly1E6Pm6jGx52zL"><td class="nm" data-page-node-id="oxCnDTA3Z0PqIcSy3xQZja">题库管理</td><td data-page-node-id="4JKzA30HfF9RU7xjM9cFMC">2054</td><td data-page-node-id="vQQakKOdHfwyU4gVSuqOxm">UPDATE parent_id → 学习与考核管理</td><td class="mut" data-page-node-id="Kivk8Ds49AXcJXt5FV3MNO">component 不变</td></tr>
+          <tr data-page-node-id="iGGRLASPDhDypNnPlQvWtn"><td class="nm" data-page-node-id="0hC51dLMbjcj5DEOxXHfka">模拟备考管理</td><td data-page-node-id="zN6vHA62mq8MNhbsx36OmT">2049 模拟实操管理 升级</td><td data-page-node-id="eG8xeNXl58MbEUN2SOZ0el">改 component → 页签壳；2049 原页下沉为「实操题库」页签</td><td class="mut" data-page-node-id="2KKNuATToZxfkPJYNmxdbA">新增 2 个叶菜单（备考资料 / 模拟理论配置）</td></tr>
+          <tr data-page-node-id="nKpgqb5wQQe6DvtKTAKza6"><td class="nm" data-page-node-id="LwFW2QXZHmqyTJrH0mAKMK">正式考核管理</td><td data-page-node-id="7KOe2GXq7IxCFp4iYf6FjA">2065 考核管理 升级</td><td data-page-node-id="KmDb2zXsxntO75gyFQnB2h">改 component → 列表页 + 3 个编辑页签</td><td class="mut" data-page-node-id="FQxdemZxP6EymKXDFtIWHI">沿用设计稿 §6.8 三段式</td></tr>
+          <tr data-page-node-id="sW9DlPYrhYVI0FLJgIcrYV"><td class="nm" data-page-node-id="jY0RBJjrerM7OYCJGAZ1Ew">成绩管理</td><td data-page-node-id="3anwXrm8q26wAHkAA8vwd6">2034 实习批阅 升级</td><td data-page-node-id="lt2f84jIyE8IDchxvZsHC4">页签壳：考核批阅(2034 下沉) + 成绩统计(新建)</td><td class="mut" data-page-node-id="Qa2iSmtZXbss4RGXxE8r4L">—</td></tr>
+          <tr data-page-node-id="eDm7TAp2wO72rSILYL69u0"><td class="nm" data-page-node-id="1Q8fDqsEwDbPiMmSDmdxG5">任务与通知</td><td data-page-node-id="rcKRLrx6e4pnqblL9GH5Ri">—</td><td data-page-node-id="WAkAQWjZOl0OxK5FzbzWcJ">新建 DIR + 2 个叶菜单</td><td class="mut" data-page-node-id="bFFEsrCtF2Mqm3oCKSP7xF">后端未就绪</td></tr>
+          <tr data-page-node-id="vhAbPnzwdIv8W79Y3KBRzi"><td class="mut" data-page-node-id="AK5QDEzq2FQuDZuJlHo8Jh">旧目录 2019/2020/2021</td><td data-page-node-id="5JUUElsKtqwnRH3NsIsrWs">—</td><td data-page-node-id="EPVaUK0XyM0O6purdjvKcL">整体 visible='1' 隐藏（不删除）</td><td class="mut" data-page-node-id="uQUGbKRfr35yI3mIPA3UTs">2037/2039/2040/2043 等骨架项留作后续轨道</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <!-- ============ ② 工作台 ============ -->
+  <section class="sec" id="s2" data-page-node-id="cMYAH0EHhCL0McpWoN3vlP">
+    <div class="sec-head" data-page-node-id="LhNzJSIIGDb3eBstqLQHPS"><span class="sec-no" data-page-node-id="Hb5bsfDe9poRYlO0A2FEGx">2</span><h2 data-page-node-id="csrKWR5MAYg5AUOhhlX49x">工作台</h2><span class="tag blue" data-page-node-id="BvuKk7IDYqHI1onyUQDGVg">★ 新设计</span></div>
+    <p class="sec-desc" data-page-node-id="yApOSU7GZMoyHc8FOHufJ9">
+      与实习生端工作台的定位<b data-page-node-id="iuiCi3iqXxgdoV08uCgamo">刻意区分</b>：实习生端回答"我学得怎么样"，部门管理员端回答"<b data-page-node-id="HSfoMZc9KYJR75TvW5aOqf">我要先处理什么</b>"。
+      所以第一屏是<b data-page-node-id="o0OP9S5YZvB11QncbQkRv2">待办</b>而不是图表 —— 管理端最高频的动作是清待办。
+    </p>
+
+    <div class="app" data-page-node-id="qTn2KpsaUs6DIe9nphYCGL">
+      <aside class="rail" data-page-node-id="UKypwD8LAvoug9z8eRb6Cy">
+        <div class="rail-brand" data-page-node-id="gk1BLIQQynAti2S4L50Mjz"><i data-page-node-id="2zSL3h0sCYBNaAIPIbs9Xt">教</i><div data-page-node-id="3rOe7T6DumoNJApZqAceDu"><b data-page-node-id="Kib2asXCkwOWRe5mhExaiz">培养管理台</b><span data-page-node-id="7PJo5ttQ1MRHkc46OZkdgJ">开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item active" data-page-node-id="AMmColsDlibX3T4mNwLDiU"><span class="ic" data-page-node-id="8zA9M8B4kvFj6llJnx4zw0">▤</span>工作台</div>
+        <div class="rail-item" data-page-node-id="pesvIBdv7OxmaBk7VSri9U"><span class="ic" data-page-node-id="RC05n4pv4lyWlWsg8r608O">◍</span>人员管理<span class="arw" data-page-node-id="L3COCDDMQy5FjezKWcv5IQ">›</span></div>
+        <div class="rail-item" data-page-node-id="jg41Xb6R4nQ2atKXmjK5cH"><span class="ic" data-page-node-id="bboWOKGuCSq31vDxCZLkkR">▦</span>学习与考核管理<span class="arw" data-page-node-id="cPUEv9ErgRge0FUG440Hn8">›</span></div>
+        <div class="rail-item" data-page-node-id="HYQ9vdnJTlXjFOYSBDCxoL"><span class="ic" data-page-node-id="k0zQYWWA9itHA5A1w3Avl4">✉</span>任务与通知<span class="arw" data-page-node-id="F7DitU26Ev4wsD36U2gFwR">›</span></div>
+        <div class="rail-foot" data-page-node-id="n5pAk7OOnHUd1yXWTlcEOl">侧栏仅两级 · 模块内用页签</div>
+      </aside>
+      <div class="main" data-page-node-id="8hpUjiXq9leMScVmT4FryP">
+        <div class="topbar" data-page-node-id="UptWTDPh9RztiylY3hx4wG"><span class="crumb" data-page-node-id="7UfZcSjSyC0z8r7m1ahEhV">部门管理员 / <b data-page-node-id="zOQP93EyneSBcxgcD63az9">工作台</b></span><span class="spacer" data-page-node-id="Fp4FjPg9FDpfYIUQU0400e"></span><span class="bell" data-page-node-id="blJZFUAEi3LS7Bsx28CdOB">🔔<i data-page-node-id="l0KDK1uvpHnv5NL3j3FHFj">6</i></span><span class="avatar" data-page-node-id="sCBYBW5gbBN3xjGp9bpH6H"><span class="ph" data-page-node-id="jqbvZhSfCIPNmNy6Rvaeji">李</span>李管理 · 开发部门</span></div>
+        <div class="body" data-page-node-id="7M5G7dTl1nWdCUZ0aSgJUT">
+          <div class="card" style="margin-bottom:13px" data-page-node-id="T97moCsvuyY1WVpqkWowmJ">
+            <div class="identity" data-page-node-id="pvLB8TXgSmxvlHLhw6iNkG">
+              <span class="big-ph" data-page-node-id="flklyxXhAya0h2UHCPzu5E">开</span>
+              <div class="who" data-page-node-id="j2vsuM4v1u9DGQe6uuypSB"><b data-page-node-id="PgirFAMjIvDgJWfbBPT4Do">开发部门</b><p data-page-node-id="XiSBdct9KOBzRh8y3KkBXQ">部门管理员 · 培养周期 2026-Q3 · 岗位 5 个</p></div>
+              <div class="facts" data-page-node-id="BZ29tqumrsBIsn6ASn5JkA">
+                <div class="fact" data-page-node-id="wcyIHdeTlgnnIt6zfGbP28"><span data-page-node-id="54CAkQoDat99naIWYTkgVm">在册实习生</span><b data-page-node-id="PfVXVvcVetVYeqB0mBCZxu">12</b></div>
+                <div class="fact" data-page-node-id="rU6pVCKV6wNS3UsQ8UuSk0"><span data-page-node-id="1TcwpvO8Oi7ENhQ8mCUdNF">本轮已转正</span><b class="ok" data-page-node-id="LqgYFshBcx7aPnrtBOZcHN">3</b></div>
+                <div class="fact" data-page-node-id="o4DTzSg7J2dZoahWPtoSJ6"><span data-page-node-id="0DN100fFaHsf5taC3DqdGc">今日待办</span><b class="warn" data-page-node-id="vgrsB3tb5LK98N1x3azSCb">6</b></div>
+                <div class="fact" data-page-node-id="x9WCQT3e2JbtbkD6IxCD7Q"><span data-page-node-id="C7oe3P3GXj4Xqg1D00NjGn">最近活跃</span><b data-page-node-id="twGhaTPnNn1DOjkEDTuSjy">今天 09:12</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid" data-page-node-id="ZAVss6pb5QbZItMe4mfqxc">
+            <div class="card c12" data-page-node-id="fPBuRECtOMrqsw8SRD0AvW">
+              <div class="card-h" data-page-node-id="tb3ZcAD7qzVOyfMnUM3bsC"><div class="tt" data-page-node-id="WXzc2UWuO0bLn0OGuUfetD"><span class="idx" data-page-node-id="tgMwrwJL7WXQEYINtTGJDY">2</span><h3 data-page-node-id="YvKjp0YWN1vdAoN3Xztm4q">待办中心</h3></div><span class="hint" data-page-node-id="w3fW7rge40GD2ZjwhjYWoZ">点击直达对应列表（自动带筛选参数）</span></div>
+              <div class="grid" style="gap:11px" data-page-node-id="HcyFjuKzsxJZOpLSwLVACw">
+                <div class="kpi c2" data-page-node-id="rGctyPPC2T2DCojDZQLppT"><div class="lb" data-page-node-id="koyMP4iNEkKaybtpLKUfef"><span class="d" data-page-node-id="YbtIzXi47DEjOFXehjnt28"></span>待审核注册</div><div class="vl" data-page-node-id="0PGROT4ACgZIoPLeIRZwrO">2</div><div class="ft warn" data-page-node-id="V2pMLe82oq1bgEoMFxmrBg">最早 昨天 16:40 提交</div></div>
+                <div class="kpi c2" data-page-node-id="JI1h0DPUTcvGynguoHESga"><div class="lb" data-page-node-id="bTjJMsXO3SXaluJVZpRZIu"><span class="d" style="background:var(--orange)" data-page-node-id="zKwVaHQujgkFuxd59NdXKR"></span>待批阅答卷</div><div class="vl" data-page-node-id="LYGHWs10B33buhHnESDoC3">5</div><div class="ft warn" data-page-node-id="jFRiHCRrwqdbzOn7tL7SjY">7 月专项 · 截止 09-20</div></div>
+                <div class="kpi c2" data-page-node-id="BTkhuEyXvnkh14RFESGIHy"><div class="lb" data-page-node-id="npu8GqZ3Y7RhcJqE2dWcic"><span class="d" style="background:var(--purple)" data-page-node-id="prndKCGWKCecJ47sfhbRJr"></span>待转正审批</div><div class="vl" data-page-node-id="fQaAIjO1Cwgz66Jg0Mc164">3</div><div class="ft" data-page-node-id="gHopxqiwbf5BRuKUIn3hsP">其中 2 人已具备资格</div></div>
+                <div class="kpi c2" data-page-node-id="wJlKMLadMctqhfLQThd2Bu"><div class="lb" data-page-node-id="uiuU9gt991rhS6UEBGHSg9"><span class="d" style="background:var(--green)" data-page-node-id="uHV9gOwesMxC7jgyhtLYPJ"></span>待发布考核</div><div class="vl" data-page-node-id="vKoRDW6FGoXL8kV2S8DCep">1</div><div class="ft" data-page-node-id="U1P0wqFYzK39AgEdvHyBkx">草稿：Q3 正式考核 v2</div></div>
+                <div class="kpi c2" data-page-node-id="WDDR3qgnk7kkn3aUJ6OLD4"><div class="lb" data-page-node-id="NOdMNDRxD3trgSFga79f3P"><span class="d" style="background:var(--orange)" data-page-node-id="ElebcmoGAIiua1NzBufLA7"></span>进行中任务</div><div class="vl" data-page-node-id="1fhJIydnW1l05V3X8MJ4X3">4</div><div class="ft warn" data-page-node-id="ZTqkNsSuNq24roywldxfmt">2 个今天截止</div></div>
+                <div class="kpi c2" data-page-node-id="mRwajeqQ7R6gmw368tR6gh"><div class="lb" data-page-node-id="y8Y6dCrh81yV0aH9WriPiP"><span class="d" style="background:var(--ink-4)" data-page-node-id="h1QZez7UFIDT9i0ktwBpZg"></span>未读消息</div><div class="vl" data-page-node-id="oj414ddDCZDmyw5j2smlWs">6</div><div class="ft" data-page-node-id="PgvQ2aIICYozjGVYTFBxcm">来自 3 位实习生</div></div>
+              </div>
+            </div>
+
+            <div class="kpi c2" data-page-node-id="PtEVnn7G2VDEZFy3XrEeJc"><div class="lb" data-page-node-id="6yR97Zx3xGXNNhzKXR4Byu"><span class="d" data-page-node-id="jbvHAhA3EB8ABoGqRWeaB2"></span>在册实习生</div><div class="vl" data-page-node-id="cvIZ9kmtEQ3R5dqLjvQuvv">12<small data-page-node-id="Rln73NpTgIiHFD3TZAT5HO">人</small></div><div class="ft" data-page-node-id="09SVEjEEzTJYotXperLdOf">本部门 5 个岗位</div></div>
+            <div class="kpi c2" data-page-node-id="m930hkd62XRdITY75lXsfv"><div class="lb" data-page-node-id="uM9GMkLxzYZ2PJ1UPvaADk"><span class="d" data-page-node-id="ea3ziJb3xdNva9Ugy7YXIA"></span>预备实习中</div><div class="vl" data-page-node-id="wDCbNxZFJpMXuWXoJBG4Vm">8<small data-page-node-id="TWgQQuYQQJbKU6alTcB6ws">人</small></div><div class="ft" data-page-node-id="lEHBAwW9lAaPAu861w5v1o">PRE_TRAINEE</div></div>
+            <div class="kpi c2" data-page-node-id="VEmL7d5oAEQhcFuMJu6mh5"><div class="lb" data-page-node-id="QPHeCwk2o7o5zVmWBU7Sad"><span class="d" style="background:var(--green)" data-page-node-id="gQKlfsJAH48mvWEHphIkjo"></span>已转正</div><div class="vl" data-page-node-id="wxI8t6mJnxjWFCQMUrPqwJ">3<small data-page-node-id="wavchdR14sHq9jbivtPi2C">人</small></div><div class="ft up" data-page-node-id="83T8nMwKX409Fd6aD8cPuD">FORMAL_TRAINEE</div></div>
+            <div class="kpi c2" data-page-node-id="UGKe9IT0goxfv3LItkVRBE"><div class="lb" data-page-node-id="15VgpbAXVbH7BcUiYnVHu6"><span class="d" data-page-node-id="ZxpQe3B72vu3UMuZ8Q1Dd7"></span>学习完成率均值</div><div class="vl" data-page-node-id="FacG62j48x9b6TVBYG7MJV">72<small data-page-node-id="mnIeb0G6eEZHnylvaALXND">%</small></div><div class="ft warn" data-page-node-id="PhVYa9CgqqmWMHi63lsWwE">低于目标 80%</div><div class="bar-mini" data-page-node-id="qoQDU62KtZyXtY0gZOvDvx"><i style="width:72%" data-page-node-id="qb7hETiDhPvad4Q9NIuDYW"></i></div></div>
+            <div class="kpi c2" data-page-node-id="pOTuROqQvQuahIwEMv4zUJ"><div class="lb" data-page-node-id="URPrrn0xdopjRGT4TLoZEf"><span class="d" data-page-node-id="tHjVCA7qp7io6ZaJdCCe4F"></span>模拟正确率均值</div><div class="vl" data-page-node-id="to8P4Kf6T1aDNLOoRDbqph">76<small data-page-node-id="PKccSD6xEtCVbuYpMDZjke">%</small></div><div class="ft up" data-page-node-id="zXIavrKbKQrvMctmGDFn4E">较上期 +5.2%</div><div class="bar-mini" data-page-node-id="WNVrYCXOCETt0FU4qxZEaC"><i class="g" style="width:76%" data-page-node-id="rVcvKRreA3D9Jx1GOhXboV"></i></div></div>
+            <div class="kpi c2" data-page-node-id="XRBj8dejHm3WHNAhLHm1m3"><div class="lb" data-page-node-id="mpqiD6oQ0aYz6fzTrLq3HE"><span class="d" style="background:var(--green)" data-page-node-id="gQ4EVtWATgYG4U4j3W5e68"></span>正式考核通过率</div><div class="vl" data-page-node-id="QaHufPADUyMcemVMY7WTgo">83<small data-page-node-id="gBFfbyTmrcLWv9NxZNLIKe">%</small></div><div class="ft up" data-page-node-id="GBxIC7BJ7BHh3eaTRNfFy0">5/6 通过</div><div class="bar-mini" data-page-node-id="DuM7BigXeUcJ0pnK5qtLKR"><i class="g" style="width:83%" data-page-node-id="zruKyiSblIunkUz5aZLomA"></i></div></div>
+
+            <div class="card c5" data-page-node-id="f9eUAkWQy0OzHGXiWtogFC">
+              <div class="card-h" data-page-node-id="YiGRoLHttze2hVkKTPl2eZ"><div class="tt" data-page-node-id="QPRU9nHpqblpPF3IRJAFwr"><span class="idx g" data-page-node-id="TYON0RRAZXeJEConQzo4cC">4</span><h3 data-page-node-id="fEgNIuYwwCB1zQFR0e14FY">培养漏斗</h3></div><span class="hint" data-page-node-id="vJwMXvXOB5PJeNomIl7AoK">真实数据 · sys_user.user_status</span></div>
+              <div class="hbar" data-page-node-id="rNPLQukbxpUEcwpbbGCCZ7"><span class="nm" data-page-node-id="oxSTEOlEyqFCFo4kOj27iP">注册待审</span><span class="track" data-page-node-id="6cjA5iFb3x4u6edlHTJEz0"><i style="background:var(--orange);width:14%" data-page-node-id="DCnbW4VFmuIc6qLdlgJFIf"></i></span><span class="pc" data-page-node-id="nbXRv43YhjMZa3NFHPKpUC">2 人</span></div>
+              <div class="hbar" data-page-node-id="Clmzmz92ZEcbmdADboowNx"><span class="nm" data-page-node-id="Avn9NefyZGREmUEPBt6HGA">实习中 PRE</span><span class="track" data-page-node-id="bBx9y9lhCusWBBkRwoLrFg"><i style="width:64%" data-page-node-id="MzXuE1V6vwfTazsQBUBiDA"></i></span><span class="pc" data-page-node-id="FQSgKMezOUpiDEg0ItcRdl">8 人</span></div>
+              <div class="hbar" data-page-node-id="FiORFb0c56G6b8WoaxUArw"><span class="nm" data-page-node-id="0fvBIAAXEBCxNOkdercQuC">转正审核中</span><span class="track" data-page-node-id="XnIHK4DVLkJb7wRlTVjFYe"><i style="background:var(--orange);width:14%" data-page-node-id="qbxQ2rPCAzuleF1kNnhZoo"></i></span><span class="pc" data-page-node-id="Gcmp5psSopyre48ukQGB1C">3 人</span></div>
+              <div class="hbar" data-page-node-id="4FLz63dN3PDaLOcwGZpiTM"><span class="nm" data-page-node-id="sUQB62tWGoi499sCwW4tIV">已转正</span><span class="track" data-page-node-id="wIakurw4MxHVeI9SWNiMOJ"><i class="g" style="width:24%" data-page-node-id="QgffJyTGNR1z6gDAwRpnup"></i></span><span class="pc" data-page-node-id="bDywRkK9wAfAqgVwFLNH8B">3 人</span></div>
+              <div class="note" data-page-node-id="7iEZRAUcD1z7NHceNGoHFG">漏斗口径 = <code data-page-node-id="2XfNWrlDRXHtQGq7w1Pc6S">sys_user.user_status</code>：WAIT_AUDIT → PRE_TRAINEE → PENDING_PROMOTE → FORMAL_TRAINEE。<br data-page-node-id="Cy4yqdVYnSzxC11GpFwqK9"/>本区块<b data-page-node-id="J3LwmhwMLqEYN3DV6oZWHV">今天就能全部用真数据</b>。</div>
+            </div>
+
+            <div class="card c7" data-page-node-id="kPDekgmCi51JCxYVKB37Ah">
+              <div class="card-h" data-page-node-id="OSh3BF3W1gBSVdf1Y5fCBK"><div class="tt" data-page-node-id="1jIVgMfBkJCocgjPQ9Qawr"><span class="idx" data-page-node-id="JFrDFoBNnma6lG8Ac5Z28H">5</span><h3 data-page-node-id="XmK6746XsKVNGoABe7EGWF">学习进度分布</h3></div><span class="hint" data-page-node-id="w3JMwFPTTRc1C2m3hdS810">12 名实习生 · 按完成率分档</span></div>
+              <div class="vchart" data-page-node-id="Wej59mzEV2XES8NA1LhgTF">
+                <div class="vcol" data-page-node-id="fFkrqApzafADEyefcYtWns"><div class="bar g" style="height:52%" data-page-node-id="MA8GDFOUu00DfcyPBRQqPB">3</div><span class="lb" data-page-node-id="rVuDkwPLVg0kqvRFs8spqC">≥90%</span></div>
+                <div class="vcol" data-page-node-id="nZue0dUWHu3YcJ2OJG4PjD"><div class="bar hi" style="height:74%" data-page-node-id="Q1eTAZZnABgKNhAS7DiZTj">4</div><span class="lb" data-page-node-id="9ESx1knrpwbZ99rzqi4U5P">70-89%</span></div>
+                <div class="vcol" data-page-node-id="V6nXaBJ1xO8MJK3tB2mkS9"><div class="bar" style="height:36%" data-page-node-id="aeUogoIPvPlDWB3jhLIESq">2</div><span class="lb" data-page-node-id="4vWUW9FG6GV3OsMDziU1Gw">50-69%</span></div>
+                <div class="vcol" data-page-node-id="QWF39IlFnDvkgsc80HvyhE"><div class="bar o" style="height:52%" data-page-node-id="meFjeq6JIXGhluPODNW3mQ">3</div><span class="lb" data-page-node-id="ydL9e2ZG4K6j630uMmwspd">&lt;50%</span></div>
+              </div>
+              <div class="callout warn" style="margin-top:12px" data-page-node-id="93FVq9nhqa6fnrgdw9eFFV"><b data-page-node-id="X4ei13sskOC10Dk7Fp0OMt">3 人完成率不足 50%</b>，其中 2 人因此未达正式考核门槛（需 70%）。建议直接在此处「发任务」催办。</div>
+            </div>
+
+            <div class="card c7" data-page-node-id="VsFVEYzoTwdbXIdAAUg7Ot">
+              <div class="card-h" data-page-node-id="IeeNUiUS12rupkv2Aw4yuX"><div class="tt" data-page-node-id="sXmcRzZOtTBSFn9S53skjN"><span class="idx" data-page-node-id="5wAx8IDyUz4K4tWq5q2ITD">6</span><h3 data-page-node-id="vshHbK1pgUBBSxlBOEbnEO">考核概览</h3></div><span class="hint" data-page-node-id="jBB7pmaIJpu7esCCt7dfDH">最近 5 场 · 点行进成绩管理</span></div>
+              <table class="tbl" data-page-node-id="P7V6Wj8pPkmAV6w141w6lO">
+                <thead data-page-node-id="BKUXfbF26FyKwEZB1y2I2S"><tr data-page-node-id="DzueTIYrfgcYhupga8OIXR"><th data-page-node-id="HsQWNz3qGXmUWJKeKmMGWU">考核名称</th><th data-page-node-id="pyZghZLFOhawrr5eU66Aqk">类型</th><th data-page-node-id="Qv4XGG4uoQgF4uSyhw4B2K">参与</th><th data-page-node-id="av7e2XxPaXYD4pyXB6xsEv">平均分</th><th data-page-node-id="TnCiRsskhNx9CMSd9crtvW">通过率</th><th data-page-node-id="DrfBxirAaKDPOsHzPAWBUB">状态</th></tr></thead>
+                <tbody data-page-node-id="YEvZzjFKiBsdqCwhV4s6JL">
+                  <tr data-page-node-id="UK9f81sHpm0l4Xz80kQEyO"><td class="nm" data-page-node-id="YqjOlWeBXLTwvzmVT6Kvc6">2026Q3 正式考核 v2</td><td data-page-node-id="ZcWvK3LrStVVr7EygjIVyt">正式</td><td data-page-node-id="auX4NhyLSQJcUVj1vHmDgF">6</td><td data-page-node-id="L5YcTiElhlA8z7ZGh2sNbD">78.5</td><td data-page-node-id="Jdm1bUWrUI7GcjeGCsepmU">83%</td><td data-page-node-id="DNJ28IHVLwqrl0yFOExkKs"><span class="badge done" data-page-node-id="SewFluwpk8JFqUszVhFc0T">已发布</span></td></tr>
+                  <tr data-page-node-id="U0q39W9jAljsTPGbENo1RY"><td class="nm" data-page-node-id="pbAUqXFzf8JEgYp46EQvtN">2026Q2 正式考核</td><td data-page-node-id="i69t7ADI89YFtNx2fyRStb">正式</td><td data-page-node-id="K0qVx0aKOQNMhXqT4JadrC">5</td><td data-page-node-id="shzSEdIz41dF5HHavtJT2P">71.2</td><td data-page-node-id="dtX19FES9NznyqVLvubKgk">60%</td><td data-page-node-id="u8eSILxHCtcXUvVPtEKh2y"><span class="badge done" data-page-node-id="5mrfCBjfItzmAf5f6xet6w">已发布</span></td></tr>
+                  <tr data-page-node-id="vSnGk09RsO4kJ3G9K3rDMX"><td class="nm" data-page-node-id="bKvTKAtVQZlNZCD8FsEEUd">2026Q3 模拟自测</td><td data-page-node-id="IDCaSso1vH6KjuhB3KifIp">模拟</td><td data-page-node-id="PWRg1wCFK39VmVAmp62raM">11</td><td data-page-node-id="LQ7iAuB7rBThYHMD9jkEmJ">76.0</td><td data-page-node-id="XMgHgzMcHHw187M3VSW784">—</td><td data-page-node-id="QZsqZUC056HTUJMbEhW6uF"><span class="badge blue" data-page-node-id="2GjXSQzag8Ce6viXlKVF9g">进行中</span></td></tr>
+                  <tr data-page-node-id="0viK3JvBbaSvdjTk2lwfNF"><td class="nm" data-page-node-id="11Adrt0y8MdCwkFHKTVePn">7 月专项 · Spring Boot</td><td data-page-node-id="UlWJsVyFDaDmKg5OE1KLaO">正式</td><td data-page-node-id="kF7gvrcchUUkxUhzDBUAUv">4</td><td data-page-node-id="F7UAGNY9mAoamVa3AACQjr">—</td><td data-page-node-id="4mkj8Np4KC6GCgUPCYfDq1">—</td><td data-page-node-id="ZL3KaGnC475Sg7iyHnfANx"><span class="badge orange" data-page-node-id="cDOKbWmfPiNuQOpVOrvVte">待批阅</span></td></tr>
+                  <tr data-page-node-id="IOrfayV2W3qCZUWxkKubJC"><td class="nm" data-page-node-id="OTTy92WdWKStL3uAx5hn3Q">2026Q3 正式考核 v1</td><td data-page-node-id="9CA17hbDBDsCLhuHSVo1HL">正式</td><td data-page-node-id="8d1iKbMp4XI7sPJQVKw2oT">—</td><td data-page-node-id="StuFUybfDoaGDWmJHNCmgw">—</td><td data-page-node-id="dP8lP9SaHGEaTD9FKFKxhp">—</td><td data-page-node-id="BFDJAVozuEqSMAUm2LOTwW"><span class="badge" data-page-node-id="4jzXvCLDJb35DEbM4H7YhY">草稿</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="card c5" data-page-node-id="FmQewPL7J00GyzczLHJUdo">
+              <div class="card-h" data-page-node-id="37D1UnVK3zQRFiHXTPlHqC"><div class="tt" data-page-node-id="TQol6z8oeGCMLZgBDnA9Mx"><span class="idx o" data-page-node-id="m9qaw6V0XthCVJ6ANTWpFh">7</span><h3 data-page-node-id="LyNXEfWvFazVqRFtulxbFY">最薄弱知识点 Top5</h3></div><span class="hint" data-page-node-id="6pJVF47hmfHhlywwG3qEYJ">本部门整体</span></div>
+              <div class="hbar low" data-page-node-id="Ds766TCDNP9vhdzuMxtOst"><span class="nm" data-page-node-id="Hv0mURPYtxHUIVEWGXOE4Y">Docker</span><span class="track" data-page-node-id="6fG70N28pHLUGeNK0BkMSc"><i style="width:58%" data-page-node-id="8kxBgDBmrF50FE63cktt85"></i></span><span class="pc" data-page-node-id="wCRVdcqQUoTEAdLMavkhCG">42%</span></div>
+              <div class="hbar low" data-page-node-id="xGfAG6QoW9FNa4iuCR8aGc"><span class="nm" data-page-node-id="M2Gk3PwLlNZdxTPxtXJoPS">DIX脚本</span><span class="track" data-page-node-id="ykwiuBa2MU6QMu4Qojcc0m"><i style="width:50%" data-page-node-id="r3Nm1ef6dSdNaX8TfHvXEN"></i></span><span class="pc" data-page-node-id="IGyOtTwmLQyzCXk0Bpl7hy">50%</span></div>
+              <div class="hbar low" data-page-node-id="PVpWU5QZNrZC9QO4tNDiOA"><span class="nm" data-page-node-id="Pa18HFqU4T8P8e7X1aLmNz">Maven</span><span class="track" data-page-node-id="PJtvisYqnF7jjAaFTtzMjA"><i style="width:45%" data-page-node-id="HjQd16QHPMTjmdKsnz8euY"></i></span><span class="pc" data-page-node-id="5CLcoi2X6bfcSFTfF5JFz5">55%</span></div>
+              <div class="hbar low" data-page-node-id="hZQC4XfDHLthvSnxcbqAUP"><span class="nm" data-page-node-id="tABtkTfLNPobESb2K1XhvE">nginx</span><span class="track" data-page-node-id="DQEfLOhq4maN53VuKmyOhr"><i style="width:38%" data-page-node-id="qJgEJnsWrYmERyiWDRVsje"></i></span><span class="pc" data-page-node-id="gnIIhEA3huZFmZUS81P0Ut">62%</span></div>
+              <div class="hbar" data-page-node-id="ioeob62V9UOK5H9lwblVHn"><span class="nm" data-page-node-id="GjQyxFGmnu9RNHhZ4ymGxa">MySQL</span><span class="track" data-page-node-id="AVzFu0eXhxB6wOi1h5HQNf"><i style="width:30%" data-page-node-id="i9dAJ2ScFlPglr39JnrKxc"></i></span><span class="pc" data-page-node-id="VNGvU5T27KrUFlGgXGtjhh">70%</span></div>
+              <div class="note" data-page-node-id="Ohp1rtvuRj3uY4pS6qPzcz">错误率 = 本部门实习生错题数 ÷ 该知识点被考次数。点击带知识点筛选跳进「题库管理」，便于直接补题 / 改题。</div>
+              <div class="note warn" data-page-node-id="ip66CWHNlaWCpCcmKowUPX">⚠️ 需后端把 <code data-page-node-id="krToL41X0f0JPjzKUf6Rmy">knowledge_point</code> 快照进明细表并出聚合接口（P0-1）。</div>
+            </div>
+
+            <div class="card c7" data-page-node-id="ckCAzPrjaVY8HkORVCrBYv">
+              <div class="card-h" data-page-node-id="0IqsSx96qUIpvClI99r9hg"><div class="tt" data-page-node-id="mocpq01oaRbkIJJKKrL2Hl"><span class="idx g" data-page-node-id="aLIzPmBJFJiHl6Uug771zw">8</span><h3 data-page-node-id="8M2GsugqNcelwti9RirwgQ">最近动态</h3></div><span class="hint" data-page-node-id="8mranN2hswqR8QvMPimmy3">真实数据 · audit_record</span></div>
+              <div class="kv" style="grid-template-columns:repeat(2,1fr)" data-page-node-id="p7kkPHMteyhVqumZ6WL8eH">
+                <div class="it" data-page-node-id="oLnUaS6pJuBxVWgMaXc4ny"><span data-page-node-id="qfDfIUOGk0ulK6bHakiBJt">09-16 23:52</span><b style="font-size:12.5px" data-page-node-id="WdTFVxnYKObxuHaNAMaRdy">发布正式考核「2026Q3 正式考核 v2」</b></div>
+                <div class="it" data-page-node-id="QzQszaAdtSzL1YbjlyjAwS"><span data-page-node-id="aENx8lBIkW0yy6VIuEn3RD">09-16 21:10</span><b style="font-size:12.5px" data-page-node-id="0BjYuU6zoUBk7EZFawZGm1">通过 1 条注册申请（王雨桐）</b></div>
+                <div class="it" data-page-node-id="OFHA22Dqm6arGM8o58gF4b"><span data-page-node-id="B3zMra71gHzYUV4fLuMQ3a">09-16 18:30</span><b style="font-size:12.5px" data-page-node-id="EZtknFPEd0yPgaxmP5965J">完成 7 月专项批阅 4 份</b></div>
+                <div class="it" data-page-node-id="ucjUBalnPzGcC1mNcTfSHR"><span data-page-node-id="BcEnLuOYNd77PCieMDZsCs">09-16 15:02</span><b style="font-size:12.5px" data-page-node-id="C2BFiU61AUN6KlByGYmmAD">审批通过 2 人转正（已自动发证）</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout" style="margin-top:13px" data-page-node-id="eCaudCWf0qFTZ12jH50hu1">
+            <b data-page-node-id="DNU0AIMW0hN4bcrDHRxKzV">权限边界（不做的事）</b>：本页<b data-page-node-id="iii6JtnDo64MqzyFrSeXlz">不出现其他部门数据</b>，也不做「全公司排行」——设计稿 §6.6 已定「部门平均分仅对本部门范围计算，跨部门不可见」。跨部门对比是超管端专属能力。
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note" data-page-node-id="wHoGVeSCCGazgBz4mFTXZ3">数据可得性：② 待办、④ 漏斗、⑥ 考核概览、⑧ 动态<b data-page-node-id="POWOlGFylmClTNEXPUuqBK">今天就能全部用真实接口</b>；③ 的三个比率值、⑦ 薄弱知识点需要补充聚合接口，本期先用示例数据并打「示例数据」标记。</p>
+  </section>
+  <!-- ============ ③ 实习生管理 ============ -->
+  <section class="sec" id="s3" data-page-node-id="0U2cJ1QzQoObeFUvgVF8wH">
+    <div class="sec-head" data-page-node-id="odNy45odvgDSCT6ZJdA2nL"><span class="sec-no" data-page-node-id="3QEUb2eNrlBeyssuCH8G2v">3</span><h2 data-page-node-id="fvsVxyJbjJWMLtJrPmRZDr">人员管理 › 实习生管理</h2><span class="tag blue" data-page-node-id="uDlLEZz6FZLMORR8aiBu21">★ 新设计</span></div>
+    <p class="sec-desc" data-page-node-id="8hQsyulVRTGr5REgz53eE1">本部门实习生花名册 + 统计下钻。<b data-page-node-id="4kwlgF7rrG3S38zQHKT5Yt">花名册表格可用 100% 真实数据</b>（学习 / 协议 / 成绩都能逐人查到），只有统计卡里的比率类需要聚合接口。</p>
+
+    <div class="app" data-page-node-id="grHu0vHEzxRTQcj2mwQHqj">
+      <aside class="rail" data-page-node-id="RkjrbNKkVXNtkwDSjhQxVU">
+        <div class="rail-brand" data-page-node-id="OBPR0co5goE4wFyvCmi0g0"><i data-page-node-id="1OxnRZ0LtnBnJNJOzPA0XH">教</i><div data-page-node-id="bvaaOP11CErIbF3cuVCpPI"><b data-page-node-id="yOML0at55sIRfy2uwFxeee">培养管理台</b><span data-page-node-id="QmeukBoLCWAVy6hpbG9Uz6">开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item" data-page-node-id="1v2yYLco3YwlQDnTcDPe3P"><span class="ic" data-page-node-id="HwQ3YgLOZWR5X53CJJBzN0">▤</span>工作台</div>
+        <div class="rail-item active" data-page-node-id="SellrWR5mhcgAjLPFrBPCT"><span class="ic" data-page-node-id="bLNYWsW62GEenUqV8SXHlE">◍</span>人员管理<span class="arw" data-page-node-id="FWw0GvdNW9de55jP7ByFFv">⌄</span></div>
+        <div class="rail-item lv2" data-page-node-id="PcydHhP9MxBHT3chb8wB96"><span class="dot" data-page-node-id="j00E4RCnhi98EJGULtaXmM"></span>注册审核<span class="arw" data-page-node-id="dPRaqNld5XCdWXVe6ZNsWE">2</span></div>
+        <div class="rail-item lv2 active" data-page-node-id="azFPo2G1b2pVVd7QfRc6Yz"><span class="dot" data-page-node-id="yzmAxhUo6y61tLALZQT8Ws"></span>实习生管理</div>
+        <div class="rail-item lv2" data-page-node-id="khUYp3UuLyxlacZw2e66yo"><span class="dot" data-page-node-id="DFmg6by8LvDKx0hRNq7qsE"></span>实习转正审核<span class="arw" data-page-node-id="bgaXuf7QEW9PMgk6I9frhG">3</span></div>
+        <div class="rail-item" data-page-node-id="UzemHmt6o3sIy3bwC0QDPL"><span class="ic" data-page-node-id="k44lYRhrCoUSjTcJGHZCZr">▦</span>学习与考核管理<span class="arw" data-page-node-id="CGg2QLUUXM7wy2BDBhLk5N">›</span></div>
+        <div class="rail-item" data-page-node-id="PDzPobzYPflI2lo4GGNWPz"><span class="ic" data-page-node-id="K9v8ZsfQnj2iVJ8XVujieb">✉</span>任务与通知<span class="arw" data-page-node-id="myVRP19HtXWmafFCzs3y3z">›</span></div>
+      </aside>
+      <div class="main" data-page-node-id="HnDvhjxFLKulxdpuGi5YHe">
+        <div class="topbar" data-page-node-id="Emuzm7rywxAHwxfZGcVI1P"><span class="crumb" data-page-node-id="KedW6oVGjw07reGqKMyIW1">人员管理 / <b data-page-node-id="LgoAgK5S6HHNuwfdy6eMcf">实习生管理</b></span><span class="spacer" data-page-node-id="YpKRGZT6BYyDViqVqINGx0"></span><span class="bell" data-page-node-id="mWcg96mlCGU5g6lWZtPkip">🔔<i data-page-node-id="cEvdXnpDmEzTSHL7QklHa2">6</i></span><span class="avatar" data-page-node-id="TJZ3M8kn6BZEPUUB2Ircpm"><span class="ph" data-page-node-id="M4u6IEYOdf5TjZ6BKS2EDN">李</span>李管理</span></div>
+        <div class="body" data-page-node-id="V9nNPpgQVB5Gbjrcnyght6">
+          <div class="grid" style="margin-bottom:13px" data-page-node-id="7gv9syynuqFzMUZNGYNWAn">
+            <div class="kpi c3" data-page-node-id="MDM8iNyl8Kri7TeDt2XBux"><div class="lb" data-page-node-id="SgJbTQ5C3zz7BRLQEwtCXl"><span class="d" data-page-node-id="k9NFwjywjKHxdiMDc8DHuJ"></span>在册实习生</div><div class="vl" data-page-node-id="AdL5NEDGS0ttS6snPGEBvA">12<small data-page-node-id="AAUSvQsPqDIiysDAZApeaJ">人</small></div><div class="ft" data-page-node-id="JEIy8R7bLftyCotpa8OsN9">本部门 5 个岗位</div></div>
+            <div class="kpi c3" data-page-node-id="GrFX9BzoRTgOrY54GA0OD8"><div class="lb" data-page-node-id="9b6i5mwID2DeqPeLDwTAbw"><span class="d" data-page-node-id="rUX9HMygyrEAbmOIh6Ak7T"></span>预备实习中</div><div class="vl" data-page-node-id="8zGKXkUyDkIw03rE6lWEqr">8<small data-page-node-id="49ePnJiCUhEfGOa3DC4rPm">人</small></div><div class="ft" data-page-node-id="cw458CDdZ0bSzynKNcKbpX">PRE_TRAINEE</div></div>
+            <div class="kpi c3" data-page-node-id="W7aYTYmumDl02HSjoYN4n0"><div class="lb" data-page-node-id="uxeYOMiFH97GIaDCFvKYgB"><span class="d" style="background:var(--orange)" data-page-node-id="Ay9ROPT1Rbp2XUQp1bSK0B"></span>转正审核中</div><div class="vl" data-page-node-id="vRxkOvXLcD014DQp11Vslo">3<small data-page-node-id="SjuMfVeqLvnuB0pfcOY44Z">人</small></div><div class="ft warn" data-page-node-id="A1KHpALpUtmEjTGpepv2cZ">已推荐待终审</div></div>
+            <div class="kpi c3" data-page-node-id="6oBzwS4HJHEAcnp5P9WxaE"><div class="lb" data-page-node-id="EF8AGdZpoKAHAZbDyIJNBz"><span class="d" style="background:var(--green)" data-page-node-id="EAacj2vwMRbX9a1h1jScXi"></span>已转正</div><div class="vl" data-page-node-id="080thjJIrh6aNGsatfrvKz">3<small data-page-node-id="QnNsebBtOFjQC6Hd1emD2N">人</small></div><div class="ft up" data-page-node-id="BTtFvqhCXbauEQojctPK6b">已发证</div></div>
+          </div>
+
+          <div class="card" data-page-node-id="B12xHo8SszHxVIwGznzdou">
+            <div class="filter" style="margin-top:0" data-page-node-id="AOu9RUC332Ch6Mhs4kBmBm">
+              <span class="sel" data-page-node-id="c2gqwDpRaMnYPE0EPgkmCA">岗位：全部 ⌄</span>
+              <span class="seg" data-page-node-id="sV9DkNniOzWrHjG9NItHbo"><span class="on" data-page-node-id="B6VqNrYzXV5dx6WBE2rG7Q">全部</span><span data-page-node-id="r6ATKUWhkZJ7w66cz7KmHR">预备</span><span data-page-node-id="xi7BP5yqbOxOIFJVWHAySj">审核中</span><span data-page-node-id="WAWf9E9f5DHfbrAG6YZfHI">已转正</span><span data-page-node-id="TaEmAMO0O9kT3xh45IgBsO">已停用</span></span>
+              <span class="sel" data-page-node-id="Bpqwl1hSRjXxSMZ9u3GXRE">导师：全部 ⌄</span>
+              <span class="sel" data-page-node-id="EVSmoJw2JBbkV6MJVpbGYs">入职时间：近 90 天 ⌄</span>
+              <span class="sel" data-page-node-id="P8phLuvk2v9uc6uUj8p9Pu">🔍 姓名 / 工号</span>
+              <span class="spacer" data-page-node-id="MbrDirVHCH0x7zglEz4crH"></span>
+              <span class="btn" data-page-node-id="9vGZE0UJTDpEHG5a3SXCdP">导出</span>
+              <span class="btn ghost" data-page-node-id="RtirxG3jMCTiGleZ3cO3je">批量发通知</span>
+            </div>
+            <table class="tbl" data-page-node-id="ewu30ECfpbcKyCva46lwoi">
+              <thead data-page-node-id="Q7dUVettOsL19P7DPwCaQI"><tr data-page-node-id="Kh4YvGeglUrmtLuvFs298J"><th data-page-node-id="CDARf4wZhtSb8Xkrq421jD">姓名</th><th data-page-node-id="p7CbFEzC0qT5qAAiUGsc0s">岗位</th><th data-page-node-id="xUMVYBmX2SHUzXBPW3mzkz">培养状态</th><th data-page-node-id="UZF4vvZBU7CdJUM4J2CPEc">导师</th><th data-page-node-id="wI2iv4OH99AYT12reTIJAF">保密协议</th><th data-page-node-id="GRTxLwCk7GMZNe2o3RXkju">学习完成率</th><th data-page-node-id="KetEXN6RPBNgajFXppaLVE">模拟正确率</th><th data-page-node-id="61y2wqwHFEqu90p6y5E7eY">正式考核</th><th data-page-node-id="i2zcFw4oqJZcHWZBYXOF6f">最近活跃</th><th style="width:150px" data-page-node-id="4svxYWVvYNIUiDsyHnCsq8">操作</th></tr></thead>
+              <tbody data-page-node-id="WuRK8oVT3dcz2h9AznZCaA">
+                <tr data-page-node-id="NBcw3WkgmopzxBHgtOnazT"><td class="nm" data-page-node-id="Oc9tf6b85LFRqmfcOvERo1">李思远</td><td data-page-node-id="9HRieD3LO4Yz22cCh3zwFG">开发实习生</td><td data-page-node-id="hVL5a6ttAqY0X5iLZ5tq3Y"><span class="badge blue" data-page-node-id="NuPnfzfS66qcwXPyFGYBk2">预备实习中</span></td><td data-page-node-id="XGbycBxpojPpCMVK224fdR">李导师</td><td data-page-node-id="h7XiBWaFyjCnJVmyZZTywl"><span class="badge done" data-page-node-id="GzoDkpgXmqKppNmAr92CNR">已签</span></td><td data-page-node-id="FLXcT1WypE1rxQBuczGwGi">86%</td><td data-page-node-id="jPqE48Q4vXsEu257HBBVM5">82%</td><td data-page-node-id="s5begmuV6A6rN8PGa4w1Is"><span class="badge done" data-page-node-id="RzcVzipN8ES5pdt7ZAbmx3">已通过</span></td><td class="mut" data-page-node-id="QZZIsHqs9XrAeOGA3JnBqT">今天 09:12</td><td class="op" data-page-node-id="5GRAqYieLcD3NVNXfSziiv">查看档案<i data-page-node-id="QCyREjFpRWcF3Cq2uXWcBJ">|</i>发任务</td></tr>
+                <tr data-page-node-id="PGCfURWDeJOfu5iTvAbwWv"><td class="nm" data-page-node-id="sHbpKrBOMr8gfTGMG1Pz3F">王雨桐</td><td data-page-node-id="hkGxvsYzxwfACZEarRfSRq">开发实习生</td><td data-page-node-id="0Ab7A7hDEuMIhIsU1IA15p"><span class="badge blue" data-page-node-id="oHG6bOr9kR9qp1BdFeWXZk">预备实习中</span></td><td data-page-node-id="3mUdCPgEElH51ceLNNyAs1">李导师</td><td data-page-node-id="OVFbceQCpN4LN4IY5VHkhP"><span class="badge done" data-page-node-id="H1K26AB3XckPl36f0qd44Q">已签</span></td><td data-page-node-id="g68kvPIxzRH4wyNmrxB9yY">74%</td><td data-page-node-id="mJJJiGJndlGT5b9I3sR7l8">76%</td><td data-page-node-id="nG8RHWxXxRgTmH6EgGqBKD"><span class="badge orange" data-page-node-id="reOzDHkJ75i4DZxZpEOdi6">待批阅</span></td><td class="mut" data-page-node-id="kDHiF2Tbo66LZdfdelMC5Y">今天 08:40</td><td class="op" data-page-node-id="kREjSzXsDi3YDtY40MFj7D">查看档案<i data-page-node-id="XKqmHimjPWZFi2T7OYYlMa">|</i>发任务</td></tr>
+                <tr data-page-node-id="H8D7sKV7EPGE9K2PZzIBiV"><td class="nm" data-page-node-id="H7y3yfReaiFZFNpBAy6rpP">陈子轩</td><td data-page-node-id="q9ulHb4FlsK1qemsmjHIdt">开发实习生</td><td data-page-node-id="uTnPU9pBzdFndnFnizu77a"><span class="badge purple" data-page-node-id="27Fk7LKdteS37uqR1qjyCQ">转正审核中</span></td><td data-page-node-id="SAR0gyQ58KKMguTCxNQi2W">李导师</td><td data-page-node-id="2eNaEffbCEB0RSnqoeZxvE"><span class="badge done" data-page-node-id="C7Ywq4sxLhCqYxUbIlh79B">已签</span></td><td data-page-node-id="P2Tkq0Bihn9JQTm0aJJ5g1">91%</td><td data-page-node-id="z4QaBfEP8nb0xo7WDhs7cV">88%</td><td data-page-node-id="4QY6fDVQ27bWBC3ULP0lJW"><span class="badge done" data-page-node-id="FznReY5GPrUsyVFyDo4mNa">已通过</span></td><td class="mut" data-page-node-id="3HpRA0eVVM4keg0jyAU4WV">昨天 17:20</td><td class="op" data-page-node-id="3BzoI0RH2c3Nlin55ZCOvB">审核转正<i data-page-node-id="xcAcriBhcFoW3FSN0qTSNz">|</i>查看档案</td></tr>
+                <tr data-page-node-id="BkR3TfxV0FAhSWCZXhFNBf"><td class="nm" data-page-node-id="6tLub0QBJzJpCD3FWAGaTM">赵一鸣</td><td data-page-node-id="R4Xam97GceFyQX30UU7NRw">开发实习生</td><td data-page-node-id="f99l5XaDBQm1bRetGknCoT"><span class="badge blue" data-page-node-id="3cq33Y2BomXhl4iFOVauvn">预备实习中</span></td><td class="mut" data-page-node-id="B8jeXMtHIeI8EifZH5DxKP">未分配</td><td data-page-node-id="k83ZF7Mtx4QvM7YEzKSAnb"><span class="badge red" data-page-node-id="eUC507ZR8fpgWxITApTZrn">未签</span></td><td data-page-node-id="gsvePGcmpu4BiQwZqNlyaf">41%</td><td data-page-node-id="qSb4qtAguHvriRPco86cqF">52%</td><td data-page-node-id="DoPJ0OEqhrSopZ7ljvT8wi"><span class="badge" data-page-node-id="aC8tjzqdm3dLdu0jIOkC2R">未参加</span></td><td class="mut" data-page-node-id="fTZsR3hRs6DGmqObs3nqii">09-12</td><td class="op" data-page-node-id="NzGZgfblHC2YLBiwbO418m">查看档案<i data-page-node-id="CwniZ1pQ29IU7OBWoFZRBu">|</i>分配导师</td></tr>
+                <tr data-page-node-id="ZXoOirfMtt4ZEtvtvLrHjF"><td class="nm" data-page-node-id="rEayYzzSrSO3U7ZoN3Y8Vh">孙悦</td><td data-page-node-id="OUkU3J8dfD6Co3m72p8H9m">开发实习生</td><td data-page-node-id="Er2xqHJrHgmR7dzufvAQOF"><span class="badge done" data-page-node-id="SLtj9hVZJK5dOXFWwSCXvV">已转正</span></td><td data-page-node-id="qBKEI83VuzQWbC7ve8udET">李导师</td><td data-page-node-id="9suqZOU0Ihtb8csDUNDv9r"><span class="badge done" data-page-node-id="RxxzASHXiJhniwUoNwYzFv">已签</span></td><td data-page-node-id="IopF9fxuVPNy0fZFbvAgKC">100%</td><td data-page-node-id="QBYdn8T1ZqP1mC17JmTjEi">93%</td><td data-page-node-id="Gm3aprw6PkcPLewZuCOjRX"><span class="badge done" data-page-node-id="ZMuaBXBmD7DsPdFasxWxWt">已通过</span></td><td class="mut" data-page-node-id="By59wRTi54wGerQRSO1XHJ">09-10</td><td class="op" data-page-node-id="ElxhIa2wtvv8Vqh9kBHkvy">查看档案<i data-page-node-id="P8UN5EbpMIJJIGmiMrHzWt">|</i>证书</td></tr>
+                <tr data-page-node-id="HkXiH8gF3goF0hjUYXERCL"><td class="nm" data-page-node-id="teaprfhvbFTpjy80cictcS">周霖</td><td data-page-node-id="Ydh9bDGlZCs1cAVWZaW4Ao">开发实习生</td><td data-page-node-id="EAi3Z2rdVQIFNDk7srQHCu"><span class="badge" data-page-node-id="uO5Slp1xp6fAiTr3lJezlJ">已停用</span></td><td data-page-node-id="UhQRgtW6wCpPnaAvs3XAAd">李导师</td><td data-page-node-id="hVmd1YpEnUJXkJDHOAu7R1"><span class="badge done" data-page-node-id="0ksj8fHwxhFkdrQP8OvEvW">已签</span></td><td data-page-node-id="82XcAwPhmkrmSUwqDwvesH">23%</td><td data-page-node-id="Th3iYEWy88dYptPwzIY0oS">31%</td><td data-page-node-id="2RJlb3bWiETDHeJB6MCuA8"><span class="badge red" data-page-node-id="iOtacwAS3CGLPCTOFdROGH">未通过</span></td><td class="mut" data-page-node-id="mCXfC2abhP1QIPohwoP3Y5">08-28</td><td class="op" data-page-node-id="CZfaXAJpKezXMF1iDWtqP5">查看档案</td></tr>
+              </tbody>
+            </table>
+            <div class="filter" style="margin-bottom:0" data-page-node-id="Q3ZlsciGIxIdsYS2rD8KgW"><span class="mut" style="font-size:12px" data-page-node-id="Ih2GvjzdwcMEwgieZ4KUxZ">共 12 条 · 每页 20 条</span><span class="spacer" data-page-node-id="FeFuLZ2YBcslCzTVk4pirh"></span><span class="btn sm" data-page-node-id="BJP3eJXkri4BQYfDVEtLYl">上一页</span><span class="btn sm primary" data-page-node-id="HWFKQ2FlhVtbCvYEX1RCs3">1</span><span class="btn sm" data-page-node-id="XamuA9z1cHIubzLTRPRRFx">下一页</span></div>
+          </div>
+
+          <div class="grid" style="margin-top:13px" data-page-node-id="wAg9DHlfEDBrdr6gNSig9P">
+            <div class="callout c6" data-page-node-id="h5zy4pKq2fzjYTKcpECAf4">表格里「学习完成率 / 模拟正确率 / 正式考核 / 保密协议 / 最近活跃」<b data-page-node-id="ompAwYziGu56eYOlMSMLnU">都能用现有接口取得真实数据</b>（<code data-page-node-id="4dHb7Xp5rYEVF87AUzKMiG">learning</code>、<code data-page-node-id="HAp8Vs8QsXm0Mca0Gu16P6">practice/my</code>、<code data-page-node-id="UF9TwyIce7x82xjVdpBQ2r">answer-sheet/my</code>、<code data-page-node-id="ZPJhiRii1aXwZwWm6DaOoi">agreement_signature</code>、<code data-page-node-id="BkR9G8CMqkpmtcwb4JfyVF">sys_user</code>）。人数多时建议后端出一个批量聚合接口。</div>
+            <div class="callout warn c6" data-page-node-id="yXw33I3CsT8DADTuQTpzwT">「统计卡」的 4 个数字中，前 3 个来自 <code data-page-node-id="C5PSw1S9TPnm8gFbbou4jD">sys_user.user_status</code> <b data-page-node-id="nzZiMnQPIrKKpN15lhUmGG">可真实</b>；「已发证」需要 <code data-page-node-id="GnTiSyFwh7v4u3GiS5xTCA">certificate</code> 表有 Java 层。<b data-page-node-id="KxZE2bI91MfWWFLxIxggF8">本期先用示例数据并打标记</b>。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ④ 个人全景档案 ============ -->
+  <section class="sec" id="s4" data-page-node-id="Y6Rx0Ym8TY51gJeGALFbf1">
+    <div class="sec-head" data-page-node-id="UArlHGH4kP6fbD2zj4Y3Td"><span class="sec-no" data-page-node-id="2kfdiLgy7jMTwR8USl66yW">4</span><h2 data-page-node-id="ScFF9rKiKWmV9RkBmBf79J">人员管理 › 个人全景档案（下钻页）</h2></div>
+    <p class="sec-desc" data-page-node-id="eqIU7bFlNEhPPdWsx7SnZN">
+      ⚠️ <b data-page-node-id="dPADGSlxu9Tg1rYLDH741X">本页直接复用「超管端整体设计稿」里的个人全景档案</b> —— 两角色同款页面、只有作用域不同（部门管理员锁定本部门，超管可跨部门）。
+      这是「两角色联动」最直接的体现：同一个页面、同一套数据，不需要做两份。
+    </p>
+
+    <div class="app" data-page-node-id="Z7Dri6S7eF0pGc3BcmJKkH">
+      <aside class="rail" data-page-node-id="llca0CSk1LZTtGFTJdVtgp">
+        <div class="rail-brand" data-page-node-id="m011bYJ1ZzuZLU4LPLQw8m"><i data-page-node-id="0YXFXOK9UMlk8iX7Edssry">教</i><div data-page-node-id="FEJQyp4WHaPja5jDiwoRNz"><b data-page-node-id="yID63HzysEehgzOnLQNx74">培养管理台</b><span data-page-node-id="y2aUdacwOqtky1IC4Zvgm5">开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item" data-page-node-id="S8zR56xKrSQtMG4ri9kxDJ"><span class="ic" data-page-node-id="ngSijC5uA00KUp2zrJOdYx">▤</span>工作台</div>
+        <div class="rail-item active" data-page-node-id="nATZy5Dcy9qktzvqM3RcHG"><span class="ic" data-page-node-id="lU3PhTOPQWwnUnUIfV53pq">◍</span>人员管理<span class="arw" data-page-node-id="tndaI5bUHxnLsgxCGBmmsc">⌄</span></div>
+        <div class="rail-item lv2" data-page-node-id="AA0ZDBChOicH1nDvuxcdQZ"><span class="dot" data-page-node-id="OYFzCrVMoJRIEgrAoP3AM4"></span>注册审核</div>
+        <div class="rail-item lv2 active" data-page-node-id="jqfei9BBW8JszXw3CwBDe4"><span class="dot" data-page-node-id="SHYUyy0dZJweetO8CiZl9x"></span>实习生管理</div>
+        <div class="rail-item lv2" data-page-node-id="nCUO3D96Ecrh7Pf5xhzzmx"><span class="dot" data-page-node-id="4qXt7cy2JQWs03SoFTbaJf"></span>实习转正审核</div>
+        <div class="rail-item" data-page-node-id="FALo1MiKXWtpQBZsyMuqGG"><span class="ic" data-page-node-id="vTcfVotczKtFhuDG9DDl1k">▦</span>学习与考核管理<span class="arw" data-page-node-id="NSGPn4AifmhpziQawcmRpr">›</span></div>
+        <div class="rail-item" data-page-node-id="7QOj4pnACznshnGBfgTivS"><span class="ic" data-page-node-id="iEX6eAoMNu3RO7RTfZNBYb">✉</span>任务与通知<span class="arw" data-page-node-id="zHj11I1QOmfEB9Mmxa20b2">›</span></div>
+      </aside>
+      <div class="main" data-page-node-id="U5ZJiTF4BE6iGhrAjGjIPi">
+        <div class="topbar" data-page-node-id="qDmxWuRxfryvJzIj7XuHn6"><span class="crumb" data-page-node-id="bg0FqDn3AHX1bkumWChtfC">人员管理 / 实习生管理 / <b data-page-node-id="8jO4TtEKkoYLRcwH3GpJc3">李思远</b></span><span class="spacer" data-page-node-id="VHVoKZiXhRH6OVUK4h5JtC"></span><span class="btn sm" data-page-node-id="jDzZHWbeXFTaXg7FHG3Wv5">发任务</span><span class="btn sm ghost" data-page-node-id="K27R5130hGbN5PVySAFj2A">发通知</span><span class="bell" data-page-node-id="klc9BxHGKE4mDa2waHUI4Z">🔔<i data-page-node-id="m2Hzp7CacicdzTamgz3crk">6</i></span></div>
+        <div class="body" data-page-node-id="KaPXRd7Ce4AerD3SQrp7Pa">
+          <div class="card" style="margin-bottom:13px" data-page-node-id="75V8a5N0YgsG4dQ2X3JkOu">
+            <div class="identity" data-page-node-id="OOngMzcuHG3IugyyxoGarF">
+              <span class="big-ph" data-page-node-id="RUMRqZ5exBPnnAvf7hQyw6">李</span>
+              <div class="who" data-page-node-id="oiXu9iyhrLrJbfRH9ZtpaJ"><b data-page-node-id="syE72LcPF8vGyAIDMYurHw">李思远</b><p data-page-node-id="6sZqAHbYQAlxdHMnF18pUD">开发实习生 · 开发部门 · 导师 李导师 · 入职 2026-06-15</p></div>
+              <div class="facts" data-page-node-id="MSQtdHMqnTttNZ86Gjy1BH">
+                <div class="fact" data-page-node-id="jRDuqjP129liyr7s6VohJN"><span data-page-node-id="WPCzJRJIIsAVqNWj9KqecM">培养状态</span><b data-page-node-id="fPKW1BBKD068bGQpNedjH3">预备实习中</b></div>
+                <div class="fact" data-page-node-id="s5hX1Fxw3IAkOxIRs7dlY4"><span data-page-node-id="BZOGysExW9n8dsJBFgCbRK">保密协议</span><b class="ok" data-page-node-id="nu6QGt4BlMzIAwRHgYn9Ef">已签署</b></div>
+                <div class="fact" data-page-node-id="sWafSuiEz2TJ1IW9WtUDzu"><span data-page-node-id="9LtufFCFABMIRDbI4sTGua">学习完成率</span><b data-page-node-id="a8lqOQarkIW3ngYHcHzTS4">86%</b></div>
+                <div class="fact" data-page-node-id="d78blc0DWSKbmLj0wqybos"><span data-page-node-id="77ZE6QslJqi2LhBLmHYwTK">正式考核</span><b class="ok" data-page-node-id="uGsO0hKO9WQ5h3hM4q4EYg">已通过 82</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid" data-page-node-id="khkl3DmezNFSOX74nHIA0P">
+            <div class="card c4" data-page-node-id="p94thUAH4QHR636jt9qVu1">
+              <div class="card-h" data-page-node-id="wpKRoKC1raC9saFzdh9H0o"><div class="tt" data-page-node-id="PSpqrWpQM8qf8DDhQZXfPx"><span class="idx g" data-page-node-id="H0ZVVy4cPtI2vJlFI5EOHq">进</span><h3 data-page-node-id="J0jx0xTJ34UNArTAptdfJ1">培养进度</h3></div></div>
+              <div class="steps" data-page-node-id="jgk90rANwszw66AHMxut1i">
+                <div class="step done" data-page-node-id="yMshsA6tWsSDCv4JejTNGj"><span class="mark" data-page-node-id="X5xIe5v79vVBUoIVYnbClD">✓</span><div class="txt" data-page-node-id="DVPpLBud3iQrGrXpopp7F2"><b data-page-node-id="HWA6Oqee9V7XntQMMhsRcS">协议签署</b><span data-page-node-id="TZDf0uUBQ1lvcwafDQweX7">2026-06-15 已签</span></div></div>
+                <div class="step done" data-page-node-id="RqCIDk6BDkTGjHK4eh0guj"><span class="mark" data-page-node-id="z1L4IxmcQl7f4fjRGehSUP">✓</span><div class="txt" data-page-node-id="bOVDFW8EDZCdnQi78GCdKI"><b data-page-node-id="jGsOGfEpFlLTVd5O1C9mTl">在线学习</b><span data-page-node-id="0zkAatGDRzalog4DXmuOW8">86% · 还差 1 门必修</span></div></div>
+                <div class="step now" data-page-node-id="0xhdM2hoDUAzOVgTfEe1WW"><span class="mark" data-page-node-id="FfnQUeKNVFcjGwqCQDnu8x">3</span><div class="txt" data-page-node-id="4GcaxZtrAA0pYFnUyaIC39"><b data-page-node-id="Y7WcJIRrSBc8jImIxxIvoz">正式考核</b><span data-page-node-id="0MVPct7rvG2i6opnKaRdne">已通过 · 可提交转正</span></div></div>
+                <div class="step" data-page-node-id="n55HC1KqQZ6nXOzsbp6ksa"><span class="mark" data-page-node-id="J7VCeuAgP6t9MV02Mhirel">4</span><div class="txt" data-page-node-id="jh0ZnxNC4poYUHhZJ6U2iI"><b data-page-node-id="ux9uSFHfdK8VpCBpAUAWGo">转正发证</b><span data-page-node-id="PAQychc5ZNY8fDLA8m37t2">待部门推荐</span></div></div>
+              </div>
+              <div class="btn-row" style="margin-top:12px" data-page-node-id="vJULtO9hZvZTqr2FwaYVzx"><span class="btn primary" style="flex:1;justify-content:center" data-page-node-id="Q5SfDP44BH3qoJM9fGQb9S">提交转正审核</span></div>
+            </div>
+
+            <div class="card c8" data-page-node-id="LyyM0R8DHlD5dLLTpC5OEN">
+              <div class="card-h" data-page-node-id="cJ9YBvtC9OEcus8zS6JNoh"><div class="tt" data-page-node-id="bvKdW840SfcYEmnhOgGyKN"><span class="idx" data-page-node-id="l7fUdfVw6EWCTgCO8H745i">能</span><h3 data-page-node-id="X6wM9aZJrpzXm1ilva2cyI">能力画像</h3></div><span class="hint" data-page-node-id="U9Hx8woQHeyuKUur3aAAdM">四维度 · 数据完整度 78%</span></div>
+              <div class="grid" style="gap:10px" data-page-node-id="9rEPrcUkymaQ4BTZ4vyDJN">
+                <div class="c6" data-page-node-id="0CzZgN8DZI0f1AUjTORg0H">
+                  <div class="hbar" data-page-node-id="A9jee4jcZWUEx6vyZa8n9S"><span class="nm" data-page-node-id="pGxPZ5KQ3fXVIdTENqcmnM">学习投入</span><span class="track" data-page-node-id="E8x3Kx1ZHHDVL1KNXWDkoH"><i style="width:86%" data-page-node-id="mBDUTfIS083nhHlXF3K9Jo"></i></span><span class="pc" data-page-node-id="pSiZuKo8KyADspESCzz0kM">86</span></div>
+                  <div class="hbar" data-page-node-id="yOhEIKlAyHo58pB4E2nrZh"><span class="nm" data-page-node-id="RpVsFs0TEXVj4YPC1tt1DC">理论掌握</span><span class="track" data-page-node-id="0q09IJfjP91aq5PkNGqCBM"><i class="g" style="width:82%" data-page-node-id="eELDRdT0NuG1AiYTGUOKfs"></i></span><span class="pc" data-page-node-id="87j8EO5w3xzeX7VRdIXmX3">82</span></div>
+                  <div class="hbar" data-page-node-id="MIYwB9CMZD6EQQygYUnaDG"><span class="nm" data-page-node-id="nC9tSarTQ6URHnsyeFFLct">实践能力</span><span class="track" data-page-node-id="gCWeKTjeD65DJETgRzRYtM"><i style="width:75%" data-page-node-id="keUvtA1NvwByhEq3MoiLR4"></i></span><span class="pc" data-page-node-id="3ETU2YCMmJS2BkL3k4UYkb">75</span></div>
+                  <div class="hbar" data-page-node-id="7lflpLF4xUZygWRurKhbcQ"><span class="nm" data-page-node-id="7eneEvtxIViuHtJrD9rG6f">规范遵从</span><span class="track" data-page-node-id="mCvXln5QCfbF7TWGubTMms"><i style="background:var(--orange);width:68%" data-page-node-id="rMbQMHiqv2WEdqiHIlVjca"></i></span><span class="pc" data-page-node-id="y9p6U446VRux3tLg45i2zB">68</span></div>
+                </div>
+                <div class="c6" data-page-node-id="y569A57WcJni6UrCw8Ob62">
+                  <div class="callout" style="padding:9px 12px" data-page-node-id="kTC00oxK3TGQM49XKAj6vM"><b data-page-node-id="IPv6f5Z3PsFjFhpgfFBfht">来源</b>：学习投入←课程进度；理论掌握←模拟/正式理论正确率；实践能力←实操提交与评分；规范遵从←阶段评价 + 协议。</div>
+                  <div class="callout warn" style="margin-top:9px;padding:9px 12px" data-page-node-id="38eTbszzFqoLSeyDB9TuRO"><b data-page-node-id="MET0eEWXr3nQpjOg6SCk3s">安全约束</b>：<code data-page-node-id="RGUI03ht6jiGh7jmOF9i7n">stage_evaluation.visible_scope='ADMIN_ONLY'</code> 的评价<b data-page-node-id="w2XfHYuEfVs0nzb82bpO3r">只在管理端可见</b>，实习生端必须后端过滤。<br data-page-node-id="Hxu4KICgNChJDV7eunEzfR"/>未测评维度显示 <b data-page-node-id="BJfA4YfiZPxK4GwGxkKzWM">--</b>，不得用 0 分占位。</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card c6" data-page-node-id="XsMJru8sIjHOPghsbYcpEH">
+              <div class="card-h" data-page-node-id="Kz70NVj1eaZfmj2Crmo2Wi"><div class="tt" data-page-node-id="mim1k2BwfTXjoClKCOOzTI"><span class="idx" data-page-node-id="oNDlfErrP1G0DqdPmHFYjb">课</span><h3 data-page-node-id="5LC3IMXdvJKve6b8wdjIjg">学习明细</h3></div><span class="hint" data-page-node-id="pEAT3HyZY0uLd0JCKFwYmS">完成率 86%</span></div>
+              <div class="hbar done" data-page-node-id="nxRWZA5MRRs4cPVAUruXv8"><span class="nm" data-page-node-id="KX9Bn7G9KyRFHifEtBNe4B">Java 基础</span><span class="track" data-page-node-id="KFH3Y81gEJRGE7yExUR4N1"><i style="width:100%" data-page-node-id="JxEWMXZHR2gMsP1l38Whoc"></i></span><span class="pc" data-page-node-id="BUsOcGbEgx90gJrv0294dJ">100%</span></div>
+              <div class="hbar done" data-page-node-id="FjzQT0aNTB6uP40W4Fujyj"><span class="nm" data-page-node-id="3xBzYik35V948H5jq0Eh3F">MySQL 实务</span><span class="track" data-page-node-id="wiefQszbF8dvuyUaJE4p5a"><i style="width:100%" data-page-node-id="o9eaAI5ERW3a4F0gIqGB88"></i></span><span class="pc" data-page-node-id="2So3f4SIOSYCpqe8KjPgDf">100%</span></div>
+              <div class="hbar" data-page-node-id="kX0tKevjufwZeFKbv5XcjA"><span class="nm" data-page-node-id="mFpeHTe1xPhh8Z30cOERUR">Spring Boot</span><span class="track" data-page-node-id="duVhKYG9aHPMoJWygFSDJU"><i style="width:70%" data-page-node-id="YHGBziBkBKZYoPGNwGp8MK"></i></span><span class="pc" data-page-node-id="zAy0AozO0wG5A3g11sO5NX">70%</span></div>
+              <div class="hbar low" data-page-node-id="7A9J8KoiatlbGgIwBhuLsU"><span class="nm" data-page-node-id="ObWVjnqzHTakoNcCLoH3Jl">Docker 部署</span><span class="track" data-page-node-id="WY55ipAIXMvitAZQyuVTXG"><i style="width:20%" data-page-node-id="BNDUBW7rXg4qxCnKui8Quo"></i></span><span class="pc" data-page-node-id="g6742HuCywLoyp7UuckkUN">20%</span></div>
+            </div>
+
+            <div class="card c6" data-page-node-id="UzZAfjH2hnIF2yAMBFDR94">
+              <div class="card-h" data-page-node-id="DqH5iiK42FEnYsKEol9hQP"><div class="tt" data-page-node-id="d3ehBBYAHcl62asSXAOBF5"><span class="idx" data-page-node-id="C4wVDpPjUb9CsH3cvJAEHR">考</span><h3 data-page-node-id="IL3J4yoq3OMwvJDCMg2ryo">考核记录</h3></div><span class="hint" data-page-node-id="RRZvF8QTfYHLLAAdOnzqX6">模拟 6 次 · 正式 1 次</span></div>
+              <table class="tbl" data-page-node-id="4kF1EpqJNYIvpHobOpmANW">
+                <thead data-page-node-id="L7GTHtkEJE2XI4VnevlSHc"><tr data-page-node-id="Xgg27a7XxUP2v9snNk0H4p"><th data-page-node-id="RY7IqAUaF4XdbXy7axtkmo">类型</th><th data-page-node-id="gEGxEnAzQjWaYZOPALr51X">场次</th><th data-page-node-id="L8gM9H00HF6YUp8h7NYXab">得分</th><th data-page-node-id="Hs0nRF8GZ1N7uuNozVOQkt">结论</th><th data-page-node-id="QWvSEZ2HfAR93sNrWwdf7e">时间</th></tr></thead>
+                <tbody data-page-node-id="c20kKdJRC6UgUNYdHeR271">
+                  <tr data-page-node-id="biblARunKVQpIqumkXzbE5"><td data-page-node-id="9FgJaz5bCGbT5GMm08hGx3"><span class="badge purple" data-page-node-id="IRP1g6BAhiuYcSHCC8Z9LD">正式</span></td><td data-page-node-id="U9Lez9ie7BVL5M2PMT8sS3">2026Q3 正式考核 v2</td><td class="nm" data-page-node-id="hAT4izzt9tA09t2270eIsu">82.0</td><td data-page-node-id="jniLzEUFC9lUXCcGrflP8M"><span class="badge done" data-page-node-id="GC9YCFFDldh0RxqC1IdVuz">通过</span></td><td class="mut" data-page-node-id="1GqeAhRQQ4aIE1lEj0pt6d">09-14</td></tr>
+                  <tr data-page-node-id="PSFITrLfgISnzKx5KpGNCq"><td data-page-node-id="XBWW3AVYCJN3NfdGg0pWW9"><span class="badge blue" data-page-node-id="zkAOWetGiJiT4Bk20QqSCe">模拟</span></td><td data-page-node-id="l9LOJPWN1WlSWsks9SGmds">随机 10 题自测</td><td data-page-node-id="hAT0XLUYoHjCRHrPHJJmjU">8/10</td><td class="mut" data-page-node-id="PKgcyOFuSGFf0g90GMGEE7">80%</td><td class="mut" data-page-node-id="hAaDrBrLisayarvx0n4xUC">09-10</td></tr>
+                  <tr data-page-node-id="nurvlvISibWEnsEmEEArcu"><td data-page-node-id="vVqONfwfLCNBJWOnQFXkXn"><span class="badge blue" data-page-node-id="Zw1zlZGf85NE0NCuV4bHaa">模拟</span></td><td data-page-node-id="IYdHp2pnU6tPfS6ESqt3hP">随机 10 题自测</td><td data-page-node-id="NgBoE4ZDWDGnt2UE5kZfBU">9/10</td><td class="mut" data-page-node-id="OGDzAYEEWH4gWRP4hiLiTD">90%</td><td class="mut" data-page-node-id="6QCx0sgXv8hj6nbIyTXA31">09-06</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ⑤ 实习转正审核 ============ -->
+  <section class="sec" id="s5" data-page-node-id="J7TEgpPPgXI3KtCKHjy2xF">
+    <div class="sec-head" data-page-node-id="6n2EmgnLzRDSX9Sn1WgRvM"><span class="sec-no" data-page-node-id="oFOJfIEG1sPwrEC1nfBt1a">5</span><h2 data-page-node-id="reME3A0EUDpUB0NBG8gFXj">人员管理 › 实习转正审核</h2><span class="tag blue" data-page-node-id="dnjoZ1iuixxoh3z9cyCPQI">★ 新设计</span><span class="tag red" data-page-node-id="osi871ovzyRIz60tJqCJEW">⚠️ 后端待补</span></div>
+    <p class="sec-desc" data-page-node-id="0X9G4hrhe03FwsZw89N6eO">把"预备实习生"变成"正式实习生"的审批台。左列表 + 右决策页，核心是<b data-page-node-id="K2PR4bgMvDTYNDCaPNdkVM">资格核对清单</b> —— 每项都有明确的数据依据，不靠人肉判断。</p>
+
+    <div class="app" data-page-node-id="atDsSDQ0qFp7r8Pj3ibwZc">
+      <aside class="rail" data-page-node-id="qUyGbmqOxCGNEhoSv86Nqd">
+        <div class="rail-brand" data-page-node-id="WgPcqD4L4IVRFuJDHrWb3u"><i data-page-node-id="u0tw7Cg69uTeDSHQ6GqOaK">教</i><div data-page-node-id="BsPxX2BiptU7payS1B2ECT"><b data-page-node-id="EcZbORAJ32K6h22QqWHA4N">培养管理台</b><span data-page-node-id="p0E2aiGtkFC8tSbCqeCj9D">开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item" data-page-node-id="wdSu4j7WOMYnn4Dsx7ilhr"><span class="ic" data-page-node-id="DoCEMezzLBEazTJ8QPAsqq">▤</span>工作台</div>
+        <div class="rail-item active" data-page-node-id="BlQ1RLpBxK6I2362uFgaZ7"><span class="ic" data-page-node-id="2IFmoifqi4QevHaZVABMjK">◍</span>人员管理<span class="arw" data-page-node-id="49Ri3TCk9olHGFgFCF9QqN">⌄</span></div>
+        <div class="rail-item lv2" data-page-node-id="1RaAZAAYQCLFcsAIHyXpQa"><span class="dot" data-page-node-id="3nSBozNp95GEQQG4aloYSk"></span>注册审核</div>
+        <div class="rail-item lv2" data-page-node-id="uOly6nygdFI5mfUCprDJdR"><span class="dot" data-page-node-id="uyV0U1eWhr60AxDr1FYYq6"></span>实习生管理</div>
+        <div class="rail-item lv2 active" data-page-node-id="7D37Yx0OpHtx3MLHBJGb52"><span class="dot" data-page-node-id="XnoOdqgwmvY9CUp0dnTrAU"></span>实习转正审核<span class="arw" data-page-node-id="SSnLGUFCDsChIuELkb5XF3">3</span></div>
+        <div class="rail-item" data-page-node-id="YDtFZzC9j1swIgVNRojEI4"><span class="ic" data-page-node-id="pWvzZlrUDVFJ3vHE58uSQc">▦</span>学习与考核管理<span class="arw" data-page-node-id="VOb5DdizZ12CBAUGJBidWA">›</span></div>
+        <div class="rail-item" data-page-node-id="DHpeJrhXF23fkegaYnY0Hs"><span class="ic" data-page-node-id="nu3B8r2O9qetU9ObECEanN">✉</span>任务与通知<span class="arw" data-page-node-id="FIg5uzc9Zni8MqqnndVsuc">›</span></div>
+      </aside>
+      <div class="main" data-page-node-id="g95qGB4WSUXGjEEU3hzrAy">
+        <div class="topbar" data-page-node-id="f1F4v5Qj8iDXRNPbRsB84O"><span class="crumb" data-page-node-id="WCPy4EZMsnSXCQL73f8kIY">人员管理 / <b data-page-node-id="fxeYfmbbkwGFxSwzfsEDOF">实习转正审核</b></span><span class="spacer" data-page-node-id="AQGXQEIHojrYXFq883uq19"></span><span class="bell" data-page-node-id="r8ASuBfqpeXuQzzBxLY7un">🔔<i data-page-node-id="9Yr2LEUXV0i6OSLVv88Fx9">6</i></span></div>
+        <div class="body" data-page-node-id="i9f3S7mUA5w6ReLaLW6PjO">
+          <div class="filter" style="margin-top:0" data-page-node-id="H99Acfo7bX4ARdWpEn1sPu">
+            <span class="seg" data-page-node-id="DB0WKhXW9qC4sd1GN8kTDs"><span class="on" data-page-node-id="PT6AWPvHSVcPRDAEuoFrYe">待处理 3</span><span data-page-node-id="ICPK7OLv2B34SEcc8KhfsT">已通过 3</span><span data-page-node-id="a5FMw78aGwVj4BoZHcgJaG">已驳回 1</span></span>
+            <span class="spacer" data-page-node-id="X6WdFaQJejFZUTr5zOP1Io"></span>
+            <span class="sel" data-page-node-id="L5BOTd0Tewr0VqeaCoFGFi">岗位：全部 ⌄</span>
+          </div>
+          <div class="grid" data-page-node-id="eh0U0ccSwu4kbRvZP1F7aY">
+            <div class="card c4" data-page-node-id="BQzoDjdn7f4JEjssn1ioyQ">
+              <div class="card-h" data-page-node-id="sh34LCHu9sEvBkUPAE3gn5"><div class="tt" data-page-node-id="BYQFe1UCFHjCQKv9lpmVTh"><span class="idx o" data-page-node-id="kwO4V4vJtiPwnuUGHgsOV4">待</span><h3 data-page-node-id="tkzfBzGORdwOwX00mU227F">待处理</h3></div></div>
+              <div class="todo" style="border-color:var(--blue-soft-2);background:var(--blue-soft)" data-page-node-id="bSZWFeMhFyS7MEYouS4gl3">
+                <span class="tdot" data-page-node-id="IuVj1EIv9kKx4VJivG1tkf"></span>
+                <div class="tx" data-page-node-id="lz9mdH0HhBLLeVUg6Gkgyc"><b data-page-node-id="m1oK0q9EqTmEre5g8CkPyy">陈子轩 · 开发实习生</b><span data-page-node-id="r47nyBavKdNqBDAIErkEa2">完成率 91% · 正式 88 分 · 协议已签</span></div>
+                <span class="badge done" data-page-node-id="ChF630CstOBDtQWeA9JI4f">资格齐备</span>
+              </div>
+              <div class="todo" style="border-color:var(--blue-soft-2);background:var(--blue-soft)" data-page-node-id="ki6KGAdxRaVv12TpiNMpAJ">
+                <span class="tdot o" data-page-node-id="Lm2RV6oZiZQBWgKmxurDtl"></span>
+                <div class="tx" data-page-node-id="nuNCqqnKMKke77o3bZwr7N"><b data-page-node-id="Hzgo4iFX0vQZJsvAHqEDUA">林知遥 · 开发实习生</b><span data-page-node-id="2xDCKq4aYTE6GbQk20BmWZ">完成率 78% · 正式 74 分 · 协议已签</span></div>
+                <span class="badge orange" data-page-node-id="uI2Yk7FqfTuPxs7W9Au1ki">1 项待补</span>
+              </div>
+              <div class="todo" data-page-node-id="Pd4PpEhuK1F7QtVwdaKZNb">
+                <span class="tdot" data-page-node-id="zql53gfD9PXqB8otthX94p"></span>
+                <div class="tx" data-page-node-id="V0srzntBFxRFFBW7c0kJAj"><b data-page-node-id="fnGJYdioahmjMijmE6M3Ch">吴柏舟 · 开发实习生</b><span data-page-node-id="qsFEaHxldb3xFSGHPLiS14">完成率 66% · 正式 通过 · 协议已签</span></div>
+                <span class="badge red" data-page-node-id="B0vlH39mHqz5rQccIDFQev">未达门槛</span>
+              </div>
+              <div class="note" data-page-node-id="hHE9u8eRi0iYQixIgNEIdD">列表行显示「资格齐备 / N 项待补 / 未达门槛」，让管理员一眼知道要不要点进去。</div>
+            </div>
+
+            <div class="card c8" data-page-node-id="isTCLTIKy2ywFmNpApQwBT">
+              <div class="card-h" data-page-node-id="bIUwyEQp9UnkHRUHWguLYs"><div class="tt" data-page-node-id="1wd1F1m258J5pvH9XQTtGM"><span class="idx" data-page-node-id="AZl3Vb6IZyTHpEUdUl9wzO">审</span><h3 data-page-node-id="Z6KMdB7A6O5C5i5bh6AC9m">审核详情 · 陈子轩</h3></div><span class="hint" data-page-node-id="348BXjbazSesKF6fcXREB1">提交时间 2026-09-16 15:02</span></div>
+
+              <div class="callout ok" style="margin-bottom:12px" data-page-node-id="NyWEHAICtTwIPwXhiXe6cM"><b data-page-node-id="htLtm8lwi3PzrgkicWQMXs">资格核对清单</b> · 4 项全部通过，可直接审批转正（<b>部门终审即生效</b>）</div>
+              <div class="grid2" style="margin-bottom:12px" data-page-node-id="deZKnkbHPsXmUOonIPYfJk">
+                <div class="chk" data-page-node-id="QTgrfZH5Bu7ialVjAd0zMb"><span class="box sw" data-page-node-id="b59dOQ0ArUgJBKYBjnN4uA">✓</span>学习完成率 <b style="color:var(--ink)" data-page-node-id="nozS22P5FawcJVjtg0dQMa">91%</b> ≥ 门槛 70%</div>
+                <div class="chk" data-page-node-id="jZUq0uJrD17NjMb6EMys7d"><span class="box sw" data-page-node-id="eG1F3EwTK8TaiYubEkYmSg">✓</span>正式考核已通过（理论 88 · 实操 85 · 综合 86.5）</div>
+                <div class="chk" data-page-node-id="OAc2OQ88wAG2rNzbwYjnDx"><span class="box sw" data-page-node-id="ctQkh59PptcTjh2QL5XA1r">✓</span>保密协议已签署（2026-06-15 13:20）</div>
+                <div class="chk" data-page-node-id="J4hsna2wFxZiAergMBKyab"><span class="box sw" data-page-node-id="jUG1soUfB5eTudHdSb7K17">✓</span>无未完成必修项（4/4 门已完成）</div>
+              </div>
+
+              <div class="grid" style="gap:11px" data-page-node-id="oAxbTnJEanZtmPoNnXhtoU">
+                <div class="kv c6" style="grid-template-columns:repeat(2,1fr)" data-page-node-id="fSTdSrcWv9VziTnbk5kC0l">
+                  <div class="it" data-page-node-id="qkGjAYBgRLVbz2ZoEo2Ti6"><span data-page-node-id="2BPdPhLqYRvZnQCGgBx7dQ">理论分</span><b data-page-node-id="UMBF3sOakDYEPn5riga8AH">88.0 <small data-page-node-id="IES2hEnaFxBNmdEEv5qjvs">/ 100</small></b></div>
+                  <div class="it" data-page-node-id="tFplaKzkeWQdIFVTS9ZeDt"><span data-page-node-id="PTaCfqmLhpOpxWgbOUNDLN">实操分</span><b data-page-node-id="VeFk24JkEwsOvOPKLs1Y4r">85.0 <small data-page-node-id="pESHTKonC8hYPQ1Adjnqpc">/ 100</small></b></div>
+                  <div class="it" data-page-node-id="udyxTha2putbcrgXs8pAoI"><span data-page-node-id="hCynuUcsm8ic1TVQ8j10S3">加权综合分</span><b data-page-node-id="JmRsmTFCmZ8t5TDB2HzFKp">86.5 <small data-page-node-id="t6oUm9ciHfxaymZkGZLaLT">理论60% 实操40%</small></b></div>
+                  <div class="it" data-page-node-id="lbtClhifkga5cCF5vSQtco"><span data-page-node-id="81E0GjeFPVFpjrd82aWYEx">通过线</span><b style="color:#067647" data-page-node-id="F012cbAIzutnYMxJQMWqtE">≥ 70 · 已过</b></div>
+                </div>
+                <div class="c6" data-page-node-id="NACBUctDmXLM8hsNQv8Nj8">
+                  <div class="hbar" data-page-node-id="f8Rbc0wVt4ByKNDll0JPYP"><span class="nm" data-page-node-id="LUEslLMFFMGp7GthHjepbZ">学习投入</span><span class="track" data-page-node-id="h0uwKheHkdAwMwyKi7K4R8"><i style="width:91%" data-page-node-id="sCtHqEbTC4s2Wu73vIlO9R"></i></span><span class="pc" data-page-node-id="fBIKkOEXXyrLRd6gF9dDdX">91</span></div>
+                  <div class="hbar" data-page-node-id="KrjSL6zHI93tAGqAcHJEXi"><span class="nm" data-page-node-id="KdTed6hhNBZrtyMvBDPMTT">理论掌握</span><span class="track" data-page-node-id="hwQ9sKVtuksWK0MixYRCwF"><i class="g" style="width:88%" data-page-node-id="3nSmsPRcnFGmMh7BGQmPyZ"></i></span><span class="pc" data-page-node-id="NNgXGe5Y2pA4rhCuwVC7IK">88</span></div>
+                  <div class="hbar" data-page-node-id="EaSL2Ps3tbh9NC6t3mihzB"><span class="nm" data-page-node-id="kqA7Fy2xRTQy59wREI8rWk">实践能力</span><span class="track" data-page-node-id="oHyIegP1W7Agfp8lUg8TSE"><i style="width:85%" data-page-node-id="SbL00HBCnnjzUVA76MjObg"></i></span><span class="pc" data-page-node-id="Rku1I48HqwtIHnHu91wZkL">85</span></div>
+                  <div class="hbar" data-page-node-id="rk97y8FMfFmY7D4qHcS2rl"><span class="nm" data-page-node-id="tB4GeBVeXdNDybnRs0M59z">规范遵从</span><span class="track" data-page-node-id="riXCy1PCpF7A9j1bu05jLE"><i style="width:82%" data-page-node-id="Dked4MWjN7zAPl9DT676nh"></i></span><span class="pc" data-page-node-id="0G5YFf7BrPP9LoxvFR7f2p">82</span></div>
+                </div>
+              </div>
+
+              <div class="field" style="margin-top:13px" data-page-node-id="NPVYSWiYFaX9WBQGhFDyzj"><label data-page-node-id="63QVDVyG6ZtGQW0dQnNY8d">部门管理员评价 · 优势</label><div class="inp ta" data-page-node-id="MUSp3P7O2i11Igx7C8RWhd">代码规范意识强，Spring Boot 掌握扎实，能独立完成模块联调。</div></div>
+              <div class="field" style="margin-top:10px" data-page-node-id="kd9ypuq843H4FbgVwPyFwn"><label data-page-node-id="rZF3QMSVf99RxcXYrTvqaA">待提升 / 改进建议</label><div class="inp ta" data-page-node-id="zLqqHl7NuYhDPwBcO4XWSG">Docker 部署环节偏弱（该知识点错误率 42%），建议转正后继续补。整体建议予以转正。</div></div>
+
+              <div class="card flat" style="margin-top:13px" data-page-node-id="RbqmDukoaxc3nv87jGNe7E">
+                <div class="flow" data-page-node-id="Ei7Pr9c1SCrhTDwPAAvmht">
+                  <span class="nd" data-page-node-id="nqOD1hIs19odRSHt2ZvCSJ">DEPT_PENDING 待部门审核</span><span class="ar" data-page-node-id="33tHivXOllqfkRaHMpdbTa">→</span>
+                  <span class="nd on" data-page-node-id="PkdjGWeomCLkHisO6mJoo3">PASSED 部门审批通过</span><span class="ar" data-page-node-id="dCaP3ZsDVvqCjde5TbfLyU">→</span>
+                  <span class="nd" data-page-node-id="MrqrvXFuVVSy1nLdsHIi7t">自动发证 · 转 FORMAL_TRAINEE</span>
+                </div>
+                <div class="note" data-page-node-id="nyRFjnxwM80oQL4yuafvBQ">驳回可重新提交。<b>本决策下 <code data-page-node-id="CCT5TdPktIbzWJvCLnqSRp">SUPER_PENDING</code>（超管终审）被跳过</b>，审批即时生效：证书由 <code>certificate</code> 生成，<code>sys_user.user_status</code> 直接置为 <code>FORMAL_TRAINEE</code>，实习生端工作台底部证书标签随之点亮。</div>
+              </div>
+
+              <div class="btn-row" style="margin-top:13px;justify-content:flex-end" data-page-node-id="B8X8UJJvRc2NNbCnouhJ2a">
+                <span class="btn" data-page-node-id="xBQgCDG4kY5tPtyq7DEjuF">驳回并说明原因</span>
+                <span class="btn primary" data-page-node-id="XeQTm9HqlpUtHzbuwvymXE">审批通过 · 即时生效并发证</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout ok" style="margin-top:13px">
+            <b>✅ 已按你的决策改写：部门管理员直接终审。</b>本页<b>不再有「推荐给超管」这一步</b>，按钮语义从「推荐」改为「审批通过」，审批即时生效并自动发证。
+          </div>
+
+          <div class="grid" style="margin-top:10px">
+            <div class="card c8">
+              <div class="card-h"><div class="tt"><span class="idx o">配</span><h3>本决策必须配套的 4 项改动</h3></div><span class="hint">否则会「有入口、审不了」</span></div>
+              <table class="tbl">
+                <thead><tr><th style="width:26px">#</th><th style="width:250px">改动</th><th>原因 / 做法</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td class="nm">状态机跳过 <code>SUPER_PENDING</code></td><td><code>DEPT_PENDING → PASSED / REJECTED</code>；<code>super_approve_by/time</code> 两列保留不写（留给超管代操作留痕）</td></tr>
+                  <tr><td>2</td><td class="nm"><code>sys_user.user_status</code> 驱动方下沉</td><td>审批通过时由 Service 直接置 <code>FORMAL_TRAINEE</code>，<b>不再等超管</b>；同时落证 + 回写 <code>cert_no</code></td></tr>
+                  <tr><td>3</td><td class="nm">为 <code>DEPT_ADMIN</code> 补转正审批权限</td><td>现有权限里没有这项 → 新增菜单 + 角色授权（与 ① 菜单迁移合并做）</td></tr>
+                  <tr><td>4</td><td class="nm">保留纠错路径 ★</td><td><code>operate_log</code> 留痕 + 超管「撤回转正」（退回 <code>PRE_TRAINEE</code> + 证书作废）</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card c4">
+              <div class="card-h"><div class="tt"><span class="idx p">规</span><h3>规则与超管端影响</h3></div></div>
+              <div class="callout warn" style="margin-bottom:10px">
+                <b>⚠️ 业务规则变更</b>：原需求「预备→正式需通过正式考试<b>并经超管审批</b>」在本决策下<b>作废</b>，改为「部门审批即生效」。请同步改需求文档，否则验收会与文档冲突。
+              </div>
+              <div class="callout warn">
+                <b>⚠️ 超管端设计稿失效</b>：原画了「超管终审」环节，需删除，只留「查看 + 撤回转正」。详见 <a href="#s12" style="color:var(--blue)">⑫ 落地影响</a>。
+              </div>
+              <div class="note">💡 好消息：<code>promotion_application</code> / <code>certificate</code> / <code>stage_evaluation</code> <b>全部零 Java 层</b>，整套都是新增 —— <b>不受「已实现接口一律不改」约束</b>，也没有改老代码的回归风险。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============ ⑥ 题库管理 ============ -->
+  <section class="sec" id="s6">
+    <div class="sec-head"><span class="sec-no">6</span><h2>学习与考核管理 › 题库管理（拆多库）</h2><span class="tag blue">★ 按知识点模块拆库</span><span class="tag red">⚠️ 有硬约束</span></div>
+    <p class="sec-desc">
+      按你的决策：<b>每个知识点模块一个独立题库</b>。题库组织形态从「每部门 × 类型 2 套」变成「N 个模块库 + 1 个综合库」。
+      <b>这个改动有三条硬约束</b>，其中第一条会让模拟考核直接坏掉，第三条决定拆库后能不能真出卷。逐条见下。
+    </p>
+
+    <div class="grid" style="margin-bottom:14px">
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx o">1</span><h3>约束一 · 模拟考核会"随机命中一个模块"</h3></div><span class="badge red">会坏</span></div>
+        <div class="callout warn" style="margin-bottom:10px">
+          <code>QuestionBankMapper.xml:87</code> 的真实 SQL：<br/>
+          <code>WHERE bank_type='PRACTICE' AND dept_id=? LIMIT 1</code> —— <b>没有 ORDER BY</b>。
+          调用点唯一（<code>PracticeServiceImpl:59</code>）。
+        </div>
+        <div class="note">今天每部门<b>恰好只有 1 条</b> PRACTICE 库（实测 103/104/105/106/107 各 1 条），所以看不出问题。
+          一旦拆成多个模块库，实习生每次点「开始模拟考核」<b>抽到的模块不可预期</b>。</div>
+        <div class="callout ok" style="margin-top:10px">
+          <b>✅ 解法：模块库与"模拟入口库"分离。</b>每部门<b>保留且仅保留 1 条</b> <code>PRACTICE</code> 综合库（整条不动），
+          所有模块库用新类型 <code>bank_type='MODULE'</code>。`LIMIT 1` 因唯一而重新确定 → <b>模拟考核零影响</b>。
+        </div>
+      </div>
+
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx o">2</span><h3>约束二 · 拆多库 ≠ 跨模块出卷</h3></div><span class="badge orange">需补能力</span></div>
+        <div class="callout warn" style="margin-bottom:10px">
+          三条抽题 SQL <b>全部是单库</b>（<code>AND q.bank_id = #{bankId}</code>）：
+          <code>selectQuestionsForExam</code>（模拟）、<code>selectQuestionsByType</code>（正式）、<code>selectSubjectQuestions</code>（实操）。
+          正式考核的绑定也是<b>单个字段</b> <code>exam.bank_id</code>。
+        </div>
+        <div class="note">→ <b>拆库只改变"题目怎么归堆"，不会让一份卷自动覆盖多个模块。</b></div>
+        <div class="callout ok" style="margin-top:10px">
+          <b>✅ 解法：正式考核理论卷走「组卷」。</b>管理员选 N 个模块库 + 每模块抽几题 →
+          抽题结果<b>快照</b>写入 <code>exam_paper_question</code>（该表<b>已建好、零 Java 层</b>，字段含 <code>exam_id/seq/qtype/stem/options_json/answer/score</code>）。
+          <br/>副带收益：现在每次 <code>ORDER BY RAND()</code> 抽题<b>不存卷</b>，成绩复盘无法还原题面 —— 组卷快照一次解决。
+        </div>
+      </div>
+
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx o">3</span><h3>约束三 · 题量摊到模块后不够抽</h3></div><span class="badge red">需补题</span></div>
+        <div class="callout warn" style="margin-bottom:10px">
+          实测 <code>question.knowledge_point</code> 的<b>真实分布</b>（不是估算）：
+        </div>
+        <table class="tbl" style="margin-bottom:10px">
+          <thead><tr><th>部门</th><th>正式库</th><th>模块数</th><th>平均题量</th></tr></thead>
+          <tbody>
+            <tr><td>开发 104</td><td>24 题</td><td>14 类</td><td><b class="mut">1.7 题</b></td></tr>
+            <tr><td>设计 105</td><td>48 题</td><td>17 类</td><td><b class="mut">2.8 题</b></td></tr>
+            <tr><td>交付 103 / 质检 106 / 建模 107</td><td><b>0 题</b></td><td>—</td><td><b class="mut">0</b></td></tr>
+          </tbody>
+        </table>
+        <div class="note">拆库后开发部门的模块库会是「Docker 3 题 / Redis 2 题 / Java 1 题 …」。
+          而模拟考核固定 <code>LIMIT 10</code>、正式理论按 <code>single_count/multi_count/judge_count</code> 抽 ——
+          <b>单模块库抽不满，卷面会变短甚至是空卷</b>。</div>
+        <div class="callout warn" style="margin-top:10px">
+          <b>⚠️ 数据前置条件</b>：每模块题量需补到 <b>≥ 15 题</b>（够 10 题模拟 + 15 题正式）。
+          <b>17 模块 × 15 题 ≈ 255 题/部门</b>；三个部门从 0 开始。
+          <br/><b>这是本次工程量最大的一项，且属业务出题工作，改代码解决不了。</b>
+        </div>
+      </div>
+    </div>
+
+    <p class="sec-desc" style="margin:0 0 12px 0"><b>↓ 主视图：模块库列表</b>（不再是"左树右表"，因为每个模块现在是一个真实题库）</p>
+
+    <div class="app">
+      <aside class="rail">
+        <div class="rail-brand"><i>教</i><div><b>培养管理台</b><span>开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item"><span class="ic">▤</span>工作台</div>
+        <div class="rail-item"><span class="ic">◍</span>人员管理<span class="arw">›</span></div>
+        <div class="rail-item active"><span class="ic">▦</span>学习与考核管理<span class="arw">⌄</span></div>
+        <div class="rail-item lv2"><span class="dot"></span>课程管理</div>
+        <div class="rail-item lv2 active"><span class="dot"></span>题库管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>模拟备考管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>正式考核管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>成绩管理</div>
+        <div class="rail-item"><span class="ic">✉</span>任务与通知<span class="arw">›</span></div>
+      </aside>
+      <div class="main">
+        <div class="topbar"><span class="crumb">学习与考核管理 / <b>题库管理</b></span><span class="spacer"></span><span class="btn sm">导出模板</span><span class="btn sm">Excel 导入</span><span class="btn sm primary">＋ 新建模块库</span></div>
+        <div class="body">
+          <div class="card" style="margin-bottom:13px">
+            <div class="filter" style="margin:0">
+              <span class="seg"><span class="on">全部 19</span><span>综合库 2</span><span>模块库 17</span><span>正式库 0</span></span>
+              <span class="sel">状态：启用 ⌄</span>
+              <span class="spacer"></span>
+              <span class="badge orange">⚠️ 11 个模块题量不足 15</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><div class="tt"><span class="idx">库</span><h3>开发部门 · 题库列表</h3></div><span class="hint">综合库保持不变，模块库为本次新增</span></div>
+            <table class="tbl">
+              <thead><tr><th style="width:200px">库名</th><th style="width:82px">类型</th><th style="width:96px">知识点模块</th><th style="width:56px">题量</th><th style="width:132px">题型分布</th><th style="width:120px">题量健康度</th><th style="width:64px">状态</th><th style="width:150px">操作</th></tr></thead>
+              <tbody>
+                <tr style="background:var(--blue-soft)">
+                  <td class="nm">开发部门模拟题库</td>
+                  <td><span class="badge blue">PRACTICE</span></td>
+                  <td class="mut">—（综合）</td><td>24</td><td>单 10 · 多 8 · 判 6</td>
+                  <td><span class="badge done">充足</span></td><td><span class="badge done">启用</span></td>
+                  <td class="op">进入管题<i>|</i>编辑</td>
+                </tr>
+                <tr>
+                  <td class="nm">开发·DIX脚本模块库</td>
+                  <td><span class="badge purple">MODULE</span></td><td>DIX脚本</td><td>4</td><td>单 2 · 多 1 · 判 1</td>
+                  <td><span class="badge orange">缺题（需 15）</span></td><td><span class="badge done">启用</span></td>
+                  <td class="op">进入管题<i>|</i>编辑<i>|</i>停用</td>
+                </tr>
+                <tr>
+                  <td class="nm">开发·Docker 模块库</td>
+                  <td><span class="badge purple">MODULE</span></td><td>Docker</td><td>3</td><td>单 2 · 多 1 · 判 0</td>
+                  <td><span class="badge orange">缺题（需 15）</span></td><td><span class="badge done">启用</span></td>
+                  <td class="op">进入管题<i>|</i>编辑<i>|</i>停用</td>
+                </tr>
+                <tr>
+                  <td class="nm">开发·nginx 模块库</td>
+                  <td><span class="badge purple">MODULE</span></td><td>nginx</td><td>3</td><td>单 2 · 多 1 · 判 0</td>
+                  <td><span class="badge orange">缺题（需 15）</span></td><td><span class="badge done">启用</span></td>
+                  <td class="op">进入管题<i>|</i>编辑<i>|</i>停用</td>
+                </tr>
+                <tr>
+                  <td class="nm">开发·Java 模块库</td>
+                  <td><span class="badge purple">MODULE</span></td><td>Java</td><td>1</td><td>单 1 · 多 0 · 判 0</td>
+                  <td><span class="badge red">严重不足</span></td><td><span class="badge done">启用</span></td>
+                  <td class="op">进入管题<i>|</i>编辑<i>|</i>停用</td>
+                </tr>
+                <tr>
+                  <td class="nm">开发·Redis 模块库</td>
+                  <td><span class="badge purple">MODULE</span></td><td>Redis</td><td>2</td><td>单 1 · 多 1 · 判 0</td>
+                  <td><span class="badge red">严重不足</span></td><td><span class="badge done">启用</span></td>
+                  <td class="op">进入管题<i>|</i>编辑<i>|</i>停用</td>
+                </tr>
+                <tr>
+                  <td class="nm">开发部门正式题库（空壳）</td>
+                  <td><span class="badge">FORMAL</span></td><td class="mut">已拆空</td><td>0</td><td>—</td>
+                  <td><span class="badge">—</span></td><td><span class="badge">保留</span></td>
+                  <td class="op">删除</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="note">
+              <b>空壳 FORMAL 库建议保留不删</b>：① <code>exam.bank_id</code> 可能已有历史值指向它；② 有些查询按 <code>bank_type='FORMAL'</code> 找题库，删了会改变行为。删前先 <code>SELECT COUNT(*) FROM exam WHERE bank_id=&lt;id&gt;</code> 确认无引用。
+            </div>
+            <div class="callout warn" style="margin-top:11px">
+              <b>上线前自检</b>（期望返回 <b>0 行</b>，非 0 就是拆坏了 —— 模拟考核会随机命中）：
+              <div style="margin-top:6px"><code>SELECT dept_id, COUNT(*) c FROM question_bank WHERE deleted=0 AND bank_type='PRACTICE' GROUP BY dept_id HAVING c &lt;&gt; 1;</code></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="sec-desc" style="margin:18px 0 12px 0"><b>↓ 点「进入管题」：模块库内的题目表</b>（与现有题库管理页同构，改动最小）</p>
+
+    <div class="app">
+      <aside class="rail">
+        <div class="rail-brand"><i>教</i><div><b>培养管理台</b><span>开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item"><span class="ic">▤</span>工作台</div>
+        <div class="rail-item"><span class="ic">◍</span>人员管理<span class="arw">›</span></div>
+        <div class="rail-item active"><span class="ic">▦</span>学习与考核管理<span class="arw">⌄</span></div>
+        <div class="rail-item lv2"><span class="dot"></span>课程管理</div>
+        <div class="rail-item lv2 active"><span class="dot"></span>题库管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>模拟备考管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>正式考核管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>成绩管理</div>
+        <div class="rail-item"><span class="ic">✉</span>任务与通知<span class="arw">›</span></div>
+      </aside>
+      <div class="main">
+        <div class="topbar"><span class="crumb">题库管理 / <b>开发·Java 模块库</b></span><span class="badge orange">仅 1 题</span><span class="spacer"></span><span class="btn sm">导出模板</span><span class="btn sm primary">Excel 导入</span></div>
+        <div class="body">
+          <div class="grid" style="margin-bottom:13px">
+            <div class="kpi c3"><div class="lb"><span class="d"></span>本模块题量</div><div class="vl">1<small>题</small></div><div class="ft warn">最低需 15 题</div></div>
+            <div class="kpi c3"><div class="lb"><span class="d" style="background:var(--purple)"></span>知识点</div><div class="vl">Java</div><div class="ft">模块：Java</div></div>
+            <div class="kpi c3"><div class="lb"><span class="d" style="background:var(--orange)"></span>题型覆盖</div><div class="vl">1<small>种</small></div><div class="ft warn">缺多选 / 判断</div></div>
+            <div class="kpi c3"><div class="lb"><span class="d" style="background:var(--green)"></span>引用情况</div><div class="vl">2<small>场</small></div><div class="ft">被 2 个正式考核引用</div></div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><div class="tt"><span class="idx">题</span><h3>题目列表 · Java 模块库</h3></div>
+              <span class="btn-row"><span class="btn sm">批量移动模块</span><span class="btn sm">批量停用</span><span class="btn sm primary">＋ 新增题目</span></span>
+            </div>
+            <table class="tbl">
+              <thead><tr><th style="width:76px">题号</th><th style="width:66px">题型</th><th>题干摘要</th><th style="width:56px">难度</th><th style="width:52px">分值</th><th style="width:58px">状态</th><th style="width:84px">操作</th></tr></thead>
+              <tbody>
+                <tr><td class="mut">DEV-J-001</td><td><span class="badge blue">单选</span></td><td>以下关于 HashMap 的说法正确的是…</td><td><span class="badge">易</span></td><td>2.0</td><td><span class="badge done">启用</span></td><td class="op">编辑<i>|</i>删除</td></tr>
+                <tr><td class="mut">DEV-J-002</td><td><span class="badge blue">单选</span></td><td>JVM 内存模型中被所有线程共享的区域是…</td><td><span class="badge orange">中</span></td><td>2.0</td><td><span class="badge done">启用</span></td><td class="op">编辑<i>|</i>删除</td></tr>
+                <tr><td class="mut">DEV-J-003</td><td><span class="badge purple">多选</span></td><td>关于 Java 异常处理，下列说法正确的有…</td><td><span class="badge orange">中</span></td><td>3.0</td><td><span class="badge done">启用</span></td><td class="op">编辑<i>|</i>删除</td></tr>
+                <tr><td class="mut">DEV-J-004</td><td><span class="badge">判断</span></td><td>String 是基本数据类型。</td><td><span class="badge">易</span></td><td>1.0</td><td><span class="badge">停用</span></td><td class="op">编辑<i>|</i>删除</td></tr>
+              </tbody>
+            </table>
+            <div class="note"><b>Excel 导入 / 导出模板沿用现有接口</b>（<code>/business/question/import/{bankId}</code> 与模板下载均已实现），所以「按模块批量补题」这条路是通的 —— 建议按模块分别导入，导入时自动落到当前模块库。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-h"><div class="tt"><span class="idx g">解</span><h3>拆多库的落地三步（可直接执行）</h3></div><span class="hint">详细 SQL 见方案文档 §7.1 / §7.2</span></div>
+      <div class="grid">
+        <div class="card c4 flat">
+          <div class="card-h"><div class="tt"><span class="idx">①</span><h3>题库表加模块标识</h3></div><span class="badge done">破坏性 无</span></div>
+          <div class="note"><code>question_bank</code> 幂等新增 <code>knowledge_module VARCHAR(64)</code>；<code>bank_type</code> 新增取值 <b>MODULE</b>（现有 <code>FORMAL</code> / <code>PRACTICE</code> 不变，是自由 VARCHAR，无需 DDL）。</div>
+          <div class="callout ok" style="margin-top:9px">已核查：现有代码只按<b>单个</b> <code>bank_type</code> 取值过滤，<b>没有 <code>IN ('FORMAL','PRACTICE')</code> 硬编码</b> → 新增取值安全。</div>
+        </div>
+        <div class="card c4 flat">
+          <div class="card-h"><div class="tt"><span class="idx">②</span><h3>保住模拟考核</h3></div><span class="badge done">破坏性 无</span></div>
+          <div class="note">保留<b>每部门 1 条</b> <code>PRACTICE</code> 综合库（题目也不动）；模块库用 <code>MODULE</code>。原 <code>FORMAL</code> 库的题搬进模块库后留空壳。</div>
+          <div class="callout ok" style="margin-top:9px">结果：模拟考核仍从综合库随机抽 10 题，<b>行为与今天完全一致</b>。</div>
+        </div>
+        <div class="card c4 flat">
+          <div class="card-h"><div class="tt"><span class="idx">③</span><h3>跨模块组卷</h3></div><span class="badge orange">新增</span></div>
+          <div class="note">正式考核理论卷改为<b>组卷</b>：选 N 个模块库 + 每模块抽几题 → 快照写 <code>exam_paper_question</code>。</div>
+          <div class="callout warn" style="margin-top:9px"><b>这是拆多库的完成前提</b>：只拆库不组卷，正式考核会退化成「只能考单个模块」。</div>
+        </div>
+      </div>
+      <div class="note" style="margin-top:12px">
+        <b>唯一需要你单独确认的一点</b>：拆库后「模拟考核」是否也要按模块练习？
+        <b>要</b> → 需给 <code>/business/practice/start</code> 加<b>可选</b> <code>bankId</code>（不传走原逻辑，向后兼容）；
+        <b>不要</b> → 严格零后端改动。
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ⑦ 模拟备考管理 ============ -->
+  <section class="sec" id="s7" data-page-node-id="eASc3tVZ3fy3TMyouuqkkd">
+    <div class="sec-head" data-page-node-id="Y2aoAaPADq7KfyGibq9B2D"><span class="sec-no" data-page-node-id="xmfl2AXCBVDjSVXPVaoG3a">7</span><h2 data-page-node-id="C36kfHzREpM6V24sSUTYQ2">学习与考核管理 › 模拟备考管理</h2><span class="tag purple" data-page-node-id="hrNCQ9MKHdlbhfMEKN4mJ6">页签壳 · 3 页签</span></div>
+    <p class="sec-desc" data-page-node-id="TAPq8x2ej2OBtIpSjHTGK1">沿用实习生端 <code data-page-node-id="Rb1ZPTshPWrUiotTtRx9ZK">learning/shell.vue</code> 的页签壳做法：侧栏一项，模块内 3 个页签（<b data-page-node-id="sdTTWFXFjaFLCu0jC3tK4k">备考资料 / 模拟理论考核配置 / 实操题库</b>）。下方展示「备考资料」与「模拟理论考核配置」两个页签。</p>
+
+    <div class="app" data-page-node-id="8XOI0duwguZNYjjI0Vlj6q">
+      <aside class="rail" data-page-node-id="1XEsxarQkDLijzjn80RV6s">
+        <div class="rail-brand" data-page-node-id="XanEACYCfD8jMTBzCHGphS"><i data-page-node-id="lEH4qSkMNuFHAscA46zW8a">教</i><div data-page-node-id="Th8xXYKN9RtGwWeDCkET99"><b data-page-node-id="FxhYzmWFeLotDlP0ifl9GG">培养管理台</b><span data-page-node-id="IlsL4cUDFGFg3qXhb77gfT">开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item" data-page-node-id="XkUFHqT6UIc8UM43oZZEFF"><span class="ic" data-page-node-id="PpJHHAAss5te9YIZTEkiFB">▤</span>工作台</div>
+        <div class="rail-item" data-page-node-id="EW98QRcPHWixRHZ78vi7Ro"><span class="ic" data-page-node-id="GElmN4y5oBOq2A7bMJDXN2">◍</span>人员管理<span class="arw" data-page-node-id="HTUA4BQozJaJG7KNgh6nX4">›</span></div>
+        <div class="rail-item active" data-page-node-id="v7k3lDx3Bo5PM99CBksZhN"><span class="ic" data-page-node-id="TQCY8ZF8hSt97Aglue9bDV">▦</span>学习与考核管理<span class="arw" data-page-node-id="o1rdgxEyyhBMALZEh6WzE4">⌄</span></div>
+        <div class="rail-item lv2" data-page-node-id="1beoZoUxbZMoOdOVwfKwoQ"><span class="dot" data-page-node-id="NAc7kld9AVdDGA24OTlYI3"></span>课程管理</div>
+        <div class="rail-item lv2" data-page-node-id="0Vna31VWioQUcgKkkQP7rC"><span class="dot" data-page-node-id="yqjTfKUYsaJ8X54OiLH4ZF"></span>题库管理</div>
+        <div class="rail-item lv2 active" data-page-node-id="j2gIHKyIqWsPYJHiPdDC7B"><span class="dot" data-page-node-id="Awd86wYUeBP9rV2d6l55DM"></span>模拟备考管理</div>
+        <div class="rail-item lv2" data-page-node-id="LujwwMrg9llFOqFlNJLDmH"><span class="dot" data-page-node-id="2hBFHzEGtJG4u11aonb4oQ"></span>正式考核管理</div>
+        <div class="rail-item lv2" data-page-node-id="xwnklrQMbVJlobvSEYiSii"><span class="dot" data-page-node-id="2z4NHlgRAqwPFyq6jmnRDR"></span>成绩管理</div>
+        <div class="rail-item" data-page-node-id="2yeCMJJIjZGMS8Jb7vHgIA"><span class="ic" data-page-node-id="193EeTKReYFemKTAMMoKZb">✉</span>任务与通知<span class="arw" data-page-node-id="RAApgQjPACNEyygpG1Cy1y">›</span></div>
+      </aside>
+      <div class="main" data-page-node-id="39rKAPCGuFf7yzM7yXzprh">
+        <div class="topbar" data-page-node-id="H9DaXM5qIrEzJQRBHkGHzr"><span class="crumb" data-page-node-id="0EmSEKsn31pIjC9tnjworr">学习与考核管理 / <b data-page-node-id="JRI8uXUXoCfXQ2l2BVsUtu">模拟备考管理</b></span><span class="spacer" data-page-node-id="9ktYzJ39iCqwnZBE8ivQ54"></span><span class="badge orange" data-page-node-id="1XRRgyV1ZCYc2XoW4tsCVD">备考资料为示例数据</span></div>
+        <div class="body" data-page-node-id="hx4besJYE9KNHkUjfhDce9">
+          <div class="tabs" style="margin-top:0" data-page-node-id="i3iWmol0ZsNhtKTd7EoWwi"><span class="tab active" data-page-node-id="YBe5NUiEpfLV34ZjWVsjVG">备考资料 <span class="n" data-page-node-id="bKbwJqzcDDctQg0G4VTOoh">4</span></span><span class="tab" data-page-node-id="mPkk9dTX8TsXhB6cD7K0ub">模拟理论考核配置</span><span class="tab" data-page-node-id="JbfqDK6dnEV53OsKV2haXC">实操题库 <span class="n" data-page-node-id="tZaPxujjZxu3AV58tLCtmA">12</span></span></div>
+
+          <div class="grid" data-page-node-id="N5I0GzanoW9J1QkBlBYai5">
+            <div class="card c5" data-page-node-id="3TPcVPvRlOO8tZMFYyqsnE">
+              <div class="card-h" data-page-node-id="CvDaJA2iTM2GULu1F4YIfC"><div class="tt" data-page-node-id="acABtBjiWxPWbXlA0Prwvq"><span class="idx" data-page-node-id="a4vJaFGjSNy4jF9jY02lXY">传</span><h3 data-page-node-id="0W6GrTsadCj3CHp7Ll7B95">上传资料</h3></div></div>
+              <div class="drop" data-page-node-id="DdBxVvZGL2myQSF0qtgKPk"><b data-page-node-id="B8nWxWgiIXF6Y7DF2vKLR8">拖拽文件到此处，或点击选择</b><span data-page-node-id="Is9SjSl9tMXxavddBiNXyF">支持 PDF / Word / PPT / 视频 / 图片 / 压缩包</span></div>
+              <div class="fg2" style="margin-top:12px" data-page-node-id="86Io2IUrg9Kvbqp2bcrOrC">
+                <div class="field" data-page-node-id="QMpowyEIznW37YeojkEjwz"><label data-page-node-id="F7a5IWt9FnCID5006E4Dkb">资料名称 <b data-page-node-id="AvGaDuoqyI6DoGEJXBaGAa">*</b></label><div class="inp" data-page-node-id="PeEcjYPvdDxPpejgd3bxpz">2026Q3 考试指南</div></div>
+                <div class="field" data-page-node-id="0Joly1ZYuCr5EkcpHd108u"><label data-page-node-id="LEFuC4psg3RwhgJK4ZZsFp">资料类型</label><div class="inp" data-page-node-id="AFFCpE3rvBbz7U72g4DErr">文档 DOCUMENT ⌄</div></div>
+                <div class="field" data-page-node-id="U6CDengcBAVu8OAxuWOEUP"><label data-page-node-id="KE1IdwVhe8DkvsZvHrNDfa">适用岗位</label><div class="inp" data-page-node-id="wyxjbublMhCYxjtyLj2QUb">开发实习生 ⌄</div></div>
+                <div class="field" data-page-node-id="Mg4R1RrE6lZ4n4YhCqMgVt"><label data-page-node-id="Sx85wgNZDQZO0hcYFEwP7R">版本号</label><div class="inp" data-page-node-id="NHPICT1tskHnL8LwoMvnnO">v1.0</div></div>
+              </div>
+              <div class="field" style="margin-top:12px" data-page-node-id="E7SDoRNeMQhIgxdTvlLU8F"><label data-page-node-id="dqMAPO02Lsvwq8V1cP9bB6">简介</label><div class="inp ta" data-page-node-id="EFJgpVX3oP3bH36qxh8Qe5">本季度正式考核范围、题型分布与注意事项。</div></div>
+              <div class="field" style="margin-top:12px" data-page-node-id="nVMHu7rrWugO0F6Ug4vxdW"><label data-page-node-id="ywVcguPI8jahdIQjqnknRX">有效期</label><div class="inp" data-page-node-id="3LHjRCGC0TBrWu09nzY9Lr">2026-09-01 至 2026-12-31</div></div>
+              <div class="btn-row" style="margin-top:12px;justify-content:flex-end" data-page-node-id="yRAx0tMYBKOqZyTKzCczqD"><span class="btn" data-page-node-id="6S6TlNCvI2j0cbE6eHLpJ8">存为草稿</span><span class="btn primary" data-page-node-id="mSzR0298IvSg4PctFkgsgg">上传并发布</span></div>
+            </div>
+
+            <div class="card c7" data-page-node-id="w5uDeOOLxEdd17gh3bguWK">
+              <div class="card-h" data-page-node-id="6CtT2c4fTl9uT5MnHvREtl"><div class="tt" data-page-node-id="8jJmo7nSa0EBySRX4REHdU"><span class="idx" data-page-node-id="RUF0IwpCuNmQSbH5oDQGnu">列</span><h3 data-page-node-id="6p8UxFwwQwu5jVtYmG1Tyh">已上传资料</h3></div><span class="hint" data-page-node-id="dIgTl79qo0vn6lr2rdPK3y">发布后本部门对应岗位实习生在「正式考核」页可见</span></div>
+              <table class="tbl" data-page-node-id="7MXvOHi96w5DppHwlQcQ8K">
+                <thead data-page-node-id="Rqn8aVgMGr3UBhfrsXTfRQ"><tr data-page-node-id="rmHgQuDlJxk37ifrySe2p9"><th data-page-node-id="IpVV9rOux7enqimA4Mm0Zz">资料名称</th><th style="width:70px" data-page-node-id="BX1TKmmP1BYJUGes4GdDao">类型</th><th style="width:84px" data-page-node-id="z9w4YrJcw7FZBFOABzti00">适用岗位</th><th style="width:56px" data-page-node-id="7e3tHFJ6f5sFGDsnOuSPBa">版本</th><th style="width:66px" data-page-node-id="SehQF8xC1nFMqreRtKLhk2">状态</th><th style="width:124px" data-page-node-id="Tlwwh1ZLV9lm0M4rvMzgB9">操作</th></tr></thead>
+                <tbody data-page-node-id="ZkEj9mdXqMGOkLsxv3mDMQ">
+                  <tr data-page-node-id="7fpBEyTl7mzoJkR5yAwydg"><td class="nm" data-page-node-id="NdtUaiBiJQtqI2zBKirqFM">2026Q3 考试指南.pdf</td><td data-page-node-id="ns5rH2MUmvkubzkBLi24SP"><span class="badge blue" data-page-node-id="WSJ8TaqV2USK7Tfep0RFNB">文档</span></td><td data-page-node-id="6FBTXk8ln2lRnFGjT6rmci">开发实习生</td><td data-page-node-id="4NnDjoycuXJMbkkgCpnueq">v1.0</td><td data-page-node-id="y8DOEFfS2zJGkyMNwqiJbE"><span class="badge done" data-page-node-id="frT2uMOfrTmeMEyohHM9aA">已发布</span></td><td class="op" data-page-node-id="tv4VMy7BdzBuvP4S3n9KKD">预览<i data-page-node-id="PEx2ZM03BTt2BCCxvCIAEl">|</i>替换<i data-page-node-id="7Ct0WfrTbItISZoyZr1urE">|</i>停用</td></tr>
+                  <tr data-page-node-id="NRDoACFlmZWU9D7wg4TyMt"><td class="nm" data-page-node-id="9ZrbczWXYNCitfQTPMR39m">Spring Boot 实操要点.docx</td><td data-page-node-id="6gU6spxBu8B0hMZHLshv7Y"><span class="badge blue" data-page-node-id="J02Wqf5X30CFkRxQvng4BQ">文档</span></td><td data-page-node-id="BOw8sIuILIGrLIguhDb47J">开发实习生</td><td data-page-node-id="Kdc9qVyw7PI5a873LZydYI">v2.1</td><td data-page-node-id="Hezb8QB5PdRrGoZDN1iJou"><span class="badge done" data-page-node-id="QkTvG9r0ZbqsSRuJh4HgWh">已发布</span></td><td class="op" data-page-node-id="1t510CZJ12CJ6VrI9TbjDH">预览<i data-page-node-id="Auqws7LSh16HOl4BZQWlBL">|</i>替换<i data-page-node-id="3YK75KISImOD2Q8HDSBtGG">|</i>停用</td></tr>
+                  <tr data-page-node-id="cf7ERdFWV4i2caINs2Qtzt"><td class="nm" data-page-node-id="UrqbEGg4PlAyoVeV5SipFe">Docker 部署演示.mp4</td><td data-page-node-id="NEtA5RlgmLhbPuTF27fIVO"><span class="badge purple" data-page-node-id="abUMhQr1pxYf5Zw1oDPOP7">视频</span></td><td data-page-node-id="h3pBh0IapqVasTsKZndnUZ">开发实习生</td><td data-page-node-id="T9RqxzhBTPHbxkdsenKQma">v1.0</td><td data-page-node-id="AANVg03Vz0ceYh5u5g40Nr"><span class="badge done" data-page-node-id="UAXZveQVgVzXhhF9hgAxog">已发布</span></td><td class="op" data-page-node-id="BIQS7YiEqiVMVgRjdLZo91">预览<i data-page-node-id="BzRkr4razGPAw0n0BJLmDi">|</i>替换<i data-page-node-id="atyHvwTKBumnvDPIEaFqMr">|</i>停用</td></tr>
+                  <tr data-page-node-id="GyBEW4JnqogZ4kM73r2DSs"><td class="nm" data-page-node-id="YQ2IhJOv0kuXI8vysdaP4c">模拟题入口说明.pdf</td><td data-page-node-id="7PtCKFXyleDKgHJXN79dX8"><span class="badge orange" data-page-node-id="pBKGj6XYoEiR9uTiaC9Kh1">模拟题入口</span></td><td data-page-node-id="yUalLQrQii5SbrG4q6rGW1">交付实习生</td><td data-page-node-id="5I21c1TdXIIvujG0JzdgKS">v1.0</td><td data-page-node-id="JQcafR8u47yrwBeH9OTLEQ"><span class="badge" data-page-node-id="JAElnBfpUN2LLm0RVCgH2V">草稿</span></td><td class="op" data-page-node-id="DGv6qAe8Cn1jGsUYXZgdvv">预览<i data-page-node-id="ssczMMSH7pXdJiDZPRJR9V">|</i>发布<i data-page-node-id="bsAOBIgF5yKgCcN135FcJ8">|</i>删除</td></tr>
+                </tbody>
+              </table>
+              <div class="note" data-page-node-id="yq0CVYhinq6qpDbncXXace">落库 <code data-page-node-id="f2gSIdW8wl1Fq7XvZpcsLF">material</code>（15 列，含 material_type / status / valid_from·to），<b data-page-node-id="ZhNBRfCmtVPmxTu844rcYE">表结构完全够用，只缺 Java 层</b>。接口就绪前本页用示例数据并打「示例数据」标记。</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:13px" data-page-node-id="UwGjQm1DmYZ6HVCgHXQP6E">
+            <div class="card-h" data-page-node-id="zPwH8CZLO5kpXA8e3ovEYv"><div class="tt" data-page-node-id="kCJDNHJXVb4byXLbGEAsBQ"><span class="idx o" data-page-node-id="TAAYwL96lBmD6JZ2Naqy6o">配</span><h3 data-page-node-id="eKdUoeTGCGeROqheoDE5Lm">模拟理论考核配置（同一页签壳的第 2 个页签）</h3></div><span class="badge red" data-page-node-id="6r69fPqgoRxEgSnMJCrafs">⚠️ 后端未配置化</span></div>
+            <div class="grid" data-page-node-id="UlxOD0mD7Ip71KldNCzPVv">
+              <div class="c4" data-page-node-id="RQjX7CvDe5qxyaFC2taUf1">
+                <div class="field" data-page-node-id="TczzSqIqHRWFnmdGLoHsUq"><label data-page-node-id="oFwKOrCD4uKxG6frbKczNn">题源</label><div class="inp" style="background:var(--gray-soft);color:var(--ink-4)" data-page-node-id="z6RZunTw7pK5rlS5d8aipf">开发部门模拟题库（只读 · 去题库管理维护）</div></div>
+                <div class="field" style="margin-top:11px" data-page-node-id="TnHtBGQyh23bOzUjsUXMTX"><label data-page-node-id="vD7OGhEdwfMncdEfjQrbBc">抽题数量</label><div class="inp" data-page-node-id="kTuTEVw31pCXQaAJIZ6lJq">10 题</div></div>
+                <div class="field" style="margin-top:11px" data-page-node-id="7LLO1x4e8YXUQzcZBEDoRL"><label data-page-node-id="uJChxh3nqz21Fndm1G5oc4">是否限时</label><div class="inp" data-page-node-id="ri5QwbmJG69pWSJFAKNFFO">不限时（自测）⌄</div></div>
+                <div class="field" style="margin-top:11px" data-page-node-id="hCzOYwesCEvKYKoNNqMZHr"><label data-page-node-id="IByYhZUWY3khMfoBcQX69E">可否重练</label><div class="inp" data-page-node-id="2OyohpJ1bmMt0cn2dzpPQX">可以，不限次数 ⌄</div></div>
+              </div>
+              <div class="c4" data-page-node-id="1uBQYkCgB2va9ttmA3kc91">
+                <div class="field" data-page-node-id="rWvOo0IOSoNZQVwQZWgIXk"><label data-page-node-id="KkJTGCkK09Balid36zkX9T">题型配比 <b data-page-node-id="NMsiyWjBFrOZ1FOuETbpCs">*</b></label><div class="fg3" data-page-node-id="yVVltl8YhF8pYKNBGMzQCt"><div class="inp" data-page-node-id="EB1SsKUlWh9I9r4VwOr5eI">单选 5</div><div class="inp" data-page-node-id="1qKLeTjSUP6HRtdaChxlkx">多选 3</div><div class="inp" data-page-node-id="AEedirJPSUHgeNvHeSHPao">判断 2</div></div></div>
+                <div class="field" style="margin-top:11px" data-page-node-id="30XoZUQQivWePNv9l9LfPp"><label data-page-node-id="IeMzq5pUldX9rnf4X1iMeD">难度配比</label><div class="fg3" data-page-node-id="nGNxKtBJ4vZQ5TaQR39bb3"><div class="inp" data-page-node-id="ywpGOWQC4Le78j1H7tBi76">易 40%</div><div class="inp" data-page-node-id="9CIc7AjjjZZn3HV4h51nVz">中 40%</div><div class="inp" data-page-node-id="ytpSjEe58eBdRjPHMyO4to">难 20%</div></div></div>
+                <div class="callout ok" style="margin-top:11px" data-page-node-id="GLycxnOtHh8hieTFgEMZXj">配比之和 = 10 题 ✓　题型合计 = 抽题数量 ✓</div>
+              </div>
+              <div class="c4" data-page-node-id="np6x2Mh8krBsSJKlzWmRLV">
+                <div class="field" data-page-node-id="4LBpN7kWtrgzED3RQ5gKxD"><label data-page-node-id="VVD1Ej3QmZg1yoN8rkqfcC">按当前规则试抽一套（校验用）</label>
+                  <div class="inp ta" style="min-height:120px;display:block" data-page-node-id="HLG2JUHKl3HSIrM6DskRze">
+                    <div style="font-size:11.5px;line-height:2" data-page-node-id="10AVGpPoa2Bf8omj387BAw">
+                      1 · 单选 · Java · 以下关于 HashMap…<br data-page-node-id="i9PjEQ2TjFQXjyp7Ngh2tK"/>
+                      2 · 单选 · MySQL · 下列哪条 SQL 能…<br data-page-node-id="f5dnfnAWcb1vecUAAb2EwP"/>
+                      3 · 单选 · SpringBoot · @Autowired 的作用…<br data-page-node-id="YLzC9ORHregTqPrbfKI6ZT"/>
+                      4 · 多选 · Docker · 关于镜像分层…<br data-page-node-id="DvCD4eOMZqbyRp0tC0jXYQ"/>
+                      5 · 判断 · nginx · 反向代理必须重启…
+                    </div>
+                  </div>
+                </div>
+                <div class="btn-row" style="margin-top:11px" data-page-node-id="dASletnH6HvFv065EumlF8"><span class="btn" data-page-node-id="YaCEp1WATsNnfYeWURzk0I">试抽一套</span><span class="btn primary" data-page-node-id="0GvwiFf5dpLlx3vEZkmkXU">保存并生效</span></div>
+              </div>
+            </div>
+            <div class="callout warn" style="margin-top:12px" data-page-node-id="0R40fpNT7c3O1NruulFOCH">
+              <b data-page-node-id="rntbrC1Fq7THqrOGLI8kpL">⚠️ 后端现状</b>：抽题数量在 <code data-page-node-id="WYCB245TJwHouxo2cgqw9b">PracticeServiceImpl:63</code> <b data-page-node-id="N0vGBqaPJMLmM8fM88qEIm">硬编码为 10</b>，且模拟考核<b data-page-node-id="GZoHXejidQsUXeZdUFX5V4">不分题型</b>。要让本页真正可配，需要把模拟考核配置化并落库 —— 已列入报表，建议排 P1。本期本页先做<b data-page-node-id="ptaGDQ7aJPFilmTHgJdYBa">只读展示现状 + 示例数据</b>。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============ ⑧ ============ -->
+    <section class="sec" id="s8">
+    <div class="sec-head"><span class="sec-no">8</span><h2>学习与考核管理 › 正式考核管理 ★ 分环节发布 · 一页两卡</h2></div>
+    <p class="sec-desc">
+      一页两卡：<b>理论考试</b> + <b>实操考试</b>，各自独立「保存发布」。理论按<b>知识模块</b>抽题（对应「拆多库」的模块库），实操从实操题库选题。
+      每个环节发布后立即在实习生端生效，另一环节可继续留草稿 —— 这就是「分环节」。<b>批次</b>只作页面顶部一个下拉分组键，不再做期次列表。
+    </p>
+
+    <div class="app">
+      <aside class="rail">
+        <div class="rail-brand"><i>教</i><div><b>培养管理台</b><span>开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item"><span class="ic">▤</span>工作台</div>
+        <div class="rail-item"><span class="ic">◍</span>人员管理<span class="arw">›</span></div>
+        <div class="rail-item active"><span class="ic">▦</span>学习与考核管理<span class="arw">⌄</span></div>
+        <div class="rail-item lv2"><span class="dot"></span>课程管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>题库管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>模拟备考管理</div>
+        <div class="rail-item lv2 active"><span class="dot"></span>正式考核管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>成绩管理</div>
+        <div class="rail-item"><span class="ic">✉</span>任务与通知<span class="arw">›</span></div>
+      </aside>
+      <div class="main">
+        <div class="topbar">
+          <span class="crumb">学习与考核管理 / <b>正式考核管理</b></span>
+          <span class="spacer"></span>
+          <span class="badge orange">示例数据</span>
+          <span class="btn sm">预览考生视角</span>
+        </div>
+        <div class="body">
+          <div class="filter">
+            <span class="sel">考核批次 · 2026Q4 开发实习生（第一期） ⌄</span>
+            <span class="badge blue">分环节发布</span>
+            <span class="spacer"></span>
+            <span class="btn sm">＋ 新建批次</span>
+            <span class="btn sm">历史批次</span>
+          </div>
+
+          <div class="card" style="margin-bottom:13px">
+            <div class="card-h">
+              <div class="tt"><span class="idx">理</span><h3>理论考试</h3><span class="hint" style="margin-left:8px">实习生基础理论知识能力考核配置</span></div>
+              <span class="badge done">已发布</span>
+            </div>
+            <div class="grid">
+              <div class="c4">
+                <div class="note" style="margin:0 0 8px"><b>考试信息</b></div>
+                <div class="field" style="margin-bottom:9px"><label>考试形式</label><div class="inp">线上考试</div></div><div class="field" style="margin-bottom:9px"><label>考试时长</label><div class="inp">60 分钟</div></div><div class="field" style="margin-bottom:9px"><label>通过分数 / 总分</label><div class="inp">60 / 100 分</div></div><div class="field" style="margin-bottom:9px"><label>考试题型</label><div class="inp">单选题 + 多选题</div></div><div class="field" style="margin-bottom:9px"><label>题目数量</label><div class="inp">20 题</div></div><div class="field" style="margin-bottom:9px"><label>试题分值</label><div class="inp">单选题 4 分 + 多选题 6 分</div></div>
+              </div>
+              <div class="c8">
+                <div class="card-h" style="margin-bottom:9px">
+                  <div class="tt"><h3 style="font-size:12.5px">试题分布</h3></div>
+                  <div class="btn-row"><span class="btn sm">＋ 新增</span><span class="btn sm">保存</span><span class="btn sm primary">保存发布</span></div>
+                </div>
+                <table class="tbl">
+                  <thead><tr><th>知识模块</th><th>题目数量</th><th>知识点占比</th><th>单选题占比</th><th>单选题数量</th><th>多选题占比</th><th>操作</th></tr></thead>
+                  <tbody>
+                  <tr><td class="nm">Java 基础</td><td>6 题</td><td>30%</td><td>50%</td><td>3 题</td><td>50%</td><td class="op">编辑<i>|</i>删除</td></tr>
+                  <tr><td class="nm">数据库 · MySQL</td><td>6 题</td><td>30%</td><td>50%</td><td>3 题</td><td>50%</td><td class="op">编辑<i>|</i>删除</td></tr>
+                  <tr><td class="nm">框架 · 若依</td><td>5 题</td><td>25%</td><td>40%</td><td>2 题</td><td>60%</td><td class="op">编辑<i>|</i>删除</td></tr>
+                  <tr><td class="nm">工程化 · Docker</td><td>3 题</td><td>15%</td><td>67%</td><td>2 题</td><td>33%</td><td class="op">编辑<i>|</i>删除</td></tr>
+                  </tbody>
+                </table>
+                <div class="note">合计 <b>20 题</b> · 单选 10 题 × 4 分 + 多选 10 题 × 6 分 = <b>100 分</b>。每一行 = 一个<b>知识模块库</b>（见 ⑥ 题库管理）。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <div class="tt"><span class="idx g">实</span><h3>实操考试</h3><span class="hint" style="margin-left:8px">与实习生考核认证页面同步的实操任务</span></div>
+              <span class="badge done">已发布</span>
+            </div>
+            <div class="grid">
+              <div class="c4">
+                <div class="note" style="margin:0 0 8px"><b>考试信息</b></div>
+                <div class="field" style="margin-bottom:9px"><label>考试形式</label><div class="inp">线上提交（文件包）</div></div><div class="field" style="margin-bottom:9px"><label>考试时长</label><div class="inp">180 分钟</div></div><div class="field" style="margin-bottom:9px"><label>通过分数 / 总分</label><div class="inp">60 / 100 分</div></div><div class="field" style="margin-bottom:9px"><label>考试题型</label><div class="inp">实操任务 · 文件包提交</div></div><div class="field" style="margin-bottom:9px"><label>题目数量</label><div class="inp">2 题</div></div><div class="field" style="margin-bottom:9px"><label>试题分值</label><div class="inp">每题 50 分</div></div>
+              </div>
+              <div class="c8">
+                <div class="card-h" style="margin-bottom:9px">
+                  <div class="tt"><h3 style="font-size:12.5px">考试题目</h3></div>
+                  <div class="btn-row"><span class="btn sm">从实操题库选</span><span class="btn sm">保存</span><span class="btn sm primary">保存发布</span></div>
+                </div>
+                <table class="tbl">
+                  <thead><tr><th>题目序号</th><th>题目名称</th><th>题目描述</th><th>考核要点</th><th>操作</th></tr></thead>
+                  <tbody>
+                  <tr><td class="nm">题目一</td><td>基于若依脚手架实现带分页的部门管理接口</td><td>按给定表结构完成 CRUD 与分页查询，并提交接口文档。</td><td>分层清晰 · 参数校验完整 · 分页正确 · 异常统一处理</td><td class="op">编辑<i>|</i>删除</td></tr>
+                  <tr><td class="nm">题目二</td><td>编写 DIX 脚本把温湿度数据写入 ES 并暴露 HTTP 接口</td><td>定时写入 ES，并通过 HTTPServer 返回图表所需数据。</td><td>纯 ES5 · 固定 docId · 返回 {code:200,data} 结构正确</td><td class="op">编辑<i>|</i>删除</td></tr>
+                  </tbody>
+                </table>
+                <div class="note">实操<b>不自动判分</b>：实习生把每题产物打包上传（后端存 <code>subject_answer</code>），管理员在 ⑨ 成绩管理 下载查看后<b>人工录分</b>。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card flat" style="margin-top:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span class="mut" style="font-size:11.5px">当前版本 v1.0 · 最近更新 2026-09-17 14:00 · <b>发布后在实习生端「正式考核」页面生效</b></span>
+            <span class="btn primary" style="margin-left:auto">保存并发布</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:13px">
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx g">判</span><h3>判分：理论自动 · 实操人工</h3></div></div>
+        <div class="note" style="margin:0">理论交卷后由后端<b>直接比对答案出分</b>，无需人工；实操无自动判分，须管理员下载文件包后人工评分。</div>
+      </div>
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx p">库</span><h3>与「拆多库」的落点</h3></div></div>
+        <div class="note" style="margin:0">「试题分布」每一行 = 一个知识模块库；跨模块出卷写 <code>exam_paper_question</code> 固定卷，单库随机抽题做不到跨模块。</div>
+      </div>
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">端</span><h3>后端已支持</h3></div></div>
+        <div class="note" style="margin:0"><code>exam</code> 已有题量 / 分值 / 时长 / 及格线 / 时间窗 / 实操题干字段，<b>本页字段零新增</b>；只差 <code>stage</code> 一列区分环节。</div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:13px">
+      <b>分环节发布 = 两个独立发布动作。</b>理论卡「保存发布」后理论环节即刻开放；实操卡可继续留草稿，此时实习生端显示<b>「理论已开放 · 实操待发布」</b>的半场态。
+      实现只需 <code>exam.stage</code>（THEORY / PRACTICE）+ 各自 status —— <b>不再引入「期次列表」</b>，批次仅作顶部下拉分组键。
+    </div>
+    <div class="callout warn" style="margin-top:10px">
+      <b>仍需补的后端：</b>P0 —— ① <code>exam.stage</code> 列（不加则页面做不出分环节）；② 组卷写 <code>exam_paper_question</code>（拆多库完成前提）；③「待评分列表」读接口（⑨ 用）。
+      P1 —— 考试说明文字 / 附件 / 考生须知三处落点、<code>exam_rule_snapshot</code>（门槛 / 权重 / 补考，现零引用）。
+    </div>
+  </section>
+  <section class="sec" id="s9">
+    <div class="sec-head"><span class="sec-no">9</span><h2>学习与考核管理 › 成绩管理 ★ 理论自动 · 实操人工</h2></div>
+    <p class="sec-desc">
+      两个页签：<b>实操评分</b>（下载实习生上传的答案文件包 → 人工录分）与<b>成绩汇总</b>（理论自动判分 + 实操人工分合并 → 通过 / 待定）。
+      理论部分交卷即出分，管理员只需查看与导出。
+    </p>
+
+    <div class="app">
+      <aside class="rail">
+        <div class="rail-brand"><i>教</i><div><b>培养管理台</b><span>开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item"><span class="ic">▤</span>工作台</div>
+        <div class="rail-item"><span class="ic">◍</span>人员管理<span class="arw">›</span></div>
+        <div class="rail-item active"><span class="ic">▦</span>学习与考核管理<span class="arw">⌄</span></div>
+        <div class="rail-item lv2"><span class="dot"></span>课程管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>题库管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>模拟备考管理</div>
+        <div class="rail-item lv2"><span class="dot"></span>正式考核管理</div>
+        <div class="rail-item lv2 active"><span class="dot"></span>成绩管理</div>
+        <div class="rail-item"><span class="ic">✉</span>任务与通知<span class="arw">›</span></div>
+      </aside>
+      <div class="main">
+        <div class="topbar">
+          <span class="crumb">学习与考核管理 / <b>成绩管理</b></span>
+          <span class="spacer"></span>
+          <span class="badge orange">示例数据</span>
+          <span class="btn sm">导出 Excel</span>
+        </div>
+        <div class="body">
+          <div class="tabs"><span class="tab active">实操评分 <span class="n">7</span></span><span class="tab">成绩汇总</span></div>
+          <div class="filter">
+            <span class="sel">批次 · 2026Q3 开发实习生（第三期） ⌄</span>
+            <span class="seg"><span class="on">待评分 7</span><span>已评分 5</span><span>全部 12</span></span>
+            <span class="spacer"></span>
+            <span class="btn sm">批量通过</span>
+          </div>
+          <div class="grid">
+            <div class="c4">
+              <div class="note" style="margin:0 0 8px"><b>待评分队列</b> · 按提交时间</div>
+                <div class="todo"><span class="tdot o"></span><div class="tx"><b>陈子昂 · 开发实习生</b><span>答案包已提交 · 09-20 11:12 · 待评分</span></div></div>
+                <div class="todo"><span class="tdot o"></span><div class="tx"><b>林小雨 · 开发实习生</b><span>答案包已提交 · 09-20 11:18 · 待评分</span></div></div>
+                <div class="todo"><span class="tdot o"></span><div class="tx"><b>赵一鸣 · 开发实习生</b><span>答案包已提交 · 09-20 11:25 · 待评分</span></div></div>
+                <div class="todo"><span class="tdot o"></span><div class="tx"><b>吴敏 · 开发实习生</b><span>答案包已提交 · 09-20 11:31 · 待评分</span></div></div>
+                <div class="todo"><span class="tdot o"></span><div class="tx"><b>孙浩然 · 开发实习生</b><span>答案包已提交 · 09-20 11:40 · 待评分</span></div></div>
+              <div class="note">点任意一条，右侧加载评分面板；评完自动跳下一份。</div>
+            </div>
+            <div class="c8">
+              <div class="card-h" style="margin-bottom:9px">
+                <div class="tt"><h3 style="font-size:12.5px">评分面板 · 陈子昂</h3></div>
+                <span class="badge done">理论已自动判分 82</span>
+              </div>
+              <div class="callout ok">
+                <b>考生提交的答案文件包</b><br/>
+                📦 陈子昂_实操答案包.zip · 18.6 MB · 2 个文件<br/>
+                ├ 题目一_若依部门管理接口.zip · 1.2 MB<br/>
+                └ 题目一_演示录屏.mp4 · 4 分 12 秒 · 17.4 MB
+                <div class="btn-row" style="margin-top:9px"><span class="btn sm primary">下载压缩包</span><span class="btn sm">在线预览</span></div>
+              </div>
+              <div class="grid2" style="margin-top:11px">
+                <div class="field" style="margin-bottom:9px"><label>题目一 得分（满分 50）</label><div class="inp">41</div></div><div class="field" style="margin-bottom:9px"><label>题目二 得分（满分 50）</label><div class="inp">42</div></div>
+              </div>
+              <div class="kv" style="margin-top:4px"><div class="it"><span>实操总分</span><b>83 <small>/ 100</small></b></div>
+                <div class="it"><span>通过线</span><b>60 <small>分</small></b></div>
+                <div class="it"><span>理论（自动）</span><b>82 <small>/ 100</small></b></div>
+                <div class="it"><span>综合分</span><b>82.6 <small>理论40%+实操60%</small></b></div></div>
+              <div class="field" style="margin-top:11px"><label>评语（实习生端可见）</label>
+                <div class="inp ta">分页实现正确、分层清晰。不足：未处理部门名称重复的前置校验，删除接口缺少级联检查。建议补全局异常兜底。</div></div>
+              <div class="btn-row" style="margin-top:11px"><span class="btn">存草稿</span><span class="btn primary">提交并评下一份</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:13px">
+      <div class="card c8">
+        <div class="card-h"><div class="tt"><span class="idx">汇</span><h3>成绩汇总（同一模块第二个页签）</h3></div><span class="hint">理论「自动」· 实操「人工」· 合并出综合分</span></div>
+        <table class="tbl">
+          <thead><tr><th>#</th><th>姓名</th><th>岗位</th><th>理论</th><th>实操</th><th>综合分</th><th>结论</th><th>操作</th></tr></thead>
+          <tbody>
+                    <tr><td class="nm">林小雨</td><td>开发实习生</td><td>86 <span class="badge">自动</span></td><td>95 <span class="badge">人工</span></td><td class="nm">91.0</td><td><span class="badge done">通过</span></td><td class="op">档案</td></tr>
+                    <tr><td class="nm">陈子昂</td><td>开发实习生</td><td>82 <span class="badge">自动</span></td><td>41 <span class="badge">人工</span></td><td class="nm">59.8</td><td><span class="badge red">未通过</span></td><td class="op">档案</td></tr>
+                    <tr><td class="nm">赵一鸣</td><td>开发实习生</td><td>78 <span class="badge">自动</span></td><td>80 <span class="badge">人工</span></td><td class="nm">79.2</td><td><span class="badge done">通过</span></td><td class="op">档案</td></tr>
+                    <tr><td class="nm">吴敏</td><td>开发实习生</td><td>64 <span class="badge">自动</span></td><td>72 <span class="badge">人工</span></td><td class="nm">68.8</td><td><span class="badge done">通过</span></td><td class="op">档案</td></tr>
+                    <tr><td class="nm">孙浩然</td><td>开发实习生</td><td>52 <span class="badge">自动</span></td><td>— <span class="badge">人工</span></td><td class="nm">待定</td><td><span class="badge orange">待定</span></td><td class="op">档案</td></tr>
+          </tbody>
+        </table>
+        <div class="note">综合分 = 理论 × 40% + 实操 × 60%（默认权重，<code>exam_rule_snapshot</code> 未接通，暂硬算并标「示例」）。<b>任一分或未出分一律显示「待定」，不给「通过」</b> —— 因为部门直接终审没有二次复核。</div>
+      </div>
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx o">弱</span><h3>本批次薄弱知识点</h3></div><span class="hint">示例数据</span></div>
+        <div class="hbar low"><span class="nm">Docker</span><span class="track"><i style="width:38%"></i></span><span class="pc">38%</span></div>
+        <div class="hbar low"><span class="nm">异常处理</span><span class="track"><i style="width:45%"></i></span><span class="pc">45%</span></div>
+        <div class="hbar"><span class="nm">MySQL 索引</span><span class="track"><i style="width:62%"></i></span><span class="pc">62%</span></div>
+        <div class="hbar done"><span class="nm">若依框架</span><span class="track"><i style="width:81%"></i></span><span class="pc">81%</span></div>
+        <div class="note">✅ 现在就能做：<code>question.knowledge_point</code> 在题库里<b>有完整真实值</b>，且 <code>/business/question/preview</code> 只清空 answer / analysis、<b>保留 knowledge_point</b> → 按知识点聚合正确率<b>纯前端即可算</b>，不必等后端。</div>
+      </div>
+    </div>
+
+    <div class="callout ok" style="margin-top:13px">
+      <b>两处判分都已实现，本页不用重造：</b><br/>
+      ✅ <b>理论</b> —— <code>AnswerSheetServiceImpl</code> 的 THEORY 分支用 <code>normalizeAnswer()</code> 比对 <code>question.answer</code>，直接写 <code>is_correct / final_score / pass_flag</code> 并置 PUBLISHED，<b>零人工</b>。<br/>
+      ✅ <b>实操</b> —— <code>gradePractically(sheetId, manualScore, manualComment)</code> 已存在，写入 <code>manual_score / manual_comment</code>；提交时 <code>subject_answer</code> 已存文件路径。<b>本页只需补一个「待评分列表」读接口</b>（<code>GET /business/answer-sheet/list</code>）。
+    </div>
+  </section>
+<section class="sec" id="s10" data-page-node-id="WXOwk6zxSPmt2jwGLcXs72">
+    <div class="sec-head" data-page-node-id="zqMiYHaSLZyabgwtikpbJK"><span class="sec-no" data-page-node-id="oyMrPp5q9ohzLRcbzJ7zBL">10</span><h2 data-page-node-id="YMPJfGEnvoifkQMIKnDgsS">任务通知</h2><span class="tag purple" data-page-node-id="f5KNU72YSfnzAdqVGYoB09">页签壳 · 2 页签</span></div>
+    <p class="sec-desc" data-page-node-id="dgxIAvi4vACAtQPZOC5ppb">对<b data-page-node-id="EM4p43MFUGTGBt2GaxfMMT">指定实习生</b>发布任务与通知。2 个页签：<b data-page-node-id="0wWUjIaB6wsvKyajKxIXTC">任务管理</b>（有完成状态、可跟踪、可催办）与 <b data-page-node-id="FGd7TA48MSSO2CPHJvVhvM">通知管理</b>（单向告知，无完成状态）。这是实习生端「工作台待办」与顶栏铃铛的<b data-page-node-id="RLHNj1aptWSDXWgmEDekAu">数据来源</b>。</p>
+
+    <div class="app" data-page-node-id="Dmhe5I0QFpPkfrFaSr8sWx">
+      <aside class="rail" data-page-node-id="cBWeC5A09P0Xg57L3FWZrw">
+        <div class="rail-brand" data-page-node-id="WhNhL6jZuTfFvLQHvVR4Af"><i data-page-node-id="BlIJmvG7fradbkrrB9SUdv">教</i><div data-page-node-id="46G5O1tMMZ2D67RWvEO3O5"><b data-page-node-id="0IYLk5L0xN0rY6wVzJIVEQ">培养管理台</b><span data-page-node-id="WDjDcYvOim54ivWBgSE54u">开发部门 · 部门管理员</span></div></div>
+        <div class="rail-item" data-page-node-id="clR7cPCAiYseXYyDLVRNVm"><span class="ic" data-page-node-id="E2vUApA2c84g75HEGD2l5z">▤</span>工作台</div>
+        <div class="rail-item" data-page-node-id="m7bEI2zmOnkR7dG9qFsavB"><span class="ic" data-page-node-id="PEWWzHmeK7avxDAyWr8twn">◍</span>人员管理<span class="arw" data-page-node-id="Zd3KJx7ESIn3meGNJpCwG5">›</span></div>
+        <div class="rail-item" data-page-node-id="VCo1H6BoODITguGkS8xllx"><span class="ic" data-page-node-id="Mvb0ROWrg9D355xmxd1byg">▦</span>学习与考核管理<span class="arw" data-page-node-id="9y3E4rlHlfliu9yHgDbmm1">›</span></div>
+        <div class="rail-item active" data-page-node-id="rQDDiHL4ToiLICAIxsnLtk"><span class="ic" data-page-node-id="USzfvsVnAJ8oVnbNvxe9I1">✉</span>任务与通知<span class="arw" data-page-node-id="BSenCtrgRLoqUzOjxAZ0KR">⌄</span></div>
+        <div class="rail-item lv2 active" data-page-node-id="GIgPEFFi5DbMTvlQFDXnMC"><span class="dot" data-page-node-id="qfDvMssjxu6CB1TAE1c3QF"></span>任务管理</div>
+        <div class="rail-item lv2" data-page-node-id="IiottAmdhqzt2jQbCyKB7u"><span class="dot" data-page-node-id="e2tG7xXahQJFhtDc6q5l14"></span>通知管理</div>
+      </aside>
+      <div class="main" data-page-node-id="F8PmF2bKokbLHZHU5IGdNU">
+        <div class="topbar" data-page-node-id="FsAALtLFoMI74mQe0na9TA"><span class="crumb" data-page-node-id="FuFAvmxtHZBHBu61ZHrzj2">任务与通知 / <b data-page-node-id="zHXtZEuujGSby2zH94u8PV">任务管理</b></span><span class="spacer" data-page-node-id="bttiTWJigrfVxMXtgbErLM"></span><span class="btn primary sm" data-page-node-id="eyaXEy39uTNe1fOsKDVzAP">＋ 发布任务</span></div>
+        <div class="body" data-page-node-id="wnUNaxvmdmgpSvEJ3VobFI">
+          <div class="tabs" style="margin-top:0" data-page-node-id="zsk4nvmfrzABksnqiCQDEa"><span class="tab active" data-page-node-id="pYv344taC58N3nZyxduMLM">任务管理 <span class="n" data-page-node-id="pC6D0cclzkDJnYW7uBHNyc">6</span></span><span class="tab" data-page-node-id="jHVjbpJxvQf5Wiu30kC8sn">通知管理 <span class="n" data-page-node-id="uXg8yfsSz0u0Ws2UymcSl2">14</span></span></div>
+
+          <div class="grid" data-page-node-id="asqqj1ijisz5fo2YQPykZV">
+            <div class="card c5" data-page-node-id="gNLrRwc22vaMNtyJCN3HX7">
+              <div class="card-h" data-page-node-id="zzP2oxzVF2w0H5htgmCYwp"><div class="tt" data-page-node-id="HGNJVDHASxc7pMPRpAFsiI"><span class="idx" data-page-node-id="2FkYBW3jU6NXzTdzU3YLbb">发</span><h3 data-page-node-id="ikQo608K9Wyo3oDlFCJfRz">发布任务</h3></div></div>
+              <div class="field" data-page-node-id="YyczvkXadSguaXfG8tAd8c"><label data-page-node-id="VayA9MUHVn6mmsUW72vauT">任务标题 <b data-page-node-id="zqD7y3XmntGALBQAFvSOtb">*</b></label><div class="inp" data-page-node-id="sgSdhG59oZSev6bIcRbHji">完成 Docker 薄弱知识点补学</div></div>
+              <div class="fg2" style="margin-top:10px" data-page-node-id="bvqscRra1Aa42dlitUem8G">
+                <div class="field" data-page-node-id="eGYNaBgOlGlX01uAxpGThB"><label data-page-node-id="Xd6dHKzeIgU29S0RYLZuWP">任务类型 <b data-page-node-id="K6Oa8weWsRr0A1J1fcNDsA">*</b></label><div class="inp" data-page-node-id="vxsfi9yfkXXmMcEr99FuWU">学习任务 ⌄</div></div>
+                <div class="field" data-page-node-id="VdcP26zrB6cNdLpa6qVfau"><label data-page-node-id="kfuLdGUVo9cdZEhNcvCAUV">优先级</label><div class="inp" data-page-node-id="nNykmoC2sw1vSpQrIDtRzz">高 ⌄</div></div>
+                <div class="field" data-page-node-id="mE0xVNG44vK9kWwFeAKz9R"><label data-page-node-id="AnLLiKHuFOd2Fl5X9a1qOK">截止时间 <b data-page-node-id="NhSsSCnzW7SHxX8fn3Bjls">*</b></label><div class="inp" data-page-node-id="uZx5gsuNKSkGGtZsgZhWCk">2026-09-25 18:00</div></div>
+                <div class="field" data-page-node-id="ppocGFeA4VJCCMb81AYOva"><label data-page-node-id="U6le2iD9EpRWBLmkUP2DDr">是否需提交</label><div class="inp" data-page-node-id="DGH9HrCjhj9Pm8eTcyhNUM">需提交（文字或附件）⌄</div></div>
+              </div>
+              <div class="field" style="margin-top:10px" data-page-node-id="GYSGdeheTkEBEj5XYhPzvN"><label data-page-node-id="fftbV88DMbYpCuAbHrhgp2">任务说明</label><div class="inp ta" data-page-node-id="K0v0LUHCY1E0jhXY5AucTu">请针对本场考核暴露的 Docker 相关薄弱点，重新学习「容器基础」与「镜像分层」两节，并写一份不少于 300 字的总结。</div></div>
+
+              <div class="card-h" style="margin:14px 0 6px" data-page-node-id="UlIPaLaT7n8MikRPc0UtQl"><div class="tt" data-page-node-id="QI6UjOCbVTKRLTEFR8KUEX"><span class="idx o" data-page-node-id="Wd4xvc4oEA9z2kyWRojNRj">人</span><h3 data-page-node-id="qSVnU1brJdgdTo9s2e6sIJ">发布对象（可指定到人）</h3></div><span class="btn sm ghost" data-page-node-id="1fOj38mceflsRunMNfcsrm">按薄弱项智能选人</span></div>
+              <div class="chk" data-page-node-id="zCUAaxtgUxho6iBx82A5ld"><span class="box" data-page-node-id="oYKKUOJ1iNpXWCjbuvYAEm"></span>本部门全部实习生（5 人）</div>
+              <div class="chk" data-page-node-id="DIoFj5yX1bFevGnIsEodKZ"><span class="box on" data-page-node-id="Ri8mwUQDLaD4CvSFoADg42">✓</span><b data-page-node-id="Nvw9c7bC4jJytWNCJPgrpP">指定人员：</b>陈子昂、孙浩然（2 人）</div>
+              <div class="chk" data-page-node-id="Saao1BVH3bIBBAdWG1NDm3"><span class="box" data-page-node-id="cdlEzF3Ae99XiauJHYrjGr"></span>尚未通过正式考核的实习生（2 人）</div>
+              <div class="field" style="margin-top:10px" data-page-node-id="bBR4rXdrm2497g9jdEYACA"><label data-page-node-id="8vx23EqmlZvaPqTtfKtbpy">附件（可选）</label><div class="inp" data-page-node-id="A0V9LR5yzdRq0v6NUBHptp">Docker补学清单.pdf · 1.2MB</div></div>
+              <div class="btn-row" style="margin-top:12px;justify-content:flex-end" data-page-node-id="Co72vSoM7IaJYFUZOO8vcC"><span class="btn" data-page-node-id="SPHowMieq3UNEI308Qa0KO">存草稿</span><span class="btn primary" data-page-node-id="BA4bCJcUXC56ZzYoI5MFCX">发布并推送</span></div>
+            </div>
+
+            <div class="card c7" data-page-node-id="kSyGKViOU8yUnnKDanYPeO">
+              <div class="card-h" data-page-node-id="pQHRnLUMHGjkLEjWCPCVSr"><div class="tt" data-page-node-id="ieBllpNRBVyZc7MEAqtCLa"><span class="idx" data-page-node-id="7OMsDg6Oi7jw5y3V8CS9jk">跟</span><h3 data-page-node-id="0HTDP7rwLPIOWz0tNoOtoI">已发布任务跟踪</h3></div>
+                <div class="btn-row" data-page-node-id="oGLvFXP7IHeDky4HFVjoiE"><span class="btn sm" data-page-node-id="JfGAKAqEwM1VeMTtdll7vX">全部</span><span class="btn sm ghost" data-page-node-id="V9kYB37PGkyBd5HC7yTHtn">进行中</span><span class="btn sm" data-page-node-id="QKZdKqDLM8ut48UxhHGHqi">已逾期</span></div>
+              </div>
+              <table class="tbl" data-page-node-id="PRNYwzHWdGBmWEiM41pXC8">
+                <thead data-page-node-id="xM3pInzJNPMb8YGcZNsN6A"><tr data-page-node-id="o0JDrY7hxjwYX1groNbLwy"><th data-page-node-id="OMhYYuGMHw9ETK7DgW65M7">任务</th><th style="width:66px" data-page-node-id="TcwvFSvVwEmKzHdxnR9BME">类型</th><th style="width:66px" data-page-node-id="Qfklqi7vnAixslxHh2e3gb">优先级</th><th style="width:100px" data-page-node-id="u3xliatbv3hQ2nphwOWvsP">截止</th><th style="width:78px" data-page-node-id="L6wfcakqIxamIySMHizTzR">完成</th><th style="width:92px" data-page-node-id="vjSzY13GRuhgiwAQolitdc">操作</th></tr></thead>
+                <tbody data-page-node-id="xH4qJGksRfqdy0i2HBoxFw">
+                  <tr data-page-node-id="9yaica5aVTnBdGcJdxuXEW">
+                    <td class="nm" data-page-node-id="a6dNzOyhqUp0D9AKI1zTjy">完成 Docker 薄弱知识点补学</td><td data-page-node-id="o1Ln7EKoUrQaxDamYCrBye"><span class="badge blue" data-page-node-id="N0JftSEhlE8zqnUBkuEGyP">学习</span></td><td data-page-node-id="sGU8W8mLhptBNXzhXxAZYr"><span class="badge red" data-page-node-id="XGkpDCZs416TKJNurcXooc">高</span></td>
+                    <td data-page-node-id="tImVCglRI3FVm1K9bNIcVa">09-25 18:00</td><td data-page-node-id="53J18t6tfiil9aL46s4PlI">1 / 2</td><td class="op" data-page-node-id="D6bGbx1aHeYyOZV2lBcEJ5">催办<i data-page-node-id="G1QejEmKTIzBB7U0y2pjH7">|</i>查看</td>
+                  </tr>
+                  <tr data-page-node-id="Pt0LkAemiDZ15HBZgqZh0r">
+                    <td class="nm" data-page-node-id="oiT4WCV2WAnl8Fxm0sAv6G">补交 Q3 考核实操演示视频</td><td data-page-node-id="aYtvkJ9AsqX1xYdty2KJGh"><span class="badge purple" data-page-node-id="eiTOpHehbzlUHE0rd2TXcx">考核</span></td><td data-page-node-id="iNd6DeTR0BfDtWSHA6AaLv"><span class="badge red" data-page-node-id="AIABaNddlTN4iPUjki4gt5">高</span></td>
+                    <td data-page-node-id="sIdlVqeJvwGgIrwz9jUaPr">09-22 18:00</td><td data-page-node-id="rNecqFKWPGD4J2LeYIz0ad">0 / 1</td><td class="op" data-page-node-id="TLvun14KXEXSP0YADyAgML">催办<i data-page-node-id="NvICdAvBfHHPKMQAtmRdHf">|</i>查看</td>
+                  </tr>
+                  <tr data-page-node-id="dzfFIwCkuCe0AowhHsdGIG">
+                    <td class="nm" data-page-node-id="g7VKp9BS8EAWyUvs4TIUUt">整理本周学习笔记</td><td data-page-node-id="EAR6DAUf3V5JH8L00ehrb1"><span class="badge blue" data-page-node-id="xdJPdbfSIU4Jmdkqt4F2gw">学习</span></td><td data-page-node-id="TfLhel8uzeQt1DeNdusGFf"><span class="badge" data-page-node-id="UXaqG2yUGgAPRr0cyS3mkn">常规</span></td>
+                    <td data-page-node-id="qYZfJmSGRNPa6Ju3vSRaHc">09-19 18:00</td><td data-page-node-id="FtCYzjSO3mgGVfkSMGJE3J">4 / 5</td><td class="op" data-page-node-id="q4QjiIvEnKDoDPkPVJpde2">催办<i data-page-node-id="e5ZVvuCOGOenyWS74VHJH6">|</i>查看</td>
+                  </tr>
+                  <tr data-page-node-id="E05dciGK41dVLcOuBBK4Q1">
+                    <td class="nm" data-page-node-id="gwdjsRWT5IM9KYtz9BdBnr">参加代码评审旁听</td><td data-page-node-id="Mz50hdjRtQZLyOPKhZEKAn"><span class="badge orange" data-page-node-id="k06W9PENX9wdGcgJEp9yRc">日常</span></td><td data-page-node-id="qEVA29nMCW5gzSPbgpBgmD"><span class="badge" data-page-node-id="5YtygKnyvWTqt0AbZt67t0">常规</span></td>
+                    <td data-page-node-id="HNgzkKYOJGIGJTn3x3f6I0">09-15 18:00</td><td data-page-node-id="UWCRm6C31mVqDN5RlH9Pfg">5 / 5</td><td class="op" data-page-node-id="nckVjO7C9D0iKAhvTGDSMz">查看</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="note" data-page-node-id="6gXQXPE6mtn0Hr2G0w2YMm">点「催办」→ 向未完成者推一条提醒通知（写入同一套通知表）。任务完成情况由实习生端「工作台 › 我的待办」回写。</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:13px" data-page-node-id="rwJrkY2YcHcD4fk9EcEStD">
+            <div class="card-h" data-page-node-id="zYwD4Bsf5AEKup7J6vDQkT"><div class="tt" data-page-node-id="gwQqEnNeURvE4DJouZhy84"><span class="idx" data-page-node-id="liHviceyuVkuTGzEBTMqNo">知</span><h3 data-page-node-id="kfAC9isof4CwmBzKlqaoyh">通知管理（页签 2 预览）</h3></div><span class="hint" data-page-node-id="Fi36SL0ddVyRt67liCmuuH">单向告知，无完成状态；对应实习生端顶栏铃铛 🔔</span></div>
+            <div class="grid" data-page-node-id="rrdzuuymv8OSTNdA2UZhNf">
+              <div class="card c5 flat" data-page-node-id="8Qzqry83krDS7HC8FKrVJ6">
+                <div class="field" data-page-node-id="ix3lOhi13vZVwVDRC3H37u"><label data-page-node-id="GFjwXVkgh6Sp7fK98v62EE">通知标题 <b data-page-node-id="gsZ2qSeDm8m8mTYE16Yl24">*</b></label><div class="inp" data-page-node-id="KxhcF0w9gynp5AKgMjKz3L">【提醒】2026Q3 正式考核将于 9 月 20 日 09:00 开考</div></div>
+                <div class="fg2" style="margin-top:10px" data-page-node-id="fu1WwrGr3oMJ3qvqiyrUlR">
+                  <div class="field" data-page-node-id="Ao6pyiKfw3yAKPbnYe6sPf"><label data-page-node-id="tXemcgdnTStOdR8wubf5B4">通知类型</label><div class="inp" data-page-node-id="9suvdtgFL0Jf9jpaHNkANY">考核提醒 ⌄</div></div>
+                  <div class="field" data-page-node-id="FO6uAEYTiWb2slbJfxU4bl"><label data-page-node-id="sjcwcwpBfrib8CyH9TtUJZ">发送方式</label><div class="inp" data-page-node-id="oTAev9BLpDorUPKcnA7HW0">站内信 + 邮件 ⌄</div></div>
+                </div>
+                <div class="field" style="margin-top:10px" data-page-node-id="49OguRi5OapjpLVbI3WpIL"><label data-page-node-id="LbQjQB9M1AetbU7vlJpUBE">通知正文</label><div class="inp ta" data-page-node-id="p7eAypqVrXb08gf7AgRRTU">请提前 10 分钟进入考核页面完成设备自检。理论 60 分钟，实操 90 分钟，两部分均需及格。</div></div>
+                <div class="chk" style="margin-top:8px" data-page-node-id="njf5IRhzVrcyPlfAvGvEEX"><span class="box sw" data-page-node-id="wo3tUJqCAhQMwG5CNCfHIq">✓</span>置顶显示在实习生工作台</div>
+                <div class="btn-row" style="margin-top:12px;justify-content:flex-end" data-page-node-id="MFa4cAe02LuoctZ1KwBZs5"><span class="btn primary" data-page-node-id="GmGGtRRIIIOFhnbJjYY6X2">发送通知</span></div>
+              </div>
+              <div class="card c7 flat" data-page-node-id="DaHVB2AC1gDMAq3WvOC1I7">
+                <div class="card-h" data-page-node-id="Ju2Bde4opYTcDaoZowPB4M"><div class="tt" data-page-node-id="TCwlNFFIWssEdzGASd5NyJ"><span class="idx" data-page-node-id="k3IXBdcNAuOCLZbu934g1H">史</span><h3 data-page-node-id="BIR7oMGxK4n5ngDEjBHBiN">已发送通知</h3></div></div>
+                <table class="tbl" data-page-node-id="z1WXU2TuSKBY95QktrsVqB">
+                  <thead data-page-node-id="sYQpvDIjiHy4vmaLh1wwuk"><tr data-page-node-id="U6TOcGmQ8bVEHHCV8R4ooL"><th data-page-node-id="SuYU9HBGAC0bOVH8VnEVl6">标题</th><th style="width:70px" data-page-node-id="VXWrB9weGomEi0NpcLYFQj">类型</th><th style="width:88px" data-page-node-id="ZN1oJQ5ZtZqeleFqYUHTtp">对象</th><th style="width:96px" data-page-node-id="7vzUCViHw26yXNBdHKqr7m">发送时间</th><th style="width:62px" data-page-node-id="bsLBwr7ue01HP42WtqziyR">已读</th></tr></thead>
+                  <tbody data-page-node-id="ys9c8TEnTtRRkGObM0jdZY">
+                    <tr data-page-node-id="cKmlHQPIzdqA5AbOVQPnOZ"><td class="nm" data-page-node-id="Q3PiszscL7VQZNGHKXKnTy">【提醒】9/20 正式考核开考</td><td data-page-node-id="4GZ9uFrunrjvHEJ4YDCOoT"><span class="badge purple" data-page-node-id="Oox3a812yrBQ74bglO4DE1">考核</span></td><td data-page-node-id="8fjyBgESylKpvg8F0DUb6u">开发实习生 5 人</td><td data-page-node-id="53sYdUpozwKpLVT46mFTZ9">09-18 10:00</td><td data-page-node-id="F06tEgzUPHWnVGrWUwvkrw">4 / 5</td></tr>
+                    <tr data-page-node-id="AH8HMyeu1GIKDoehCx9KH0"><td class="nm" data-page-node-id="FJsX78UrZU5DlKuIqeHHYH">课程「容器基础」已更新为 v1.2</td><td data-page-node-id="ChPUIx2LYMF6QbKEEV5Yip"><span class="badge blue" data-page-node-id="nGzYLicsD901bKqreI60S7">课程</span></td><td data-page-node-id="z2C7C4EK3EQVf3kQjfshs4">开发实习生 5 人</td><td data-page-node-id="CoAxZxXcUfrdkz3ue74aax">09-15 15:20</td><td data-page-node-id="O4rZ9hEDFztuOhWNtz8jJX">5 / 5</td></tr>
+                    <tr data-page-node-id="Ss6sC1rszyisnqmoXqgX4s"><td class="nm" data-page-node-id="9cw7t34EkdKISBIGSA0dFA">关于国庆假期实习安排</td><td data-page-node-id="RpOkV8FreqGiRfzviOZftr"><span class="badge" data-page-node-id="8JYrzi29PM6bpHXc7QUVMj">公告</span></td><td data-page-node-id="eqqSPXYnN9HmGGGCsSHKrv">本部门全体 6 人</td><td data-page-node-id="owWugboCHIItiFupU1MLnv">09-12 09:00</td><td data-page-node-id="UckBKY4xkNcf1qVBGfJVHf">6 / 6</td></tr>
+                  </tbody>
+                </table>
+                <div class="note" data-page-node-id="z82sTDQ6Sf4WyufYbqRFjm">「已读」列直接对应实习生端铃铛未读红点 —— 两角色靠这一张表联动。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout warn" style="margin-top:13px" data-page-node-id="JZyXeMXq9iSdpOaOBRigCJ">
+            <b data-page-node-id="cNttCOmw3JGVTsIAszK9Ab">⚠️ 后端现状</b>：`notification`、`notice`、`learning_task`、`task_assignment`、`task_post`、`task_submission` <b data-page-node-id="AUHfyLxmqDE8VlBnOSnZLO">6 张表全部零 Java 层</b>（表已建好、无读写接口）。
+            本模块是「表齐但零接口」的典型，需新增：任务 CRUD + 分配 + 提交回写 + 通知发布/已读回执。详见补全方案 P2-6。
+            <b data-page-node-id="9Lqpt5QbMkOozqWZ9LUgoV">建议分期</b>：先只做「通知」（实习生端铃铛已有 UI 落点，收益最直接），任务跟踪放第二期。
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============ ⑪ ============ -->
+  <section class="sec" id="s11">
+    <div class="sec-head"><span class="sec-no">11</span><h2>两角色联动映射（验收基准）</h2><span class="tag green">17 组对应关系</span></div>
+    <p class="sec-desc">这张表是本设计稿的<b>验收基准</b>：管理端每一处配置，都必须在实习生端有<b>唯一确定的落点</b>。反过来，实习生端每个页面上的每个数字，都要能追到管理端的某次操作。<b>对不上的行，就是设计漏洞。</b>三个决策改动了 7 行（已标注 ★）。</p>
+
+    <div class="app">
+      <div class="main" style="background:#fff">
+        <div class="body" style="padding:20px 22px 24px">
+          <table class="tbl">
+            <thead><tr><th style="width:30px">#</th><th style="width:270px">管理端动作</th><th style="width:170px">落库</th><th>实习生端呈现位置</th><th style="width:120px">现状</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>人员管理 › 注册审核 通过 + 分配导师</td><td><code>sys_user.user_status</code> / <code>mentor_name</code></td><td>登录后进工作台；工作台 ① 身份条显示导师</td><td><span class="badge done">✅ 已通</span></td></tr>
+              <tr style="background:var(--orange-soft)"><td>2</td><td>题库管理 › <b>模块库</b> 维护题目 ★</td><td><code>question_bank</code>（<b>新增列 knowledge_module</b>）/ <code>question</code></td><td>「模拟考核」从<b>综合模拟库</b>随机抽 10 题（<b>不按模块</b> —— 受 <code>selectPracticeBankByDept LIMIT 1</code> 约束）</td><td><span class="badge orange">⚠️ 需保留 1 条综合库</span></td></tr>
+              <tr><td>3</td><td>模拟备考管理 › 备考资料 发布</td><td><code>material</code></td><td><b>「正式考核」页 ① 备考资料卡片</b>（预览 / 下载）</td><td><span class="badge orange">⚠️ 待接口</span></td></tr>
+              <tr><td>4</td><td>模拟备考管理 › 模拟理论考核配置</td><td>（待配置化）</td><td>「模拟考核」抽题数量与配比</td><td><span class="badge orange">⚠️ 待接口</span></td></tr>
+              <tr><td>5</td><td>模拟备考管理 › 实操题库 发布</td><td><code>practice_subject</code></td><td>「模拟考核」页签内的实操练习列表（<code>/published</code>）</td><td><span class="badge done">✅ 已通</span></td></tr>
+              <tr><td>6</td><td>正式考核管理 › 考试说明（文字 / 文档）</td><td><code>exam</code>（<b>需加列</b>）</td><td><b>「正式考核」页顶部说明条 + 附件</b></td><td><span class="badge orange">⚠️ 需加列</span></td></tr>
+              <tr style="background:var(--orange-soft)"><td>7</td><td>正式考核管理 › <b>理论考试</b> 配置 + <b>单独发布</b> ★</td><td><code>exam</code>：<code>bank_id</code> / <code>single_count</code> / <code>multi_count</code> / <code>judge_count</code> / <code>single_score</code> / <code>pass_line</code> / <code>start_time</code> / <code>end_time</code></td><td><b>「正式考核」页 ③ 理论考试卡</b>：点击进入答题（<code>/start/{examId}</code>）</td><td><span class="badge done">✅ 已通（题型数量与分值现有后端已支持）</span></td></tr>
+              <tr style="background:var(--orange-soft)"><td>8</td><td>正式考核管理 › <b>实操考试</b> 配置 + <b>单独发布</b> ★</td><td><code>exam.subject_content</code> / <code>subject_attachment</code></td><td><b>「正式考核」页 ④ 实操考试卡</b>：上传成果；理论未发布时显示「待发布」</td><td><span class="badge done">✅ 已通</span></td></tr>
+              <tr style="background:var(--red-soft)"><td>9</td><td>正式考核管理 › <b>批次 + 分环节发布</b>（理论 / 实操各自独立发布）★</td><td><code>exam.stage</code>（THEORY / PRACTICE）<b>★需幂等加列</b>；<code>exam.period_code</code> 为可选批次键</td><td>理论 / 实操两卡<b>各自独立状态</b>；本环节未发布时显示「待发布」</td><td><span class="badge red">⚠️ 需加列</span></td></tr>
+              <tr><td>10</td><td>正式考核管理 › 规则开关（门槛 / 协议 / 补考）</td><td><code>exam_rule_snapshot</code></td><td>未达门槛时顶部<b>门槛提示条</b> + 入口置灰</td><td><span class="badge red">⚠️ 后端未实现</span></td></tr>
+              <tr><td>11</td><td>成绩管理 › 批阅</td><td><code>answer_sheet_item.*</code></td><td>「正式考核成绩」页逐题明细</td><td><span class="badge done">✅ 已通</span></td></tr>
+              <tr><td>12</td><td>成绩管理 › 发布成绩</td><td><code>answer_sheet.status='PUBLISHED'</code></td><td>成绩页出现该<b>节</b>成绩</td><td><span class="badge done">✅ 已通</span></td></tr>
+              <tr style="background:var(--orange-soft)"><td>13</td><td>成绩管理 › 成绩统计 ★</td><td><code>assessment_result</code>（建议）</td><td>成绩页总览 / 部门平均分 / 薄弱模块；<b>口径按批次</b>（两环节都及格才算通过）</td><td><span class="badge orange">⚠️ 待接口</span></td></tr>
+              <tr style="background:var(--red-soft)"><td>14</td><td>人员管理 › 实习转正审核 <b>直接通过</b> ★</td><td><code>promotion_application</code>（<b>跳过 SUPER_PENDING</b>）/ <code>certificate</code> / <code>sys_user.user_status</code></td><td>工作台 ⑧ 培养进度走到"已发证"；铃铛收通知；底部证书标签<b>点亮</b></td><td><span class="badge red">⚠️ 后端未实现（整套新增）</span></td></tr>
+              <tr><td>15</td><td>任务与通知 › 发布任务</td><td><code>task_assignment</code> 等</td><td><b>顶栏铃铛红点</b> + 工作台「当前任务」列表 + 任务详情页</td><td><span class="badge red">⚠️ 后端未实现</span></td></tr>
+              <tr><td>16</td><td>任务与通知 › 发布通知</td><td><code>notification</code></td><td><b>顶栏铃铛红点</b> + <code>/messages</code> 消息中心</td><td><span class="badge red">⚠️ 后端未实现</span></td></tr>
+              <tr><td>17</td><td>课程管理 发布课程</td><td><code>course</code> / <code>course_chapter</code> / <code>study_item</code></td><td>「在线学习」课程目录 + 课程学习页</td><td><span class="badge done">✅ 已通</span></td></tr>
+            </tbody>
+          </table>
+          <div class="note" style="margin-top:12px">
+            <b>统计（按三个决策修订后）</b>：✅ 已通 <b>7 组</b>（零改动即可用，本次一律不动）｜⚠️ 待接口 / 需加列 <b>6 组</b>｜⚠️ 后端未实现 <b>4 组</b>。共 17 组。
+            <br/>标 ★ 的 7 行是三个决策直接改动的行 —— 其中第 9 行（批次 + 分环节发布）是<b>全新增加</b>的，第 2 行是<b>唯一有破坏风险</b>的行。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="sec-desc" style="margin:20px 0 12px 0"><b>↓ 联动反哺：管理端补齐后，实习生端有 5 处必须跟着动</b>（第 5 项因「分环节发布」新增）</p>
+
+    <div class="app">
+      <div class="main" style="background:#fff">
+        <div class="body" style="padding:20px 22px 24px">
+          <table class="tbl">
+            <thead><tr><th style="width:30px">#</th><th style="width:210px">实习生端位置</th><th>调整内容</th><th style="width:230px">为什么必须联动</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td class="nm">顶栏铃铛 → <code>/messages</code> 消息中心</td>
+                <td>把 <code>/messages</code> 从「骨架假数据页」改造成<b>真实消息中心</b>：未读 / 已读列表、按类型筛选、点击跳转关联业务</td>
+                <td>管理端 #15 / #16 发出去的通知和任务必须有人收。这是<b>主动线，优先级最高</b></td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td class="nm">工作台「当前任务」区块</td>
+                <td>目前是假数据，改为读真实任务：待办任务卡（标题 / 截止时间 / 状态 / 去完成）</td>
+                <td>管理端 #15 的任务落点</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td class="nm">工作台底部：保密协议 / 电子证书标签</td>
+                <td>证书标签在转正通过后由灰变亮、可点击预览（<code>certificate.template_url</code>）</td>
+                <td>管理端 #14 的落点。<b>注意：现在部门直接终审就发证，证书会比原设计更早出现</b></td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td class="nm">「正式考核」页顶部</td>
+                <td>补三样：① 考试说明（文字 / 附件）② <b>资格门槛提示条</b>（"学习完成率需达 70%，当前还差 8%"）③ 各环节独立状态</td>
+                <td>管理端 #6 / #10 的落点</td>
+              </tr>
+              <tr style="background:var(--red-soft)">
+                <td>5</td>
+                <td class="nm">「正式考核」页状态机 ★ <b>需补「环节未发布」态</b></td>
+                <td>原设计只有「未开始 / 进行中 / 已结束」三态。分环节发布后两环节各自有状态，需补一个「另一环节待发布」：<br/>
+                  ① 均未开放　② 理论进行中（实操显示「待发布」）<br/>
+                  ③ 实操进行中（理论已出分）　④ 全部结束（成绩已公布）</td>
+                <td><b>这是「分环节发布」的主要成本</b>。缺了这个态，实习生会看到"整场已结束但实操还没考"，无法理解</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="callout ok" style="margin-top:14px">
+            <b>✅ 保持不变</b>（已与后端联动，本次一律不动）：在线学习列表与课程学习页、模拟考核答题与回顾、正式考核答题、正式考核成绩页、工作台的学习数据区块。
+            <br/>好消息：<code>utils/internTabs.js</code> 是页签单一数据源、<code>formalInternBlockedPaths</code> 是路径级拦截清单，<b>加状态不需要动侧栏或路由</b>，只动「正式考核」页自身。
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="s12">
+    <div class="sec-head"><span class="sec-no">12</span><h2>三个决策已定 · 落地影响与实施</h2><span class="tag green">✅ 已拍板 2026-09-17</span></div>
+    <p class="sec-desc">你已选定：<b>部门直接终审</b> / <b>分环节发布</b> / <b>拆多库</b>。这一节说明三件事：每个决策的<b>落地改动</b>、三个决策的<b>交叉影响</b>、以及<b>下一步能立刻做什么</b>。</p>
+
+    <div class="grid">
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx g">1</span><h3>部门直接终审</h3></div><span class="badge done">成本最低</span></div>
+        <div class="callout" style="margin-bottom:10px"><b>你的选择：</b>部门管理员审批即生效，<b>不再经超管</b>。</div>
+        <table class="tbl">
+          <thead><tr><th style="width:26px">#</th><th>改动</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>状态机 <code>DEPT_PENDING → PASSED / REJECTED</code>，跳过 <code>SUPER_PENDING</code></td></tr>
+            <tr><td>2</td><td><code>sys_user.user_status</code> 由部门审批直接置 <code>FORMAL_TRAINEE</code> + 发证</td></tr>
+            <tr><td>3</td><td>为 <code>DEPT_ADMIN</code> 补转正审批权限</td></tr>
+            <tr><td>4</td><td><b>保留纠错路径</b>：<code>operate_log</code> + 超管可撤回</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok" style="margin-top:10px">
+          <b>✅ 零改老接口</b>：<code>promotion_application</code> / <code>certificate</code> / <code>stage_evaluation</code> <b>全部零 Java 层</b>，整套新增。
+        </div>
+      </div>
+
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx o">2</span><h3>分环节发布</h3></div><span class="badge orange">中等成本</span></div>
+        <div class="callout" style="margin-bottom:10px"><b>你的选择：</b>理论、实操各自独立发布与时间窗。</div>
+        <div class="callout warn" style="margin-bottom:10px">
+          <b>⚠️ 落地改动</b>：加 <code>exam.stage</code> 一列区分环节（THEORY / PRACTICE，幂等）；<code>exam.period_code</code> 保留为<b>可选批次分组键</b>（页面顶部下拉，不做期次列表）。
+        </div>
+        <div class="note" style="margin-top:0"><b>三项成本</b>：</div>
+        <table class="tbl" style="margin-top:6px">
+          <tbody>
+            <tr><td>①</td><td>实习生端补<b>「环节未发布」态</b>（原三态 + 1）</td></tr>
+            <tr><td>②</td><td>成绩统计口径<b>按场 → 按批次</b></td></tr>
+            <tr><td>③</td><td>转正判定<b>跨两环节合并</b></td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok" style="margin-top:10px">
+          <b>✅ 成本可控</b>：<code>startExam</code> 现有 4 项准入已能正确拦住"未发布的那一节"，<b>准入逻辑零改动可用</b>。
+        </div>
+      </div>
+
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx p">3</span><h3>拆多库</h3></div><span class="badge red">最需动手</span></div>
+        <div class="callout" style="margin-bottom:10px"><b>你的选择：</b>每个知识点模块一个独立题库。</div>
+        <div class="callout warn" style="margin-bottom:10px">
+          <b>⚠️ 三个硬约束</b>：① <code>LIMIT 1</code> 无 <code>ORDER BY</code> → 模拟考核随机命中；② 抽题 SQL 全单库 → 拆库≠跨模块出卷；③ 题量摊到模块后不足。
+        </div>
+        <table class="tbl">
+          <thead><tr><th style="width:26px"></th><th>解法</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>加 <code>knowledge_module</code> 列；<code>bank_type</code> 新增 <code>MODULE</code></td></tr>
+            <tr><td>②</td><td><b>保留每部门 1 条 PRACTICE 综合库</b> → 模拟考核零影响</td></tr>
+            <tr><td>③</td><td>正式考核走<b>组卷</b>写 <code>exam_paper_question</code></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn" style="margin-top:10px">
+          <b>⚠️ 数据前置</b>：每模块需 ≥15 题。<b>17 模块 × 15 ≈ 255 题/部门</b>，交付/质检/建模从 0 开始 —— 这是<b>业务出题工作，改代码解决不了</b>。
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:14px">
+      <div class="card c6">
+        <div class="card-h"><div class="tt"><span class="idx o">叉</span><h3>三个决策的交叉影响（容易被漏掉）</h3></div></div>
+        <table class="tbl">
+          <thead><tr><th style="width:26px">#</th><th style="width:190px">影响</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td><td class="nm">超管端设计稿失效</td>
+              <td>原稿画了「超管终审」环节，且业务管理只有 5 项。<b>需改为</b>：4 个同构目录 + 1 个系统管理；转正项降级为「查看 + 撤回转正」</td>
+            </tr>
+            <tr>
+              <td>2</td><td class="nm">业务规则文档要改 2 处</td>
+              <td>①「预备→正式需经超管审批」→「部门审批即生效」<br/>②「一场考试 = 一次考核」→「一个批次（含两环节）= 一次完整考核」</td>
+            </tr>
+            <tr>
+              <td>3</td><td class="nm">与「接口不改」的边界</td>
+              <td>三个决策<b>都没触碰</b>现有接口的签名 / 返回结构 / 权限注解（详见右）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card c6">
+        <div class="card-h"><div class="tt"><span class="idx g">界</span><h3>是否动了「已实现接口」</h3></div><span class="hint">用户硬约束核对</span></div>
+        <table class="tbl">
+          <thead><tr><th>动作</th><th style="width:130px">是否改现有接口</th></tr></thead>
+          <tbody>
+            <tr><td><code>question_bank</code> 加列、<code>exam</code> 加列</td><td><span class="badge done">❌ 不改</span> 纯 DDL，实体加字段</td></tr>
+            <tr><td>组卷写 <code>exam_paper_question</code></td><td><span class="badge done">❌ 不改</span> 全部新增</td></tr>
+            <tr><td>转正审核整套</td><td><span class="badge done">❌ 不改</span> 原表零 Java 层</td></tr>
+            <tr><td>保留 1 条 PRACTICE 综合库</td><td><span class="badge done">❌ 不改</span> 正是为了<b>保护</b>现有行为</td></tr>
+            <tr style="background:var(--orange-soft)"><td><b>唯一例外</b>：模拟考核也按模块练习</td><td><span class="badge orange">✅ 需要</span> 给 <code>/practice/start</code> 加<b>可选</b> <code>bankId</code>（向后兼容）</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn" style="margin-top:11px">
+          <b>需你确认这一件</b>：拆库后「模拟考核」是否也要按模块练习？
+          <b>要</b> → 加可选参数（不传走原逻辑）；<b>不要</b> → 严格零后端改动，模拟考核继续从综合库抽 10 题。
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-h"><div class="tt"><span class="idx g">序</span><h3>落地顺序（A0/A1 必须先做）</h3></div><span class="hint">详细 SQL 见《部门管理员端目录与页面布局设计方案》§7</span></div>
+      <div class="grid">
+        <div class="card c6 flat">
+          <div class="card-h"><div class="tt"><span class="idx">前</span><h3>不需要你补题就能做</h3></div></div>
+          <div class="steps">
+            <div class="step now"><div class="mark">A0</div><div class="txt"><b>3 个幂等迁移脚本</b><span>bank_module（加列）/ bank_split（拆库搬题）/ exam_period（加列+索引）</span></div></div>
+            <div class="step"><div class="mark">A1</div><div class="txt"><b>菜单迁移脚本</b><span>现有 6 个业务菜单<b>移动</b>到新 4 目录（复用 ID 保住 DEPT_ADMIN 授权）+ 补转正审批菜单</span></div></div>
+            <div class="step"><div class="mark">B</div><div class="txt"><b>工作台 / 实习生管理 / 个人全景档案</b><span>现有 12 个接口拼装，缺口打「示例数据」标</span></div></div>
+            <div class="step"><div class="mark">C</div><div class="txt"><b>题库管理改「模块库列表」</b><span>知识点维度前端可算</span></div></div>
+            <div class="step"><div class="mark">D</div><div class="txt"><b>成绩统计按批次 + 薄弱知识点</b><span>结构先行，数据待后端聚合</span></div></div>
+          </div>
+        </div>
+        <div class="card c6 flat">
+          <div class="card-h"><div class="tt"><span class="idx o">后</span><h3>需后端补接口 / 需你安排</h3></div></div>
+          <div class="steps">
+            <div class="step"><div class="mark">P0</div><div class="txt"><b>组卷</b> → <code>exam_paper_question</code><span><b>拆多库的完成前提</b>：不做则正式考核只能考单个模块</span></div></div>
+            <div class="step"><div class="mark">P0</div><div class="txt"><b>转正审核整套</b><span><code>promotion_application</code> + <code>certificate</code>，部门直接终审版</span></div></div>
+            <div class="step"><div class="mark">P0</div><div class="txt"><b>题量补齐（业务侧）</b><span>17 模块 × ≥15 题 ≈ 255 题/部门；交付/质检/建模从 0 开始</span></div></div>
+            <div class="step"><div class="mark">P1</div><div class="txt"><b>考试说明字段 + 规则快照接通 + 成绩聚合</b><span><code>exam</code> 加说明列；<code>exam_rule_snapshot</code> 接通；<code>assessment_result</code> 落库</span></div></div>
+            <div class="step"><div class="mark">P1</div><div class="txt"><b>备考资料 / 任务通知</b><span><code>material</code>、<code>notification</code> + <code>task_*</code>（6 张表零 Java 层）</span></div></div>
+          </div>
+          <div class="note warn">⚠️ 其中「转正审核」与「任务通知」是<b>整块从零</b>（表有、接口无），工作量集中在接口设计与权限注解，不在 UI。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:14px">
+      <b>下一步</b>：两点即可推进 —— ① 确认「模拟考核是否按模块练习」（决定要不要动 <code>/practice/start</code>）；② 安排补题负责人与时间。
+      确认后我可以立刻产出 A0 的三个迁移脚本（可直接执行、可重复执行）与 A1 的菜单迁移脚本，然后开始 B~D 的前端落地。
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

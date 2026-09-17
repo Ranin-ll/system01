@@ -114,6 +114,8 @@
             <if test="subjectAttachment != null">subject_attachment = #{subjectAttachment},</if>
             <if test="positionId != null">position_id = #{positionId},</if>
             <if test="status != null">status = #{status},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
             <if test="duration != null">duration = #{duration},</if>
             <if test="passLine != null">pass_line = #{passLine},</if>
             <if test="publishedAt != null">published_at = #{publishedAt},</if>

@@ -3,28 +3,18 @@
     <header class="workspace-head">
       <div>
         <span class="eyebrow">{{ eyebrow }}</span>
-        <h1>{{ title }}</h1>
-        <p>{{ subtitle }}</p>
+        <h1>{{ isIntern ? '早上好，' + (nickName || '实习生') : title }}</h1>
+        <p>{{ isIntern ? ((isFormal ? '正式实习生' : '预备实习生') + ' · ' + (deptName || '所属部门') + ' · ' + mentorText) : subtitle }}</p>
       </div>
       <div class="head-actions">
         <el-button size="small" icon="el-icon-refresh" @click="refresh">刷新</el-button>
-        <el-button size="small" type="primary" icon="el-icon-message" @click="go(messagePath)">消息中心</el-button>
+        <el-button v-if="isIntern && nextCourse" size="small" type="primary" icon="el-icon-video-play" @click="go('/assessment/intern/learning/course/' + nextCourse.id)">继续学习</el-button>
+        <el-button v-else-if="isIntern" size="small" type="primary" icon="el-icon-reading" @click="go('/assessment/intern/learning')">继续学习</el-button>
+        <el-button v-else size="small" type="primary" icon="el-icon-message" @click="go(messagePath)">消息中心</el-button>
       </div>
     </header>
 
-    <section v-if="isIntern" class="identity-band">
-      <div class="identity-main">
-        <span class="identity-icon"><i class="el-icon-user-solid" /></span>
-        <div><small>当前身份</small><strong>{{ isFormal ? '正式实习生' : '预备实习生' }}</strong><p>{{ deptName || '所属部门' }} · {{ mentorText }}</p></div>
-      </div>
-      <div class="identity-facts">
-        <div><span>保密协议</span><b :class="protocolStatus === 1 ? 'is-success' : 'is-warning'">{{ protocolStatus === 1 ? '已签署' : '待签署' }}</b></div>
-        <div><span>培养阶段</span><b>{{ isFormal ? '已转正' : '学习考核中' }}</b></div>
-        <div><span>未读消息</span><b>2 条</b></div>
-      </div>
-    </section>
-
-    <section class="metric-grid">
+    <section v-if="!isIntern" class="metric-grid">
       <article v-for="metric in metrics" :key="metric.label" class="metric" :class="metric.tone">
         <div class="metric-label"><i :class="metric.icon" /><span>{{ metric.label }}</span></div>
         <strong>{{ metric.value }}</strong>
@@ -33,80 +23,158 @@
     </section>
 
     <template v-if="isIntern">
-      <div class="workspace-grid">
-        <section class="panel task-panel">
-          <div class="panel-head"><div><span class="section-index">01</span><h2>{{ isFormal ? '近期动态' : '当前任务' }}</h2></div><el-button type="text" @click="isFormal ? go(messagePath) : go('/assessment/intern/tasks')">查看全部</el-button></div>
-          <div v-for="item in internTodos" :key="item.title" class="task-row">
-            <i class="task-dot" :class="item.tone" />
-            <div><b>{{ item.title }}</b><p>{{ item.description }}</p></div>
-            <el-tag size="mini" :type="item.tag">{{ item.status }}</el-tag>
-            <el-button type="text" size="mini" @click="go(item.path)">{{ item.action }}</el-button>
+      <!-- 01 身份条 -->
+      <section class="i2-card">
+        <div class="panel-head"><div><span class="section-index">01</span><h2>我的身份</h2></div><span class="card-hint">入职天数暂无接口，为示例数据</span></div>
+        <div class="identity">
+          <span class="big-ph">{{ (nickName || '实').charAt(0) }}</span>
+          <div class="who"><b>{{ nickName || '实习生' }}</b><p>{{ isFormal ? '正式实习生' : '预备实习生' }} · {{ deptName || '所属部门' }} · {{ mentorText }}</p></div>
+          <div class="facts">
+            <div class="fact"><span>保密协议</span><b :class="Number(protocolStatus) === 1 ? 'ok' : 'warn'">{{ Number(protocolStatus) === 1 ? '已签署' : '待签署' }}</b></div>
+            <div class="fact"><span>培养阶段</span><b>{{ isFormal ? '正式 · 已转正' : '预备 → 待转正' }}</b></div>
+            <div class="fact"><span>距考核门槛</span><b :class="learningGap ? 'warn' : 'ok'">{{ learningGap ? '还差 ' + learningGap + '%' : '已达到' }}</b></div>
+            <div class="fact"><span>入职天数</span><b>{{ onboardDays }} 天</b></div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section class="panel progress-panel">
-          <div class="panel-head"><div><span class="section-index">02</span><h2>培养档案</h2></div><el-tag size="mini" :type="isFormal ? 'success' : 'warning'">{{ isFormal ? '已完成培养' : '本期' }}</el-tag></div>
-          <div v-for="step in progress" :key="step.label" class="progress-row">
-            <div><span>{{ step.label }}</span><b>{{ step.value }}%</b></div>
-            <el-progress :percentage="step.value" :show-text="false" :color="step.color" />
-          </div>
-        </section>
+      <!-- 02 六个 KPI -->
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#1764f5" />必修完成率</div><div class="kpi-vl">{{ learningProgress }}<small>%</small></div><div class="bar-mini"><i :style="{ width: learningProgress + '%' }" /></div><div class="kpi-ft" :class="learningGap ? 'warn' : 'up'">{{ learningGap ? '距 70% 门槛还差 ' + learningGap + '%' : '已达到考核门槛' }}</div></div>
+        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#12b76a" />累计学习时长</div><div class="kpi-vl">{{ studyHoursTotal }}<small>小时</small></div><div class="kpi-ft up">本周 +2.3h，节奏稳定<em class="dsample">示例</em></div></div>
+        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#7a5af8" />已完成单项</div><div class="kpi-vl">{{ learningOverview.completedItems }}<small>/ {{ learningOverview.itemCount }}</small></div><div class="kpi-ft">覆盖 {{ learningOverview.courseCount }} 门已发布课程</div></div>
+        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f79009" />待完成课程</div><div class="kpi-vl">{{ pendingCourses.length }}<small>门</small></div><div class="kpi-ft" :class="pendingRequiredCount ? 'warn' : ''">其中必修 {{ pendingRequiredCount }} 门</div></div>
+        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f04438" />模拟正确率</div><div class="kpi-vl">{{ mockAccuracy }}<small>%</small></div><div class="kpi-ft up">最近 3 次均 80%+<em class="dsample">示例</em></div></div>
+        <div class="kpi hl"><div class="kpi-lb"><i class="kpi-dot" style="background:#1764f5" />能力综合值</div><div class="kpi-vl">{{ isFormal ? 88 : '--' }}</div><div class="bar-mini"><i class="o" :style="{ width: portraitCompleteness + '%' }" /></div><div class="kpi-ft">完整度 {{ portraitCompleteness }}%{{ isFormal ? '' : '，待考核后生成' }}<em class="dsample">示例</em></div></div>
       </div>
 
-      <section class="learning-band">
-        <div class="learning-band-head">
-          <div><span class="section-index">03</span><h2>在线学习</h2><p>{{ isFormal ? '已发布课程与历史学习记录持续保留，可按需回看。' : '课程由所属部门按岗位发布，完成进度与学习中心实时一致。' }}</p></div>
-          <el-button type="text" @click="go('/assessment/intern/learning')">全部课程 <i class="el-icon-arrow-right" /></el-button>
-        </div>
-        <div v-loading="learningLoading" class="learning-dashboard-body">
-          <aside class="learning-summary-panel">
-            <el-progress type="circle" :percentage="learningProgress" :width="86" :stroke-width="8" :format="learningProgressFormat" :color="learningProgress === 100 ? '#23966f' : '#2878c7'" />
-            <div class="learning-summary-copy"><span>必修课程完成率</span><strong>{{ completedRequiredCourses }}/{{ requiredCourseCount }} 门必修完成</strong><small>最近学习：{{ learningOverview.lastStudyTime || '尚未开始' }}</small></div>
-            <div class="learning-facts"><span><b>{{ learningOverview.completedItems }}</b>已完成单项</span><span><b>{{ Math.max(learningOverview.itemCount - learningOverview.completedItems, 0) }}</b>待完成单项</span></div>
-          </aside>
-          <div class="dashboard-course-list">
-            <button v-for="course in dashboardCourses" :key="course.id" type="button" class="dashboard-course-row" @click="openLearningCourse(course)">
-              <span class="course-icon" :class="course.courseType === 'PRACTICE' ? 'blue' : 'green'"><i :class="course.courseType === 'PRACTICE' ? 'el-icon-video-play' : 'el-icon-document'" /></span>
-              <span class="dashboard-course-main">
-                <span class="dashboard-course-title"><b>{{ course.courseName }}</b><el-tag size="mini" effect="plain" :type="Number(course.isRequired) === 1 ? 'danger' : 'info'">{{ Number(course.isRequired) === 1 ? '必修' : '选修' }}</el-tag></span>
-                <small class="dashboard-course-intro">{{ course.intro || '暂无课程简介' }}</small>
-                <span class="dashboard-course-meta"><small>{{ course.courseType === 'PRACTICE' ? '视频实操' : '文档理论' }}</small><small>{{ course.chapterCount }} 章</small><small>{{ course.completedItems }}/{{ course.itemCount }} 项完成</small><small>{{ formatDuration(course.duration) }}</small></span>
-                <span class="dashboard-course-progress"><i><em :style="{ width: course.progress + '%' }" /></i><b>{{ course.progress }}%</b></span>
-              </span>
-              <span class="dashboard-course-action">{{ courseAction(course) }} <i class="el-icon-arrow-right" /></span>
+      <div class="i2-grid">
+        <!-- 03 学习完成率趋势（70% 考核门槛虚线） -->
+        <section class="i2-card i2-span8">
+          <div class="panel-head"><div><span class="section-index">03</span><h2>学习完成率趋势</h2></div><span class="card-hint">近 6 周<em class="dsample">示例</em></span></div>
+          <svg viewBox="0 0 900 210" class="trend-svg">
+            <g stroke="#eef1f6" stroke-width="1"><line x1="46" y1="20" x2="880" y2="20" /><line x1="46" y1="60" x2="880" y2="60" /><line x1="46" y1="100" x2="880" y2="100" /><line x1="46" y1="140" x2="880" y2="140" /><line x1="46" y1="180" x2="880" y2="180" /></g>
+            <g fill="#98a2b3" font-size="11" text-anchor="end"><text x="38" y="24">100%</text><text x="38" y="64">75%</text><text x="38" y="104">50%</text><text x="38" y="144">25%</text><text x="38" y="184">0%</text></g>
+            <line x1="46" y1="68" x2="880" y2="68" stroke="#f79009" stroke-width="1.5" stroke-dasharray="6 5" />
+            <text x="50" y="62" fill="#b54708" font-size="11">考核门槛 70%</text>
+            <path :d="trendArea" fill="#e8f1fd" opacity="0.9" />
+            <polyline :points="trendPolyline" fill="none" stroke="#1764f5" stroke-width="2.5" stroke-linejoin="round" />
+            <g fill="#fff" stroke="#1764f5" stroke-width="2.5"><circle v-for="w in trendWeeks" :key="w.label" :cx="w.x" :cy="w.y" r="4" /></g>
+            <rect :x="trendBadge.x" :y="trendBadge.y" width="92" height="26" rx="6" fill="#1764f5" />
+            <text :x="trendBadge.x + 46" :y="trendBadge.y + 17" fill="#fff" font-size="12" text-anchor="middle">本周 {{ learningProgress }}%</text>
+            <g fill="#98a2b3" font-size="11" text-anchor="middle"><text v-for="w in trendWeeks" :key="'lb-' + w.label" :x="w.x" y="200">{{ w.label }}</text></g>
+          </svg>
+          <div class="legend"><span><i style="background:#1764f5" />实际完成率</span><span><i style="background:#f79009" />考核门槛 70%</span></div>
+          <div class="note">口径：本人岗位全部已发布必修课程的完成率简单平均，与「在线学习」列表同源；本周为真实数据，历史 6 周为示例。</div>
+        </section>
+
+        <!-- 04 能力画像雷达 -->
+        <section class="i2-card i2-span4">
+          <div class="panel-head"><div><span class="section-index">04</span><h2>能力画像</h2></div><el-button type="text" @click="go('/assessment/intern/portrait')">详情 ›</el-button></div>
+          <div class="portrait">
+            <svg viewBox="0 0 200 190" class="radar-svg">
+              <g fill="none" stroke="#eef1f6"><polygon points="100,22 162,84 100,146 38,84" /><polygon points="100,46 135,84 100,122 65,84" /><polygon points="100,70 108,84 100,98 92,84" /></g>
+              <g stroke="#e4e9f0" stroke-width="1"><line x1="100" y1="22" x2="100" y2="146" /><line x1="38" y1="84" x2="162" y2="84" /><line x1="62" y1="46" x2="138" y2="122" /><line x1="138" y1="46" x2="62" y2="122" /></g>
+              <polygon :points="radarPolygon" fill="#1764f5" fill-opacity="0.16" stroke="#1764f5" stroke-width="2" />
+              <circle v-for="(p, i) in radarPoints" :key="i" :cx="p.x" :cy="p.y" r="3.4" :fill="p.measured ? '#1764f5' : '#fff'" :stroke="p.measured ? '#1764f5' : '#98a2b3'" stroke-width="1.6" />
+              <g fill="#667085" font-size="11" text-anchor="middle"><text x="100" y="14">学习投入</text><text x="182" y="88">理论掌握</text><text x="18" y="88">规范遵从</text><text x="100" y="162">实践能力</text></g>
+              <text v-if="radarPoints[1] && !radarPoints[1].measured" x="182" y="102" fill="#98a2b3" font-size="9" text-anchor="middle">待考核</text>
+              <text v-if="radarPoints[2] && !radarPoints[2].measured" x="100" y="176" fill="#98a2b3" font-size="9" text-anchor="middle">待批阅</text>
+            </svg>
+            <div class="portrait-meta">
+              <div v-for="dim in portraitDims" :key="dim.name" class="dim-row">
+                <span class="nm">{{ dim.name }}</span>
+                <span class="bar"><i v-if="dim.value !== null" :style="{ width: dim.value + '%', background: dim.value >= 80 ? '#12b76a' : '#1764f5' }" /><i v-else class="hollow" /></span>
+                <span class="vv">{{ dim.value === null ? '-- ' + dim.note : dim.value }}</span>
+              </div>
+              <div class="completeness">
+                <div class="t"><span>数据完整度</span><b>{{ portraitCompleteness }}%（{{ isFormal ? '5 / 5' : '3 / 5' }} 来源）</b></div>
+                <div class="bar-mini"><i class="o" :style="{ width: portraitCompleteness + '%' }" /></div>
+              </div>
+            </div>
+          </div>
+          <div class="note">未测评维度画空心点并标注去向（0 分 ≠ 未测评）。<em class="dsample">示例</em></div>
+        </section>
+
+        <!-- 05 课程完成情况 -->
+        <section class="i2-card i2-span6">
+          <div class="panel-head"><div><span class="section-index">05</span><h2>课程完成情况</h2></div><span class="card-hint">按完成率排序</span></div>
+          <div v-loading="learningLoading">
+            <button v-for="c in courseBars" :key="c.id" type="button" class="hbar" :class="c.cls" @click="openLearningCourse(c)">
+              <span class="nm">{{ c.courseName }}</span>
+              <span class="track"><i :style="{ width: Math.max(c.progress, 2) + '%' }" /></span>
+              <span class="pc">{{ c.progress }}%</span>
             </button>
-            <div v-if="!learningLoading && !dashboardCourses.length" class="learning-empty"><i class="el-icon-reading" /><span><b>暂无已发布课程</b><small>部门管理员发布适用于当前岗位的课程后，将在这里显示。</small></span></div>
+            <div v-if="!learningLoading && !courseBars.length" class="note">暂无已发布课程，部门管理员发布适用于当前岗位的课程后将在这里显示。</div>
           </div>
-        </div>
-      </section>
-
-      <section v-if="isPre" class="certification-section">
-        <div class="section-title"><div><span class="section-index">04</span><h2>考核认证</h2><p>备考资料、模拟自测和正式考核按当前培养进度开放。</p></div><el-tag effect="plain">完成率达到 70% 后可考核</el-tag></div>
-        <div class="entry-grid three-columns">
-          <button type="button" class="entry" @click="go('/assessment/intern/study-guide')"><i class="el-icon-notebook-2" /><span><b>备考资料</b><small>考试指南与考核规则</small></span><em>查看</em></button>
-          <button type="button" class="entry" @click="go('/assessment/intern/mock-exam')"><i class="el-icon-edit-outline" /><span><b>模拟考核</b><small>10 题随机自测，不计成绩</small></span><em>练习</em></button>
-          <button type="button" class="entry" @click="go('/assessment/intern/exam')"><i class="el-icon-finished" /><span><b>正式考核</b><small>理论考试与实践提交</small></span><em>进入</em></button>
-        </div>
-      </section>
-
-      <div class="workspace-grid records-grid">
-        <section class="panel">
-          <div class="panel-head"><div><span class="section-index">{{ isPre ? '05' : '04' }}</span><h2>考核记录</h2></div><el-button type="text" @click="go('/assessment/intern/scores')">历史记录</el-button></div>
-          <div v-for="record in examRecords" :key="record.name" class="record-row"><div><b>{{ record.name }}</b><span>{{ record.time }}</span></div><el-tag size="mini" :type="record.tag">{{ record.status }}</el-tag><strong>{{ record.score }}</strong></div>
+          <div class="note">绿色为已完成，橙色为低于 50% 的短板课程；点击行可直达课程。</div>
         </section>
-        <section class="panel ability-panel">
-          <div class="panel-head"><div><span class="section-index">{{ isPre ? '06' : '05' }}</span><h2>能力画像</h2></div><el-button type="text" @click="go('/assessment/intern/portrait')">查看详情</el-button></div>
-          <div v-for="ability in abilities" :key="ability.label" class="ability-row"><span>{{ ability.label }}</span><div><i :style="{ width: ability.value + '%' }" /></div><b>{{ ability.value }}</b></div>
+
+        <!-- 06 学习时长分布 -->
+        <section class="i2-card i2-span6">
+          <div class="panel-head"><div><span class="section-index">06</span><h2>学习时长分布</h2></div><span class="card-hint">近 6 周 / 小时<em class="dsample">示例</em></span></div>
+          <div class="vchart">
+            <div v-for="w in weeklyHours" :key="w.label" class="vcol"><span class="bar" :class="{ hi: w.hours >= 2.3 }" :style="{ height: Math.round(w.hours / weeklyHoursMax * 100) + '%' }">{{ w.hours }}</span><span class="vcol-lb">{{ w.label }}</span></div>
+          </div>
+          <div class="legend"><span><i style="background:#1764f5" />当周学习时长</span><span>累计 {{ studyHoursTotal }} 小时</span></div>
+        </section>
+
+        <!-- 07 考核成绩 -->
+        <section class="i2-card i2-span6">
+          <div class="panel-head"><div><span class="section-index">07</span><h2>考核成绩</h2></div><span class="card-hint">满分 100<em class="dsample">示例</em></span></div>
+          <div class="vchart">
+            <div v-for="b in examScoreBars" :key="b.label" class="vcol"><span class="bar" :class="b.score === null ? 'none' : 'g'" :style="{ height: (b.score === null ? 8 : b.score) + '%' }">{{ b.score === null ? '--' : b.score }}</span><span class="vcol-lb">{{ b.label }}</span></div>
+          </div>
+          <div class="legend"><span><i style="background:#12b76a" />模拟自测（不计正式成绩）</span><span v-if="!isFormal"><i style="background:#f2f4f7" />正式考核未参加</span><span v-else><i style="background:#12b76a" />正式成绩已发布</span></div>
+        </section>
+
+        <!-- 08 培养进度 -->
+        <section class="i2-card i2-span6">
+          <div class="panel-head"><div><span class="section-index">08</span><h2>培养进度</h2></div><span class="card-hint">4 步</span></div>
+          <div class="steps">
+            <div v-for="(s, i) in trainingSteps" :key="s.label" class="step" :class="s.state">
+              <span class="mark">{{ s.state === 'done' ? '✓' : i + 1 }}</span>
+              <div class="txt"><b>{{ s.label }}</b><span>{{ s.desc }}</span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 09 下一步做什么 -->
+        <section class="i2-card i2-span8">
+          <div class="panel-head"><div><span class="section-index">09</span><h2>下一步做什么</h2></div><span class="card-hint">按紧急度排序</span></div>
+          <div v-for="item in internTodos" :key="item.title" class="todo">
+            <span class="tdot" :class="item.tone" />
+            <div class="tx"><b>{{ item.title }}</b><span>{{ item.description }}</span></div>
+            <el-button size="mini" :type="item.tone === 'blue' ? 'primary' : 'info'" plain @click="go(item.path)">{{ item.action }}</el-button>
+          </div>
+        </section>
+
+        <!-- 10 通知 -->
+        <section class="i2-card i2-span4">
+          <div class="panel-head"><div><span class="section-index">10</span><h2>通知</h2></div><el-button type="text" @click="go(messagePath)">全部 ›</el-button></div>
+          <button v-for="n in notices" :key="n.title" type="button" class="notice" @click="go(messagePath)"><b>{{ n.title }}</b><span>{{ n.desc }}</span></button>
+          <div class="note">通知暂无接口，为示例数据。<em class="dsample">示例</em></div>
         </section>
       </div>
 
-      <nav class="quick-nav" aria-label="工作台快捷入口">
-        <span>快捷入口</span>
-        <el-button size="small" plain icon="el-icon-reading" @click="go('/assessment/intern/learning')">在线学习</el-button>
-        <el-button size="small" plain icon="el-icon-tickets" @click="go('/assessment/intern/scores')">考试记录</el-button>
-        <el-button size="small" plain icon="el-icon-user" @click="go('/assessment/intern/profile')">个人信息</el-button>
-        <el-button size="small" plain icon="el-icon-message" @click="go(messagePath)">消息中心</el-button>
-      </nav>
+      <!-- 11 协议与证书条 -->
+      <section class="record-band" aria-label="协议与证书">
+        <span class="record-band-label">协议与证书：</span>
+        <button
+          v-for="record in internRecords"
+          :key="record.key"
+          type="button"
+          class="record-pill"
+          :class="record.tone"
+          :title="record.tip"
+          @click="openRecord(record)"
+        >
+          <i :class="record.icon" />
+          <span>{{ record.label }}</span>
+          <em>{{ record.status }}</em>
+        </button>
+      </section>
+      <div class="note band-note">电子证书统一在此查看与下载（考核成绩与转正申请页不重复展示）；未生成的记录点击不跳空页，而是提示生成条件。</div>
     </template>
 
     <template v-else>
@@ -159,6 +227,84 @@ export default {
     mentorText() { return this.mentorName ? `导师：${this.mentorName}${this.mentorPhone ? ' · ' + this.mentorPhone : ''}` : '导师待登记' },
     learningProgress() { return this.learningOverview.progress === null ? 0 : this.learningOverview.progress },
     learningGap() { return Math.max(0, 70 - this.learningProgress) },
+    // —— 设计稿 i2 新增：无后端接口的块一律示例数据并在界面标注「示例」，不用 0 占位 ——
+    onboardDays() { return 107 },
+    studyHoursTotal() { return 14.5 },
+    mockAccuracy() { return this.isFormal ? 92 : 86 },
+    pendingCourses() { return this.previewCourses.filter(course => course.progress < 100) },
+    pendingRequiredCount() { return this.pendingCourses.filter(course => Number(course.isRequired) === 1).length },
+    courseBars() {
+      return this.previewCourses.slice().sort((a, b) => b.progress - a.progress).slice(0, 6).map(course => Object.assign({}, course, {
+        cls: course.progress === 100 ? 'done' : (course.progress < 50 ? 'low' : '')
+      }))
+    },
+    trendWeeks() {
+      const labels = ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', '本周']
+      const xs = [60, 190, 320, 450, 580, 710, 840]
+      const values = [8, 22, 36, 45, 52, 56, this.learningProgress]
+      return labels.map((label, i) => ({ label, value: values[i], x: xs[i], y: Math.round(180 - values[i] * 1.6) }))
+    },
+    trendPolyline() { return this.trendWeeks.map(w => w.x + ',' + w.y).join(' ') },
+    trendArea() {
+      const weeks = this.trendWeeks
+      return 'M' + weeks[0].x + ',180 L' + weeks.map(w => w.x + ',' + w.y).join(' L') + ' L' + weeks[weeks.length - 1].x + ',180 Z'
+    },
+    trendBadge() {
+      const last = this.trendWeeks[this.trendWeeks.length - 1]
+      return { x: Math.min(Math.max(last.x - 46, 8), 800), y: Math.max(last.y - 40, 8) }
+    },
+    portraitDims() {
+      if (this.isFormal) return [
+        { name: '学习投入', value: 92, note: '' }, { name: '理论掌握', value: 86, note: '' }, { name: '实践能力', value: 91, note: '' }, { name: '规范遵从', value: 88, note: '' }
+      ]
+      return [
+        { name: '学习投入', value: 78, note: '' }, { name: '理论掌握', value: null, note: '待考核' }, { name: '实践能力', value: null, note: '待批阅' }, { name: '规范遵从', value: 88, note: '' }
+      ]
+    },
+    portraitCompleteness() { return this.isFormal ? 100 : 60 },
+    radarPoints() {
+      const center = { x: 100, y: 84 }
+      const axes = [{ x: 100, y: 22 }, { x: 162, y: 84 }, { x: 100, y: 146 }, { x: 38, y: 84 }]
+      return this.portraitDims.map((dim, i) => {
+        const ratio = dim.value === null ? 0.42 : dim.value / 100
+        return { x: Math.round(center.x + (axes[i].x - center.x) * ratio), y: Math.round(center.y + (axes[i].y - center.y) * ratio), measured: dim.value !== null }
+      })
+    },
+    radarPolygon() { return this.radarPoints.map(p => p.x + ',' + p.y).join(' ') },
+    weeklyHours() {
+      return [{ label: 'W1', hours: 1.2 }, { label: 'W2', hours: 1.8 }, { label: 'W3', hours: 2.6 }, { label: 'W4', hours: 1.6 }, { label: 'W5', hours: 1.1 }, { label: '本周', hours: 2.3 }]
+    },
+    weeklyHoursMax() { return Math.max.apply(null, this.weeklyHours.map(w => w.hours)) },
+    examScoreBars() {
+      if (this.isFormal) return [
+        { label: '自测 1', score: 90 }, { label: '自测 2', score: 88 }, { label: '自测 3', score: 94 }, { label: '正式理论', score: 86 }, { label: '正式实操', score: 91 }
+      ]
+      return [
+        { label: '自测 1', score: 86 }, { label: '自测 2', score: 80 }, { label: '自测 3', score: 92 }, { label: '正式理论', score: null }, { label: '正式实操', score: null }
+      ]
+    },
+    trainingSteps() {
+      if (this.isFormal) return [
+        { label: '签署保密协议', state: 'done', desc: '已完成签署' },
+        { label: '在线学习', state: 'done', desc: '课程已完成，记录保留可回看' },
+        { label: '正式考核', state: 'done', desc: '理论 + 实操均已通过' },
+        { label: '转正发证', state: 'done', desc: '已转正，电子证书已生成' }
+      ]
+      const signed = Number(this.protocolStatus) === 1
+      return [
+        { label: '签署保密协议', state: signed ? 'done' : 'now', desc: signed ? '已完成签署' : '首次登录时需完成签署' },
+        { label: '在线学习', state: signed ? 'now' : 'todo', desc: '完成率 ' + this.learningProgress + '%' + (this.learningGap ? ' · 还差 ' + this.learningGap + '% 解锁考核' : ' · 已达考核门槛') },
+        { label: '正式考核', state: 'todo', desc: this.learningGap ? '理论 + 实操，未解锁' : '理论 + 实操，等待考核安排' },
+        { label: '转正发证', state: 'todo', desc: '考核通过 + 部门管理员审批转正后生成电子证书' }
+      ]
+    },
+    notices() {
+      return [
+        { title: '部门管理员发布了正式考核', desc: '《2026 秋季正式考核 v1.0》已发布 · 2 小时前' },
+        { title: (this.mentorName || '导师') + ' 给你留了言', desc: '"本周重点回顾错题与课程笔记" · 昨天 18:20' },
+        { title: '模拟考核成绩已生成', desc: '正确率 ' + this.mockAccuracy + '%，继续保持 · 昨天 15:40' }
+      ]
+    },
     dashboardCourses() {
       return this.previewCourses.slice().sort((left, right) => {
         const rank = course => course.progress > 0 && course.progress < 100 ? 0 : (course.progress === 0 ? 1 : 2)
@@ -203,12 +349,48 @@ export default {
         learningTodo, { title: '9 月考核结果已归档', description: '理论、实践及阶段评价均可查阅', status: '已完成', tag: 'success', tone: 'green', path: '/assessment/intern/scores', action: '查看' }, { title: '导师阶段评价已发布', description: '能力画像已同步最新评价', status: '已发布', tag: 'success', tone: 'green', path: '/assessment/intern/portrait', action: '查看' }
       ]
       return [
-        learningTodo, { title: '岗位课程目录', description: `${this.learningOverview.courseCount} 门课程，共 ${this.learningOverview.itemCount} 个学习单项`, status: '学习中心', tag: 'success', tone: 'green', path: '/assessment/intern/learning', action: '查看' }, { title: '参加 9 月正式考核', description: this.learningGap ? `学习完成率达到 70% 后开放，当前还差 ${this.learningGap}%` : '已达到学习门槛，等待考核安排', status: this.learningGap ? '未解锁' : '待安排', tag: this.learningGap ? 'info' : 'warning', tone: 'gray', path: '/assessment/intern/exam', action: '查看' }
+        learningTodo, { title: '岗位课程目录', description: `${this.learningOverview.courseCount} 门课程，共 ${this.learningOverview.itemCount} 个学习单项`, status: '学习中心', tag: 'success', tone: 'green', path: '/assessment/intern/learning', action: '查看' }, { title: '参加 9 月正式考核', description: this.learningGap ? `学习完成率达到 70% 后开放，当前还差 ${this.learningGap}%` : '已达到学习门槛，等待考核安排', status: this.learningGap ? '未解锁' : '待安排', tag: this.learningGap ? 'info' : 'warning', tone: 'gray', path: '/assessment/intern/exam', action: '查看' }, { title: '提交转正申请', description: this.learningGap ? `考核通过并满足资格后可提交，当前还差 ${this.learningGap}% 完成率` : '考核通过后提交转正申请，部门管理员终审即生效并发证', status: this.learningGap ? '未解锁' : '可申请', tag: this.learningGap ? 'info' : 'warning', tone: this.learningGap ? 'gray' : 'blue', path: '/assessment/intern/learning/result', action: '查看' }
       ]
     },
     progress() { return this.isFormal ? [{ label: '协议签署', value: 100, color: '#23966f' }, { label: '在线学习', value: this.learningProgress, color: '#2878c7' }, { label: '正式考核', value: 100, color: '#8055a7' }, { label: '转正审批', value: 100, color: '#23966f' }] : [{ label: '协议签署', value: this.protocolStatus === 1 ? 100 : 0, color: '#23966f' }, { label: '在线学习', value: this.learningProgress, color: '#2878c7' }, { label: '正式考核', value: 0, color: '#c98328' }, { label: '转正审批', value: 0, color: '#8055a7' }] },
     examRecords() { return this.isFormal ? [{ name: '2026 年 9 月正式考核', time: '2026-09-16', status: '已通过', score: '88 分', tag: 'success' }, { name: '理论考试', time: '2026-09-16', status: '已发布', score: '86 分', tag: 'primary' }, { name: '实践考核', time: '2026-09-17', status: '已发布', score: '91 分', tag: 'success' }] : [{ name: '安全规范模拟自测', time: '2026-09-08', status: '已完成', score: '86 分', tag: 'success' }, { name: '2026 年 9 月正式考核', time: '2026-09-16', status: '待参加', score: '--', tag: 'warning' }] },
     abilities() { return this.isFormal ? [{ label: '学习投入', value: 92 }, { label: '理论掌握', value: 86 }, { label: '实践能力', value: 91 }, { label: '规范遵从', value: 88 }] : [{ label: '学习投入', value: 80 }, { label: '理论掌握', value: 58 }, { label: '实践能力', value: 55 }, { label: '规范遵从', value: 82 }] },
+    internRecords() {
+      const signed = Number(this.protocolStatus) === 1
+      const certified = this.isFormal
+      const items = [
+        {
+          key: 'agreement',
+          label: '保密协议',
+          icon: 'el-icon-lock',
+          status: signed ? '已签署' : '待签署',
+          tone: signed ? 'is-ready' : 'is-pending',
+          path: '/assessment/intern/agreements',
+          tip: signed ? '协议已签署，可查看协议全文与签署记录' : '请先完成首次登录保密协议签署'
+        },
+        {
+          key: 'certificate',
+          label: '电子证书',
+          icon: 'el-icon-medal',
+          status: certified ? '已获得' : '未获得',
+          tone: certified ? 'is-ready' : 'is-idle',
+          path: '/assessment/intern/agreements',
+          tip: certified ? '证书已生成，可在线查看与下载（考核成绩与转正申请页也有一句去向指引）' : '考核通过并经部门管理员审批转正后生成电子证书'
+        }
+      ]
+      if (signed) {
+        items.push({
+          key: 'signature',
+          label: '签署凭证',
+          icon: 'el-icon-document-checked',
+          status: '可查看',
+          tone: 'is-ready',
+          path: '/assessment/intern/agreements',
+          tip: '查看本次签署的时间、终端与凭证编号'
+        })
+      }
+      return items
+    },
     adminTodos() { return this.isDeptAdmin ? [{ title: '注册申请待审核', description: '5 条本部门申请等待处理', status: '待审核', tag: 'warning', tone: 'orange', path: '/assessment/department/register-review' }, { title: '草稿课程待完善', description: '补充章节和学习资料后即可发布', status: '待处理', tag: 'primary', tone: 'blue', path: '/assessment/department/courses' }, { title: '实践考核待批阅', description: '8 份提交物等待人工确认', status: '待批阅', tag: 'danger', tone: 'red', path: '/assessment/department/grading' }, { title: '阶段评价待补充', description: '3 名实习生画像信息待完善', status: '待处理', tag: 'primary', tone: 'blue', path: '/assessment/department/students' }] : [{ title: '本期考核安排待确认', description: '跨部门考试范围与时间需要复核', status: '待处理', tag: 'warning', tone: 'orange', path: '/assessment/manage/schedule' }, { title: '角色权限变更检查', description: '核对四类业务角色菜单范围', status: '检查中', tag: 'primary', tone: 'blue', path: '/assessment/system/role-permission' }, { title: '异常培养记录', description: '3 条记录需要管理员关注', status: '异常', tag: 'danger', tone: 'red', path: '/assessment/system/audit-log' }] },
     adminScope() { return this.isDeptAdmin ? [{ label: '预备实习生', value: '12 人', hint: '学习考核中' }, { label: '正式实习生', value: '6 人', hint: '保留历史档案' }, { label: '待分配导师', value: '3 人', hint: '审核后补充' }, { label: '学习达标', value: '14 人', hint: '可参加考核' }] : [{ label: '交付部门', value: '15 人', hint: '实施实习生' }, { label: '开发部门', value: '18 人', hint: '开发实习生' }, { label: '设计部门', value: '12 人', hint: '设计实习生' }, { label: '质检 / 建模', value: '23 人', hint: '两部门合计' }] },
     adminEntries() { return this.isDeptAdmin ? [{ title: '注册审核', description: '审核本部门申请并登记导师', icon: 'el-icon-user', path: '/assessment/department/register-review' }, { title: '课程管理', description: '维护岗位课程、章节和学习资料', icon: 'el-icon-reading', path: '/assessment/department/courses' }, { title: '实习生管理', description: '查看培养状态与学习进度', icon: 'el-icon-s-custom', path: '/assessment/department/students' }, { title: '实习批阅', description: '复核实践提交并发布成绩', icon: 'el-icon-edit-outline', path: '/assessment/department/grading' }, { title: '消息中心', description: '查看业务通知与处理提醒', icon: 'el-icon-message', path: '/assessment/department/messages' }] : [{ title: '考核认证管理', description: '考试、课程、题库与批阅流程', icon: 'el-icon-finished', path: '/assessment/manage/overview' }, { title: '组织岗位', description: '五部门与岗位绑定关系', icon: 'el-icon-office-building', path: '/assessment/system/organization' }, { title: '角色权限', description: '四类业务角色权限边界', icon: 'el-icon-lock', path: '/assessment/system/role-permission' }, { title: '审计日志', description: '关键业务操作留痕', icon: 'el-icon-document', path: '/assessment/system/audit-log' }] }
@@ -254,6 +436,14 @@ export default {
       this.go('/assessment/intern/learning/course/' + course.id)
     },
     go(path) { this.$router.push(path) },
+    openRecord(record) {
+      // 未生成/待处理的记录不跳转，先说明原因，避免点进空页面。
+      if (record.tone === 'is-idle' || record.tone === 'is-pending') {
+        this.$modal.msgInfo(record.tip)
+        return
+      }
+      this.go(record.path)
+    },
     comingSoon() { this.$modal.msgInfo('功能开发中') },
     refresh() {
       this.loadLearningPreview()
@@ -274,6 +464,97 @@ export default {
 .learning-band { display: block; padding: 20px; }.learning-band-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }.learning-band-head h2 { margin: 7px 0; font-size: 19px; }.learning-band-head p { margin: 0; color: #667085; line-height: 1.6; }.learning-dashboard-body { display: grid; grid-template-columns: 245px minmax(0, 1fr); gap: 16px; }.learning-summary-panel { display: flex; min-height: 238px; align-items: center; justify-content: center; flex-direction: column; padding: 16px; border: 1px solid #e2e8f0; background: #f8fbff; }.learning-summary-copy { margin-top: 11px; text-align: center; }.learning-summary-copy span, .learning-summary-copy strong, .learning-summary-copy small { display: block; }.learning-summary-copy span { color: #667085; font-size: 11px; }.learning-summary-copy strong { margin-top: 5px; color: #344054; font-size: 13px; }.learning-summary-copy small { margin-top: 5px; color: #98a2b3; font-size: 10px; }.learning-facts { display: flex; width: 100%; justify-content: center; gap: 24px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e3ebf4; color: #8490a0; font-size: 10px; }.learning-facts span { text-align: center; }.learning-facts b { display: block; margin-bottom: 3px; color: #2878c7; font-size: 16px; }.dashboard-course-list { display: grid; align-content: start; gap: 8px; min-width: 0; }.dashboard-course-row { display: flex; min-width: 0; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e3e9f0; color: inherit; text-align: left; background: #fff; cursor: pointer; }.dashboard-course-row:hover { border-color: #9fc2ef; background: #f7fbff; }.dashboard-course-main { min-width: 0; flex: 1; }.dashboard-course-title { display: flex; align-items: center; gap: 7px; min-width: 0; }.dashboard-course-title b { overflow: hidden; color: #344054; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }.dashboard-course-intro { display: block; margin-top: 5px; overflow: hidden; color: #8490a0; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }.dashboard-course-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; color: #98a2b3; font-size: 10px; }.dashboard-course-meta small { font-size: 10px; }.dashboard-course-progress { display: flex; align-items: center; gap: 8px; margin-top: 9px; }.dashboard-course-progress > i { display: block; height: 5px; flex: 1; overflow: hidden; border-radius: 3px; background: #e8eef5; }.dashboard-course-progress > i em { display: block; height: 100%; background: #2878c7; }.dashboard-course-progress b { width: 34px; color: #2878c7; font-size: 11px; text-align: right; }.dashboard-course-action { flex: 0 0 auto; color: #1764f5; font-size: 11px; }.learning-empty { display: flex; min-height: 238px; align-items: center; justify-content: center; gap: 10px; border: 1px dashed #d7e1eb; color: #98a2b3; }.learning-empty > i { color: #b7c5d3; font-size: 28px; }.learning-empty b, .learning-empty small { display: block; }.learning-empty b { color: #667085; font-size: 13px; }.learning-empty small { margin-top: 5px; font-size: 11px; }
 .certification-section, .admin-actions { margin-bottom: 14px; padding: 18px; border: 1px solid #e4e9f0; background: #fff; }.section-title { justify-content: space-between; margin-bottom: 13px; }.section-title p { margin: 5px 0 0 28px; color: #7a8694; font-size: 12px; }.entry-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }.entry-grid.three-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }.entry { display: flex; min-width: 0; align-items: center; gap: 11px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; color: inherit; text-align: left; background: #fff; cursor: pointer; }.entry:hover { border-color: #9fc2f3; box-shadow: 0 5px 14px rgba(32, 64, 106, .07); }.entry > i { flex: 0 0 auto; color: #1764f5; font-size: 23px; }.entry > span { flex: 1; min-width: 0; }.entry b, .entry small { display: block; }.entry small { margin-top: 5px; overflow: hidden; color: #7a8694; text-overflow: ellipsis; white-space: nowrap; }.entry em { color: #1764f5; font-size: 12px; font-style: normal; }
 .records-grid { grid-template-columns: 1fr 1fr; }.record-row { min-height: 52px; gap: 12px; border-bottom: 1px solid #edf0f4; }.record-row:last-child { border-bottom: 0; }.record-row > div { flex: 1; }.record-row b, .record-row span { display: block; }.record-row span { margin-top: 4px; color: #8a94a3; font-size: 11px; }.record-row > strong { width: 48px; text-align: right; font-size: 13px; }.ability-row { gap: 10px; min-height: 36px; }.ability-row > span { width: 65px; color: #667085; font-size: 12px; }.ability-row > div { height: 7px; flex: 1; overflow: hidden; border-radius: 4px; background: #edf1f5; }.ability-row i { display: block; height: 100%; background: #2878c7; }.ability-row b { width: 28px; text-align: right; font-size: 12px; }.quick-nav { flex-wrap: wrap; gap: 8px; color: #667085; font-size: 12px; }.quick-nav > span { margin-right: 4px; }.scope-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 11px 0; border-bottom: 1px solid #edf0f4; }.scope-row:last-child { border-bottom: 0; }.scope-row b { color: #1764f5; }.scope-row small { grid-column: 1 / -1; color: #8a94a3; }.admin-actions { margin-bottom: 0; }
+.record-band { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; padding: 14px 18px; border: 1px solid #e4e9f0; border-radius: 6px; background: #fff; }.record-band-label { color: #344054; font-size: 14px; }.record-pill { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 16px; border: 0; border-radius: 8px; background: #e8f1fd; color: #1764f5; font-size: 14px; cursor: pointer; transition: background .15s; }.record-pill:hover { background: #d7e7fc; }.record-pill > i { font-size: 15px; }.record-pill em { padding: 1px 7px; border-radius: 10px; background: rgba(23, 100, 245, .12); font-size: 11px; font-style: normal; }.record-pill.is-pending { background: #fff4e5; color: #b54708; }.record-pill.is-pending em { background: rgba(181, 71, 8, .12); }.record-pill.is-idle { background: #f2f4f7; color: #98a2b3; }.record-pill.is-idle em { background: rgba(152, 162, 179, .18); }
+/* —— 实习生工作台 i2 区块（设计稿 11 块） —— */
+.i2-card { min-width: 0; margin-bottom: 14px; padding: 16px 18px; border: 1px solid #e4e9f0; border-radius: 6px; background: #fff; }
+.i2-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
+.i2-grid .i2-card { margin-bottom: 0; }
+.i2-span4 { grid-column: span 4; }.i2-span6 { grid-column: span 6; }.i2-span8 { grid-column: span 8; }
+.card-hint { color: #98a2b3; font-size: 12px; }
+.dsample { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 8px; background: #fff4e5; color: #b54708; font-size: 10px; font-style: normal; line-height: 16px; }
+/* 01 身份条 */
+.identity { display: flex; align-items: center; gap: 14px; }
+.big-ph { display: flex; width: 52px; height: 52px; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: #1764f5; font-size: 22px; font-weight: 600; }
+.who { flex: 1; min-width: 0; }.who b { display: block; font-size: 16px; }.who p { margin: 5px 0 0; color: #667085; font-size: 12px; }
+.facts { display: flex; gap: 30px; }
+.fact span, .fact b { display: block; }
+.fact span { margin-bottom: 5px; color: #8a94a3; font-size: 12px; }
+.fact b { font-size: 14px; }.fact b.ok { color: #168561; }.fact b.warn { color: #c27516; }
+/* 02 KPI */
+.kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.kpi { min-width: 0; padding: 14px 15px; border: 1px solid #e4e9f0; border-radius: 6px; background: #fff; }
+.kpi.hl { border-color: #c3d9fb; background: #f5f9ff; }
+.kpi-lb { display: flex; align-items: center; gap: 6px; color: #667085; font-size: 12px; }
+.kpi-dot { width: 7px; height: 7px; border-radius: 50%; }
+.kpi-vl { margin: 10px 0 8px; font-size: 24px; font-weight: 700; }
+.kpi-vl small { margin-left: 3px; color: #98a2b3; font-size: 12px; font-weight: 400; }
+.bar-mini { height: 5px; overflow: hidden; border-radius: 3px; background: #edf1f5; }
+.bar-mini i { display: block; height: 100%; border-radius: 3px; background: #1764f5; }
+.bar-mini i.o { background: repeating-linear-gradient(90deg, #a9c8f7 0 5px, transparent 5px 9px); }
+.kpi-ft { margin-top: 9px; color: #7a8694; font-size: 11px; }
+.kpi-ft.warn { color: #c27516; }.kpi-ft.up { color: #168561; }
+/* 03 趋势 */
+.trend-svg { display: block; width: 100%; height: auto; max-height: 230px; }
+.legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 10px; color: #667085; font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; }
+.note { margin-top: 10px; color: #98a2b3; font-size: 11px; line-height: 1.6; }
+/* 04 雷达 */
+.portrait { display: flex; align-items: center; gap: 14px; }
+.radar-svg { width: 190px; flex: 0 0 auto; }
+.portrait-meta { flex: 1; min-width: 0; }
+.dim-row { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.dim-row .nm { width: 60px; flex: 0 0 auto; color: #667085; font-size: 12px; }
+.dim-row .bar { height: 7px; flex: 1; overflow: hidden; border-radius: 4px; background: #edf1f5; }
+.dim-row .bar i { display: block; height: 100%; }
+.dim-row .bar i.hollow { width: 100%; background: repeating-linear-gradient(90deg, #cfd6e0 0 5px, transparent 5px 9px); }
+.dim-row .vv { width: 62px; flex: 0 0 auto; color: #475467; font-size: 11px; text-align: right; }
+.completeness { margin-top: 10px; padding-top: 10px; border-top: 1px solid #edf0f4; }
+.completeness .t { display: flex; justify-content: space-between; margin-bottom: 7px; color: #667085; font-size: 11px; }
+/* 05 课程横条 */
+.hbar { display: flex; width: 100%; align-items: center; gap: 10px; min-height: 36px; padding: 0; border: 0; color: inherit; text-align: left; background: transparent; cursor: pointer; }
+.hbar .nm { width: 168px; flex: 0 0 auto; overflow: hidden; color: #475467; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.hbar .track { height: 9px; flex: 1; overflow: hidden; border-radius: 5px; background: #edf1f5; }
+.hbar .track i { display: block; height: 100%; border-radius: 5px; background: #2878c7; }
+.hbar.done .track i { background: #12b76a; }
+.hbar.low .track i { background: #f79009; }
+.hbar .pc { width: 42px; flex: 0 0 auto; color: #667085; font-size: 12px; text-align: right; }
+.hbar:hover .nm { color: #1764f5; }
+/* 06/07 柱图 */
+.vchart { display: flex; align-items: flex-end; gap: 10px; height: 170px; padding: 6px 4px 0; }
+.vcol { display: flex; height: 100%; flex: 1; min-width: 0; align-items: center; flex-direction: column; justify-content: flex-end; gap: 7px; }
+.vcol .bar { display: flex; width: 70%; max-width: 46px; min-height: 8%; align-items: flex-start; justify-content: center; padding-top: 5px; border-radius: 5px 5px 0 0; color: #fff; background: #1764f5; font-size: 11px; }
+.vcol .bar.hi { background: #0e4fd6; }
+.vcol .bar.g { background: #12b76a; }
+.vcol .bar.none { color: #98a2b3; background: #f2f4f7; }
+.vcol-lb { color: #98a2b3; font-size: 11px; }
+/* 08 培养步骤 */
+.steps { display: grid; gap: 4px; }
+.step { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #edf0f4; }
+.step:last-child { border-bottom: 0; }
+.step .mark { display: flex; width: 26px; height: 26px; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; color: #98a2b3; background: #f2f4f7; font-size: 12px; }
+.step.done .mark { color: #fff; background: #12b76a; }
+.step.now .mark { color: #fff; background: #1764f5; }
+.step .txt b { display: block; color: #344054; font-size: 13px; }
+.step .txt span { display: block; margin-top: 3px; color: #98a2b3; font-size: 11px; }
+.step:not(.done):not(.now) .txt b { color: #98a2b3; }
+/* 09 待办 */
+.todo { display: flex; align-items: center; gap: 11px; min-height: 60px; border-bottom: 1px solid #edf0f4; }
+.todo:last-child { border-bottom: 0; }
+.tdot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: #1764f5; }
+.tdot.orange { background: #f79009; }.tdot.green { background: #12b76a; }.tdot.gray { background: #98a2b3; }.tdot.red { background: #f04438; }
+.todo .tx { flex: 1; min-width: 0; }
+.todo .tx b { display: block; color: #344054; font-size: 13px; }
+.todo .tx span { display: block; margin-top: 4px; color: #7a8694; font-size: 12px; }
+/* 10 通知 */
+.notice { display: block; width: 100%; padding: 9px 0; border: 0; border-bottom: 1px solid #edf0f4; color: inherit; text-align: left; background: transparent; cursor: pointer; }
+.notice:last-of-type { border-bottom: 0; }
+.notice b { display: block; color: #344054; font-size: 13px; }
+.notice span { display: block; margin-top: 4px; overflow: hidden; color: #98a2b3; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.notice:hover b { color: #1764f5; }
+.band-note { margin-top: 8px; }
+@media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }.i2-span8, .i2-span4, .i2-span6 { grid-column: span 12; }.facts { gap: 16px; } }
+@media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.identity { align-items: flex-start; flex-direction: column; }.facts { width: 100%; justify-content: space-between; }.portrait { flex-direction: column; }.hbar .nm { width: 110px; } }
 @media (max-width: 1000px) { .entry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.identity-facts { gap: 16px; } }
 @media (max-width: 760px) { .workspace-page { padding: 14px; }.workspace-head, .identity-band { align-items: flex-start; flex-direction: column; }.metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.workspace-grid, .records-grid { grid-template-columns: 1fr; }.learning-dashboard-body { grid-template-columns: 1fr; }.learning-summary-panel { min-height: 0; }.identity-facts { width: 100%; justify-content: space-between; }.entry-grid, .entry-grid.three-columns { grid-template-columns: 1fr; }.task-row { align-items: flex-start; flex-wrap: wrap; padding: 12px 0; }.task-row > div { min-width: calc(100% - 22px); }.task-row .el-button { margin-left: 19px; }.dashboard-course-intro { white-space: normal; line-height: 1.5; } }
 @media (max-width: 440px) { .metric-grid { grid-template-columns: 1fr; }.head-actions { width: 100%; }.head-actions .el-button { flex: 1; }.identity-facts { align-items: flex-start; flex-direction: column; gap: 10px; }.identity-facts div { display: flex; width: 100%; justify-content: space-between; }.identity-facts span { margin: 0; } }

@@ -25,6 +25,13 @@
 
       </template>
 
+      <!-- 实习生端「消息中心」不再占一级目录，改为顶栏铃铛入口 -->
+      <el-tooltip v-if="isIntern" content="消息中心" effect="dark" placement="bottom">
+        <router-link to="/messages" class="right-menu-item hover-effect">
+          <i class="el-icon-bell" />
+        </router-link>
+      </el-tooltip>
+
       <el-dropdown class="avatar-container right-menu-item hover-effect" trigger="click">
         <div class="avatar-wrapper">
           <img :src="avatar" class="user-avatar">
@@ -72,8 +79,13 @@ export default {
     ...mapGetters([
       'sidebar',
       'avatar',
-      'device'
+      'device',
+      'roles'
     ]),
+    isIntern() {
+      const roles = this.roles || []
+      return roles.indexOf('PRE_TRAINEE') > -1 || roles.indexOf('FORMAL_TRAINEE') > -1
+    },
     setting: {
       get() {
         return this.$store.state.settings.showSettings
@@ -102,7 +114,9 @@ export default {
         type: 'warning'
       }).then(() => {
         this.$store.dispatch('LogOut').then(() => {
-          location.href = '/index';
+          // 用根路径而非 /index：登出后由路由守卫按角色决定落点
+          // （部门管理员 → 部门工作台；超管/实习生 → 通用工作台）
+          location.href = '/';
         })
       }).catch(() => {});
     }
