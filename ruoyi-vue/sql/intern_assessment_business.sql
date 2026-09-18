@@ -1,6 +1,6 @@
 -- ============================================================================
--- 实习生学习考核系统 - 若依融合版数据库初始化脚本
--- 策略：沿用若依系统表（sys_dept/sys_user/sys_role）作为权限框架
+-- 实习生学习考核系统 - 融谷版数据库初始化脚本
+-- 策略：沿用系统基础表（sys_dept/sys_user/sys_role）作为权限框架
 --       扩展 sys_user 添加业务字段（账号状态机/岗位/导师/协议状态）
 --       业务表保持独立设计，通过 user_id 关联
 -- ============================================================================
@@ -9,7 +9,7 @@ CREATE DATABASE IF NOT EXISTS `intern_assessment` DEFAULT CHARACTER SET utf8mb4 
 USE `intern_assessment`;
 
 -- ============================================================================
--- 第一步：执行若依系统表（已包含在 sql/ry_20240629.sql 和 sql/quartz.sql）
+-- 第一步：执行系统基础表（已包含在 sql/ry_20240629.sql 和 sql/quartz.sql）
 -- 请在 MySQL 中先执行这两个文件，或取消下面注释执行
 -- ============================================================================
 
@@ -17,7 +17,7 @@ USE `intern_assessment`;
 -- source sql/quartz.sql
 
 -- ============================================================================
--- 第二步：扩展若依 sys_user 表，添加业务字段
+-- 第二步：扩展sys_user 表，添加业务字段
 -- ============================================================================
 
 ALTER TABLE `sys_user`
@@ -37,7 +37,7 @@ ALTER TABLE `sys_user`
 -- `user_status` 的字段说明已在上方 ADD COLUMN 的 COMMENT 中定义。
 
 -- ============================================================================
--- 第三步：创建岗位类型主数据表（独立，若依无此表）
+-- 第三步：创建岗位类型主数据表（独立，系统无此表）
 -- ============================================================================
 
 DROP TABLE IF EXISTS `position`;
@@ -83,11 +83,11 @@ CREATE TABLE `dept_position` (
 -- 正式初始化由 intern_assessment_seed.sql 执行，使用岗位编码匹配，避免依赖自增 ID。
 
 -- ============================================================================
--- 第五步：初始化业务角色（映射到若依 sys_role）
+-- 第五步：初始化业务角色（映射到sys_role）
 -- ============================================================================
 
--- 在若依 sys_role 中插入业务角色
--- 注意：若依默认已有 admin 和 common 角色，这里添加业务角色
+-- 在sys_role 中插入业务角色
+-- 注意：系统默认已有 admin 和 common 角色，这里添加业务角色
 INSERT INTO `sys_role` (`role_name`, `role_key`, `role_sort`, `data_scope`, `menu_check_strictly`, `dept_check_strictly`, `status`, `del_flag`, `create_by`, `create_time`, `remark`) VALUES
     ('超级管理员', 'SUPER_ADMIN', 1, '1', 1, 1, '0', '0', 'admin', NOW(), '全局系统与业务规则管理'),
     ('部门管理员', 'DEPT_ADMIN', 2, '2', 1, 1, '0', '0', 'admin', NOW(), '本部门业务运营与培养评价'),
@@ -95,8 +95,8 @@ INSERT INTO `sys_role` (`role_name`, `role_key`, `role_sort`, `data_scope`, `men
     ('正式实习生', 'FORMAL_TRAINEE', 4, '5', 1, 1, '0', '0', 'admin', NOW(), '通过转正审批后的培养对象');
 
 -- ============================================================================
--- 第六步：业务表（37张，已调整为关联若依 sys_user）
--- 注意：以下业务表中的 user_id 均关联若依 sys_user.user_id
+-- 第六步：业务表（37张，已调整为关联sys_user）
+-- 注意：以下业务表中的 user_id 均关联sys_user.user_id
 -- ============================================================================
 
 -- 注册申请单
@@ -708,7 +708,7 @@ CREATE TABLE `notification` (
     KEY `idx_notify_expire` (`expire_time`)
 ) ENGINE=InnoDB COMMENT='站内消息中心表';
 
--- 操作审计日志（若依已有 sys_oper_log，这里保留业务操作日志）
+-- 操作审计日志（平台已有 sys_oper_log，这里保留业务操作日志）
 DROP TABLE IF EXISTS `operate_log`;
 CREATE TABLE `operate_log` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT,
@@ -731,13 +731,13 @@ CREATE TABLE `operate_log` (
     KEY `idx_log_operator_time` (`operator_id`,`create_time`),
     KEY `idx_log_module_action` (`module`,`action`),
     KEY `idx_log_object` (`object_type`,`object_id`)
-) ENGINE=InnoDB COMMENT='业务操作审计日志表(若依sys_oper_log之外的补充)';
+) ENGINE=InnoDB COMMENT='业务操作审计日志表(sys_oper_log之外的补充)';
 
 -- ============================================================================
 -- 完成！业务表创建完毕
 -- ============================================================================
 
-SELECT 'RuoYi 融合版数据库初始化完成' AS `提示信息`;
+SELECT '融谷 融合版数据库初始化完成' AS `提示信息`;
 SELECT '已创建业务表' AS `类型`, COUNT(*) AS `数量`
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = 'intern_assessment' AND TABLE_NAME NOT LIKE 'sys_%' AND TABLE_NAME NOT LIKE 'qrtz_%';

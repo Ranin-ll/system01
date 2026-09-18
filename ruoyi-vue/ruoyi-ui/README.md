@@ -1,30 +1,25 @@
+# 融谷实习生学习考核系统 · 前端
+
+Vue 2 + Element UI 的管理端与业务端界面。
+
 ## 开发
 
 ```bash
-# 克隆项目
-git clone https://gitee.com/y_project/RuoYi-Vue
-
-# 进入项目目录
-cd ruoyi-ui
-
-# 安装依赖
-npm install
-
-# 建议不要直接使用 cnpm 安装依赖，会有各种诡异的 bug。可以通过如下操作解决 npm 下载速度慢的问题
 npm install --registry=https://registry.npmmirror.com
-
-# 启动服务
-npm run dev
+npm run dev -- --port 9530
 ```
 
-浏览器访问 http://localhost:80
-
-## 发布
+## 构建
 
 ```bash
-# 构建测试环境
-npm run build:stage
-
-# 构建生产环境
 npm run build:prod
 ```
+
+## 目录约定
+
+- `src/views/business/**` —— 业务页面（课程 / 题库 / 考核等）
+- `src/views/assessment/**` —— 实习生端（工作台 / 学习与考核 / 考核成绩与转正申请 / 能力画像）
+- `src/views/department/**` —— 部门管理员端页面
+- `src/views/super/**` —— 超级管理员端页面
+- `src/api/business/**` —— 业务接口封装
+- `src/assets/styles/*-module.scss` —— 各端共享样式基线（SCSS 变量，勿用 `:root`）

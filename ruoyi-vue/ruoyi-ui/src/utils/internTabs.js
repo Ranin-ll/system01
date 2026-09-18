@@ -5,7 +5,7 @@
  * （views/assessment/learning/shell.vue）都从这里取，避免两处各写一份走偏。
  *
  * 角色差异：正式实习生已完成转正，「备考资料」与「模拟考核」对其关闭，
- * 仅保留「在线学习 / 正式考核 / 考核成绩与转正申请」，与 router/permission.js 的
+ * 仅保留「在线学习 / 正式考核 / 考核成绩与转正」，与 router/permission.js 的
  * formalInternBlockedPaths 拦截保持一致。
  */
 export const INTERN_TABS = [
@@ -13,7 +13,7 @@ export const INTERN_TABS = [
   { name: 'InternGuide', label: '备考资料', path: '/assessment/intern/learning/guide' },
   { name: 'InternMockExam', label: '模拟考核', path: '/assessment/intern/learning/mock' },
   { name: 'InternLearningExam', label: '正式考核', path: '/assessment/intern/learning/exam' },
-  { name: 'InternResult', label: '考核成绩与转正申请', path: '/assessment/intern/learning/result' }
+  { name: 'InternResult', label: '考核成绩与转正', path: '/assessment/intern/learning/result' }
 ]
 
 // 正式实习生可见的页签

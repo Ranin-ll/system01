@@ -21,7 +21,7 @@ SET @design_position_id = (SELECT id FROM position WHERE position_code = 'DESIGN
 SET @qa_position_id = (SELECT id FROM position WHERE position_code = 'QA' AND deleted = 0 LIMIT 1);
 SET @modeling_position_id = (SELECT id FROM position WHERE position_code = 'MODELING' AND deleted = 0 LIMIT 1);
 
--- 迁移早期超过若依 20 字符登录限制的实习生账号名，保留原 user_id 和业务关联。
+-- 迁移早期超过20 字符登录限制的实习生账号名，保留原 user_id 和业务关联。
 UPDATE sys_user old_user
 LEFT JOIN sys_user new_user ON new_user.user_name = 'test_impl_intern'
 SET old_user.user_name = 'test_impl_intern'

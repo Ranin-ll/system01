@@ -14,7 +14,9 @@ const user = {
     protocolStatus: null,
     mentorName: '',
     mentorPhone: '',
-    deptName: ''
+    deptName: '',
+    /** 当前用户部门ID（发通知选「本部门」范围时要用；部门管理员必填） */
+    deptId: null
   },
 
   mutations: {
@@ -51,6 +53,9 @@ const user = {
     },
     SET_DEPT_NAME: (state, deptName) => {
       state.deptName = deptName
+    },
+    SET_DEPT_ID: (state, deptId) => {
+      state.deptId = deptId === undefined || deptId === null || deptId === '' ? null : deptId
     }
   },
 
@@ -92,6 +97,7 @@ const user = {
           commit('SET_PROTOCOL_STATUS', Number(user.protocolStatus || 0))
           commit('SET_MENTOR', { name: user.mentorName, phone: user.mentorPhone })
           commit('SET_DEPT_NAME', user.dept && user.dept.deptName ? user.dept.deptName : '')
+          commit('SET_DEPT_ID', user.deptId)
           resolve(res)
         }).catch(error => {
           reject(error)

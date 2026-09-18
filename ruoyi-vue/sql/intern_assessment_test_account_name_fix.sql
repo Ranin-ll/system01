@@ -1,4 +1,4 @@
--- 测试部门管理员账号名称修复：若依默认登录名最大长度为 20。
+-- 测试部门管理员账号名称修复：系统默认登录名最大长度为 20。
 USE `intern_assessment`;
 
 UPDATE sys_user SET user_name = 'test_dev_admin'

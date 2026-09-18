@@ -94,7 +94,7 @@ export const constantRoutes = [
     children: [
       {
         path: '',
-        component: () => import('@/views/assessment/index'),
+        component: () => import('@/views/message/index'),
         name: 'MessageCenter',
         meta: { title: '消息中心', icon: 'message' }
       }
@@ -111,7 +111,7 @@ export const dynamicRoutes = [
     roles: ['PRE_TRAINEE', 'FORMAL_TRAINEE'],
     children: [
       {
-        // 「学习与考核」页签壳：承载 5 个页签子路由（在线学习 / 备考资料 / 模拟考核 / 正式考核 / 考核成绩与转正申请）
+        // 「学习与考核」页签壳：承载 5 个页签子路由（在线学习 / 备考资料 / 模拟考核 / 正式考核 / 考核成绩与转正）
         path: 'learning',
         component: () => import('@/views/assessment/learning/shell'),
         name: 'InternLearningShell',
@@ -146,7 +146,7 @@ export const dynamicRoutes = [
             path: 'result',
             component: () => import('@/views/assessment/result/index'),
             name: 'InternResult',
-            meta: { title: '考核成绩与转正申请', activeMenu: '/assessment/intern/learning', tab: 'InternResult' }
+            meta: { title: '考核成绩与转正', activeMenu: '/assessment/intern/learning', tab: 'InternResult' }
           }
         ]
       },
@@ -200,7 +200,7 @@ export const dynamicRoutes = [
         meta: { title: '能力画像', activeMenu: '/index' }
       },
       {
-        // 旧路径兼容：考核记录已并入「学习与考核 · 考核成绩与转正申请」页签
+        // 旧路径兼容：考核记录已并入「学习与考核 · 考核成绩与转正」页签
         path: 'scores',
         redirect: '/assessment/intern/learning/result'
       }
@@ -299,10 +299,101 @@ export const dynamicRoutes = [
         meta: { title: '任务管理', icon: 'job', activeMenu: '/department/messages/tasks' }
       },
       {
+        // 任务批阅工作台：完成情况统计 + 内联批阅 + 资料 + 讨论（原来散在「任务管理」的弹窗里）
+        path: 'messages/review',
+        component: () => import('@/views/department/messages/review'),
+        name: 'DeptTaskReview',
+        meta: { title: '任务批阅', icon: 'edit', activeMenu: '/department/messages/review' }
+      },
+      {
         path: 'messages/notices',
         component: () => import('@/views/department/messages/notices'),
         name: 'DeptNotices',
         meta: { title: '通知管理', icon: 'message', activeMenu: '/department/messages/notices' }
+      }
+    ]
+  },
+
+  // ==========================================================================
+  // 超管端（设计稿 V2 五目录：全局工作台 / 组织与人员 / 培养运营 / 规则与配置 / 审计与合规）
+  //
+  // 与实习生端、部门端同一套思路：本段只声明「真实路由」，**侧栏分组**由
+  // store/modules/permission.js 的 buildSuperSidebar() 按设计稿五目录重排；
+  // 「系统管理 / 系统监控 / 系统工具」三项继续复用平台原生菜单（由 DB 菜单提供）。
+  // roles 同时匹配内置 admin（role_key='admin'）与业务超管角色 SUPER_ADMIN。
+  // ==========================================================================
+  {
+    path: '/super',
+    component: Layout,
+    hidden: true,
+    roles: ['SUPER_ADMIN', 'admin'],
+    children: [
+      {
+        // ① 全局工作台（单项目录，侧栏会自动折叠成一级链接）
+        path: 'dashboard',
+        component: () => import('@/views/super/dashboard/index'),
+        name: 'SuperDashboard',
+        meta: { title: '全局工作台', icon: 'dashboard', activeMenu: '/super/dashboard' }
+      },
+      // ② 组织与人员
+      {
+        path: 'org/organization',
+        component: () => import('@/views/super/org/organization/index'),
+        name: 'SuperOrganization',
+        meta: { title: '组织岗位', icon: 'tree', activeMenu: '/super/org/organization' }
+      },
+      {
+        path: 'org/roles',
+        component: () => import('@/views/super/org/roles/index'),
+        name: 'SuperRoles',
+        meta: { title: '角色权限', icon: 'lock', activeMenu: '/super/org/roles' }
+      },
+      {
+        // 账号管理直接复用平台系统用户页（超管可写：创建部门管理员等）
+        path: 'org/accounts',
+        component: () => import('@/views/system/user/index'),
+        name: 'SuperAccounts',
+        meta: { title: '账号管理', icon: 'user', activeMenu: '/super/org/accounts' }
+      },
+      // ③ 培养运营（全局只读）
+      {
+        path: 'ops/courses',
+        component: () => import('@/views/super/ops/courses/index'),
+        name: 'SuperOpsCourses',
+        meta: { title: '课程与题库总览', icon: 'reading', activeMenu: '/super/ops/courses' }
+      },
+      {
+        path: 'ops/exams',
+        component: () => import('@/views/super/ops/exams/index'),
+        name: 'SuperOpsExams',
+        meta: { title: '考核运营总览', icon: 'date', activeMenu: '/super/ops/exams' }
+      },
+      {
+        path: 'ops/scores',
+        component: () => import('@/views/super/ops/scores/index'),
+        name: 'SuperOpsScores',
+        meta: { title: '成绩与统计分析', icon: 'chart', activeMenu: '/super/ops/scores' }
+      },
+      // ④ 任务与通知（单项目录；三端命名统一 —— 决策 6）
+      {
+        path: 'notify',
+        component: () => import('@/views/super/notify/index'),
+        name: 'SuperNotify',
+        meta: { title: '任务与通知', icon: 'message', activeMenu: '/super/notify' }
+      },
+      // ⑤ 规则与配置（单项目录）
+      {
+        path: 'rule',
+        component: () => import('@/views/super/rule/index'),
+        name: 'SuperRule',
+        meta: { title: '规则与配置', icon: 'edit', activeMenu: '/super/rule' }
+      },
+      // ⑤ 审计与合规（单项目录）
+      {
+        path: 'audit',
+        component: () => import('@/views/super/audit/index'),
+        name: 'SuperAudit',
+        meta: { title: '审计与合规', icon: 'documentation', activeMenu: '/super/audit' }
       }
     ]
   },
