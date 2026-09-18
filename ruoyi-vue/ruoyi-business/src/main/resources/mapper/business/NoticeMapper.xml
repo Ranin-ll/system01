@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.NoticeMapper">
+
+    <!-- ============================================================
+         ★ 送达谓词：全链路唯一口径。
+         谁该收到一条消息，只在这里定义一次；列表 / 未读数 / 未读分组 /
+         公告位 / 详情可见性 五处都 include 它，保证四处数字永远一致。
+
+         规则：status=PUBLISHED 且未过期，且满足下列其一
+           · scope_type=ALL      → 当前用户有效（未删除）
+           · scope_type=DEPT     → 该用户 dept_id 命中 scope_id
+           · scope_type=POSITION → 该用户 position_id 命中 scope_id
+                                   或 scope_id=0（虚拟「部门管理员」岗）且该用户持有 DEPT_ADMIN
+           · scope_type=USER     → 该用户在 notice_target 里
+         ============================================================ -->
+    <!--
+      「部门管理员岗」判定：按岗位发消息时，scope_id 传 0 表示「各部门管理员」。
+      为什么管理员不是用 position_id 匹配的：部门管理员的 position_id 是 NULL
+      （dept_position 里岗位只绑实习生岗，管理员不占岗），所以用角色判定。
+      ★ 哨兵值取 0 而不是负数：position.id 是自增，实际岗位从 1 起，0 永远不会是真实岗位。
+    -->
+    <sql id="isDeptAdmin">
+        EXISTS (SELECT 1 FROM sys_user_role dar JOIN sys_role dr ON dr.role_id = dar.role_id
+                 WHERE dar.user_id = ${u}.user_id AND dr.role_key = 'DEPT_ADMIN')
+    </sql>
+
+    <sql id="visibleTo">
+        n.status = 'PUBLISHED'
+        AND (n.effective_to IS NULL OR n.effective_to &gt; NOW())
+        AND (
+              (n.scope_type &lt;&gt; 'USER' AND EXISTS (
+                    SELECT 1 FROM sys_user u
+                     WHERE u.user_id = #{userId}
+                       AND u.del_flag = '0'
+                       AND (n.scope_type = 'ALL'
+                            OR (n.scope_type = 'DEPT'     AND u.dept_id     = n.scope_id)
+                            OR (n.scope_type = 'POSITION' AND (
+                                   (n.scope_id &lt;&gt; 0 AND u.position_id = n.scope_id)
+                                OR (n.scope_id = 0 AND <include refid="isDeptAdmin"><property name="u" value="u"/></include>)
+                            )))
+              ))
+           OR (n.scope_type = 'USER' AND EXISTS (
+                    SELECT 1 FROM notice_target t
+                     WHERE t.notice_id = n.id AND t.user_id = #{userId}
+              ))
+        )
+    </sql>
+
+    <!-- 列表公共字段 -->
+    <sql id="cols">
+        n.id, n.title, n.content, n.scope_type AS scopeType, n.scope_id AS scopeId,
+        n.msg_type AS msgType, n.biz_type AS bizType, n.biz_id AS bizId, n.link_url AS linkUrl,
+        n.is_top AS isTop, n.effective_to AS effectiveTo, n.publisher_id AS publisherId,
+        n.publish_time AS publishTime, n.status, n.create_time AS createTime
+    </sql>
+
+    <select id="selectMyList" resultType="com.ruoyi.business.domain.Notice">
+        SELECT <include refid="cols"/>,
+               r.read_time AS readTime,
+               u.nick_name AS publisherName
+          FROM notice n
+          LEFT JOIN notice_read r ON r.notice_id = n.id AND r.user_id = #{userId}
+          LEFT JOIN sys_user u ON u.user_id = n.publisher_id
+         WHERE <include refid="visibleTo"/>
+           <!-- 自己发的不进"我的消息"，避免管理员被自己的通知刷屏 -->
+           AND (n.publisher_id IS NULL OR n.publisher_id &lt;&gt; #{userId})
+        <if test="msgType != null and msgType != ''">
+           AND n.msg_type = #{msgType}
+        </if>
+        <if test="readFlag == 'UNREAD'">
+           AND r.id IS NULL
+        </if>
+        <if test="readFlag == 'READ'">
+           AND r.id IS NOT NULL
+        </if>
+        <if test="keyword != null and keyword != ''">
+           AND (n.title LIKE CONCAT('%', #{keyword}, '%') OR n.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+         ORDER BY n.is_top DESC, n.publish_time DESC, n.id DESC
+    </select>
+
+    <select id="countUnread" resultType="int">
+        SELECT COUNT(*)
+          FROM notice n
+          LEFT JOIN notice_read r ON r.notice_id = n.id AND r.user_id = #{userId}
+         WHERE <include refid="visibleTo"/>
+           AND r.id IS NULL
+           AND (n.publisher_id IS NULL OR n.publisher_id &lt;&gt; #{userId})
+    </select>
+
+    <select id="countUnreadByType" resultType="java.util.Map">
+        SELECT n.msg_type AS msgType, COUNT(*) AS cnt
+          FROM notice n
+          LEFT JOIN notice_read r ON r.notice_id = n.id AND r.user_id = #{userId}
+         WHERE <include refid="visibleTo"/>
+           AND r.id IS NULL
+           AND (n.publisher_id IS NULL OR n.publisher_id &lt;&gt; #{userId})
+         GROUP BY n.msg_type
+    </select>
+
+    <!-- 公告位：公告是"公示"，发布人自己也该看到，故不排除 publisher -->
+    <select id="selectAnnouncements" resultType="com.ruoyi.business.domain.Notice">
+        SELECT <include refid="cols"/>,
+               r.read_time AS readTime,
+               u.nick_name AS publisherName
+          FROM notice n
+          LEFT JOIN notice_read r ON r.notice_id = n.id AND r.user_id = #{userId}
+          LEFT JOIN sys_user u ON u.user_id = n.publisher_id
+         WHERE <include refid="visibleTo"/>
+           AND n.msg_type = 'ANNOUNCE'
+         ORDER BY n.is_top DESC, n.publish_time DESC, n.id DESC
+         LIMIT #{limit}
+    </select>
+
+    <!-- 详情：不可见时返回 null（上层统一提示"消息不存在"） -->
+    <select id="selectVisibleById" resultType="com.ruoyi.business.domain.Notice">
+        SELECT <include refid="cols"/>,
+               r.read_time AS readTime,
+               u.nick_name AS publisherName
+          FROM notice n
+          LEFT JOIN notice_read r ON r.notice_id = n.id AND r.user_id = #{userId}
+          LEFT JOIN sys_user u ON u.user_id = n.publisher_id
+         WHERE n.id = #{id}
+           AND <include refid="visibleTo"/>
+    </select>
+
+    <!-- 一键全部已读：INSERT ... SELECT，一次SQL搞定；唯一键 + 不更新 read_time = 幂等 -->
+    <insert id="markAllRead">
+        INSERT INTO notice_read (notice_id, user_id, read_time)
+        SELECT n.id, #{userId}, NOW()
+          FROM notice n
+         WHERE <include refid="visibleTo"/>
+           AND (n.publisher_id IS NULL OR n.publisher_id &lt;&gt; #{userId})
+        <if test="msgType != null and msgType != ''">
+           AND n.msg_type = #{msgType}
+        </if>
+        ON DUPLICATE KEY UPDATE read_time = read_time
+    </insert>
+
+    <!-- ============================================================
+         受众谓词（发送方视角）：某条通知的「应该收到的人」。
+         与上面的送达谓词是同一套规则的镜像 —— 上面是"这条消息该给我看吗"，
+         这里是"这条消息该给哪些人看"。两个方向共用同一份范围语义。
+         ${n} 由调用方传入通知表别名。
+         ★ 与 visibleTo 是镜像关系：改任一处的范围语义，必须同时改另一处，
+           以及 selectAudienceCount（发送前的「预计送达」估算）—— 三处必须一致。
+         ============================================================ -->
+    <sql id="audienceOf">
+        ( ${n}.scope_type = 'ALL'
+          OR (${n}.scope_type = 'DEPT'     AND u.dept_id     = ${n}.scope_id)
+          OR (${n}.scope_type = 'POSITION' AND (
+                 (${n}.scope_id &lt;&gt; 0 AND u.position_id = ${n}.scope_id)
+              OR (${n}.scope_id = 0 AND <include refid="isDeptAdmin"><property name="u" value="u"/></include>)
+          ))
+          OR (${n}.scope_type = 'USER'     AND EXISTS (
+                SELECT 1 FROM notice_target t WHERE t.notice_id = ${n}.id AND t.user_id = u.user_id)) )
+    </sql>
+
+    <!-- 我发送过的（带送达数 / 已读数）
+         targetUserId 不为空时：只留「这个人确实能收到」的通知，并带上 TA 的已读时间 -->
+    <select id="selectSentList" resultType="com.ruoyi.business.domain.Notice">
+        SELECT <include refid="cols"/>,
+               (SELECT COUNT(*) FROM sys_user u
+                 WHERE u.del_flag = '0' AND u.status = '0'
+                   AND <include refid="audienceOf"><property name="n" value="n"/></include>
+               ) AS deliveredCount,
+               (SELECT COUNT(*) FROM notice_read r WHERE r.notice_id = n.id) AS readCount
+               <if test="targetUserId != null">
+               , (SELECT r2.read_time FROM notice_read r2
+                   WHERE r2.notice_id = n.id AND r2.user_id = #{targetUserId}) AS targetReadTime
+               </if>
+          FROM notice n
+         WHERE n.publisher_id = #{publisherId}
+        <if test="msgType != null and msgType != ''">
+           AND n.msg_type = #{msgType}
+        </if>
+        <if test="keyword != null and keyword != ''">
+           AND n.title LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <if test="targetUserId != null">
+           AND EXISTS (SELECT 1 FROM sys_user u
+                        WHERE u.user_id = #{targetUserId} AND u.del_flag = '0' AND u.status = '0'
+                          AND <include refid="audienceOf"><property name="n" value="n"/></include>)
+        </if>
+         ORDER BY n.publish_time DESC, n.id DESC
+    </select>
+
+    <!-- 收件人清单（含是否已读），未读排前 -->
+    <select id="selectRecipients" resultType="java.util.Map">
+        SELECT u.user_id AS userId, u.user_name AS userName, u.nick_name AS nickName,
+               d.dept_name AS deptName, r.read_time AS readTime
+          FROM notice n
+          JOIN sys_user u
+            ON u.del_flag = '0' AND u.status = '0'
+           AND <include refid="audienceOf"><property name="n" value="n"/></include>
+          LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+          LEFT JOIN notice_read r ON r.notice_id = n.id AND r.user_id = u.user_id
+         WHERE n.id = #{id}
+         ORDER BY (r.id IS NULL) DESC, u.user_id
+    </select>
+
+    <!-- 撤回（仅 PUBLISHED 可撤） -->
+    <update id="revoke">
+        UPDATE notice SET status = 'REVOKED' WHERE id = #{id} AND status = 'PUBLISHED'
+    </update>
+
+    <!-- 发送前的「预计送达」估算：与 audienceOf 同口径（见上方 ★ 三处镜像说明）。
+         为什么放后端算：前端算不出「部门管理员岗」的人数 —— /system/user/list 返回的
+         roles 是空数组，角色信息拿不到（曾经在前端按 positionId 数，对哨兵岗只能数出 0）。
+         只覆盖 ALL / DEPT / POSITION 三档；USER 档的收件人就在请求里，前端数数组长度即可。 -->
+    <select id="selectAudienceCount" resultType="int">
+        SELECT COUNT(*)
+          FROM sys_user u
+         WHERE u.del_flag = '0' AND u.status = '0'
+           AND ( #{scopeType} = 'ALL'
+              OR (#{scopeType} = 'DEPT'     AND u.dept_id = #{scopeId})
+              OR (#{scopeType} = 'POSITION' AND #{scopeId} &lt;&gt; 0 AND u.position_id = #{scopeId})
+              OR (#{scopeType} = 'POSITION' AND #{scopeId} = 0
+                   AND <include refid="isDeptAdmin"><property name="u" value="u"/></include>) )
+    </select>
+
+    <!-- 范围校验：传入的接收人里有多少不在该部门 -->
+    <select id="countUsersOutsideDept" resultType="int">
+        SELECT COUNT(*)
+          FROM sys_user
+         WHERE del_flag = '0'
+           AND user_id IN
+        <foreach collection="ids" item="uid" open="(" separator="," close=")">#{uid}</foreach>
+           AND (dept_id IS NULL OR dept_id &lt;&gt; #{deptId})
+    </select>
+
+</mapper>

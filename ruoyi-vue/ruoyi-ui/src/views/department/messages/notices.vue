@@ -8,10 +8,14 @@
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>通知管理</h1>
-        <p>单向告知，无完成状态；对应实习生端顶栏铃铛与工作台公告位。</p>
+        <p>
+          单向告知，无完成状态；对应实习生端顶栏铃铛与工作台公告位。
+          <b>范围锁本部门</b>（后端强校验）；「公告」仅超管可发。
+        </p>
       </div>
       <div class="dept-heading-actions">
-        <span class="dsample">演示数据 · notification / notice 表待后端</span>
+        <span class="dbadge green">真实数据</span>
+        <el-button size="small" icon="el-icon-refresh" :loading="loading" @click="loadSent">刷新</el-button>
       </div>
     </div>
 
@@ -24,62 +28,66 @@
 
         <div class="dfield">
           <label>通知标题 <b>*</b></label>
-          <el-input v-model="form.title" size="small" placeholder="例如：【提醒】2026Q3 正式考核将于 9 月 20 日 09:00 开考" />
+          <el-input v-model="form.title" size="small" maxlength="80" show-word-limit
+                    placeholder="例如：【提醒】2026Q3 正式考核将于 9 月 20 日 09:00 开考" />
         </div>
+
         <div class="dfg2" style="margin-top:12px">
           <div class="dfield">
-            <label>通知类型</label>
-            <el-select v-model="form.type" size="small" style="width:100%">
-              <el-option v-for="t in types" :key="t" :label="t" :value="t" />
+            <label>载体类型</label>
+            <el-select v-model="form.msgType" size="small" style="width:100%">
+              <el-option label="通知" value="NOTIFY" />
+              <el-option label="公告（仅超管可发）" value="ANNOUNCE" disabled />
             </el-select>
           </div>
           <div class="dfield">
-            <label>发送方式</label>
-            <el-select v-model="form.channel" size="small" style="width:100%">
-              <el-option label="站内信" value="站内信" />
-              <el-option label="站内信 + 邮件" value="站内信 + 邮件" />
-            </el-select>
-          </div>
-          <div class="dfield">
-            <label>发送对象</label>
-            <el-select v-model="form.target" size="small" style="width:100%">
-              <el-option v-for="t in targets" :key="t.key" :label="t.label" :value="t.key" />
-            </el-select>
-          </div>
-          <div class="dfield">
-            <label>生效时间</label>
-            <el-date-picker
-              v-model="form.sendAt"
-              type="datetime"
-              size="small"
-              value-format="yyyy-MM-dd HH:mm"
-              placeholder="立即发送"
-              style="width:100%"
-            />
+            <label>有效期至</label>
+            <el-date-picker v-model="form.effectiveTo" type="datetime" size="small"
+                            value-format="yyyy-MM-dd HH:mm:ss" placeholder="可留空（长期有效）" style="width:100%" />
           </div>
         </div>
+
         <div class="dfield">
-          <label>通知正文</label>
-          <el-input
-            v-model="form.body"
-            type="textarea"
-            :rows="6"
-            size="small"
-            placeholder="请提前 10 分钟进入考核页面完成设备自检。理论 60 分钟，实操 90 分钟，两部分均需及格。"
-          />
+          <label>发送范围 <b>*</b></label>
+          <el-select v-model="form.scopeType" size="small" style="width:100%" @change="onScopeChange">
+            <el-option label="本部门全体" value="DEPT" />
+            <el-option label="按岗位" value="POSITION" />
+            <el-option label="指定人员" value="USER" />
+          </el-select>
         </div>
-        <div class="dchkrow" style="margin-top:6px" @click="form.pinned = !form.pinned">
-          <span class="box" :class="{ sw: form.pinned }"><i class="el-icon-check" /></span>
-          <span>置顶显示在实习生工作台</span>
+
+        <div v-if="form.scopeType === 'POSITION'" class="dfield">
+          <label>岗位 <b>*</b></label>
+          <el-select v-model="form.scopeId" size="small" style="width:100%" placeholder="选择本部门岗位">
+            <el-option v-for="p in myPositions" :key="p.id" :label="p.positionName" :value="Number(p.id)" />
+          </el-select>
         </div>
-        <div class="dchkrow" @click="form.urgent = !form.urgent">
-          <span class="box" :class="{ sw: form.urgent }"><i class="el-icon-check" /></span>
-          <span>同时推送顶栏铃铛红点</span>
+
+        <div v-if="form.scopeType === 'USER'" class="dfield">
+          <label>接收人 <b>*</b></label>
+          <el-select v-model="form.targetUserIds" size="small" multiple filterable style="width:100%"
+                     placeholder="搜索本部门人员">
+            <el-option v-for="u in myUsers" :key="u.userId"
+                       :label="(u.nickName || u.userName) + '（' + (u.userName) + '）'" :value="u.userId" />
+          </el-select>
+        </div>
+
+        <div class="dfield" style="margin-top:12px">
+          <label>通知正文 <b>*</b></label>
+          <el-input v-model="form.content" type="textarea" :rows="6" size="small"
+                    placeholder="请提前 10 分钟进入考核页面完成设备自检。理论 60 分钟，实操 90 分钟，两部分均需及格。" />
+        </div>
+
+        <div class="dchkrow" style="margin-top:6px" @click="form.isTop = form.isTop ? 0 : 1">
+          <span class="box" :class="{ sw: form.isTop === 1 }"><i class="el-icon-check" /></span>
+          <span>置顶显示（列表与公告位排序优先）</span>
         </div>
 
         <div class="dbtn-row right" style="margin-top:16px">
-          <el-button size="small" @click="notReady('存为草稿')">存草稿</el-button>
-          <el-button size="small" type="primary" @click="send">发送通知</el-button>
+          <span class="hint-text" style="margin-right:auto">
+            预计送达 <b>{{ estimate === null ? '—' : estimate + ' 人' }}</b>
+          </span>
+          <el-button size="small" type="primary" :loading="sending" @click="send">发送通知</el-button>
         </div>
       </div>
 
@@ -87,40 +95,60 @@
       <div class="dcard c7">
         <div class="dcard-h">
           <div class="tt"><span class="idx">史</span><h3>已发送通知</h3></div>
-          <span class="hint-text">已读列 = 实习生端铃铛未读红点的反面</span>
+          <div class="sent-filters">
+            <TraineeSelect v-model="query.targetUserId" width="148px" @change="loadSent" @loaded="trainees = $event" />
+            <el-input
+              v-model="query.title" size="small" clearable placeholder="搜标题" style="width:130px"
+              @keyup.enter.native="loadSent" @clear="loadSent"
+            />
+          </div>
         </div>
+        <p v-if="query.targetUserId" class="sent-hint">
+          <i class="el-icon-user" /> 只看 <b>{{ targetName }}</b> 能收到的通知；「已读」列换成他本人的阅读状态。
+          <el-button type="text" @click="clearFilter">取消筛选</el-button>
+        </p>
         <table class="dtbl">
           <thead>
             <tr>
               <th>标题</th>
-              <th style="width:80px">类型</th>
-              <th style="width:120px">对象</th>
+              <th style="width:74px">载体</th>
+              <th style="width:110px">范围</th>
               <th style="width:110px">发送时间</th>
-              <th style="width:74px">已读</th>
-              <th style="width:82px">操作</th>
+              <th style="width:84px">{{ query.targetUserId ? '他的状态' : '已读' }}</th>
+              <th style="width:120px">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in notices" :key="row.id">
               <td>
                 <span class="strong">{{ row.title }}</span>
-                <span v-if="row.pinned" class="dbadge orange" style="margin-left:6px">置顶</span>
+                <span v-if="row.isTop" class="dbadge orange" style="margin-left:6px">置顶</span>
+                <span v-if="row.status === 'REVOKED'" class="dbadge gray" style="margin-left:6px">已撤回</span>
               </td>
-              <td><span class="dbadge" :class="typeTone(row.type)">{{ row.type }}</span></td>
-              <td>{{ row.target }}</td>
-              <td>{{ row.sentAt }}</td>
+              <td><span class="dbadge" :class="row.msgType === 'ANNOUNCE' ? 'gray' : 'blue'">{{ carrier(row.msgType) }}</span></td>
+              <td>{{ scopeText(row) }}</td>
+              <td>{{ shortTime(row.publishTime || row.createTime) }}</td>
               <td>
-                <span :class="{ 'read-all': row.read >= row.total }">{{ row.read }} / {{ row.total }}</span>
+                <!-- 筛选到个人时：看的是「TA 读没读」，而不是整体已读数 -->
+                <template v-if="query.targetUserId">
+                  <span class="dbadge" :class="row.targetReadTime ? 'green' : 'orange'">
+                    {{ row.targetReadTime ? '已读' : '未读' }}
+                  </span>
+                  <div v-if="row.targetReadTime" class="hint-text">{{ shortTime(row.targetReadTime) }}</div>
+                </template>
+                <span v-else :class="{ 'read-all': row.deliveredCount && row.readCount >= row.deliveredCount }">
+                  {{ row.readCount || 0 }} / {{ row.deliveredCount || 0 }}
+                </span>
               </td>
               <td>
                 <div class="acts">
-                  <el-button type="text" @click="viewNotice(row)">查看</el-button>
-                  <span class="sep">|</span>
-                  <el-button type="text" @click="resend(row)">重发</el-button>
+                  <el-button type="text" @click="showRecipients(row)">未读名单</el-button>
+                  <span class="sep" v-if="row.status !== 'REVOKED'">|</span>
+                  <el-button v-if="row.status !== 'REVOKED'" type="text" @click="revoke(row)">撤回</el-button>
                 </div>
               </td>
             </tr>
-            <tr v-if="!notices.length">
+            <tr v-if="!loading && !notices.length">
               <td colspan="6">
                 <div class="dempty small">
                   <i class="el-icon-message" />
@@ -132,116 +160,212 @@
           </tbody>
         </table>
         <p class="dsec-note">
-          「已读」列直接对应实习生端铃铛未读红点 —— 两角色靠这一张表联动。
-          通知落地后可考虑先做「通知」这一半：实习生端铃铛 UI 已就位，收益最直接。
+          送达数 = 命中该条范围的有效账号数；已读数来自 <code>notice_read</code>。
+          实习生读完后两端<b>同时</b>变化 —— 不会出现「这边显示已读、那边还红着」。
+          点「未读名单」可看具体是谁没读（未读排前）。
+          <b>按实习生筛选</b>后，列表只留他能收到的通知，并直接给出他本人的已读状态 ——
+          回答「我到底有没有通知到张三」只需一步。
         </p>
       </div>
     </div>
 
-    <div class="dcallout warn" style="margin-top:16px">
-      <i class="el-icon-warning-outline" />
+    <div class="dcallout" style="margin-top:16px">
+      <i class="el-icon-success" />
       <span>
-        <b>后端现状</b>：<code>notification</code> / <code>notice</code> 两张表
-        <b>零 Java 层</b>（表已建好、无读写接口）。需要新增：通知发布、按对象分发、
-        已读回执写回。本页在接口就绪前用演示数据，发送动作只更新本地列表。
+        <b>已接后端</b>：发送走 <code>POST /business/message</code>，列表走 <code>GET /business/message/sent</code>，
+        收件人走 <code>GET /business/message/{id}/recipients</code>，撤回走 <code>POST /business/message/{id}/revoke</code>。
+        范围与「公告」的强校验在<b>后端</b>：部门管理员只能发本部门 / 本部门岗位 / 本部门人员。
       </span>
     </div>
+
+    <!-- 未读名单 -->
+    <el-dialog :title="'收件人清单 · ' + (cur && cur.title || '')" :visible.sync="rcpVisible" width="620px" append-to-body>
+      <table class="dtbl">
+        <thead>
+          <tr><th>姓名</th><th style="width:130px">账号</th><th style="width:110px">部门</th><th style="width:80px">状态</th><th style="width:150px">已读时间</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in rcp" :key="r.userId">
+            <td class="strong">{{ r.nickName }}</td>
+            <td>{{ r.userName }}</td>
+            <td>{{ r.deptName }}</td>
+            <td><span class="dbadge" :class="r.readTime ? 'green' : 'orange'">{{ r.readTime ? '已读' : '未读' }}</span></td>
+            <td>{{ r.readTime || '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="dsec-note" style="margin-top:10px">未读的人排在前面。</p>
+    </el-dialog>
   </div>
 </template>
 
 <script>
+/**
+ * 部门管理员端 · 通知管理（2026-09-17 接后端）
+ *
+ * 与超管「任务与通知」共用同一套接口与送达谓词，差异只在能力：
+ * 部门管理员**不能发公告、不能发全体**，范围锁在本部门（后端强校验，前端 disabled 只是体验）。
+ *
+ * 本页原为演示态；本轮只换数据层，保留既有 d* 结构与样式。
+ */
+import { sendMessage, listSentMessages, listRecipients, revokeMessage } from '@/api/business/message'
+import { listCoursePositions } from '@/api/business/course'
+import { listTrainees } from '@/api/business/task'
+import TraineeSelect from '@/components/TraineeSelect'
+import { mapGetters } from 'vuex'
+
+const SCOPE_LABEL = { ALL: '全体', DEPT: '本部门', POSITION: '岗位', USER: '指定人员' }
+
 export default {
   name: 'DeptNotices',
+  components: { TraineeSelect },
   data() {
     return {
-      types: ['考核提醒', '课程更新', '公告', '任务提醒'],
+      loading: false,
+      sending: false,
+      estimate: null,
+      positions: [],
+      users: [],
+      notices: [],
+      query: { pageNum: 1, pageSize: 20, targetUserId: null, title: '' },
+      trainees: [],
       form: {
+        msgType: 'NOTIFY',
+        scopeType: 'DEPT',
+        scopeId: null,
+        targetUserIds: [],
         title: '',
-        type: '考核提醒',
-        channel: '站内信 + 邮件',
-        target: 'POSITION_DEV',
-        sendAt: '',
-        body: '',
-        pinned: true,
-        urgent: true
+        content: '',
+        isTop: 0,
+        effectiveTo: null
       },
-      notices: [
-        { id: 1, title: '【提醒】9/20 正式考核开考', type: '考核提醒', target: '开发实习生 5 人', sentAt: '09-18 10:00', read: 4, total: 5, pinned: true },
-        { id: 2, title: '课程「容器基础」已更新为 v1.2', type: '课程更新', target: '开发实习生 5 人', sentAt: '09-15 15:20', read: 5, total: 5, pinned: false },
-        { id: 3, title: '关于国庆假期实习安排', type: '公告', target: '本部门全体 6 人', sentAt: '09-12 09:00', read: 6, total: 6, pinned: false }
-      ],
-      seq: 100
+      rcpVisible: false,
+      rcp: [],
+      cur: null
     }
   },
   computed: {
-    targets() {
-      return [
-        { key: 'ALL', label: '本部门全体' },
-        { key: 'POSITION_DEV', label: '开发实习生' },
-        { key: 'POSITION_IMPL', label: '实施实习生' },
-        { key: 'NOT_PASSED', label: '尚未通过正式考核的实习生' }
-      ]
+    ...mapGetters(['deptId', 'deptName']),
+    /**
+     * 可选岗位：直接用 /business/course/positions —— 该接口**已按当前部门过滤**
+     * （开发部门管理员只返回「开发实习生」，超管返回全部 5 个）。
+     * 不用 dept-bindings 是因为它对 DEPT_ADMIN 是 403（缺 business:position:list 权限）。
+     */
+    myPositions() {
+      return this.positions
+    },
+    /** 本部门人员 */
+    myUsers() {
+      if (!this.deptId) return []
+      return this.users.filter(u => Number(u.deptId) === Number(this.deptId))
+    },
+    /** 按实习生筛选时，提示里显示 TA 的姓名 */
+    targetName() {
+      const u = this.trainees.find(x => Number(x.userId) === Number(this.query.targetUserId))
+      return u ? (u.nickName || u.userName) : ''
     }
   },
+  created() {
+    this.loadBase()
+    this.loadSent()
+  },
   methods: {
-    send() {
-      if (!this.form.title.trim()) {
-        this.$message.warning('请先填写通知标题')
-        return
-      }
-      if (!this.form.body.trim()) {
-        this.$message.warning('请填写通知正文')
-        return
-      }
-      const target = (this.targets.find(t => t.key === this.form.target) || {}).label || '本部门全体'
-      this.seq += 1
-      this.notices.unshift({
-        id: this.seq,
-        title: this.form.title,
-        type: this.form.type,
-        target: target,
-        sentAt: this.fmtNow(this.form.sendAt),
-        read: 0,
-        total: target.indexOf('全体') > -1 ? 6 : 5,
-        pinned: this.form.pinned
+    loadBase() {
+      listCoursePositions().then(res => { this.positions = res.data || [] }).catch(() => { this.positions = [] })
+      // ★ 用业务侧接口，不用 /system/user/list（后者对部门管理员是 403，会静默拿到空列表，
+      //   之前的「指定人员」选择器就是空的）
+      listTrainees().then(res => { this.users = res.data || [] }).catch(() => { this.users = [] })
+    },
+    loadSent() {
+      this.loading = true
+      // 空串要转成 undefined，否则后端会把「清空筛选」当成「按空标题搜」
+      const q = Object.assign({}, this.query, {
+        targetUserId: this.query.targetUserId || undefined,
+        title: this.query.title || undefined
       })
-      this.$message.success('通知已发送（演示态）：' + target)
-      this.form.title = ''
-      this.form.body = ''
+      listSentMessages(q).then(res => {
+        this.notices = (res.data || {}).rows || []
+      }).catch(() => { this.notices = [] }).finally(() => { this.loading = false })
     },
-    viewNotice(row) {
-      this.$alert(
-        '<div style="line-height:1.9;font-size:12.5px">'
-          + '<b>' + row.title + '</b><br/>'
-          + '类型：' + row.type + '　对象：' + row.target + '<br/>'
-          + '发送：' + row.sentAt + '　已读：' + row.read + ' / ' + row.total
-          + '</div>',
-        '通知详情',
-        { dangerouslyUseHTMLString: true, confirmButtonText: '关闭' }
-      ).catch(() => {})
+    clearFilter() {
+      this.query.targetUserId = null
+      this.loadSent()
     },
-    resend(row) {
-      this.$confirm('将向「' + row.target + '」重新推送这条通知，是否继续？', '重发通知', {
-        confirmButtonText: '重新推送',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
-        row.sentAt = this.fmtNow('')
-        row.read = 0
-        this.$message.success('已重新推送（演示态）')
+    onScopeChange() {
+      this.form.scopeId = null
+      this.form.targetUserIds = []
+      this.calcEstimate()
+    },
+    calcEstimate() {
+      const f = this.form
+      if (f.scopeType === 'DEPT') {
+        this.estimate = this.myUsers.length
+      } else if (f.scopeType === 'POSITION') {
+        this.estimate = f.scopeId ? this.myUsers.filter(u => Number(u.positionId) === Number(f.scopeId)).length : null
+      } else {
+        this.estimate = f.targetUserIds.length || null
+      }
+    },
+    send() {
+      const f = this.form
+      if (!f.title.trim()) { this.$message.warning('请先填写通知标题'); return }
+      if (!f.content.trim()) { this.$message.warning('请填写通知正文'); return }
+      if (f.scopeType === 'POSITION' && !f.scopeId) { this.$message.warning('请选择岗位'); return }
+      if (f.scopeType === 'USER' && !f.targetUserIds.length) { this.$message.warning('请选择接收人'); return }
+
+      // 本部门全体：scopeId 直接用当前用户部门（后端同样会校验）
+      const body = {
+        msgType: f.msgType,
+        scopeType: f.scopeType,
+        scopeId: f.scopeType === 'DEPT' ? this.deptId : f.scopeId,
+        targetUserIds: f.scopeType === 'USER' ? f.targetUserIds : [],
+        title: f.title,
+        content: f.content,
+        isTop: f.isTop,
+        effectiveTo: f.effectiveTo || null
+      }
+      this.sending = true
+      sendMessage(body).then(res => {
+        this.$message.success(res.msg || '已发送')
+        this.form.title = ''
+        this.form.content = ''
+        this.form.scopeId = null
+        this.form.targetUserIds = []
+        this.estimate = null
+        this.loadSent()
+      }).catch(() => {}).finally(() => { this.sending = false })
+    },
+    carrier(t) {
+      return t === 'ANNOUNCE' ? '公告' : '通知'
+    },
+    scopeText(row) {
+      const base = SCOPE_LABEL[row.scopeType] || row.scopeType
+      if (row.scopeType === 'POSITION' && row.scopeId) {
+        const p = this.positions.find(x => Number(x.id) === Number(row.scopeId))
+        return p ? p.positionName : base
+      }
+      return base
+    },
+    shortTime(v) {
+      if (!v) return '—'
+      return String(v).replace('T', ' ').slice(5, 16)
+    },
+    showRecipients(row) {
+      this.cur = row
+      listRecipients(row.id).then(res => {
+        this.rcp = res.data || []
+        this.rcpVisible = true
       }).catch(() => {})
     },
-    typeTone(type) {
-      return { '考核提醒': 'purple', '课程更新': 'blue', '公告': 'gray', '任务提醒': 'orange' }[type] || 'gray'
-    },
-    fmtNow(value) {
-      const d = value ? new Date(String(value).replace(/-/g, '/')) : new Date()
-      const p = n => (n < 10 ? '0' + n : '' + n)
-      if (isNaN(d.getTime())) return '—'
-      return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
-    },
-    notReady(action) {
-      this.$message({ message: '「' + action + '」所需的接口尚未落地（notification / notice 表零 Java 层）', type: 'warning' })
+    revoke(row) {
+      this.$confirm('撤回后该通知会立即从所有人的消息列表消失（已读记录保留），确定撤回？', '撤回通知', {
+        confirmButtonText: '确定撤回',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => revokeMessage(row.id).then(res => {
+        this.$message.success(res.msg || '已撤回')
+        this.loadSent()
+      }).catch(() => {})).catch(() => {})
     }
   }
 }
@@ -253,6 +377,16 @@ export default {
 .dchkrow:hover { color: #1764f5; }
 .dtbl .acts .sep { color: #d0d5dd; }
 .dtbl .read-all { color: #067647; font-weight: 600; }
+.sent-filters { display: flex; align-items: center; gap: 8px; }
+.sent-hint {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 8px; padding: 7px 10px;
+  background: #f7faff; border: 1px solid #dbe6f8; border-radius: 8px;
+  color: #344054; font-size: 12px;
+
+  b { color: #1764f5; }
+  .el-button { padding: 0 4px; font-size: 12px; }
+}
 code { padding: 1px 5px; color: #344054; font-size: 11.5px; background: #f2f4f7; border-radius: 4px; }
 .hint-text { color: #98a2b3; font-size: 11.5px; }
 </style>
