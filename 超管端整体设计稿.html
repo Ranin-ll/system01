@@ -888,7 +888,7 @@
   </section>
     <section class="sec" id="a5">
     <div class="sec-head"><span class="sec-no">5</span><h2>账号管理 · 全系统人员账号（含部门管理员）由超管创建与维护</h2></div>
-    <p class="sec-desc">超管负责<b>全系统所有人员账号</b>的创建与维护。账号有三种来源：<b>① 超管手动创建</b>（部门管理员及其他管理人员）、<b>② 注册审核通过自动创建</b>（实习生）、<b>③ 系统初始化</b>（首个超管账号）。底层复用若依原生 <span class="kbd">system/user</span>，叠加业务字段 <span class="kbd">user_status</span> / <span class="kbd">is_dept_admin</span> / <span class="kbd">position_id</span> / <span class="kbd">mentor_name</span> / <span class="kbd">protocol_status</span>。</p>
+    <p class="sec-desc">超管负责<b>全系统所有人员账号</b>的创建与维护。账号有三种来源：<b>① 超管手动创建</b>（部门管理员及其他管理人员）、<b>② 注册审核通过自动创建</b>（实习生）、<b>③ 系统初始化</b>（首个超管账号）。底层复用平台原生 <span class="kbd">system/user</span>，叠加业务字段 <span class="kbd">user_status</span> / <span class="kbd">is_dept_admin</span> / <span class="kbd">position_id</span> / <span class="kbd">mentor_name</span> / <span class="kbd">protocol_status</span>。</p>
     <div class="frame">
       <div class="frame-bar"><span class="dot r"></span><span class="dot"></span><span class="dot"></span><span class="url">127.0.0.1:9530/system/accounts</span></div>
       <div class="app">
@@ -996,7 +996,7 @@
       <span class="ai" data-page-node-id="6YRtpQZgGwqP3o0mnJFi6W">!</span>
       <div style="flex:1" data-page-node-id="wttmBq2aUhL2xlFgY8OkfJ">
         <b data-page-node-id="70h9rXocTmG1FwWulhZElA">与现有代码冲突，需先确认口径</b>
-        <p data-page-node-id="i3VwjkNOpMDiq0heFnmfeW">当前后端 <span class="kbd" data-page-node-id="G2Mj5txqkzQj4zrPXhW8Ci">CourseServiceImpl.isGlobalReadOnly()</span> 与 <span class="kbd" data-page-node-id="BsPLcq09aPMPtY8szGvCXm">CourseContentServiceImpl</span> 判定 <span class="kbd" data-page-node-id="mYsw2iIDc7UPW19UV9B2Jo">SUPER_ADMIN</span> 即抛异常：<br data-page-node-id="y6fbqYr1jpuiKhWoDnBivM">「超级管理员仅可查看课程，不能执行课程写入操作」。若按本稿"继承全部功能（含写）"，需放宽这两处判定。<br data-page-node-id="thoT1AuMGnlqpqZv4mZ0a1">这属于 <span class="kbd" data-page-node-id="zc9I9a0bqwkCVrzMSGHKuU">ruoyi-business</span> 改动，而该模块是同事做题库/正式考核的改动区，建议先对齐再动。</p>
+        <p data-page-node-id="i3VwjkNOpMDiq0heFnmfeW">当前后端 <span class="kbd" data-page-node-id="G2Mj5txqkzQj4zrPXhW8Ci">CourseServiceImpl.isGlobalReadOnly()</span> 与 <span class="kbd" data-page-node-id="BsPLcq09aPMPtY8szGvCXm">CourseContentServiceImpl</span> 判定 <span class="kbd" data-page-node-id="mYsw2iIDc7UPW19UV9B2Jo">SUPER_ADMIN</span> 即抛异常：<br data-page-node-id="y6fbqYr1jpuiKhWoDnBivM">「超级管理员仅可查看课程，不能执行课程写入操作」。若按本稿"继承全部功能（含写）"，需放宽这两处判定。<br data-page-node-id="thoT1AuMGnlqpqZv4mZ0a1">这属于 <span class="kbd" data-page-node-id="zc9I9a0bqwkCVrzMSGHKuU">business</span> 改动，而该模块是同事做题库/正式考核的改动区，建议先对齐再动。</p>
       </div>
     </div>
     <div class="card" style="padding:0;overflow:hidden" data-page-node-id="E64bqaI35GjwMEasNGsSe2">
