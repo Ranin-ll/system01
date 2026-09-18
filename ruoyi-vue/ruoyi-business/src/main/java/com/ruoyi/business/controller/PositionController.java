@@ -37,6 +37,20 @@ public class PositionController extends BaseController {
     }
 
     /**
+     * 部门 ↔ 岗位绑定（权威表 dept_position，仅生效中）
+     *
+     * 供管理端「组织岗位」页核对部门与岗位的对应关系。
+     * 此前前端没有权威来源，只能从「在册用户」或「报名记录」反推 ——
+     * 账号直接创建、未走注册审核的部门会推不出岗位（显示未绑定）。
+     * 只读接口，路径为字面量，优先于下方 /{id} 匹配。
+     */
+    @PreAuthorize("@ss.hasPermi('business:position:list')")
+    @GetMapping("/dept-bindings")
+    public AjaxResult deptBindings() {
+        return AjaxResult.success(positionService.selectDeptBindings());
+    }
+
+    /**
      * 获取岗位详细信息
      */
     @PreAuthorize("@ss.hasPermi('business:position:query')")

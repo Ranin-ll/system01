@@ -84,6 +84,11 @@ export default {
     };
   },
   created() {
+    // 支持从顶栏「修改密码」直达对应页签：/user/profile?tab=resetPwd
+    const tab = this.$route.query && this.$route.query.tab;
+    if (tab === "resetPwd" || tab === "userinfo") {
+      this.activeTab = tab;
+    }
     this.getUser();
   },
   methods: {

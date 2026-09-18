@@ -58,7 +58,7 @@ public class Course implements Serializable {
     private String createBy;
     @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)
     private Date createTime;
-    /** 课程表当前未持久化更新人字段，保留为兼容若依通用实体。 */
+    /** 课程表当前未持久化更新人字段，保留为兼容通用实体。 */
     @TableField(exist = false)
     private String updateBy;
     @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT_UPDATE)

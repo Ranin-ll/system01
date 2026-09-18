@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.ruoyi.business.domain.Position;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 岗位类型Service接口
@@ -46,4 +47,9 @@ public interface IPositionService extends IService<Position> {
      * 校验岗位编码是否唯一
      */
     boolean checkPositionCodeUnique(Position position);
+
+    /**
+     * 部门 ↔ 岗位绑定列表（权威表 dept_position，仅生效中）
+     */
+    List<Map<String, Object>> selectDeptBindings();
 }

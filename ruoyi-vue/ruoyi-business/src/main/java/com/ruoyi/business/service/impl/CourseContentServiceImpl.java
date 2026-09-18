@@ -41,7 +41,8 @@ import java.util.stream.Collectors;
 public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, CourseChapter>
         implements ICourseContentService {
 
-    private static final Set<String> ITEM_TYPES = new HashSet<>(Arrays.asList("DOC", "VIDEO", "QUIZ"));
+    // 章节检测（QUIZ）已下线：学习单项只保留 文档 / 视频
+    private static final Set<String> ITEM_TYPES = new HashSet<>(Arrays.asList("DOC", "VIDEO"));
     private static final String[] DOCUMENT_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "txt", "xls", "xlsx", "zip"};
     private static final String[] VIDEO_EXTENSIONS = {"mp4", "avi", "rmvb", "webm", "mov"};
     private static final long DOCUMENT_MAX_SIZE = 50 * 1024 * 1024L;
@@ -359,7 +360,6 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
             if (threshold < 80 || threshold > 100) throw new ServiceException("视频完成阈值应在80%到100%之间");
             item.setCompletionThreshold(threshold);
         }
-        validateQuizJson(item);
     }
 
     /** 文件地址及元数据只能由上传接口写入，普通编辑请求不得覆盖。 */
@@ -370,22 +370,9 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         target.setDuration(source.getDuration() == null ? 0 : source.getDuration());
         target.setIsRequired(requiredValue(source.getIsRequired()));
         target.setCompletionRule(source.getCompletionRule() == null ? defaultRule(source.getItemType()) : source.getCompletionRule());
-        target.setQuizJson("QUIZ".equals(source.getItemType()) ? normalizeQuizJson(source.getQuizJson()) : null);
+        // 章节检测已下线：不再写入测试内容（历史数据的 quiz_json 保持原样，不再使用）
+        target.setQuizJson(null);
         target.setCompletionThreshold("VIDEO".equals(source.getItemType()) ? (source.getCompletionThreshold() == null ? 100 : source.getCompletionThreshold()) : null);
-    }
-
-    private void validateQuizJson(StudyItem item) {
-        if (!"QUIZ".equals(item.getItemType()) || item.getQuizJson() == null || item.getQuizJson().trim().isEmpty()) return;
-        if (item.getQuizJson().length() > 65535) throw new ServiceException("测试内容过长");
-        try {
-            JSON.parse(item.getQuizJson());
-        } catch (JSONException e) {
-            throw new ServiceException("测试内容格式不正确");
-        }
-    }
-
-    private String normalizeQuizJson(String quizJson) {
-        return quizJson == null || quizJson.trim().isEmpty() ? null : quizJson.trim();
     }
 
     private void clearAssetFields(StudyItem item) {
@@ -427,6 +414,6 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         return intro.trim();
     }
 
-    private String defaultRule(String type) { return "VIDEO".equals(type) ? "PLAY_TO_END" : ("QUIZ".equals(type) ? "QUIZ_SUBMIT" : "SCROLL_END"); }
+    private String defaultRule(String type) { return "VIDEO".equals(type) ? "PLAY_TO_END" : "SCROLL_END"; }
     private Integer requiredValue(Integer value) { return value == null ? 1 : (value == 0 ? 0 : 1); }
 }
