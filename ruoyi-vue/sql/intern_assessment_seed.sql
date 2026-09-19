@@ -6,7 +6,7 @@ USE `intern_assessment`;
 
 START TRANSACTION;
 
--- 5 个固定业务部门，沿用若依初始化的稳定部门 ID。
+-- 5 个固定业务部门，沿用平台初始化的稳定部门 ID。
 UPDATE sys_dept SET dept_name = '交付部门', order_num = 1, status = '0', del_flag = '0', update_by = 'seed', update_time = NOW()
 WHERE dept_id = 103;
 UPDATE sys_dept SET dept_name = '开发部门', order_num = 2, status = '0', del_flag = '0', update_by = 'seed', update_time = NOW()

@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 岗位类型Service业务层实现
@@ -78,5 +79,10 @@ public class PositionServiceImpl extends ServiceImpl<PositionMapper, Position> i
         Position existing = positionMapper.selectOne(
                 new LambdaQueryWrapper<Position>().eq(Position::getPositionCode, position.getPositionCode()));
         return existing == null || existing.getId().equals(id);
+    }
+
+    @Override
+    public List<Map<String, Object>> selectDeptBindings() {
+        return positionMapper.selectDeptBindings();
     }
 }

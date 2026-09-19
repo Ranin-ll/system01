@@ -9,6 +9,14 @@ export function listPosition(query) {
   })
 }
 
+// 部门 ↔ 岗位绑定（权威表 dept_position，仅生效中）
+export function getDeptBindings() {
+  return request({
+    url: '/business/position/dept-bindings',
+    method: 'get'
+  })
+}
+
 // 查询岗位详细
 export function getPosition(id) {
   return request({

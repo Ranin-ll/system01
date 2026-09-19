@@ -35,11 +35,17 @@ export default {
       const first = matched[0]
 
       if (!this.isDashboard(first)) {
-        // 部门管理员端（/department/**）的根是部门工作台，面包屑首项指向它而不是通用工作台 /index
-        const isDeptScope = (this.$route.path || '').indexOf('/department') === 0
-        matched = [isDeptScope
-          ? { path: '/department/dashboard', meta: { title: '工作台' } }
-          : { path: '/index', meta: { title: '首页' } }].concat(matched)
+        // 按角色给出面包屑首项：部门端 → 部门工作台；超管端 → 全局工作台；其余 → 通用工作台
+        const path = this.$route.path || ''
+        let home
+        if (path.indexOf('/department') === 0) {
+          home = { path: '/department/dashboard', meta: { title: '工作台' } }
+        } else if (path.indexOf('/super') === 0) {
+          home = { path: '/super/dashboard', meta: { title: '工作台' } }
+        } else {
+          home = { path: '/index', meta: { title: '首页' } }
+        }
+        matched = [home].concat(matched)
       }
 
       this.levelList = matched.filter(item => item.meta && item.meta.title && item.meta.breadcrumb !== false)
@@ -50,8 +56,8 @@ export default {
         return false
       }
       const trimmed = name.trim()
-      // 通用工作台 Index 与部门工作台 DeptDashboard 都视为「根」，不再前置首页/工作台
-      return trimmed === 'Index' || trimmed === 'DeptDashboard'
+      // 通用工作台 / 部门工作台 / 超管全局工作台 都视为「根」，不再前置首页
+      return trimmed === 'Index' || trimmed === 'DeptDashboard' || trimmed === 'SuperDashboard'
     },
     handleLink(item) {
       const { redirect, path } = item

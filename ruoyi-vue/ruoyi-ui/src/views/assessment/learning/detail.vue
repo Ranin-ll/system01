@@ -46,7 +46,10 @@
         <div v-if="currentItem" class="study-card">
           <div class="study-card-head">
             <div><span class="study-kicker">{{ currentChapter.chapterName }} / {{ itemTypeLabel(currentItem) }}</span><h2>{{ currentItem.itemTitle }}</h2></div>
-            <el-tag :type="currentItem.status === 'DONE' ? 'success' : currentItem.status === 'IN_PROGRESS' ? 'primary' : 'info'" size="mini">{{ itemState(currentItem) }}</el-tag>
+            <div class="head-actions">
+              <el-button v-if="currentItem.itemType === 'DOC' && currentItem.contentUrl" size="mini" icon="el-icon-download" @click="downloadAsset(currentItem)">下载资料</el-button>
+              <el-tag :type="currentItem.status === 'DONE' ? 'success' : currentItem.status === 'IN_PROGRESS' ? 'primary' : 'info'" size="mini">{{ itemState(currentItem) }}</el-tag>
+            </div>
           </div>
           <div v-if="currentItem.itemType === 'DOC'" class="reader-wrap">
             <div v-if="canInlinePreview(currentItem)" ref="reader" class="document-reader" @scroll.passive="handleReaderScroll">
@@ -63,7 +66,7 @@
                 <i class="el-icon-warning-outline" />
                 <strong>文档预览失败</strong>
                 <span>{{ docxPreviewError }}</span>
-                <el-button type="primary" plain icon="el-icon-download" @click="openAsset(currentItem)">下载资料</el-button>
+                <el-button type="primary" plain icon="el-icon-download" @click="downloadAsset(currentItem)">下载资料</el-button>
               </div>
               <div v-show="!docxPreviewLoading && !docxPreviewError" ref="docxReader" class="docx-content" />
             </div>
@@ -77,15 +80,18 @@
                 <i class="el-icon-warning-outline" />
                 <strong>演示文稿预览失败</strong>
                 <span>{{ pptxPreviewError }}</span>
-                <el-button type="primary" plain icon="el-icon-download" @click="openAsset(currentItem)">下载资料</el-button>
+                <el-button type="primary" plain icon="el-icon-download" @click="downloadAsset(currentItem)">下载资料</el-button>
               </div>
               <div v-show="!pptxPreviewLoading && !pptxPreviewError" ref="pptxReader" class="pptx-content" />
             </div>
             <div v-else class="download-panel">
               <i :class="currentItem.fileExt === 'zip' ? 'el-icon-folder-opened' : 'el-icon-document'" />
               <strong>{{ currentItem.fileName || currentItem.itemTitle }}</strong>
-              <span>{{ currentItem.fileExt === 'zip' ? 'ZIP 压缩资料请下载后查看' : '此格式请下载或在新窗口中查看' }}</span>
-              <el-button type="primary" plain icon="el-icon-download" @click="openAsset(currentItem)">下载资料</el-button>
+              <span>{{ currentItem.fileExt === 'zip' ? 'ZIP 压缩资料请下载后查看（下载后即可确认完成阅读）' : '该格式不支持在线预览，可下载后用本地软件打开' }}</span>
+              <div class="download-panel-actions">
+                <el-button type="primary" plain icon="el-icon-download" @click="downloadAsset(currentItem)">下载资料</el-button>
+                <el-button v-if="currentItem.contentUrl" plain icon="el-icon-view" @click="openAsset(currentItem)">新窗口查看</el-button>
+              </div>
             </div>
             <div v-if="currentItem.itemIntro" class="item-intro-panel"><span><i class="el-icon-document" /> 本节简介</span><p>{{ currentItem.itemIntro }}</p></div>
             <div class="reader-status"><span><i class="el-icon-reading" /> 阅读进度 {{ readerProgress }}%</span><span v-if="readerReachedEnd" class="reader-ready"><i class="el-icon-success" /> 已满足完成条件</span></div>
@@ -98,7 +104,12 @@
             <div v-if="currentItem.itemIntro" class="item-intro-panel"><span><i class="el-icon-document" /> 本节简介</span><p>{{ currentItem.itemIntro }}</p></div>
             <div class="video-status"><span><i class="el-icon-time" /> 最近播放进度 {{ videoProgress }}%</span><span v-if="videoProgress >= completionThreshold" class="reader-ready"><i class="el-icon-success" /> 已满足完成条件</span></div>
           </div>
-          <div v-else class="download-panel quiz-panel"><i class="el-icon-edit-outline" /><strong>章节测试</strong><span>测试内容将在考核题库接入后开放。</span></div>
+          <div v-else class="download-panel">
+            <i class="el-icon-document" />
+            <strong>{{ currentItem.fileName || currentItem.itemTitle }}</strong>
+            <span>该学习单项暂不支持在线学习，请下载后查看或联系部门管理员。</span>
+            <el-button v-if="currentItem.contentUrl" type="primary" plain icon="el-icon-download" @click="downloadAsset(currentItem)">下载资料</el-button>
+          </div>
           <div class="study-footer">
             <div><span class="save-state"><i class="el-icon-circle-check" /> {{ saveState }}</span><span>材料版本 V1.0</span></div>
             <div class="study-actions"><el-button size="small" icon="el-icon-arrow-left" :disabled="!previousItem" @click="goSibling(-1)">上一项</el-button><el-button v-if="currentItem.itemType === 'DOC'" type="primary" size="small" icon="el-icon-check" :disabled="!readerReachedEnd || saving" :loading="saving" @click="completeCurrent">确认完成阅读</el-button><el-button v-else-if="currentItem.itemType === 'VIDEO'" type="primary" size="small" icon="el-icon-check" :disabled="videoProgress < completionThreshold || saving" :loading="saving" @click="completeCurrent">确认完成学习</el-button><el-button size="small" :disabled="!nextItem" @click="goSibling(1)">下一项 <i class="el-icon-arrow-right" /></el-button></div>
@@ -108,7 +119,7 @@
       </main>
     </section>
 
-    <section class="detail-note"><i class="el-icon-info" /><span>学习记录会按单项自动保存；文档需阅读到末尾，视频需达到完成进度后才能标记完成。</span><el-button type="text" @click="comingSoon">学习规则</el-button></section>
+    <section class="detail-note"><i class="el-icon-info" /><span>学习记录会按单项自动保存；文档支持在线学习与下载，阅读到末尾后确认完成；视频需达到完成进度后才能标记完成。</span><el-button type="text" @click="comingSoon">学习规则</el-button></section>
   </div>
 </template>
 
@@ -469,15 +480,26 @@ export default {
       }
       this._pptxPreviewer = null
     },
+    /** 新窗口打开（仅用于查看，不改变完成状态） */
     openAsset(item) {
       const url = this.assetUrl(item)
       if (!url) return this.$modal.msgWarning('资料文件暂未上传')
       window.open(url, '_blank', 'noopener')
-      this.readerProgress = 100
-      this.readerReachedEnd = true
-      item.readConfirm = true
-      item.progress = 100
-      this.queueProgressSave()
+    },
+    /**
+     * 下载资料（走 /common/download/resource，带 Content-Disposition 附件头）。
+     * 说明：下载不直接标记完成；对不支持在线预览的格式，下载后放行「确认完成阅读」。
+     */
+    downloadAsset(item) {
+      if (!item || !item.contentUrl) return this.$modal.msgWarning('资料文件暂未上传')
+      this.$download.resource(item.contentUrl)
+      const previewable = this.canInlinePreview(item) || this.canDocxPreview(item) || this.canPptxPreview(item)
+      if (!previewable) {
+        this.readerReachedEnd = true
+        this.$modal.msgSuccess('资料已开始下载，可点击「确认完成阅读」标记本条学习完成')
+      } else {
+        this.$modal.msgSuccess('资料已开始下载，也可在页面内在线阅读到末尾后确认完成')
+      }
     },
     backToLearning() {
       this.$router.push('/assessment/intern/learning')
@@ -512,10 +534,10 @@ export default {
 .chapter-title { display: flex; width: calc(100% - 18px); align-items: center; gap: 8px; }.chapter-number { color: #1764f5; font-size: 10px; font-weight: 700; }.chapter-copy { min-width: 0; flex: 1; }.chapter-name, .chapter-intro { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.chapter-name { font-size: 12px; }.chapter-intro { margin-top: 3px; color: #98a2b3; font-size: 10px; }.chapter-title small { color: #98a2b3; font-size: 10px; }
 .item-link { display: flex; width: 100%; align-items: center; gap: 8px; padding: 10px 7px; border: 0; color: #667085; text-align: left; background: transparent; cursor: pointer; }.item-link:hover, .item-link.selected { background: #f2f7ff; }.item-link.selected .item-link-copy b { color: #1764f5; }.item-status { display: flex; width: 23px; height: 23px; flex: 0 0 23px; align-items: center; justify-content: center; color: #98a2b3; border-radius: 50%; background: #f0f2f5; font-size: 12px; }.item-status.done { color: #fff; background: #23966f; }.item-status.in_progress { color: #fff; background: #2878c7; }.item-link-copy { min-width: 0; flex: 1; }.item-link-copy b, .item-link-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.item-link-copy b { color: #475467; font-size: 11px; font-weight: 500; }.item-link-copy small { margin-top: 3px; color: #98a2b3; font-size: 10px; }.item-state { flex: 0 0 auto; color: #98a2b3; font-size: 10px; }
 .study-area { min-width: 0; padding: 20px 24px 24px; background: #fbfcfe; }.study-card { min-height: 510px; border: 1px solid #e4e9f0; background: #fff; }.study-card-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid #edf0f4; }.study-kicker { color: #2878c7; font-size: 11px; }.study-card-head h2 { margin: 6px 0 0; color: #1d2939; font-size: 17px; font-weight: 600; }
-.reader-wrap, .video-wrap { padding: 18px 20px; }.document-reader { display: flex; height: min(70vh, 760px); min-height: 560px; flex-direction: column; overflow: hidden; border: 1px solid #e1e6ed; background: #f2f4f7; }.docx-reader { overflow-y: auto; }.pptx-reader { align-items: center; justify-content: center; background: #202733; }.document-frame { display: block; width: 100%; min-height: 0; flex: 1; border: 0; background: #fff; }.document-end { flex: 0 0 auto; margin: 0 16px; padding: 11px 0; border-top: 1px dashed #ccd5df; color: #23966f; font-size: 12px; text-align: center; }.docx-content, .pptx-content { width: 100%; min-height: 100%; }.docx-content { background: #e9edf2; }.pptx-content { display: flex; align-items: center; justify-content: center; overflow: hidden; background: #202733; }.document-preview-state { display: flex; min-height: 100%; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #667085; background: #f8fafc; text-align: center; }.document-preview-state > i { color: #2878c7; font-size: 38px; }.document-preview-state strong { color: #344054; font-size: 15px; }.document-preview-state span { max-width: 80%; font-size: 11px; }.document-preview-state.is-error > i { color: #d97706; }.docx-content ::v-deep .docx-wrapper { min-height: 100%; padding: 24px 12px; background: #e9edf2; }.docx-content ::v-deep .docx-wrapper > section.docx { max-width: calc(100% - 24px); margin: 0 auto 18px; box-shadow: 0 2px 8px rgba(16, 24, 40, .12); }.pptx-content ::v-deep > div { margin: auto; }.download-panel { display: flex; min-height: 520px; align-items: center; justify-content: center; flex-direction: column; gap: 10px; border: 1px solid #e1e6ed; background: #f8fafc; color: #667085; text-align: center; }.download-panel > i { color: #4d91ce; font-size: 42px; }.download-panel strong { max-width: 80%; overflow: hidden; color: #344054; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }.download-panel span { font-size: 11px; }.quiz-panel { min-height: 520px; }.reader-status, .video-status { display: flex; align-items: center; justify-content: space-between; padding-top: 11px; color: #8490a0; font-size: 11px; }.reader-ready { color: #23966f; }.reader-ready i { margin-right: 3px; }
+.reader-wrap, .video-wrap { padding: 18px 20px; }.document-reader { display: flex; height: min(70vh, 760px); min-height: 560px; flex-direction: column; overflow: hidden; border: 1px solid #e1e6ed; background: #f2f4f7; }.docx-reader { overflow-y: auto; }.pptx-reader { align-items: center; justify-content: center; background: #202733; }.document-frame { display: block; width: 100%; min-height: 0; flex: 1; border: 0; background: #fff; }.document-end { flex: 0 0 auto; margin: 0 16px; padding: 11px 0; border-top: 1px dashed #ccd5df; color: #23966f; font-size: 12px; text-align: center; }.docx-content, .pptx-content { width: 100%; min-height: 100%; }.docx-content { background: #e9edf2; }.pptx-content { display: flex; align-items: center; justify-content: center; overflow: hidden; background: #202733; }.document-preview-state { display: flex; min-height: 100%; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #667085; background: #f8fafc; text-align: center; }.document-preview-state > i { color: #2878c7; font-size: 38px; }.document-preview-state strong { color: #344054; font-size: 15px; }.document-preview-state span { max-width: 80%; font-size: 11px; }.document-preview-state.is-error > i { color: #d97706; }.docx-content ::v-deep .docx-wrapper { min-height: 100%; padding: 24px 12px; background: #e9edf2; }.docx-content ::v-deep .docx-wrapper > section.docx { max-width: calc(100% - 24px); margin: 0 auto 18px; box-shadow: 0 2px 8px rgba(16, 24, 40, .12); }.pptx-content ::v-deep > div { margin: auto; }.download-panel { display: flex; min-height: 520px; align-items: center; justify-content: center; flex-direction: column; gap: 10px; border: 1px solid #e1e6ed; background: #f8fafc; color: #667085; text-align: center; }.download-panel > i { color: #4d91ce; font-size: 42px; }.download-panel strong { max-width: 80%; overflow: hidden; color: #344054; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }.download-panel span { font-size: 11px; }.study-card-head .head-actions { display: flex; align-items: center; gap: 8px; flex: none; }.download-panel-actions { display: flex; align-items: center; gap: 10px; }.reader-status, .video-status { display: flex; align-items: center; justify-content: space-between; padding-top: 11px; color: #8490a0; font-size: 11px; }.reader-ready { color: #23966f; }.reader-ready i { margin-right: 3px; }
 .item-intro-panel { margin-top: 12px; padding: 13px 15px; border-left: 3px solid #2878c7; background: #f7faff; }.item-intro-panel span { color: #2878c7; font-size: 12px; font-weight: 600; }.item-intro-panel i { margin-right: 5px; }.item-intro-panel p { margin: 7px 0 0; color: #5f6f82; font-size: 12px; line-height: 1.7; white-space: pre-wrap; }
 .video-stage { display: grid; width: 100%; aspect-ratio: 16 / 9; align-items: stretch; overflow: hidden; background: #111827; }.course-video { display: block; width: 100%; height: 100%; background: #111827; object-fit: contain; }.video-placeholder { display: flex; height: 100%; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #d8e2ef; text-align: center; }.video-placeholder i { color: #e7b76d; font-size: 43px; }.video-placeholder strong { font-size: 16px; font-weight: 500; }.video-placeholder span { color: #9caec2; font-size: 11px; }.video-status { padding: 11px 0 0; }
 .study-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 20px; border-top: 1px solid #edf0f4; }.study-footer > div:first-child { display: flex; flex-wrap: wrap; gap: 12px; color: #98a2b3; font-size: 11px; }.save-state { color: #23966f; }.save-state i { margin-right: 3px; }.study-actions { display: flex; gap: 7px; }.study-empty { display: flex; height: 420px; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #98a2b3; }.study-empty i { color: #b7c1cc; font-size: 34px; }.study-empty strong { color: #667085; font-size: 14px; font-weight: 500; }.study-empty span { font-size: 12px; }.detail-note { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 12px 16px; border: 1px solid #dbeafe; color: #667085; background: #f5f9ff; font-size: 11px; }.detail-note > i { color: #2878c7; font-size: 15px; }.detail-note span { flex: 1; }.detail-note .el-button { padding: 0; font-size: 11px; }
 @media (max-width: 900px) { .course-hero { flex-wrap: wrap; }.hero-copy { min-width: calc(100% - 86px); }.hero-progress { margin-left: 86px; }.detail-layout { grid-template-columns: 270px minmax(0, 1fr); } }
-@media (max-width: 700px) { .course-detail-page { padding: 16px 12px 28px; }.course-hero { align-items: flex-start; padding: 18px; }.hero-mark { width: 52px; height: 52px; flex-basis: 52px; font-size: 23px; }.hero-copy { min-width: calc(100% - 70px); }.hero-copy h1 { font-size: 18px; }.hero-copy p { white-space: normal; line-height: 1.5; }.hero-progress { width: calc(100% - 70px); margin-left: 70px; }.course-hero > .el-button { width: 100%; }.course-toolbar { padding: 0 12px; }.course-tabs { gap: 18px; }.detail-layout { display: block; }.chapter-sidebar { border-right: 0; border-bottom: 1px solid #e4e9f0; }.chapter-sidebar ::v-deep .el-collapse-item__content { max-height: 220px; overflow-y: auto; }.study-area { padding: 12px; }.study-card-head { padding: 14px; }.reader-wrap, .video-wrap { padding: 12px; }.document-reader { height: min(65vh, 640px); min-height: 460px; }.download-panel, .quiz-panel { min-height: 420px; }.document-sheet { padding: 24px 20px 32px; }.study-footer { align-items: flex-start; flex-direction: column; padding: 14px; }.study-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }.detail-note .el-button { display: none; } }
+@media (max-width: 700px) { .course-detail-page { padding: 16px 12px 28px; }.course-hero { align-items: flex-start; padding: 18px; }.hero-mark { width: 52px; height: 52px; flex-basis: 52px; font-size: 23px; }.hero-copy { min-width: calc(100% - 70px); }.hero-copy h1 { font-size: 18px; }.hero-copy p { white-space: normal; line-height: 1.5; }.hero-progress { width: calc(100% - 70px); margin-left: 70px; }.course-hero > .el-button { width: 100%; }.course-toolbar { padding: 0 12px; }.course-tabs { gap: 18px; }.detail-layout { display: block; }.chapter-sidebar { border-right: 0; border-bottom: 1px solid #e4e9f0; }.chapter-sidebar ::v-deep .el-collapse-item__content { max-height: 220px; overflow-y: auto; }.study-area { padding: 12px; }.study-card-head { padding: 14px; }.reader-wrap, .video-wrap { padding: 12px; }.document-reader { height: min(65vh, 640px); min-height: 460px; }.download-panel { min-height: 420px; }.document-sheet { padding: 24px 20px 32px; }.study-footer { align-items: flex-start; flex-direction: column; padding: 14px; }.study-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }.detail-note .el-button { display: none; } }
 </style>

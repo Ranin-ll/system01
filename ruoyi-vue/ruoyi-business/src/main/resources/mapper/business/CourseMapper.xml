@@ -26,6 +26,18 @@
         <result property="avgCompletionRate" column="avg_completion_rate"/>
     </resultMap>
 
+    <!--
+      「真的持有实习生角色」的统一判定（用 <include> + alias 传参复用）。
+      为什么必须加：sys_user.user_status 只是培养状态、与权限无关，历史上存在
+      「状态=FORMAL_TRAINEE 但一个角色都没有」的遗留测试号（如 id=116 昵称「测试超级管理员」），
+      只按状态统计会让「预计学习人数 / 已学习人数 / 平均完成率」全都被它们污染。
+    -->
+    <sql id="internRoleExists">
+        EXISTS (SELECT 1 FROM sys_user_role intern_ur JOIN sys_role intern_r ON intern_r.role_id = intern_ur.role_id
+                 WHERE intern_ur.user_id = ${alias}.user_id
+                   AND intern_r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+    </sql>
+
     <sql id="courseColumns">
         c.id, c.course_name, c.position_id, c.course_type, c.is_required, c.cover_url, c.intro,
         c.status, c.published_at, c.create_by, c.create_time, c.update_time, c.deleted,
@@ -45,6 +57,7 @@
          INNER JOIN sys_user learned_user ON learned_user.user_id = sr.user_id
              AND learned_user.del_flag = '0'
              AND learned_user.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+             AND <include refid="internRoleExists"><property name="alias" value="learned_user"/></include>
          INNER JOIN dept_position learned_scope ON learned_scope.dept_id = learned_user.dept_id
              AND learned_scope.position_id = c.position_id
              AND learned_scope.status = 1
@@ -56,7 +69,8 @@
              AND expected_scope.status = 1
          WHERE expected_user.position_id = c.position_id
            AND expected_user.del_flag = '0'
-           AND expected_user.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')) AS expected_student_count,
+           AND expected_user.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+           AND <include refid="internRoleExists"><property name="alias" value="expected_user"/></include>) AS expected_student_count,
         COALESCE((
             SELECT ROUND(SUM(COALESCE(progress_record.progress, 0)) /
                 NULLIF(COUNT(DISTINCT progress_user.user_id) * COUNT(DISTINCT progress_item.id), 0), 0)
@@ -74,6 +88,7 @@
             WHERE progress_user.position_id = c.position_id
               AND progress_user.del_flag = '0'
               AND progress_user.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+              AND <include refid="internRoleExists"><property name="alias" value="progress_user"/></include>
               AND progress_item.deleted = 0
         ), 0) AS avg_completion_rate
     </sql>
@@ -196,6 +211,7 @@
         INNER JOIN sys_user learner ON learner.user_id = #{userId}
             AND learner.del_flag = '0'
             AND learner.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+            AND <include refid="internRoleExists"><property name="alias" value="learner"/></include>
         INNER JOIN dept_position learner_scope ON learner_scope.dept_id = learner.dept_id
             AND learner_scope.position_id = learner.position_id
             AND learner_scope.status = 1

@@ -292,7 +292,7 @@ export default {
         { name: 'Docker', rate: 38, tone: 'poor', barTone: 'poor' },
         { name: '异常处理', rate: 45, tone: 'poor', barTone: 'poor' },
         { name: 'MySQL 索引', rate: 62, tone: 'mid', barTone: 'mid' },
-        { name: '若依框架', rate: 81, tone: 'good', barTone: 'good' }
+        { name: '后端框架', rate: 81, tone: 'good', barTone: 'good' }
       ]
     }
   },

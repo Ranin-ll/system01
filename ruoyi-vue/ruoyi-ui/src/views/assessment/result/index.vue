@@ -3,13 +3,13 @@
     <div class="result-breadcrumb">
       <span>学习与考核</span>
       <span>/</span>
-      <b>考核成绩与转正申请</b>
+      <b>考核成绩与转正</b>
     </div>
 
     <header class="result-heading">
       <div>
         <span class="eyebrow">RESULTS &amp; PROMOTION</span>
-        <h1>考核成绩与转正申请</h1>
+        <h1>考核成绩与转正</h1>
         <p>只统计正式考核成绩，模拟自测不计入；通过后可提交转正申请，部门管理员审核通过即生效并发证。</p>
       </div>
       <div class="heading-actions">
@@ -278,7 +278,7 @@ const DEMO_WEAK_MODULES = [
 const DEMO_REJECT_REASON = '实操能力未达门槛（实操 58 分），建议延长培养期并补齐 Docker 部署相关课程后重新提交。'
 
 /**
- * 考核成绩与转正申请（实习生端）
+ * 考核成绩与转正（实习生端）
  *
  * 真实数据（均为既有接口，不新增、不改动后端）：
  *  - `GET /business/answer-sheet/my?examMode=FORMAL` → 场次与环节成绩

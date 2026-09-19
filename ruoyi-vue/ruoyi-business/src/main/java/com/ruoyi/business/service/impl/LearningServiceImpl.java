@@ -132,9 +132,8 @@ public class LearningServiceImpl implements ILearningService {
         } else if ("VIDEO".equals(item.getItemType())) {
             int threshold = item.getCompletionThreshold() == null ? 100 : item.getCompletionThreshold();
             completed = completed || (Boolean.TRUE.equals(body.getCompleted()) && progress.compareTo(BigDecimal.valueOf(threshold)) >= 0);
-        } else if ("QUIZ".equals(item.getItemType()) && Boolean.TRUE.equals(body.getCompleted())) {
-            throw new ServiceException("章节测试尚未接入服务端判分，暂不能标记完成");
         }
+        // 章节检测（QUIZ）已下线：不再处理测试类学习单项
         if (completed) progress = BigDecimal.valueOf(100);
 
         record.setProgress(progress.setScale(2, RoundingMode.HALF_UP));

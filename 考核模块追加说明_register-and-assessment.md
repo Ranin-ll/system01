@@ -62,7 +62,7 @@
 
 `formalInternBlockedPaths` 增加 `'/assessment/intern/practice-subject'`（带原注释）。这个改动相对 main 是纯追加，无风险。
 
-> 题库管理 / 模拟实操管理这两个页面**不在 router 里**——它们走若依的**菜单动态加载**，由 SQL 里的 `component` 字段指定（`business/questionBank/index`、`business/practiceSubject/index`）。所以菜单 SQL 必须执行，否则页面无入口。
+> 题库管理 / 模拟实操管理这两个页面**不在 router 里**——它们走平台的**菜单动态加载**，由 SQL 里的 `component` 字段指定（`business/questionBank/index`、`business/practiceSubject/index`）。所以菜单 SQL 必须执行，否则页面无入口。
 
 ---
 

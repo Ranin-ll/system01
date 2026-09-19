@@ -20,7 +20,19 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class MultipartRequestSizeFilter extends OncePerRequestFilter {
 
     private static final String MULTIPART_PREFIX = "multipart/";
-    private static final String COURSE_ASSET_PATTERN = "/business/course/items/\\d+/asset";
+
+    /**
+     * 允许大文件（course-max-request-size）的 multipart 端点白名单。
+     *
+     * <p>⚠️ 新增「能传大文件」的上传接口时<b>必须</b>在这里加一条，且与 Controller 的
+     * {@code @PostMapping} 路径逐字一致；否则该接口会被默认 20MB 档静默卡成 413，
+     * 而错误信息完全不指向这里。</p>
+     */
+    private static final String[] LARGE_MULTIPART_PATTERNS = {
+            "/business/course/items/\\d+/asset",
+            "/business/task-attachment/upload",
+            "/business/task-attachment/upload-submission"
+    };
 
     @Value("${upload.default-max-request-size:20MB}")
     @DataSizeUnit(DataUnit.MEGABYTES)
@@ -37,8 +49,16 @@ public class MultipartRequestSizeFilter extends OncePerRequestFilter {
         long contentLength = request.getContentLengthLong();
         if (contentType != null && contentType.toLowerCase().startsWith(MULTIPART_PREFIX) && contentLength >= 0) {
             String uri = request.getRequestURI().substring(request.getContextPath().length());
-            long limit = uri.matches(COURSE_ASSET_PATTERN)
-                    ? courseMaxRequestSize.toBytes() : defaultMaxRequestSize.toBytes();
+            boolean large = false;
+            for (String pattern : LARGE_MULTIPART_PATTERNS)
+            {
+                if (uri.matches(pattern))
+                {
+                    large = true;
+                    break;
+                }
+            }
+            long limit = large ? courseMaxRequestSize.toBytes() : defaultMaxRequestSize.toBytes();
             if (contentLength > limit) {
                 response.setStatus(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
                 response.setCharacterEncoding("UTF-8");

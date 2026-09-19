@@ -187,7 +187,7 @@
                 <div v-for="item in chapter.items" :key="item.id" class="resource-row">
                   <button v-if="canEditContent(currentCourse)" type="button" class="drag-handle resource-drag-handle" title="拖拽调整资料顺序"><i class="el-icon-rank" /></button>
                   <span class="resource-icon" :class="item.itemType.toLowerCase()"><i :class="resourceIcon(item.itemType)" /></span>
-                  <div class="resource-info"><strong>{{ item.itemTitle }}</strong><small v-if="item.itemIntro" class="resource-intro">{{ item.itemIntro }}</small><span>{{ resourceTypeLabel(item.itemType) }} · {{ item.duration || 0 }} 分钟 · {{ completionRuleLabel(item.completionRule) }}</span><small class="resource-file-state" :class="item.fileName || item.contentUrl ? 'is-bound' : 'is-missing'"><i :class="item.fileName || item.contentUrl ? 'el-icon-paperclip' : 'el-icon-warning-outline'" /> {{ item.fileName || (item.itemType === 'QUIZ' ? '题目接口待接入' : '待上传文件') }}</small></div>
+                  <div class="resource-info"><strong>{{ item.itemTitle }}</strong><small v-if="item.itemIntro" class="resource-intro">{{ item.itemIntro }}</small><span>{{ resourceTypeLabel(item.itemType) }} · {{ item.duration || 0 }} 分钟 · {{ completionRuleLabel(item.completionRule) }}</span><small class="resource-file-state" :class="item.fileName || item.contentUrl ? 'is-bound' : 'is-missing'"><i :class="item.fileName || item.contentUrl ? 'el-icon-paperclip' : 'el-icon-warning-outline'" /> {{ item.fileName || '待上传文件' }}</small></div>
                   <div v-if="canEditContent(currentCourse)" class="resource-actions"><el-button type="text" size="mini" @click="openItemDialog(chapter, item)">编辑</el-button><el-button type="text" size="mini" class="danger-text" @click="removeItem(chapter, item)">删除</el-button></div>
                 </div>
               </draggable>
@@ -212,12 +212,12 @@
       <el-form ref="itemForm" :model="itemForm" :rules="itemRules" label-width="98px">
         <el-form-item label="资料名称" prop="itemTitle"><el-input v-model="itemForm.itemTitle" maxlength="128" placeholder="请输入学习资料名称" /></el-form-item>
         <el-form-item label="内容简介" prop="itemIntro"><el-input v-model="itemForm.itemIntro" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="简要说明本节学习目标、主要内容和学习重点" /></el-form-item>
-        <el-form-item label="资料类型" prop="itemType"><el-radio-group v-model="itemForm.itemType" @change="handleItemTypeChange"><el-radio label="DOC">文档</el-radio><el-radio label="VIDEO">视频</el-radio><el-radio label="QUIZ">章节测试</el-radio></el-radio-group></el-form-item>
+        <el-form-item label="资料类型" prop="itemType"><el-radio-group v-model="itemForm.itemType" @change="handleItemTypeChange"><el-radio label="DOC">文档</el-radio><el-radio label="VIDEO">视频</el-radio></el-radio-group></el-form-item>
         <el-form-item label="预计时长"><el-input-number v-model="itemForm.duration" :min="0" :max="600" controls-position="right" /><span class="unit-text">分钟</span></el-form-item>
-        <el-form-item label="完成方式"><el-select v-model="itemForm.completionRule" class="form-full"><el-option label="阅读到底并确认" value="SCROLL_END" /><el-option label="观看至完成进度" value="PLAY_TO_END" /><el-option label="提交测试答案" value="QUIZ_SUBMIT" /></el-select></el-form-item>
+        <el-form-item label="完成方式"><el-select v-model="itemForm.completionRule" class="form-full"><el-option label="阅读到底并确认" value="SCROLL_END" /><el-option label="观看至完成进度" value="PLAY_TO_END" /></el-select></el-form-item>
         <el-form-item label="完成要求"><el-switch v-model="itemForm.isRequired" :active-value="1" :inactive-value="0" active-text="必修" inactive-text="选修" /><span v-if="itemForm.itemType === 'VIDEO'" class="threshold-text">视频完成阈值 {{ itemForm.completionThreshold || 100 }}%</span></el-form-item>
         <el-form-item v-if="itemForm.itemType === 'VIDEO'" label="完成阈值"><el-slider v-model="itemForm.completionThreshold" :min="80" :max="100" :step="5" show-stops /><span class="form-tip">达到该播放进度后自动完成，后端仍会校验进度。</span></el-form-item>
-        <el-form-item v-if="itemForm.itemType !== 'QUIZ'" label="资料文件">
+        <el-form-item label="资料文件">
           <el-upload ref="assetUpload" class="asset-upload" action="#" :auto-upload="false" :show-file-list="false" :accept="itemAccept" :limit="1" :on-change="handleAssetChange" :on-exceed="handleAssetExceed">
             <el-button size="small" plain icon="el-icon-upload2" :disabled="assetUploadState === 'UPLOADING'">{{ itemForm.fileName ? '替换文件' : '选择文件' }}</el-button>
           </el-upload>
@@ -232,7 +232,6 @@
           </div>
           <span class="form-tip">支持 {{ itemForm.itemType === 'VIDEO' ? 'MP4、WebM、MOV，单文件不超过 500MB' : 'PDF、DOCX、PPTX、TXT、ZIP，单文件不超过 50MB' }}。文件上传到服务器资源目录，数据库保存访问路径和文件元数据。</span>
         </el-form-item>
-        <el-form-item v-else label="题目配置"><el-alert title="章节测试沿用考核题库接口，本轮先保留资料类型和完成规则入口。" type="info" :closable="false" show-icon /></el-form-item>
       </el-form>
       <div slot="footer"><el-button @click="itemDialogOpen = false">取消</el-button><el-button type="primary" :loading="itemSubmitting" @click="saveItem">保存资料</el-button></div>
     </el-dialog>
@@ -327,8 +326,7 @@ function defaultContent(course) {
       { id: 'item-' + course.id + '-2', itemTitle: '岗位资料安全操作演示', itemType: 'VIDEO', duration: 14, completionRule: 'PLAY_TO_END' }
     ] },
     { id: 'chapter-' + course.id + '-2', chapterName: '第二章 协作流程与质量要求', chapterIntro: '掌握日常协作流程、交付检查点和基本质量标准。', isRequired: 1, items: [
-      { id: 'item-' + course.id + '-3', itemTitle: '流程检查清单', itemType: 'DOC', duration: 20, completionRule: 'SCROLL_END' },
-      { id: 'item-' + course.id + '-4', itemTitle: '章节自测', itemType: 'QUIZ', duration: 10, completionRule: 'QUIZ_SUBMIT' }
+      { id: 'item-' + course.id + '-3', itemTitle: '流程检查清单', itemType: 'DOC', duration: 20, completionRule: 'SCROLL_END' }
     ] }
   ]
 }
@@ -664,7 +662,7 @@ export default {
       chapters.forEach((chapter, index) => {
         if (!chapter.items || !chapter.items.length) missing.push('第' + (index + 1) + '章还没有学习资料')
         ;(chapter.items || []).forEach(item => {
-          if (item.itemType !== 'QUIZ' && !item.fileName && !item.contentUrl) missing.push('“' + item.itemTitle + '”尚未绑定文件')
+          if (!item.fileName && !item.contentUrl) missing.push('“' + item.itemTitle + '”尚未绑定文件')
         })
       })
       return { ready: missing.length === 0, label: missing.length ? '还缺 ' + missing.length + ' 项' : '发布条件已满足', missing: missing.slice(0, 4) }
@@ -747,7 +745,7 @@ export default {
       this.itemDialogOpen = true
     },
     handleItemTypeChange(type) {
-      this.itemForm.completionRule = type === 'VIDEO' ? 'PLAY_TO_END' : (type === 'QUIZ' ? 'QUIZ_SUBMIT' : 'SCROLL_END')
+      this.itemForm.completionRule = type === 'VIDEO' ? 'PLAY_TO_END' : 'SCROLL_END'
       this.itemForm.fileName = ''
       this.itemForm.fileSize = 0
       this.itemForm.fileExt = ''
@@ -914,9 +912,9 @@ export default {
       return position ? position.positionName : ''
     },
     courseTypeLabel(type) { return type === 'PRACTICE' ? '实操训练' : '理论学习' },
-    resourceTypeLabel(type) { return { DOC: '文档学习', VIDEO: '视频学习', QUIZ: '章节测试' }[type] || type },
-    completionRuleLabel(rule) { return { SCROLL_END: '阅读确认', PLAY_TO_END: '观看完成', QUIZ_SUBMIT: '提交测试' }[rule] || '完成学习' },
-    resourceIcon(type) { return { DOC: 'el-icon-document', VIDEO: 'el-icon-video-camera', QUIZ: 'el-icon-edit-outline' }[type] || 'el-icon-document' },
+    resourceTypeLabel(type) { return { DOC: '文档学习', VIDEO: '视频学习' }[type] || type },
+    completionRuleLabel(rule) { return { SCROLL_END: '阅读确认', PLAY_TO_END: '观看完成' }[rule] || '完成学习' },
+    resourceIcon(type) { return { DOC: 'el-icon-document', VIDEO: 'el-icon-video-camera' }[type] || 'el-icon-document' },
     courseTone(course) { return course.courseType === 'PRACTICE' ? 'orange' : 'blue' },
     statusLabel(status) { return { DRAFT: '草稿', PUBLISHED: '已发布', DISABLED: '已停用' }[status] || status || '草稿' },
     statusTagType(status) { return { DRAFT: 'info', PUBLISHED: 'success', DISABLED: 'danger' }[status] || 'info' },
