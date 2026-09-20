@@ -3,17 +3,17 @@
     <!-- ===== 页头 ===== -->
     <header class="ps-head">
       <div class="ps-head-l">
-        <span class="eyebrow">学习考核 / 模拟备考管理</span>
+        <span v-if="!fixedModuleId" class="eyebrow">学习考核 / 模拟备考管理</span>
         <div class="title-line">
           <h2>模拟实操题库</h2>
           <el-tag size="mini" effect="plain" :type="isSuperAdmin ? 'warning' : 'success'">
             {{ isSuperAdmin ? '全局管理' : '本部门范围' }}
           </el-tag>
         </div>
-        <p>
+        <p v-if="!fixedModuleId">
           {{ isSuperAdmin
-            ? '查看并维护各部门模拟实操题，创建时指定所属部门。'
-            : '按「方向」组织实操题：题名与题干必填，交付要求 / 开发约束 / 建议用时 / 提交格式 / 命名规则 / 参考图 / 附件均为可选。实习生端「模拟考核 › 实操题库」按方向分组展示卡片，点开进入详情页（左参考图 + 右交付要求）。' }}
+            ? '查看并维护各部门模拟实操题，创建时指定所属部门与模块。'
+            : '按「模块」组织实操题：先建模块，再在模块内发布题目。题名与题干必填，建议用时 / 参考 / 附件均为可选。实习生端「模拟考核」先选模块，再看模块下的实操题卡片。' }}
         </p>
       </div>
       <div class="ps-head-r">
@@ -22,37 +22,43 @@
       </div>
     </header>
 
-    <!-- ===== 概览条（对标实习生端 hero 统计） ===== -->
-    <section class="ps-hero">
+    <!-- ===== 概览条（对标实习生端 hero 统计）；内嵌到某模块时隐藏，避免展示全局口径 ===== -->
+    <section v-if="!fixedModuleId" class="ps-hero">
       <div class="ps-hero-l">
         <span class="badge-blue">{{ isSuperAdmin ? '全局实操题管理' : (deptName || '当前部门') }}</span>
         <h3>{{ isSuperAdmin ? '各部门模拟实操题' : '本部门模拟实操题' }}</h3>
-        <p>{{ isSuperAdmin ? '可按部门筛选并维护；启用的题目实习生可见。' : '启用的题目会出现在实习生端「模拟考核 › 实操题库」，按方向分组展示。' }}</p>
+        <p>{{ isSuperAdmin ? '可按部门筛选并维护；启用的题目实习生可见。' : '启用的题目会出现在实习生端「模拟考核 › 选定模块 › 实操题」，按模块归类展示。' }}</p>
       </div>
       <div class="ps-hero-stats">
         <div><b>{{ stats.total }}</b><span>题目总数</span></div>
-        <div><b>{{ stats.directions }}</b><span>方向分组</span></div>
+        <div><b>{{ stats.modules }}</b><span>归属模块</span></div>
         <div><b>{{ stats.enabled }}</b><span>已启用</span></div>
         <div><b>{{ stats.maxMinutes }}<small> 分钟</small></b><span>最长用时</span></div>
       </div>
     </section>
 
-    <!-- ===== 方向筛选 ===== -->
-    <div class="ps-dirbar">
-      <span class="ps-dirbar-label">方向</span>
-      <span class="chip" :class="{ on: !queryParams.direction }" @click="pickDirection('')">
+    <!-- ===== 模块筛选；内嵌到某模块时隐藏（模块已锁定，不再提供全局切换） ===== -->
+    <div v-if="!fixedModuleId" class="ps-dirbar">
+      <span class="ps-dirbar-label">模块</span>
+      <span class="chip" :class="{ on: !queryParams.moduleId }" @click="pickModule(null)">
         全部 <em>{{ stats.total }}</em>
       </span>
-      <span v-for="d in directionChips" :key="d.name" class="chip" :class="{ on: queryParams.direction === d.name }" @click="pickDirection(d.name)">
-        {{ d.name }} <em>{{ d.count }}</em>
+      <span v-for="m in moduleChips" :key="m.id" class="chip" :class="{ on: queryParams.moduleId === m.id }" @click="pickModule(m.id)">
+        {{ m.name }} <em>{{ m.count }}</em>
       </span>
-      <span class="ps-dirbar-tip"><i class="el-icon-info" /> 方向可自由填写；同名即归入同一分组</span>
+      <span class="ps-dirbar-tip"><i class="el-icon-info" /> 模块在「模拟备考管理 › 模拟模块」中管理，可直接改名</span>
     </div>
 
     <!-- ===== 列表 ===== -->
     <section class="ps-panel">
       <div class="ps-panel-h">
-        <div><h3>题目清单</h3><p>按方向分组排序；题名与题干必填，其余可选。</p></div>
+        <div>
+          <h3>
+            题目清单
+            <el-tag v-if="fixedModuleId" size="mini" effect="plain" type="success" class="ps-lock">仅当前模块</el-tag>
+          </h3>
+          <p>{{ fixedModuleId ? '仅显示当前模块下的实操题；题名与题干必填，其余可选。' : '按模块归类；题名与题干必填，其余可选。' }}</p>
+        </div>
         <div class="ps-panel-h-r">
           <el-select v-model="queryParams.difficulty" size="small" clearable placeholder="全部难度" style="width:120px" @change="handleQuery">
             <el-option label="简单" value="EASY" />
@@ -69,10 +75,15 @@
         </div>
       </div>
 
-      <el-form v-if="isSuperAdmin" :inline="true" size="small" class="ps-deptform" @submit.native.prevent>
-        <el-form-item label="所属部门">
+      <el-form v-if="isSuperAdmin || !fixedModuleId" :inline="true" size="small" class="ps-deptform" @submit.native.prevent>
+        <el-form-item v-if="isSuperAdmin" label="所属部门">
           <el-select v-model="queryParams.deptId" clearable filterable placeholder="全部部门" style="width:180px" @change="handleQuery">
             <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="!fixedModuleId" label="所属模块">
+          <el-select v-model="queryParams.moduleId" clearable filterable placeholder="全部模块" style="width:220px" @change="handleQuery">
+            <el-option v-for="m in moduleOptions" :key="m.id" :label="m.name" :value="m.id" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -89,9 +100,9 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="方向" width="150">
+        <el-table-column label="所属模块" width="170">
           <template slot-scope="scope">
-            <el-tag size="mini" effect="plain" type="primary">{{ scope.row.direction || '通用' }}</el-tag>
+            <el-tag size="mini" effect="plain" type="primary">{{ scope.row.moduleName || '未归属模块' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="难度" width="86" align="center">
@@ -105,9 +116,8 @@
             <span v-else class="muted">—</span>
           </template>
         </el-table-column>
-        <el-table-column label="交付 / 参考图" width="130" align="center">
+        <el-table-column label="参考" width="90" align="center">
           <template slot-scope="scope">
-            <span class="mini-count"><i class="el-icon-s-order" /> {{ lineCount(scope.row.deliverables) }}</span>
             <span class="mini-count"><i class="el-icon-picture-outline" /> {{ imgCount(scope.row.referenceImages) }}</span>
           </template>
         </el-table-column>
@@ -152,16 +162,13 @@
               <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
             </el-select>
           </el-form-item>
-          <el-form-item label="题名" prop="title">
-            <el-input v-model="form.title" placeholder="例如：用户登录接口开发" maxlength="200" show-word-limit />
-          </el-form-item>
-          <el-form-item label="方向" prop="direction">
-            <el-select v-model="form.direction" filterable allow-create default-first-option placeholder="选择或输入方向" style="width:100%">
-              <el-option v-for="d in directionOptions" :key="d" :label="d" :value="d" />
+          <el-form-item label="所属模块" prop="moduleId">
+            <el-select v-model="form.moduleId" filterable placeholder="请选择所属模块（先建模块）" style="width:100%">
+              <el-option v-for="m in moduleOptions" :key="m.id" :label="m.name" :value="m.id" />
             </el-select>
           </el-form-item>
-          <el-form-item label="方向说明">
-            <el-input v-model="form.directionDesc" placeholder="例如：适合接口设计、参数校验与异常处理训练" maxlength="255" />
+          <el-form-item label="题名" prop="title">
+            <el-input v-model="form.title" placeholder="例如：用户登录接口开发" maxlength="200" show-word-limit />
           </el-form-item>
           <el-form-item label="难度">
             <el-radio-group v-model="form.difficulty">
@@ -179,37 +186,22 @@
         <el-form-item label="题干" prop="content">
           <el-input v-model="form.content" type="textarea" :rows="4" placeholder="请输入实操题题干 / 操作要求" maxlength="5000" show-word-limit />
         </el-form-item>
-        <div class="fg2">
-          <el-form-item label="交付要求">
-            <el-input v-model="form.deliverables" type="textarea" :rows="4" placeholder="每行一条，例如：&#10;完成登录接口与参数校验&#10;梳理异常处理与统一返回结构" />
-          </el-form-item>
-          <el-form-item label="开发约束">
-            <el-input v-model="form.devConstraints" type="textarea" :rows="4" placeholder="每行一条，例如：&#10;接口符合 RESTful 命名规范&#10;参数校验完整、返回结构统一" />
-          </el-form-item>
-        </div>
-        <div class="fg2">
-          <el-form-item label="提交格式">
-            <el-input v-model="form.submitFormat" placeholder="例如：.java 源码 + SQL 脚本 + .zip" maxlength="255" />
-          </el-form-item>
-          <el-form-item label="命名规则">
-            <el-input v-model="form.namingRule" placeholder="例如：MOCK_API-1_用户登录接口开发_v01.zip" maxlength="255" />
-          </el-form-item>
-        </div>
 
-        <div class="ps-form-sec">参考图与附件</div>
-        <el-form-item label="参考图">
+        <div class="ps-form-sec">参考与附件</div>
+        <el-form-item label="参考">
           <div class="up-box">
             <div v-if="form.referenceImages.length" class="img-grid">
               <div v-for="(img, i) in form.referenceImages" :key="i" class="img-item">
-                <el-image :src="baseApi + img.url" fit="cover" :preview-src-list="previewList" class="img-thumb" />
+                <video v-if="isVideo(img.url)" :src="baseApi + img.url" class="img-thumb" controls />
+                <el-image v-else :src="baseApi + img.url" fit="cover" :preview-src-list="previewList" class="img-thumb" />
                 <i class="el-icon-close img-del" @click="removeImage(i)" />
               </div>
             </div>
-            <div v-else class="up-empty">未添加参考图（非必须）</div>
-            <el-upload action="#" :show-file-list="false" :multiple="true" :http-request="doUploadImage">
-              <el-button size="mini" icon="el-icon-picture-outline" :loading="uploadingImg">添加参考图</el-button>
+            <div v-else class="up-empty">未添加参考（非必须）</div>
+            <el-upload action="#" :show-file-list="false" :multiple="true" :http-request="doUploadImage" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.mp4,.webm,.ogg,.ogv,.mov,.avi,.m4v">
+              <el-button size="mini" icon="el-icon-picture-outline" :loading="uploadingImg">添加参考</el-button>
             </el-upload>
-            <div class="up-tip">支持 jpg / png；详情页左侧大图与下方缩略图都取自这里。</div>
+            <div class="up-tip">支持 jpg / png 等图片，以及 mp4 / webm / mov 等视频（单个视频不超过 200MB）；详情页左侧大图与下方缩略图都取自这里。</div>
           </div>
         </el-form-item>
         <el-form-item label="附件">
@@ -253,25 +245,19 @@ import {
   listPracticeSubject, addPracticeSubject, updatePracticeSubject,
   changePracticeSubjectStatus, delPracticeSubject, uploadFile
 } from '@/api/business/practiceSubject'
+import { listPracticeModuleOptions } from '@/api/business/practiceModule'
 import { listDept } from '@/api/system/dept'
 import { parseTime } from '@/utils/ruoyi'
 import { mapGetters } from 'vuex'
-
-const DIRECTION_PRESETS = ['后端接口开发', '数据访问开发', '前端页面开发', '部署与运维', '通用']
 
 function emptyForm() {
   return {
     id: null,
     deptId: null,
+    moduleId: null,
     title: '',
-    direction: '',
-    directionDesc: '',
     difficulty: 'MEDIUM',
     estimatedMinutes: null,
-    deliverables: '',
-    devConstraints: '',
-    submitFormat: '',
-    namingRule: '',
     referenceImages: [],
     attachments: [],
     sortNo: 0,
@@ -282,20 +268,25 @@ function emptyForm() {
 
 export default {
   name: 'PracticeSubject',
+  // 内嵌到「模拟备考管理 › 某模块」时传入固定模块：隐藏模块选择器并锁定归属
+  props: {
+    moduleId: { type: Number, default: null }
+  },
   data() {
     return {
       loading: false,
       list: [],
       total: 0,
-      queryParams: { pageNum: 1, pageSize: 10, content: '', status: undefined, deptId: null, direction: '', difficulty: undefined },
+      queryParams: { pageNum: 1, pageSize: 10, content: '', status: undefined, deptId: null, moduleId: null, difficulty: undefined },
       deptOptions: [],
+      moduleOptions: [],
       dialogVisible: false,
       dialogTitle: '',
       form: emptyForm(),
       rules: {
         deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }],
+        moduleId: [{ required: true, message: '请选择所属模块', trigger: 'change' }],
         title: [{ required: true, message: '请输入题名', trigger: 'blur' }],
-        direction: [{ required: true, message: '请选择或输入方向', trigger: 'change' }],
         content: [{ required: true, message: '请输入题干', trigger: 'blur' }]
       },
       uploading: false,
@@ -307,29 +298,24 @@ export default {
     ...mapGetters(['deptName', 'roles']),
     isSuperAdmin() { return this.roles.indexOf('SUPER_ADMIN') > -1 },
     baseApi() { return process.env.VUE_APP_BASE_API || '' },
-    previewList() { return this.form.referenceImages.map(i => this.baseApi + i.url) },
-    /** 方向下拉：已有方向 + 预置方向，去重 */
-    directionOptions() {
-      const set = new Set(DIRECTION_PRESETS)
-      this.list.forEach(r => { if (r.direction) set.add(r.direction) })
-      if (this.form.direction) set.add(this.form.direction)
-      return Array.from(set)
-    },
-    /** 方向筛选条：当前页数据的方向分布 */
-    directionChips() {
+    previewList() { return this.form.referenceImages.filter(i => !this.isVideo(i.url)).map(i => this.baseApi + i.url) },
+    /** 内嵌模式下锁定到某个模块 */
+    fixedModuleId() { return this.moduleId == null ? null : Number(this.moduleId) },
+    /** 模块筛选条：当前页数据的模块分布 */
+    moduleChips() {
       const map = new Map()
       this.list.forEach(r => {
-        const k = r.direction || '通用'
+        const k = r.moduleName || '未归属模块'
         map.set(k, (map.get(k) || 0) + 1)
       })
       return Array.from(map, ([name, count]) => ({ name, count }))
     },
     stats() {
-      const dirs = new Set(this.list.map(r => r.direction || '通用'))
+      const mods = new Set(this.list.map(r => r.moduleId || 0))
       const mins = this.list.map(r => Number(r.estimatedMinutes) || 0)
       return {
         total: this.total,
-        directions: dirs.size,
+        modules: mods.size,
         enabled: this.list.filter(r => r.status === 1).length,
         maxMinutes: mins.length ? Math.max.apply(null, mins) : 0
       }
@@ -337,7 +323,23 @@ export default {
   },
   created() {
     if (this.isSuperAdmin) this.loadDepartments()
+    this.loadModules()
+    if (this.fixedModuleId) this.queryParams.moduleId = this.fixedModuleId
     this.loadList()
+  },
+  watch: {
+    /**
+     * 内嵌到「模拟模块 › 管理内容」时，切换模块必须重新锁定并刷新列表。
+     * 该组件位于 v-else 分支内、会被 Vue 复用，仅靠 created() 锁定会在切换模块后
+     * 残留上一个模块（甚至全局）的列表数据，因此这里显式监听 moduleId。
+     */
+    moduleId() {
+      this.queryParams.pageNum = 1
+      this.queryParams.moduleId = this.fixedModuleId
+      this.dialogVisible = false
+      this.loadModules()
+      this.loadList()
+    }
   },
   methods: {
     loadDepartments() {
@@ -345,9 +347,17 @@ export default {
         this.deptOptions = (res.data || []).filter(dept => dept.parentId !== 0)
       })
     },
+    /** 模块下拉：超管未选部门时不传 deptId（后端按数据范围返回） */
+    loadModules() {
+      listPracticeModuleOptions(this.isSuperAdmin ? this.queryParams.deptId : null).then(res => {
+        this.moduleOptions = res.data || []
+      }).catch(() => { this.moduleOptions = [] })
+    },
     loadList() {
       this.loading = true
-      listPracticeSubject(this.queryParams).then(res => {
+      const params = Object.assign({}, this.queryParams)
+      if (this.fixedModuleId) params.moduleId = this.fixedModuleId
+      listPracticeSubject(params).then(res => {
         this.list = res.rows || []
         this.total = res.total || 0
         this.loading = false
@@ -355,18 +365,22 @@ export default {
     },
     handleQuery() {
       this.queryParams.pageNum = 1
+      if (this.isSuperAdmin) this.loadModules()
       this.loadList()
     },
-    pickDirection(name) {
-      this.queryParams.direction = name
+    pickModule(id) {
+      // 内嵌模式已锁定当前模块，忽略全局模块切换
+      if (this.fixedModuleId) return
+      this.queryParams.moduleId = id
       this.handleQuery()
     },
     resetQuery() {
-      this.queryParams = { pageNum: 1, pageSize: 10, content: '', status: undefined, deptId: null, direction: '', difficulty: undefined }
+      this.queryParams = { pageNum: 1, pageSize: 10, content: '', status: undefined, deptId: null, moduleId: this.fixedModuleId, difficulty: undefined }
       this.loadList()
     },
     handleAdd() {
       this.form = emptyForm()
+      this.form.moduleId = this.fixedModuleId || (this.queryParams.moduleId || null)
       this.dialogTitle = '发布实操题'
       this.dialogVisible = true
       this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
@@ -375,15 +389,10 @@ export default {
       this.form = {
         id: row.id,
         deptId: row.deptId,
+        moduleId: row.moduleId || null,
         title: row.title || '',
-        direction: row.direction || '',
-        directionDesc: row.directionDesc || '',
         difficulty: row.difficulty || 'MEDIUM',
         estimatedMinutes: row.estimatedMinutes == null ? null : Number(row.estimatedMinutes),
-        deliverables: row.deliverables || '',
-        devConstraints: row.devConstraints || '',
-        submitFormat: row.submitFormat || '',
-        namingRule: row.namingRule || '',
         referenceImages: this.parseAttachments(row.referenceImages).slice(),
         attachments: this.parseAttachments(row.attachmentsJson).slice(),
         sortNo: row.sortNo == null ? 0 : Number(row.sortNo),
@@ -411,13 +420,15 @@ export default {
     },
     doUploadImage(option) {
       const file = option.file
-      const ok = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file.name)
-      if (!ok) {
-        this.$modal.msgWarning('参考图仅支持 jpg / png / gif / webp / bmp')
+      const isVideoFile = /\.(mp4|webm|ogg|ogv|mov|avi|m4v)$/i.test(file.name)
+      const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file.name)
+      if (!isVideoFile && !isImage) {
+        this.$modal.msgWarning('参考仅支持图片（jpg / png / gif / webp / bmp）或视频（mp4 / webm / mov / avi 等）')
         return
       }
-      if (file.size > 20 * 1024 * 1024) {
-        this.$modal.msgWarning('单张参考图不能超过 20MB')
+      const limit = isVideoFile ? 200 * 1024 * 1024 : 20 * 1024 * 1024
+      if (file.size > limit) {
+        this.$modal.msgWarning(isVideoFile ? '单个视频不能超过 200MB' : '单张图片不能超过 20MB')
         return
       }
       const formData = new FormData()
@@ -426,7 +437,7 @@ export default {
       uploadFile(formData).then(res => {
         this.form.referenceImages.push({ name: file.name, url: res.fileName })
         this.uploadingImg = false
-        this.$modal.msgSuccess('参考图上传成功')
+        this.$modal.msgSuccess('参考上传成功')
       }).catch(() => { this.uploadingImg = false })
     },
     removeAttachment(index) {
@@ -442,15 +453,10 @@ export default {
         const payload = {
           id: this.form.id,
           deptId: this.form.deptId,
+          moduleId: this.form.moduleId,
           title: this.form.title,
-          direction: this.form.direction,
-          directionDesc: this.form.directionDesc,
           difficulty: this.form.difficulty,
           estimatedMinutes: this.form.estimatedMinutes,
-          deliverables: this.form.deliverables,
-          devConstraints: this.form.devConstraints,
-          submitFormat: this.form.submitFormat,
-          namingRule: this.form.namingRule,
           sortNo: this.form.sortNo,
           content: this.form.content,
           status: this.form.status,
@@ -492,12 +498,11 @@ export default {
         return Array.isArray(arr) ? arr : []
       } catch (e) { return [] }
     },
+    isVideo(url) {
+      return /\.(mp4|webm|ogg|ogv|mov|avi|m4v)$/i.test(String(url || ''))
+    },
     imgCount(json) {
       return this.parseAttachments(json).length
-    },
-    lineCount(text) {
-      if (!text) return 0
-      return String(text).split('\n').filter(s => s.trim()).length
     },
     brief(text) {
       if (!text) return ''
@@ -556,7 +561,7 @@ $panel-2: #f7f9fc;
 .ps-hero-stats b small { font-size: 12px; color: $ink-4; font-weight: 500; }
 .ps-hero-stats span { font-size: 11.5px; color: $ink-4; }
 
-/* --- 方向筛选条 --- */
+/* --- 模块筛选条 --- */
 .ps-dirbar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 11px 16px; background: #fff; border: 1px solid $line; border-radius: 10px; margin-bottom: 14px;
@@ -578,6 +583,7 @@ $panel-2: #f7f9fc;
 .ps-panel { padding: 18px 20px; background: #fff; border: 1px solid $line; border-radius: 10px; }
 .ps-panel-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
 .ps-panel-h h3 { margin: 0 0 5px; font-size: 15.5px; font-weight: 600; }
+.ps-panel-h h3 .ps-lock { margin-left: 6px; vertical-align: 1px; font-weight: 500; }
 .ps-panel-h p { margin: 0; color: $ink-4; font-size: 12px; }
 .ps-panel-h-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ps-deptform { padding-bottom: 4px; border-bottom: 1px solid $line-2; margin-bottom: 4px; }
@@ -622,6 +628,7 @@ $panel-2: #f7f9fc;
 .img-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
 .img-item { position: relative; width: 96px; height: 68px; border-radius: 7px; overflow: hidden; border: 1px solid $line-2; }
 .img-thumb { width: 100%; height: 100%; display: block; }
+.img-item video.img-thumb { object-fit: cover; background: #000; }
 .img-del {
   position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; line-height: 16px;
   text-align: center; border-radius: 50%; background: rgba(0, 0, 0, .55); color: #fff;

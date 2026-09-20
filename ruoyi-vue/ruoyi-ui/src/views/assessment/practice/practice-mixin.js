@@ -33,6 +33,10 @@ export default {
         return []
       }
     },
+    /** 按扩展名判断是否为视频（参考/附件为视频时用 <video> 渲染） */
+    isVideo(url) {
+      return /\.(mp4|webm|ogg|ogv|mov|avi|m4v)$/i.test(String(url || ''))
+    },
     /** 作答/答案串 → 选项键数组，如 "A,C" → ['A','C'] */
     splitAnswer(val) {
       if (!val) return []

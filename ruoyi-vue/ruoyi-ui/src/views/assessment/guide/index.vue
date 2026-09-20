@@ -25,7 +25,6 @@
           </div>
         </div>
         <span class="panel-count">
-          <el-tag v-if="demoMode" size="mini" type="warning" effect="plain">示例数据</el-tag>
           <span class="count-text">{{ materials.length }} 份资料</span>
         </span>
       </div>
@@ -52,71 +51,74 @@
       </ul>
     </section>
 
-    <section class="guide-hint">
-      <span class="hint-icon"><i class="el-icon-info" /></span>
-      <div>
-        <strong>备考资料包含什么</strong>
-        <p>考试指南 PDF（考核范围与评分说明）、考核规则与注意事项、必要的参考资料。资料由部门管理员统一发布，你无需自行上传。</p>
+    <!-- 附件预览弹窗 -->
+    <el-dialog
+      :title="previewFile && previewFile.name ? previewFile.name : '附件预览'"
+      :visible.sync="previewVisible"
+      width="760px"
+      top="6vh"
+      append-to-body
+    >
+      <div v-if="previewFile" class="file-preview">
+        <el-image
+          v-if="previewKind === 'image'"
+          :src="baseApi + previewFile.url"
+          fit="contain"
+          style="width:100%;max-height:70vh"
+        />
+        <video
+          v-else-if="previewKind === 'video'"
+          :src="baseApi + previewFile.url"
+          controls
+          class="file-preview-video"
+        />
+        <iframe
+          v-else-if="previewKind === 'pdf' || previewKind === 'text'"
+          :src="baseApi + previewFile.url"
+          class="file-preview-frame"
+        />
+        <div v-else class="file-preview-tip">
+          <i class="el-icon-document" />
+          <p>该格式（{{ previewExt }}）暂不支持在线预览，请下载后查看</p>
+          <span class="file-preview-hint">{{ previewSupportText }}</span>
+          <el-button type="primary" icon="el-icon-download" @click="download(previewFile)">下载附件</el-button>
+        </div>
       </div>
-    </section>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { parseTime } from '@/utils/ruoyi'
-
-/**
- * 备考资料页（实习生端只读）
- *
- * 数据来源：`material` 表已存在（material_name / material_type / position_id /
- * summary / file_url / version_no / is_public / status / valid_from / valid_to），
- * 但当前 `ruoyi-business` **没有对应的 Controller**。
- *
- * 因此当前用 `DEMO_MATERIALS` **模拟静态数据**撑起版面（页面上打「示例数据」标记），
- * 待后端补只读接口后，把 loadMaterials() 里的取数换成真实请求即可 —— 模板无需改动。
- *
- * 接入方式：
- *   listPublishedMaterials({ positionId: this.$store.getters.positionId })
- *     .then(res => { this.materials = res.data || []; this.demoMode = false })
- */
-const DEMO_MATERIALS = [
-  {
-    id: 'demo-1',
-    materialName: '开发实习生转正考核指南',
-    summary: '考核范围、评分标准、考试纪律与注意事项说明',
-    versionNo: 'v1.0',
-    updateTime: '2026-09-10 10:20:00'
-  },
-  {
-    id: 'demo-2',
-    materialName: '开发工具与项目环境 · 考试大纲',
-    summary: '开发环境搭建、版本管理、项目结构等考核要点',
-    versionNo: 'v1.1',
-    updateTime: '2026-09-12 15:40:00'
-  },
-  {
-    id: 'demo-3',
-    materialName: '代码规范与分支协作 · 参考资料',
-    summary: 'Git 工作流、Code Review 与分支管理规范汇编',
-    versionNo: 'v1.0',
-    updateTime: '2026-09-14 09:05:00'
-  },
-  {
-    id: 'demo-4',
-    materialName: 'MySQL 与数据访问 · 复习提纲',
-    summary: 'SQL 编写规范、索引优化与常见面试考点',
-    versionNo: 'v1.0',
-    updateTime: '2026-09-15 14:30:00'
-  }
-]
+import { listPublishedMaterials } from '@/api/business/material'
+import {
+  previewKindOf, extOf, fileUrlOf as resolveFileUrl, PREVIEW_SUPPORT_TEXT, triggerDownload
+} from '@/utils/filePreview'
 
 export default {
   name: 'InternGuide',
   data() {
     return {
       loading: false,
-      demoMode: true,
-      materials: []
+      materials: [],
+      previewVisible: false,
+      previewFile: null
+    }
+  },
+  computed: {
+    baseApi() {
+      return process.env.VUE_APP_BASE_API || ''
+    },
+    /** 预览类型：图片 / 视频 / PDF / 纯文本，其余走「下载后查看」 */
+    previewKind() {
+      return previewKindOf(this.previewFile && this.previewFile.url)
+    },
+    /** 不支持预览时提示用到的扩展名 */
+    previewExt() {
+      return extOf(this.previewFile && this.previewFile.url)
+    },
+    previewSupportText() {
+      return PREVIEW_SUPPORT_TEXT
     }
   },
   created() {
@@ -125,19 +127,41 @@ export default {
   methods: {
     loadMaterials() {
       this.loading = true
-      // TODO(后端接口就绪后替换)：改为真实请求并置 demoMode = false
-      this.materials = DEMO_MATERIALS
-      this.demoMode = true
-      this.loading = false
+      listPublishedMaterials().then(res => {
+        this.materials = (res && res.data) || []
+        this.loading = false
+      }).catch(() => {
+        this.materials = []
+        this.loading = false
+      })
     },
     fmtTime(val) {
       return val ? parseTime(val, '{y}-{m}-{d}') : '--'
     },
-    preview() {
-      this.$modal.msgWarning('当前为示例数据，后端接口接入后可在线预览')
+    /** 取文件地址：列表项用 fileUrl，预览对象用 url —— 两处都要认，否则弹窗里的下载按钮会误报「暂无附件」 */
+    fileUrlOf(item) {
+      return resolveFileUrl(item)
     },
-    download() {
-      this.$modal.msgWarning('当前为示例数据，后端接口接入后可下载')
+    preview(item) {
+      const url = resolveFileUrl(item)
+      if (!url) {
+        this.$modal.msgWarning('该资料暂无附件')
+        return
+      }
+      this.previewFile = {
+        name: item.materialName || item.name || '附件',
+        url: url,
+        fileUrl: url
+      }
+      this.previewVisible = true
+    },
+    download(item) {
+      const url = resolveFileUrl(item)
+      if (!url) {
+        this.$modal.msgWarning('该资料暂无附件')
+        return
+      }
+      triggerDownload(this.baseApi, url, (item && (item.materialName || item.name)) || '')
     }
   }
 }
@@ -171,10 +195,12 @@ export default {
 .material-info p { margin: 0 0 7px; overflow: hidden; color: #667085; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .material-meta { color: #98a2b3; font-size: 11px; }
 .material-action { display: flex; min-width: 150px; gap: 8px; justify-content: flex-end; }
-.guide-hint { display: flex; align-items: flex-start; gap: 12px; margin-top: 14px; padding: 13px 16px; border: 1px solid #dbeafe; background: #f5f9ff; }
-.hint-icon { display: flex; width: 25px; height: 25px; flex: 0 0 25px; align-items: center; justify-content: center; color: #2878c7; font-size: 16px; }
-.guide-hint strong { color: #344054; font-size: 12px; }
-.guide-hint p { margin: 4px 0 0; color: #667085; font-size: 11px; line-height: 1.5; }
+.file-preview { display: flex; align-items: center; justify-content: center; min-height: 160px; }
+.file-preview-frame { width: 100%; height: 70vh; border: none; }
+.file-preview-video { width: 100%; max-height: 70vh; background: #000; }
+.file-preview-tip { text-align: center; color: #98a2b3; padding: 24px 0; }
+.file-preview-tip i { font-size: 48px; color: #c3cdd9; display: block; margin-bottom: 12px; }
+.file-preview-tip p { margin: 0 0 16px; font-size: 13px; }
 @media (max-width: 700px) {
   .guide-page { padding-bottom: 28px; }
   .guide-heading { align-items: flex-start; flex-direction: column; gap: 12px; }

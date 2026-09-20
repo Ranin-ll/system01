@@ -1,7 +1,13 @@
 <template>
   <div class="practice-page">
     <div class="exam-breadcrumb">
-      <el-button type="text" icon="el-icon-arrow-left" @click="goList">返回实操题库</el-button>
+      <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回</el-button>
+      <span>/</span>
+      <b>模拟考核</b>
+      <template v-if="fromModuleId">
+        <span>/</span>
+        <b>{{ moduleLabel }}</b>
+      </template>
       <span>/</span>
       <b>实操题详情</b>
     </div>
@@ -17,15 +23,15 @@
           <div>
             <span class="eyebrow">PRACTICE · DETAIL</span>
             <h1>{{ subject.title || '实操题详情' }}</h1>
-            <p>{{ subject.direction || '通用' }}<template v-if="subject.directionDesc"> · {{ subject.directionDesc }}</template></p>
           </div>
         </header>
 
         <div class="grid">
-          <!-- 左：参考图 + 缩略图 -->
+          <!-- 左：参考 + 缩略图 -->
           <div class="card c7">
             <div class="bigimg">
-              <img v-if="currentImage" :src="baseApi + currentImage.url" :alt="currentImage.name">
+              <video v-if="currentImage && isVideo(currentImage.url)" :src="baseApi + currentImage.url" controls class="bigimg-video" />
+              <img v-else-if="currentImage" :src="baseApi + currentImage.url" :alt="currentImage.name">
               <span v-else class="bigimg-ph" v-html="placeholderSvg" />
             </div>
             <div v-if="images.length > 1" class="tstrip">
@@ -36,18 +42,19 @@
                 :class="{ on: i === activeIndex }"
                 @click="activeIndex = i"
               >
-                <img :src="baseApi + img.url" :alt="img.name">
+                <video v-if="isVideo(img.url)" :src="baseApi + img.url" muted />
+                <img v-else :src="baseApi + img.url" :alt="img.name">
               </div>
             </div>
-            <div v-else-if="!images.length" class="note" style="text-align:center">该题未提供参考图</div>
+            <div v-else-if="!images.length" class="note" style="text-align:center">该题未提供参考</div>
           </div>
 
-          <!-- 右：交付要求 / 开发约束 / 提交与命名 -->
+          <!-- 右：基本信息与题干 -->
           <div class="card c5">
             <h3 class="p-title">{{ subject.title || '未命名实操题' }}</h3>
 
             <div class="info2">
-              <div><span>方向</span><b>{{ subject.direction || '通用' }}</b></div>
+              <div><span>所属模块</span><b>{{ subject.moduleName || '未归属模块' }}</b></div>
               <div><span>建议用时</span><b>{{ subject.estimatedMinutes ? subject.estimatedMinutes + ' 分钟' : '不限' }}</b></div>
               <div><span>难度</span><b>{{ difficultyText(subject.difficulty) }}</b></div>
               <div><span>发布时间</span><b>{{ fmtTime(subject.updateTime || subject.createTime) }}</b></div>
@@ -56,23 +63,6 @@
             <div class="grp-sub">题干</div>
             <div class="stem">{{ subject.content }}</div>
 
-            <template v-if="deliverables.length">
-              <div class="grp-sub">交付要求</div>
-              <ul class="ul">
-                <li v-for="(d, i) in deliverables" :key="i">{{ d }}</li>
-              </ul>
-            </template>
-
-            <template v-if="constraints.length">
-              <div class="grp-sub">开发约束</div>
-              <ul class="ul">
-                <li v-for="(c, i) in constraints" :key="i">{{ c }}</li>
-              </ul>
-            </template>
-
-            <div v-if="subject.submitFormat" class="box"><span>提交格式</span><b>{{ subject.submitFormat }}</b></div>
-            <div v-if="subject.namingRule" class="box"><span>命名规则</span><b>{{ subject.namingRule }}</b></div>
-
             <div v-if="attachments.length" class="attach-wrap">
               <div class="grp-sub">题目附件</div>
               <a v-for="(a, i) in attachments" :key="i" class="attach-link" :href="baseApi + a.url" target="_blank" rel="noopener">
@@ -80,13 +70,7 @@
               </a>
             </div>
             <div v-else class="note" style="margin-top:12px"><i class="el-icon-paperclip" /> 该题未提供附件</div>
-
-            <div class="note">附件为题目资料；练习成果仅供自检，不计入正式成绩。</div>
           </div>
-        </div>
-
-        <div class="action-bar">
-          <el-button size="medium" @click="goList">返回实操题库</el-button>
         </div>
       </template>
     </div>
@@ -108,6 +92,14 @@ export default {
     }
   },
   computed: {
+    /** 来源模块（从模块内实操题卡片进来时携带 ?moduleId=），用于返回模块内内容 */
+    fromModuleId() {
+      const v = this.$route.query.moduleId
+      return v == null || v === '' ? null : String(v)
+    },
+    moduleLabel() {
+      return (this.subject && this.subject.moduleName) || '当前模块'
+    },
     images() {
       return this.subject ? this.parseAttachments(this.subject.referenceImages) : []
     },
@@ -117,14 +109,7 @@ export default {
     attachments() {
       return this.subject ? this.parseAttachments(this.subject.attachmentsJson) : []
     },
-    /** 交付要求 / 开发约束：按换行拆成条目 */
-    deliverables() {
-      return this.lines(this.subject && this.subject.deliverables)
-    },
-    constraints() {
-      return this.lines(this.subject && this.subject.devConstraints)
-    },
-    /** 无参考图时的大图占位（与设计稿同款线框风格） */
+    /** 无参考时的大图占位（与设计稿同款线框风格） */
     placeholderSvg() {
       return '<svg viewBox="0 0 520 300" preserveAspectRatio="none">' +
         '<rect x="30" y="40" width="460" height="220" rx="12" fill="#f2f7ff"/>' +
@@ -151,7 +136,7 @@ export default {
     load() {
       const id = this.$route.params.id
       if (!id) {
-        this.goList()
+        this.goBack()
         return
       }
       this.loading = true
@@ -166,15 +151,20 @@ export default {
         this.subject = null
       })
     },
-    lines(text) {
-      if (!text) return []
-      return String(text).split('\n').map(s => s.trim()).filter(s => !!s)
-    },
     difficultyText(v) {
       return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[v] || '中等'
     },
-    goList() {
-      this.$router.push('/assessment/intern/practice-subject')
+    /**
+     * 返回上一级：从模块内进来时回到「模拟考核 › 该模块」的模块内容页，
+     * 否则回落到「模拟考核」模块列表。不再跳转到已下线的独立「实操题库」页。
+     */
+    goBack() {
+      const mid = this.fromModuleId
+      if (mid) {
+        this.$router.push({ path: '/assessment/intern/learning/mock', query: { moduleId: mid } })
+      } else {
+        this.$router.push('/assessment/intern/learning/mock')
+      }
     }
   }
 }
@@ -198,12 +188,13 @@ $panel-2: #f7f9fc;
 .c7 { grid-column: span 7; }
 .c5 { grid-column: span 5; }
 
-/* --- 左：参考图 --- */
+/* --- 左：参考 --- */
 .bigimg {
   background: $panel-2; border: 1px solid $line-2; border-radius: 10px;
   height: 340px; display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .bigimg img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.bigimg .bigimg-video { width: 100%; height: 100%; object-fit: contain; background: #000; display: block; }
 .bigimg-ph { display: block; width: 100%; height: 100%; }
 .bigimg-ph ::v-deep svg { width: 100%; height: 100%; }
 .tstrip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 12px; }
@@ -212,6 +203,7 @@ $panel-2: #f7f9fc;
   overflow: hidden; cursor: pointer;
 }
 .tstrip .t img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tstrip .t video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
 .tstrip .t.on { border: 2px solid $blue; }
 
 /* --- 右：要求区 --- */
@@ -222,16 +214,6 @@ $panel-2: #f7f9fc;
 .info2 b { font-size: 13px; color: $ink; font-weight: 600; }
 .grp-sub { font-size: 12.5px; font-weight: 600; color: $ink-2; margin: 14px 0 7px; }
 .stem { font-size: 12.5px; color: $ink-2; line-height: 1.7; white-space: pre-wrap; }
-.ul { margin: 0; padding-left: 18px; }
-.ul li { font-size: 12.5px; color: $ink-2; margin-bottom: 5px; line-height: 1.5; }
-.box {
-  border: 1px solid $line-2; border-radius: 8px; padding: 9px 12px; margin-top: 10px; background: $panel-2;
-}
-.box span { display: block; font-size: 11px; color: $ink-4; margin-bottom: 3px; }
-.box b {
-  font-size: 12.5px; color: $ink; font-weight: 600;
-  font-family: ui-monospace, Consolas, monospace; word-break: break-all;
-}
 .attach-wrap { margin-top: 6px; }
 .attach-wrap .attach-link { display: block; margin-bottom: 5px; }
 .note { font-size: 11.5px; color: $ink-4; margin-top: 12px; line-height: 1.55; }

@@ -122,12 +122,27 @@ $red-ink:     #b42318;
 .dcard.c7 { grid-column: span 7; }
 .dcard.c8 { grid-column: span 8; }
 .dcard.c12 { grid-column: span 12; }
+/* ---- .dgrid 直接子容器跨列 ---- */
+/* 允许不带 .dcard 外壳的"纯跨列"块（如只放图表/提示条的容器）；只控制跨列，不加强卡片样式 */
+.dgrid > .c2 { grid-column: span 2; }
+.dgrid > .c3 { grid-column: span 3; }
+.dgrid > .c4 { grid-column: span 4; }
+.dgrid > .c5 { grid-column: span 5; }
+.dgrid > .c6 { grid-column: span 6; }
+.dgrid > .c7 { grid-column: span 7; }
+.dgrid > .c8 { grid-column: span 8; }
+.dgrid > .c9 { grid-column: span 9; }
+.dgrid > .c12 { grid-column: span 12; }
 .dcard-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .dcard-h .tt { display: flex; align-items: center; gap: 9px; }
 .dcard-h .idx { display: inline-flex; width: 20px; height: 20px; flex: none; align-items: center; justify-content: center; color: $blue; font-size: 11px; font-weight: 700; background: $blue-soft; border-radius: 50%; }
 .dcard-h h3 { margin: 0; color: $ink; font-size: 14.5px; font-weight: 600; }
 .dcard-h .more { color: $blue; font-size: 12px; cursor: pointer; }
 .dcard-h .more:hover { text-decoration: underline; }
+
+/* ---- 文本辅助色 ---- */
+.muted { color: $ink-4; font-size: 11.5px; }
+.danger-text { color: $red; }
 
 /* ---- 徽标 / 药丸 ---- */
 .dbadge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; color: $ink-2; font-size: 11.5px; background: $gray-soft; border-radius: 11px; }
@@ -293,7 +308,8 @@ $red-ink:     #b42318;
 /* ---- 响应式 ---- */
 @media (max-width: 1280px) {
   .dkpi-grid, .dkpi-grid.c6 { grid-template-columns: repeat(3, 1fr); }
-  .dcard.c4, .dcard.c5, .dcard.c6, .dcard.c7, .dcard.c8 { grid-column: span 12; }
+  .dcard.c4, .dcard.c5, .dcard.c6, .dcard.c7, .dcard.c8,
+  .dgrid > .c4, .dgrid > .c5, .dgrid > .c6, .dgrid > .c7, .dgrid > .c8 { grid-column: span 12; }
   .dkpi.c2, .dkpi.c3, .dkpi.c4 { grid-column: span 6; }
   .dcallout[class*=' c'], .dkv[class*=' c'], .dsteps[class*=' c'], .dsec[class*=' c'] { grid-column: span 12; }
 }

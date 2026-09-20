@@ -46,3 +46,25 @@ ruoyi-vue/ruoyi-ui/dist-verify-*/
 *.bak
 *.bak[0-9]
 ruoyi-vue/sql/_backup_*.sql
+
+# 防御：Maven 本地仓库被错误解析到构建目录时，会在此解出一整棵依赖树。
+# 根因是 conf/settings.xml 里空的 <localRepository/> 被当成相对路径（2026-09-17 已修），
+# 这里再加一道防线，避免同类问题重新污染仓库。
+ruoyi-vue/aopalliance/
+ruoyi-vue/backport-util-concurrent/
+ruoyi-vue/ch/
+ruoyi-vue/classworlds/
+ruoyi-vue/commons-*/
+ruoyi-vue/eu/
+ruoyi-vue/io/
+ruoyi-vue/jakarta/
+ruoyi-vue/javax/
+ruoyi-vue/junit/
+ruoyi-vue/log4j/
+ruoyi-vue/META-INF/
+ruoyi-vue/mysql/
+ruoyi-vue/net/
+ruoyi-vue/pro/
+
+# 本地验证截图（agent-browser 输出的页面截图，仅作核对用）
+.shots/

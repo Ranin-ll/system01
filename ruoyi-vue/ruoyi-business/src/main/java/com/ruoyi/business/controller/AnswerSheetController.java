@@ -61,6 +61,17 @@ public class AnswerSheetController extends BaseController {
         return AjaxResult.success(answerSheetService.sheetDetail(sheetId));
     }
 
+    /**
+     * 实习生查看本人答卷详情（含逐题明细）。
+     * 与管理员 /detail 分开：管理员走部门管理范围校验，实习生只校验答卷归属，
+     * 这样"未通过"的考核也能看到自己的作答与批阅明细。
+     */
+    @PreAuthorize("@ss.hasAnyRoles('PRE_TRAINEE,FORMAL_TRAINEE')")
+    @GetMapping("/my/detail/{sheetId}")
+    public AjaxResult myDetail(@PathVariable Long sheetId) {
+        return AjaxResult.success(answerSheetService.mySheetDetail(sheetId));
+    }
+
     /** 管理员批改（实操题打分） */
     @PreAuthorize("@ss.hasPermi('business:bank:edit')")
     @Log(title = "答卷批改", businessType = BusinessType.UPDATE)
@@ -100,5 +111,13 @@ public class AnswerSheetController extends BaseController {
                                     @RequestParam(value = "disableExam", defaultValue = "true") boolean disableExam,
                                     @RequestParam(value = "publishUnanswered", defaultValue = "false") boolean publishUnanswered) {
         return toAjax(answerSheetService.publishResult(examId, disableExam, publishUnanswered));
+    }
+
+    /** 重新开放批改：已发布成绩回退到批改中，供管理员重新打分 */
+    @PreAuthorize("@ss.hasPermi('business:bank:edit')")
+    @Log(title = "重新开放批改", businessType = BusinessType.UPDATE)
+    @PutMapping("/reopen/{sheetId}")
+    public AjaxResult reopen(@PathVariable Long sheetId) {
+        return toAjax(answerSheetService.reopenForGrading(sheetId));
     }
 }

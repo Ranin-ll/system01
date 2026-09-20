@@ -27,6 +27,9 @@ public class PracticeSubject implements Serializable {
     /** 所属部门ID */
     private Long deptId;
 
+    /** 所属模块ID（practice_module.id）—— 模块是模拟考核的顶层分组 */
+    private Long moduleId;
+
     /** 题名（卡片与详情页标题） */
     private String title;
 
@@ -79,6 +82,9 @@ public class PracticeSubject implements Serializable {
 
     /** 所属部门名称（展示字段） */
     private String deptName;
+
+    /** 所属模块名称（展示字段） */
+    private String moduleName;
 
     /** 当前登录账号的数据范围部门（仅供查询使用，不落库） */
     private Long scopeDeptId;

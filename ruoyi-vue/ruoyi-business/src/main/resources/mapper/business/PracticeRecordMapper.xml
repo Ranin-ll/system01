@@ -7,33 +7,46 @@
         <id     property="id"           column="id"           />
         <result property="userId"       column="user_id"      />
         <result property="bankId"       column="bank_id"      />
+        <result property="examId"       column="exam_id"      />
         <result property="deptId"       column="dept_id"      />
         <result property="totalCount"   column="total_count"  />
         <result property="correctCount" column="correct_count"/>
         <result property="score"        column="score"        />
         <result property="createTime"   column="create_time"  />
         <result property="bankName"     column="bank_name"    />
+        <result property="examName"     column="exam_name"    />
+        <result property="moduleId"     column="module_id"    />
+        <result property="moduleName"   column="module_name"  />
     </resultMap>
 
     <insert id="insertRecord" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO practice_record (user_id, bank_id, dept_id, total_count, correct_count, score, create_time)
-        VALUES (#{userId}, #{bankId}, #{deptId}, #{totalCount}, #{correctCount}, #{score}, NOW())
+        INSERT INTO practice_record (user_id, bank_id, exam_id, dept_id, total_count, correct_count, score, create_time)
+        VALUES (#{userId}, #{bankId}, #{examId}, #{deptId}, #{totalCount}, #{correctCount}, #{score}, NOW())
     </insert>
 
-    <select id="selectMyRecords" resultMap="PracticeRecordResult">
-        SELECT r.id, r.user_id, r.bank_id, r.dept_id, r.total_count, r.correct_count, r.score, r.create_time,
-               b.bank_name
+    <!-- 展示口径：按「模块」归类，同时带出来源考核名称。
+         历史记录 exam_id 为 NULL（落库时未记录），JOIN 不到时该列显示为空，前端展示「—」。
+         exam 已被删除也照常带出名称（不筛 deleted），保证历史记录不出现空白。 -->
+    <sql id="recordSelectColumns">
+        SELECT r.id, r.user_id, r.bank_id, r.exam_id, r.dept_id, r.total_count, r.correct_count, r.score, r.create_time,
+               b.bank_name, e.exam_name AS exam_name, e.module_id AS module_id, m.name AS module_name
         FROM practice_record r
         LEFT JOIN question_bank b ON b.id = r.bank_id
+        LEFT JOIN exam e ON e.id = r.exam_id
+        LEFT JOIN practice_module m ON m.id = e.module_id
+    </sql>
+
+    <select id="selectMyRecords" resultMap="PracticeRecordResult">
+        <include refid="recordSelectColumns"/>
         WHERE r.user_id = #{userId}
+        <if test="moduleId != null">
+            AND e.module_id = #{moduleId}
+        </if>
         ORDER BY r.create_time DESC
     </select>
 
     <select id="selectRecordById" resultMap="PracticeRecordResult">
-        SELECT r.id, r.user_id, r.bank_id, r.dept_id, r.total_count, r.correct_count, r.score, r.create_time,
-               b.bank_name
-        FROM practice_record r
-        LEFT JOIN question_bank b ON b.id = r.bank_id
+        <include refid="recordSelectColumns"/>
         WHERE r.id = #{id}
         LIMIT 1
     </select>

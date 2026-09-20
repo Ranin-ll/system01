@@ -29,6 +29,12 @@ public interface IAnswerSheetService extends IService<AnswerSheet> {
     /** 答卷详情（批改用，含逐题明细）。 */
     Map<String, Object> sheetDetail(Long sheetId);
 
+    /**
+     * 实习生查看**本人**答卷详情（含逐题明细）。
+     * 通过与否都能看；答卷未发布时不下发正确答案，避免提前拿到答案。
+     */
+    Map<String, Object> mySheetDetail(Long sheetId);
+
     /** 批改：实操题人工打分。 */
     int grade(Long sheetId, List<AnswerSheetItem> items);
 
@@ -37,4 +43,7 @@ public interface IAnswerSheetService extends IService<AnswerSheet> {
 
     /** 发布成绩：计算总分与通过标记，状态置为已发布。disableExam 是否停用考核，publishUnanswered 未作答的是否发布为0分。 */
     int publishResult(Long examId, boolean disableExam, boolean publishUnanswered);
+
+    /** 重新开放批改：把已发布的实操答卷回退到批改中（SCORING），供管理员重新打分。 */
+    int reopenForGrading(Long sheetId);
 }

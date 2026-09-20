@@ -8,10 +8,10 @@
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>模拟备考管理</h1>
-        <p>备考资料 / 模拟理论考核配置 / 实操题库 —— 侧栏一项，模块内三个页签。</p>
+        <p>备考资料 / 模拟模块（模块内挂理论模拟考核与实操题）—— 先建模块，再在模块内上传考核内容。</p>
       </div>
       <div class="dept-heading-actions">
-        <span class="dsample">备考资料与模拟配置为示例数据</span>
+        <el-button size="small" icon="el-icon-refresh" @click="reloadAll">刷新</el-button>
       </div>
     </div>
 
@@ -22,7 +22,7 @@
         :key="tab.key"
         class="dtab"
         :class="{ on: activeTab === tab.key }"
-        @click="activeTab = tab.key"
+        @click="switchTab(tab.key)"
       >
         {{ tab.label }} <span v-if="tab.count" class="tab-n">{{ tab.count }}</span>
       </div>
@@ -33,13 +33,15 @@
       <div class="dgrid">
         <div class="dcard c5">
           <div class="dcard-h">
-            <div class="tt"><span class="idx">传</span><h3>上传资料</h3></div>
+            <div class="tt"><span class="idx">传</span><h3>{{ editingId ? '编辑资料' : '上传资料' }}</h3></div>
+            <el-button v-if="editingId" size="mini" type="text" @click="resetForm">取消编辑</el-button>
           </div>
           <div class="ddrop" @click="pickFile">
             <i class="el-icon-upload" />
-            <b>{{ form.fileName || '拖拽文件到此处，或点击选择' }}</b>
+            <b>{{ form.fileName || '点击选择文件' }}</b>
             <small>支持 PDF / Word / PPT / 视频 / 图片 / 压缩包</small>
           </div>
+          <input ref="fileInput" type="file" class="d-hidden-input" @change="onFileChange" />
           <div class="dfg2" style="margin-top:14px">
             <div class="dfield">
               <label>资料名称 <b>*</b></label>
@@ -55,8 +57,8 @@
             </div>
             <div class="dfield">
               <label>适用岗位</label>
-              <el-select v-model="form.position" size="small" style="width:100%">
-                <el-option v-for="p in positionOptions" :key="p" :label="p" :value="p" />
+              <el-select v-model="form.position" size="small" style="width:100%" placeholder="请选择岗位">
+                <el-option v-for="p in positionOptions" :key="p.id" :label="p.positionName" :value="p.id" />
               </el-select>
             </div>
             <div class="dfield">
@@ -68,31 +70,18 @@
             <label>简介</label>
             <el-input v-model="form.intro" type="textarea" :rows="3" size="small" placeholder="本季度正式考核范围、题型分布与注意事项。" />
           </div>
-          <div class="dfield">
-            <label>有效期</label>
-            <el-date-picker
-              v-model="form.validRange"
-              type="daterange"
-              size="small"
-              value-format="yyyy-MM-dd"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              style="width:100%"
-            />
-          </div>
           <div class="dbtn-row right" style="margin-top:16px">
-            <el-button size="small" @click="notReady('存为草稿')">存为草稿</el-button>
-            <el-button size="small" type="primary" @click="notReady('上传并发布')">上传并发布</el-button>
+            <el-button size="small" :loading="saving" @click="saveMaterial(false)">{{ editingId ? '保存修改' : '存为草稿' }}</el-button>
+            <el-button size="small" type="primary" :loading="saving" @click="saveMaterial(true)">{{ editingId ? '保存并发布' : '上传并发布' }}</el-button>
           </div>
         </div>
 
         <div class="dcard c7">
           <div class="dcard-h">
             <div class="tt"><span class="idx">列</span><h3>已上传资料</h3></div>
-            <span class="hint-text">发布后本部门对应岗位实习生在「正式考核」页可见</span>
+            <span class="hint-text">发布后本部门对应岗位实习生在「备考资料」页可见</span>
           </div>
-          <table class="dtbl">
+          <table class="dtbl" v-loading="materialLoading">
             <thead>
               <tr>
                 <th>资料名称</th>
@@ -104,173 +93,401 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in materials" :key="row.name">
-                <td><span class="strong">{{ row.name }}</span></td>
-                <td><span class="dbadge" :class="row.typeTone">{{ row.typeText }}</span></td>
-                <td>{{ row.position }}</td>
-                <td>{{ row.version }}</td>
-                <td><span class="dbadge" :class="row.status === '已发布' ? 'green' : 'gray'">{{ row.status }}</span></td>
+              <tr v-for="row in materials" :key="row.id">
+                <td><span class="strong">{{ row.materialName }}</span></td>
+                <td><span class="dbadge" :class="typeTone(row.materialType)">{{ typeText(row.materialType) }}</span></td>
+                <td>{{ row.positionName || '-' }}</td>
+                <td>{{ row.versionNo || '-' }}</td>
+                <td><span class="dbadge" :class="row.status === 'PUBLISHED' ? 'green' : 'gray'">{{ statusText(row.status) }}</span></td>
                 <td>
                   <div class="acts">
                     <el-button type="text" @click="previewMaterial(row)">预览</el-button>
                     <span class="sep">|</span>
-                    <el-button type="text" @click="notReady('替换文件')">替换</el-button>
+                    <el-button type="text" @click="editMaterial(row)">替换</el-button>
                     <span class="sep">|</span>
-                    <el-button v-if="row.status === '已发布'" type="text" @click="notReady('停用')">停用</el-button>
+                    <el-button v-if="row.status === 'PUBLISHED'" type="text" @click="changeStatus(row, 'DISABLED')">停用</el-button>
                     <template v-else>
-                      <el-button type="text" @click="publishMaterial(row)">发布</el-button>
+                      <el-button type="text" @click="changeStatus(row, 'PUBLISHED')">发布</el-button>
                       <span class="sep">|</span>
                       <el-button type="text" @click="removeMaterial(row)">删除</el-button>
                     </template>
                   </div>
                 </td>
               </tr>
+              <tr v-if="!materials.length && !materialLoading">
+                <td colspan="6" class="d-empty">暂无备考资料，请在左侧填写并上传。</td>
+              </tr>
             </tbody>
           </table>
-          <p class="dsec-note">
-            落库 <code>material</code>（15 列，含 material_type / status / valid_from·to），
-            <b>表结构完全够用，只缺 Java 层</b>。接口就绪前本页用示例数据并打「示例数据」标记。
-          </p>
         </div>
       </div>
     </template>
 
-    <!-- ============ 页签 2 · 模拟理论考核配置 ============ -->
-    <template v-if="activeTab === 'config'">
-      <div class="dsec">
-        <div class="dsec-head">
-          <div>
-            <span class="dsec-no p">配</span>
+    <!-- ============ 页签 2 · 模拟模块 ============ -->
+    <template v-if="activeTab === 'module'">
+      <!-- 2.1 模块列表 -->
+      <template v-if="!activeModule">
+        <div class="dsec">
+          <div class="dsec-head">
             <div>
-              <h2>模拟理论考核配置</h2>
-              <p>保存生效后，本部门实习生「模拟考核 → 开始新自测」即按此配置抽题（知识分布 + 题型配比 + 分值）。</p>
+              <span class="dsec-no p">模</span>
+              <div>
+                <h2>模拟模块</h2>
+                <p>模块是模拟考核的顶层分组：先建模块，再在模块内发布理论模拟考核与实操题。模块名可直接改，不用逐个调整题目。</p>
+              </div>
             </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="dbadge" :class="configStatus.status === 'PUBLISHED' ? 'green' : 'orange'">{{ configStatus.text }}</span>
-            <el-button size="mini" :loading="saving" type="primary" @click="saveConfig">保存并生效</el-button>
-          </div>
-        </div>
-        <div class="dsec-body">
-          <el-form :inline="true" size="small" style="margin-bottom:12px">
-            <el-form-item label="题源（模拟题库）">
-              <el-select v-model="bankId" filterable placeholder="本部门模拟题库" style="width:230px" @change="loadPoints">
-                <el-option v-for="b in bankOptions" :key="b.id" :label="b.bankName + '（' + (b.questionCount || 0) + ' 题）'" :value="b.id" />
+            <div style="display:flex;align-items:center;gap:8px">
+              <el-select v-if="isSuperAdmin" v-model="moduleDeptId" size="mini" clearable filterable placeholder="全部部门" style="width:170px" @change="loadModules">
+                <el-option v-for="d in deptOptions" :key="d.deptId" :label="d.deptName" :value="d.deptId" />
               </el-select>
-            </el-form-item>
-            <el-form-item label="考试时长">
-              <el-input-number v-model="form.duration" :min="0" :max="600" size="small" />
-              <span class="dinp" style="display:inline-block;margin-left:6px">{{ form.duration > 0 ? form.duration + ' 分钟' : '不限时（自测）' }}</span>
-            </el-form-item>
-            <el-form-item label="通过分数 / 总分">
-              <el-input-number v-model="form.passLine" :min="0" :max="200" :precision="1" size="small" />
-              <span style="margin-left:6px;color:#98a2b3">{{ form.passLine }} / {{ totalScore }} 分</span>
-            </el-form-item>
-          </el-form>
-
-          <el-form :inline="true" size="small" style="margin-bottom:12px">
-            <el-form-item label="题型配比">
-              <span>单选</span><el-input-number v-model="form.singleCount" :min="0" :max="100" size="small" style="width:110px" />
-              <span style="margin:0 6px">多选</span><el-input-number v-model="form.multiCount" :min="0" :max="100" size="small" style="width:110px" />
-              <span style="margin:0 6px">判断</span><el-input-number v-model="form.judgeCount" :min="0" :max="100" size="small" style="width:110px" />
-            </el-form-item>
-            <el-form-item label="每题分值">
-              <span>单选</span><el-input-number v-model="form.singleScore" :min="0" :max="100" :precision="1" size="small" style="width:110px" />
-              <span style="margin:0 6px">多选</span><el-input-number v-model="form.multiScore" :min="0" :max="100" :precision="1" size="small" style="width:110px" />
-              <span style="margin:0 6px">判断</span><el-input-number v-model="form.judgeScore" :min="0" :max="100" :precision="1" size="small" style="width:110px" />
-            </el-form-item>
-            <el-form-item>
-              <span class="dinp">题目数量 {{ questionTotal }} 题 · 满分 {{ totalScore }} 分</span>
-            </el-form-item>
-          </el-form>
-
-          <div class="dcallout" :class="checkOk ? 'ok' : 'warn'" style="margin:0 0 12px">
-            <i :class="checkOk ? 'el-icon-success' : 'el-icon-warning-outline'" />
-            <span>
-              <template v-if="checkOk">校验通过：抽题数量合计 {{ ruleCountSum }} = 题目数量 {{ questionTotal }} ✓　占比合计 {{ ratioSum }}% ✓　每行不超题库可用 ✓</template>
-              <template v-else>{{ checkMessage }}</template>
-            </span>
-          </div>
-
-          <div class="dgrid">
-            <div class="c8">
-              <div class="dcard-h" style="padding:0 0 10px">
-                <div class="tt"><span class="idx">分</span><h3>知识分布（按题库知识点抽题）</h3></div>
-                <div class="dbtn-row">
-                  <el-button size="mini" @click="loadPoints">从题库导入知识点</el-button>
-                  <el-button size="mini" @click="addRule">＋ 新增</el-button>
-                </div>
-              </div>
-              <el-table :data="rules" size="mini" border empty-text="暂无知识点，点「从题库导入知识点」">
-                <el-table-column label="知识模块（题库知识点）" min-width="150">
-                  <template slot-scope="scope">
-                    <el-select v-if="scope.row.editing" v-model="scope.row.knowledgePoint" size="mini" filterable placeholder="选择知识点" style="width:100%">
-                      <el-option v-for="p in points" :key="p.knowledgePoint" :label="p.knowledgePoint" :value="p.knowledgePoint" />
-                    </el-select>
-                    <span v-else>{{ scope.row.knowledgePoint }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="题库可用" width="86" align="center">
-                  <template slot-scope="scope">{{ availableOf(scope.row.knowledgePoint) }} 题</template>
-                </el-table-column>
-                <el-table-column label="抽题数量" width="130" align="center">
-                  <template slot-scope="scope">
-                    <el-input-number v-model="scope.row.questionCount" :min="0" :max="100" size="mini" style="width:108px" />
-                  </template>
-                </el-table-column>
-                <el-table-column label="占比" width="100" align="center">
-                  <template slot-scope="scope">
-                    <el-input-number v-model="scope.row.ratio" :min="0" :max="100" size="mini" style="width:84px" />
-                  </template>
-                </el-table-column>
-                <el-table-column label="单选题占比" width="120" align="center">
-                  <template slot-scope="scope">
-                    <el-input-number v-model="scope.row.singleRatio" :min="0" :max="100" size="mini" style="width:100px" />
-                  </template>
-                </el-table-column>
-                <el-table-column label="操作" width="90" align="center">
-                  <template slot-scope="scope">
-                    <el-button type="text" size="mini" class="danger-text" @click="rules.splice(scope.$index, 1)">删除</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-              <p class="dsec-note">抽题时在该知识点内随机取题；「抽题数量 ≤ 题库可用」超了会抽不出题，保存时后端会拦截。</p>
+              <el-button size="mini" type="primary" icon="el-icon-plus" @click="openModuleDialog(null)">新建模块</el-button>
             </div>
-
-            <div class="c4">
-              <div class="dcard-h" style="padding:0 0 10px">
-                <div class="tt"><span class="idx o">抽</span><h3>试抽一套（校验用）</h3></div>
-              </div>
-              <div class="dinp ta preview-box">
-                <div v-if="drawing" class="drawing"><i class="el-icon-loading" /> 正在抽题…</div>
-                <div v-else-if="previewQuestions.length">
-                  <div v-for="q in previewQuestions" :key="q.seq" class="pq">{{ q.seq }} · {{ q.qtype }} · {{ q.knowledgePoint }} · {{ q.stem }}</div>
-                </div>
-                <div v-else style="color:#98a2b3">点下方按钮，按当前知识分布真实抽一套卷看看效果。</div>
-              </div>
-              <div class="dbtn-row" style="margin-top:12px">
-                <el-button size="small" :loading="drawing" @click="drawOnce">试抽一套</el-button>
-                <el-button size="small" type="primary" :loading="saving" @click="saveConfig">保存并生效</el-button>
-              </div>
-              <p class="dsec-note">保存后掉「模拟考核」的实习生立即按新配置抽题；模拟成绩仍仅本人可见、不计入正式成绩。</p>
+          </div>
+          <div class="dsec-body">
+            <div v-loading="moduleLoading">
+              <table class="dtbl">
+                <thead>
+                  <tr>
+                    <th style="width:56px">序号</th>
+                    <th>模块名称</th>
+                    <th style="width:110px">理论考核</th>
+                    <th style="width:110px">实操题</th>
+                    <th v-if="isSuperAdmin" style="width:110px">所属部门</th>
+                    <th style="width:70px">排序</th>
+                    <th style="width:74px">状态</th>
+                    <th style="width:210px">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(m, i) in modules" :key="m.id">
+                    <td>{{ i + 1 }}</td>
+                    <td>
+                      <span class="strong">{{ m.name }}</span>
+                      <div class="hint-text">{{ m.description || '未填写模块说明' }}</div>
+                    </td>
+                    <td>{{ m.examCount || 0 }} 个</td>
+                    <td>{{ m.subjectCount || 0 }} 道</td>
+                    <td v-if="isSuperAdmin">{{ m.deptName || '-' }}</td>
+                    <td>{{ m.sortNo }}</td>
+                    <td><span class="dbadge" :class="m.status === 1 ? 'green' : 'gray'">{{ m.status === 1 ? '启用' : '停用' }}</span></td>
+                    <td>
+                      <div class="acts">
+                        <el-button type="text" @click="enterModule(m)">管理内容</el-button>
+                        <span class="sep">|</span>
+                        <el-button type="text" @click="openModuleDialog(m)">改模块名</el-button>
+                        <span class="sep">|</span>
+                        <el-button type="text" @click="toggleModule(m)">{{ m.status === 1 ? '停用' : '启用' }}</el-button>
+                        <span class="sep">|</span>
+                        <el-button type="text" class="danger-text" @click="removeModule(m)">删除</el-button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="!modules.length && !moduleLoading">
+                    <td colspan="8" class="d-empty">暂无模块，点右上角「新建模块」开始配置。</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-      </div>
+      </template>
+
+      <!-- 2.2 模块内容（理论考核 + 实操题） -->
+      <template v-else>
+        <div class="dsec">
+          <div class="dsec-head">
+            <div>
+              <span class="dsec-no">返</span>
+              <div>
+                <h2>{{ activeModule.name }}</h2>
+                <p>{{ activeModule.description || '模块下的理论模拟考核与实操模拟题。' }}</p>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <el-button size="mini" @click="openModuleDialog(activeModule)">改模块名</el-button>
+              <el-button size="mini" @click="backToModules">返回模块列表</el-button>
+            </div>
+          </div>
+
+          <div class="dsec-body">
+            <!-- 理论模拟考核：一个模块下可以有多个考核 -->
+            <div class="dcard-h" style="padding:0 0 10px">
+              <div class="tt"><span class="idx">理</span><h3>理论模拟考核（本模块下 {{ exams.length }} 个）</h3></div>
+              <div class="dbtn-row">
+                <el-button size="mini" type="primary" icon="el-icon-plus" :disabled="!!examForm.id" @click="openExamEditor(null)">新增考核</el-button>
+              </div>
+            </div>
+
+            <el-table :data="exams" size="mini" border v-loading="examLoading" empty-text="本模块暂无理论模拟考核，点右上角「新增考核」">
+              <el-table-column label="考核名称" min-width="180">
+                <template slot-scope="scope"><span class="strong">{{ scope.row.examName }}</span></template>
+              </el-table-column>
+              <el-table-column label="题量" width="150" align="center">
+                <template slot-scope="scope">
+                  单选 {{ scope.row.singleCount || 0 }} · 多选 {{ scope.row.multiCount || 0 }} · 判断 {{ scope.row.judgeCount || 0 }}
+                </template>
+              </el-table-column>
+              <el-table-column label="分值" width="150" align="center">
+                <template slot-scope="scope">
+                  {{ scope.row.singleScore || 0 }} / {{ scope.row.multiScore || 0 }} / {{ scope.row.judgeScore || 0 }}
+                </template>
+              </el-table-column>
+              <el-table-column label="时长" width="90" align="center">
+                <template slot-scope="scope">{{ Number(scope.row.duration) > 0 ? scope.row.duration + ' 分' : '不限时' }}</template>
+              </el-table-column>
+              <el-table-column label="通过线" width="86" align="center">
+                <template slot-scope="scope">{{ scope.row.passLine || 0 }}</template>
+              </el-table-column>
+              <el-table-column label="状态" width="86" align="center">
+                <template slot-scope="scope">
+                  <span class="dbadge" :class="scope.row.status === 'PUBLISHED' ? 'green' : 'gray'">{{ examStatusText(scope.row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="170" align="center">
+                <template slot-scope="scope">
+                  <el-button type="text" size="mini" @click="openExamEditor(scope.row)">配置</el-button>
+                  <span class="sep">|</span>
+                  <el-button v-if="scope.row.status !== 'PUBLISHED'" type="text" size="mini" @click="publishExamRow(scope.row)">发布</el-button>
+                  <el-button v-else type="text" size="mini" @click="disableExamRow(scope.row)">停用</el-button>
+                  <span class="sep">|</span>
+                  <el-button type="text" size="mini" class="danger-text" @click="removeExam(scope.row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <!-- 考核配置编辑区 -->
+            <div v-if="examForm.id || examFormCreating" class="exam-editor">
+              <div class="dcard-h" style="padding:12px 0 10px">
+                <div class="tt">
+                  <span class="idx o">配</span>
+                  <h3>{{ examForm.id ? '编辑考核配置' : '新增考核配置' }}</h3>
+                </div>
+                <div class="dbtn-row">
+                  <el-button size="mini" @click="closeExamEditor">取消</el-button>
+                  <el-button size="mini" type="primary" :loading="saving" @click="saveExam">保存并生效</el-button>
+                </div>
+              </div>
+
+              <el-form :inline="true" size="small" style="margin-bottom:12px">
+                <el-form-item label="考核名称">
+                  <el-input v-model="examForm.examName" size="small" style="width:220px" placeholder="例如：Java 基础自测" maxlength="60" />
+                </el-form-item>
+                <el-form-item label="考试时长">
+                  <el-select v-model="durationPreset" size="small" style="width:160px" @change="onDurationPresetChange">
+                    <el-option v-for="d in durationOptions" :key="d" :label="d > 0 ? d + ' 分钟' : '不限时（自测）'" :value="d" />
+                    <el-option label="自定义…" :value="-1" />
+                  </el-select>
+                  <el-input-number v-if="durationPreset === -1" v-model="examForm.duration" :min="1" :max="600" size="small" style="width:120px;margin-left:8px" />
+                </el-form-item>
+                <el-form-item label="通过分数 / 总分">
+                  <el-input-number v-model="examForm.passLine" :min="0" :max="500" :precision="1" size="small" />
+                  <span style="margin-left:6px;color:#98a2b3">{{ examForm.passLine }} / {{ totalScore }} 分</span>
+                </el-form-item>
+              </el-form>
+
+              <el-form :inline="true" size="small" style="margin-bottom:12px">
+                <el-form-item label="每题分值">
+                  <span>单选</span><el-input-number v-model="examForm.singleScore" :min="0" :max="100" :precision="1" size="small" style="width:110px" />
+                  <span style="margin:0 6px">多选</span><el-input-number v-model="examForm.multiScore" :min="0" :max="100" :precision="1" size="small" style="width:110px" />
+                  <span style="margin:0 6px">判断</span><el-input-number v-model="examForm.judgeScore" :min="0" :max="100" :precision="1" size="small" style="width:110px" />
+                </el-form-item>
+                <el-form-item>
+                  <span class="dinp">题目数量 {{ questionTotal }} 题 · 满分 {{ totalScore }} 分</span>
+                </el-form-item>
+              </el-form>
+
+              <div class="dcallout" :class="checkOk ? 'ok' : 'warn'" style="margin:0 0 12px">
+                <i :class="checkOk ? 'el-icon-success' : 'el-icon-warning-outline'" />
+                <span>
+                  <template v-if="checkOk">校验通过：共 {{ bankRules.length }} 个题库 · 合计 {{ questionTotal }} 题（单选 {{ countOf('singleCount') }} + 多选 {{ countOf('multiCount') }} + 判断 {{ countOf('judgeCount') }}）· 满分 {{ totalScore }} 分 ✓</template>
+                  <template v-else>{{ checkMessage }}</template>
+                </span>
+              </div>
+
+              <div class="dgrid">
+                <div class="c8">
+                  <div class="dcard-h" style="padding:0 0 10px">
+                    <div class="tt"><span class="idx">分</span><h3>组卷题库（每个题库分别设置抽题量）</h3></div>
+                    <div class="dbtn-row">
+                      <el-select v-model="addBankId" size="mini" placeholder="＋ 添加题库" style="width:200px" @change="addBankRule">
+                        <el-option
+                          v-for="b in bankMeta"
+                          :key="b.bankId"
+                          :label="b.bankName + '（可用 ' + b.totalCount + ' 题）'"
+                          :value="b.bankId"
+                          :disabled="bankChosen(b.bankId)"
+                        />
+                      </el-select>
+                    </div>
+                  </div>
+                  <el-table :data="bankRules" size="mini" border empty-text="点右上角「＋ 添加题库」选择参与组卷的题库">
+                    <el-table-column label="题库" min-width="160">
+                      <template slot-scope="scope">
+                        <el-select v-model="scope.row.bankId" size="mini" filterable style="width:100%">
+                          <el-option v-for="b in bankMeta" :key="b.bankId" :label="b.bankName" :value="b.bankId" />
+                        </el-select>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="可用" width="76" align="center">
+                      <template slot-scope="scope"><span class="muted">{{ bankAvailable(scope.row.bankId) }} 题</span></template>
+                    </el-table-column>
+                    <el-table-column label="单选" width="108" align="center">
+                      <template slot-scope="scope">
+                        <el-input-number v-model="scope.row.singleCount" :min="0" :max="bankAvailOf(scope.row.bankId, 'singleCount')" size="mini" style="width:92px" />
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="多选" width="108" align="center">
+                      <template slot-scope="scope">
+                        <el-input-number v-model="scope.row.multiCount" :min="0" :max="bankAvailOf(scope.row.bankId, 'multiCount')" size="mini" style="width:92px" />
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="判断" width="108" align="center">
+                      <template slot-scope="scope">
+                        <el-input-number v-model="scope.row.judgeCount" :min="0" :max="bankAvailOf(scope.row.bankId, 'judgeCount')" size="mini" style="width:92px" />
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="小计" width="70" align="center">
+                      <template slot-scope="scope"><b>{{ ruleRowTotal(scope.row) }}</b></template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="70" align="center">
+                      <template slot-scope="scope">
+                        <el-button type="text" size="mini" class="danger-text" @click="bankRules.splice(scope.$index, 1)">删除</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <p class="dsec-note">抽题时在<b>每个题库内按题型随机取题</b>，再组合成卷。「抽题量 ≤ 题库可用」超了会抽不满卷，保存时后端会拦截。</p>
+                </div>
+
+                <div class="c4">
+                  <div class="dcard-h" style="padding:0 0 10px">
+                    <div class="tt"><span class="idx o">抽</span><h3>试抽一套（校验用）</h3></div>
+                  </div>
+                  <div class="dinp ta preview-box">
+                    <div v-if="drawing" class="drawing"><i class="el-icon-loading" /> 正在抽题…</div>
+                    <div v-else-if="previewQuestions.length">
+                      <div v-for="q in previewQuestions" :key="q.seq" class="pq">{{ q.seq }} · {{ typeText(q.qtype) }} · {{ q.bankName }} · {{ q.stem }}</div>
+                    </div>
+                    <div v-else style="color:#98a2b3">点下方按钮，按当前组卷配置真实抽一套卷看看效果。</div>
+                  </div>
+                  <div class="dbtn-row" style="margin-top:12px">
+                    <el-button size="small" :loading="drawing" @click="drawOnce">试抽一套</el-button>
+                  </div>
+                  <p class="dsec-note">保存后实习生在该模块下即可看到本考核并「开始自测」；模拟成绩仅本人可见、不计入正式成绩。</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 实操题（内嵌复用已闭环模块，锁定当前模块；:key 保证切模块时重建实例） -->
+            <div class="embed-wrap" style="margin-top:22px">
+              <practice-subject :key="activeModule.id" :module-id="activeModule.id" />
+            </div>
+          </div>
+        </div>
+      </template>
     </template>
 
-    <!-- ============ 页签 3 · 实操题库（复用已闭环模块） ============ -->
-    <div v-if="activeTab === 'practice'" class="embed-wrap">
-      <practice-subject />
-    </div>
+    <!-- 模块新建/编辑弹窗 -->
+    <el-dialog :title="moduleDialogTitle" :visible.sync="moduleDialogVisible" width="520px" append-to-body>
+      <el-form ref="moduleForm" :model="moduleForm" :rules="moduleRules" label-width="90px" size="small">
+        <el-form-item v-if="isSuperAdmin && !moduleForm.id" label="所属部门" prop="deptId">
+          <el-select v-model="moduleForm.deptId" filterable placeholder="请选择所属部门" style="width:100%">
+            <el-option v-for="d in deptOptions" :key="d.deptId" :label="d.deptName" :value="d.deptId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="模块名称" prop="name">
+          <el-input v-model="moduleForm.name" placeholder="例如：后端开发基础" maxlength="60" show-word-limit />
+        </el-form-item>
+        <el-form-item label="模块说明">
+          <el-input v-model="moduleForm.description" type="textarea" :rows="3" placeholder="一句话说明本模块覆盖的知识范围" maxlength="200" show-word-limit />
+        </el-form-item>
+        <el-form-item label="排序号">
+          <el-input-number v-model="moduleForm.sortNo" :min="0" :max="9999" controls-position="right" />
+          <span class="hint-text" style="margin-left:8px">越小越靠前</span>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-radio-group v-model="moduleForm.status">
+            <el-radio :label="1">启用</el-radio>
+            <el-radio :label="0">停用</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <span slot="footer">
+        <el-button @click="moduleDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitModule">确定</el-button>
+      </span>
+    </el-dialog>
+
+    <!-- 备考资料附件预览弹窗 -->
+    <el-dialog
+      :title="previewFile && previewFile.name ? previewFile.name : '附件预览'"
+      :visible.sync="previewVisible"
+      width="760px"
+      top="6vh"
+      append-to-body
+    >
+      <div v-if="previewFile" class="file-preview">
+        <el-image
+          v-if="previewKind === 'image'"
+          :src="baseApi + previewFile.url"
+          fit="contain"
+          style="width:100%;max-height:70vh"
+        />
+        <video
+          v-else-if="previewKind === 'video'"
+          :src="baseApi + previewFile.url"
+          controls
+          class="file-preview-video"
+        />
+        <iframe
+          v-else-if="previewKind === 'pdf' || previewKind === 'text'"
+          :src="baseApi + previewFile.url"
+          class="file-preview-frame"
+        />
+        <div v-else class="file-preview-tip">
+          <i class="el-icon-document" />
+          <p>该格式（{{ previewExt }}）暂不支持在线预览，请下载后查看</p>
+          <span class="file-preview-hint">{{ previewSupportText }}</span>
+          <el-button size="mini" type="primary" icon="el-icon-download" @click="downloadPreviewFile">下载附件</el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listPracticeSubject } from '@/api/business/practiceSubject'
 import PracticeSubject from '@/views/business/practiceSubject/index'
-import { listBank } from '@/api/business/questionBank'
-import { listExam, addExam, publishExam, listKnowledgePoints, tryDrawPaper, saveExamConfig, getExamConfig } from '@/api/business/exam'
+import {
+  listExam, getExam, addExam, updateExam, delExam, publishExam, changeExamStatus,
+  listExamBankOptions, tryDrawByBanks, saveExamConfig, getExamConfig
+} from '@/api/business/exam'
+import {
+  listPracticeModule, addPracticeModule, updatePracticeModule,
+  changePracticeModuleStatus, delPracticeModule
+} from '@/api/business/practiceModule'
+import { listDept } from '@/api/system/dept'
+import {
+  previewKindOf, extOf, fileUrlOf as resolveFileUrl, PREVIEW_SUPPORT_TEXT, triggerDownload
+} from '@/utils/filePreview'
+import {
+  listMaterial, addMaterial, updateMaterial, changeMaterialStatus, delMaterial, listApplicablePositions, uploadFile
+} from '@/api/business/material'
+import { mapGetters } from 'vuex'
+
+function emptyModuleForm() {
+  return { id: null, deptId: null, name: '', description: '', sortNo: 0, status: 1 }
+}
+
+function emptyExamForm() {
+  return {
+    id: null,
+    examName: '',
+    singleScore: 1,
+    multiScore: 1,
+    judgeScore: 1,
+    duration: 0,
+    passLine: 6
+  }
+}
 
 export default {
   name: 'DeptPrep',
@@ -278,290 +495,563 @@ export default {
   data() {
     return {
       activeTab: 'material',
-      subjectTotal: 0,
-      materials: [
-        { name: '2026Q3 考试指南.pdf', typeText: '文档', typeTone: 'blue', position: '开发实习生', version: 'v1.0', status: '已发布' },
-        { name: 'Spring Boot 实操要点.docx', typeText: '文档', typeTone: 'blue', position: '开发实习生', version: 'v2.1', status: '已发布' },
-        { name: 'Docker 部署演示.mp4', typeText: '视频', typeTone: 'purple', position: '开发实习生', version: 'v1.0', status: '已发布' },
-        { name: '模拟题入口说明.pdf', typeText: '模拟题入口', typeTone: 'orange', position: '交付实习生', version: 'v1.0', status: '草稿' }
-      ],
-      form: { name: '', type: 'DOCUMENT', position: '', version: 'v1.0', intro: '', fileName: '', validRange: [] },
-      // ---- 模拟理论考核配置（真实：落 exam + exam_knowledge_rule，驱动实习生抽题）----
-      bankId: null,
-      bankOptions: [],
-      points: [],
-      rules: [],
-      configExam: null,
+      // ---- 备考资料（真实后端） ----
+      materials: [],
+      materialLoading: false,
+      positionOptions: [],
+      editingId: null,
+      previewVisible: false,
+      previewFile: null,
+      /**
+       * 备考资料表单（name/type/position/version/intro/fileName/fileUrl）
+       */
+      form: {
+        name: '', type: 'DOCUMENT', position: '', version: 'v1.0', intro: '', fileName: '', fileUrl: ''
+      },
+      // ---- 模拟模块 ----
+      modules: [],
+      moduleLoading: false,
+      moduleDeptId: null,
+      deptOptions: [],
+      activeModule: null,
+      moduleDialogVisible: false,
+      moduleDialogTitle: '',
+      moduleForm: emptyModuleForm(),
+      moduleRules: {
+        deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }],
+        name: [{ required: true, message: '请输入模块名称', trigger: 'blur' }]
+      },
+      // ---- 模块下的理论模拟考核 ----
+      exams: [],
+      examLoading: false,
+      examForm: emptyExamForm(),
+      examFormCreating: false,
+      bankMeta: [],
+      bankRules: [],
+      addBankId: null,
       drawing: false,
       saving: false,
       previewQuestions: [],
-      form: { singleCount: 5, multiCount: 3, judgeCount: 2, singleScore: 1, multiScore: 1, judgeScore: 1, duration: 0, passLine: 6 }
+      durationOptions: [0, 30, 45, 60, 90, 120, 180, 240],
+      durationPreset: 0
     }
   },
   computed: {
+    ...mapGetters(['roles']),
+    isSuperAdmin() {
+      return this.roles.indexOf('SUPER_ADMIN') > -1
+    },
     tabs() {
       return [
         { key: 'material', label: '备考资料', count: this.materials.length },
-        { key: 'config', label: '模拟理论考核配置' },
-        { key: 'practice', label: '实操题库', count: this.subjectTotal || '' }
+        { key: 'module', label: '模拟模块', count: this.modules.length || '' }
       ]
     },
-    positionOptions() {
-      return ['交付实习生', '实施实习生', '开发实习生', '设计实习生', '质检实习生', '建模实习生']
+    baseApi() {
+      return process.env.VUE_APP_BASE_API || ''
     },
+    /** 预览类型：图片 / 视频 / PDF / 纯文本，其余走「下载后查看」 */
+    previewKind() {
+      return previewKindOf(this.previewFile && this.previewFile.url)
+    },
+    /** 不支持预览时提示用到的扩展名 */
+    previewExt() {
+      return extOf(this.previewFile && this.previewFile.url)
+    },
+    previewSupportText() {
+      return PREVIEW_SUPPORT_TEXT
+    },
+    /** 组卷抽题合计（各题库单选 + 多选 + 判断） */
     questionTotal() {
-      return (this.form.singleCount || 0) + (this.form.multiCount || 0) + (this.form.judgeCount || 0)
+      return this.bankRules.reduce((sum, r) => sum + this.ruleRowTotal(r), 0)
     },
     totalScore() {
-      return (this.form.singleCount || 0) * (this.form.singleScore || 0) +
-        (this.form.multiCount || 0) * (this.form.multiScore || 0) +
-        (this.form.judgeCount || 0) * (this.form.judgeScore || 0)
+      return this.countOf('singleCount') * (Number(this.examForm.singleScore) || 0) +
+        this.countOf('multiCount') * (Number(this.examForm.multiScore) || 0) +
+        this.countOf('judgeCount') * (Number(this.examForm.judgeScore) || 0)
     },
-    ruleCountSum() {
-      return this.rules.reduce((sum, r) => sum + (Number(r.questionCount) || 0), 0)
-    },
-    ratioSum() {
-      return Math.round(this.rules.reduce((sum, r) => sum + (Number(r.ratio) || 0), 0) * 100) / 100
-    },
+    /** 超出题库可用题量的行 */
     overRows() {
-      return this.rules.filter(r => (Number(r.questionCount) || 0) > this.availableOf(r.knowledgePoint))
+      return this.bankRules.filter(r => {
+        const avail = this.bankMetaOf(r.bankId)
+        return (Number(r.singleCount) || 0) > avail.singleCount ||
+          (Number(r.multiCount) || 0) > avail.multiCount ||
+          (Number(r.judgeCount) || 0) > avail.judgeCount
+      })
     },
     checkOk() {
-      if (!this.rules.length) return false
-      if (this.ruleCountSum !== this.questionTotal) return false
-      if (Math.abs(this.ratioSum - 100) > 0.01) return false
+      if (!this.bankRules.length) return false
+      if (this.bankRules.some(r => !r.bankId)) return false
+      if (this.questionTotal <= 0) return false
       return this.overRows.length === 0
     },
     checkMessage() {
-      if (!this.rules.length) return '尚未配置知识分布：点「从题库导入知识点」一键铺满，再按需调整抽题数量。'
-      if (this.ruleCountSum !== this.questionTotal) {
-        return '抽题数量合计 ' + this.ruleCountSum + ' 与「题目数量」' + this.questionTotal + ' 不一致，请调整到一致。'
-      }
-      if (Math.abs(this.ratioSum - 100) > 0.01) {
-        return '占比合计为 ' + this.ratioSum + '%，需调整为 100%。'
-      }
+      if (!this.bankRules.length) return '尚未配置组卷题库：点右上角「＋ 添加题库」选择参与组卷的题库，再分别设置每个题库的抽题数量。'
+      if (this.bankRules.some(r => !r.bankId)) return '存在未选择题库的行，请选择对应题库或删除该行。'
+      if (this.questionTotal <= 0) return '抽题数量合计为 0，请至少为一个题库设置抽题数量。'
       if (this.overRows.length) {
-        return '「' + this.overRows.map(r => r.knowledgePoint).join('、') + '」抽题数量超过题库可用题量，抽不出题。'
+        return '「' + this.overRows.map(r => this.bankNameOf(r.bankId)).join('、') + '」的抽题数量超过该题库可用题量，会抽不满卷。'
       }
       return ''
-    },
-    configStatus() {
-      if (!this.configExam) return { status: 'NONE', text: '未配置' }
-      return {
-        status: this.configExam.status,
-        text: this.configExam.status === 'PUBLISHED' ? '已生效 ' + (this.configExam.examName || '') : '草稿未生效'
-      }
     }
   },
   created() {
-    this.loadSubjectTotal()
-    this.loadConfig()
+    if (this.isSuperAdmin) this.loadDepartments()
+    this.reloadAll()
   },
   methods: {
-    loadSubjectTotal() {
-      listPracticeSubject({ pageNum: 1, pageSize: 1 }).then(res => {
-        this.subjectTotal = (res && res.total) || 0
+    switchTab(key) {
+      this.activeTab = key
+      if (key === 'module' && !this.modules.length) this.loadModules()
+    },
+
+    // ================= 备考资料 =================
+    reloadAll() {
+      this.loadMaterials()
+      this.loadPositions()
+      this.loadModules()
+    },
+    loadMaterials() {
+      this.materialLoading = true
+      listMaterial({ pageNum: 1, pageSize: 200 }).then(res => {
+        this.materials = (res && res.rows) || []
+        this.materialLoading = false
       }).catch(() => {
-        this.subjectTotal = 0
+        this.materials = []
+        this.materialLoading = false
       })
+    },
+    loadPositions() {
+      listApplicablePositions().then(res => {
+        this.positionOptions = (res && res.data) || []
+      }).catch(() => { this.positionOptions = [] })
     },
     pickFile() {
-      this.form.fileName = '2026Q3 考试指南.pdf'
-      this.$message({ message: '演示态：文件选择依赖 material 接口（待补）', type: 'warning' })
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = ''
+        this.$refs.fileInput.click()
+      }
+    },
+    onFileChange(e) {
+      const file = e.target.files && e.target.files[0]
+      if (!file) return
+      const formData = new FormData()
+      formData.append('file', file)
+      this.saving = true
+      uploadFile(formData).then(res => {
+        this.form.fileUrl = res.fileName || ''
+        this.form.fileName = file.name
+        this.saving = false
+        this.$modal.msgSuccess('附件上传成功')
+      }).catch(() => { this.saving = false })
+    },
+    /** 保存（publish=false 存草稿 / true 发布）；编辑态「保存修改」不改动现有状态 */
+    saveMaterial(publish) {
+      if (!this.form.name || !this.form.name.trim()) {
+        this.$modal.msgWarning('请填写资料名称')
+        return
+      }
+      if (!this.form.position) {
+        this.$modal.msgWarning('请选择适用岗位')
+        return
+      }
+      if (!this.form.fileUrl) {
+        this.$modal.msgWarning('请先上传附件')
+        return
+      }
+      const payload = {
+        materialName: this.form.name.trim(),
+        materialType: this.form.type || 'DOCUMENT',
+        positionId: this.form.position,
+        summary: this.form.intro || '',
+        fileUrl: this.form.fileUrl,
+        versionNo: this.form.version || ''
+      }
+      if (publish) {
+        payload.status = 'PUBLISHED'
+      } else if (!this.editingId) {
+        payload.status = 'DRAFT'
+      }
+      this.saving = true
+      const done = () => {
+        this.saving = false
+        this.$modal.msgSuccess(publish ? '已发布' : '已保存')
+        this.resetForm()
+        this.loadMaterials()
+      }
+      const fail = () => { this.saving = false }
+      if (this.editingId) {
+        payload.id = this.editingId
+        updateMaterial(payload).then(done).catch(fail)
+      } else {
+        addMaterial(payload).then(done).catch(fail)
+      }
+    },
+    editMaterial(row) {
+      this.editingId = row.id
+      this.form.name = row.materialName || ''
+      this.form.type = row.materialType || 'DOCUMENT'
+      this.form.position = row.positionId
+      this.form.version = row.versionNo || ''
+      this.form.intro = row.summary || ''
+      this.form.fileUrl = row.fileUrl || ''
+      this.form.fileName = row.fileUrl ? String(row.fileUrl).split('/').pop() : ''
+    },
+    resetForm() {
+      this.editingId = null
+      this.form = { name: '', type: 'DOCUMENT', position: '', version: 'v1.0', intro: '', fileName: '', fileUrl: '' }
     },
     previewMaterial(row) {
-      this.$message.info('演示态：预览「' + row.name + '」需要 material 文件地址接口')
+      const url = resolveFileUrl(row)
+      if (!url) {
+        this.$modal.msgWarning('该资料暂无附件')
+        return
+      }
+      this.previewFile = { name: row.materialName || '附件', url: url, fileUrl: url }
+      this.previewVisible = true
     },
-    publishMaterial(row) {
-      row.status = '已发布'
-      this.$message.success('已发布「' + row.name + '」（演示态）')
+    /** 弹窗内下载：复用与预览一致的地址解析，避免字段名不一致导致误报「暂无附件」 */
+    downloadPreviewFile() {
+      const url = resolveFileUrl(this.previewFile)
+      if (!url) {
+        this.$modal.msgWarning('该资料暂无附件')
+        return
+      }
+      triggerDownload(this.baseApi, url, (this.previewFile && this.previewFile.name) || '')
+    },
+    changeStatus(row, status) {
+      const act = status === 'PUBLISHED' ? '发布' : '停用'
+      changeMaterialStatus(row.id, status).then(() => {
+        this.$modal.msgSuccess('已' + act + '「' + row.materialName + '」')
+        this.loadMaterials()
+      }).catch(() => {})
     },
     removeMaterial(row) {
-      this.materials = this.materials.filter(m => m !== row)
-      this.$message.success('已删除（演示态）')
-    },
-    /** 加载本部门模拟题库 + 已有配置 */
-    loadConfig() {
-      listBank({ pageNum: 1, pageSize: 200, status: 'ENABLED' }).then(res => {
-        const banks = (res.rows || []).filter(b => (b.bankType || '') === 'PRACTICE' || (b.bankName || '').indexOf('模拟') > -1)
-        this.bankOptions = banks
-        if (banks.length) {
-          this.bankId = banks[0].id
-          this.loadPoints()
-        }
-      })
-      listExam({ pageNum: 1, pageSize: 50, examMode: 'PRACTICE' }).then(res => {
-        const cfg = (res.rows || []).find(r => r.examType === 'THEORY')
-        if (!cfg) return
-        this.configExam = cfg
-        this.bankId = cfg.bankId || this.bankId
-        this.form = {
-          singleCount: cfg.singleCount || 0,
-          multiCount: cfg.multiCount || 0,
-          judgeCount: cfg.judgeCount || 0,
-          singleScore: Number(cfg.singleScore) || 1,
-          multiScore: Number(cfg.multiScore) || 1,
-          judgeScore: Number(cfg.judgeScore) || 1,
-          duration: cfg.duration || 0,
-          passLine: Number(cfg.passLine) || 0
-        }
-        this.loadConfigDetail(cfg.id)
+      this.$modal.confirm('确认删除备考资料「' + row.materialName + '」吗？').then(() => {
+        return delMaterial(row.id)
+      }).then(() => {
+        this.$modal.msgSuccess('删除成功')
+        this.loadMaterials()
       }).catch(() => {})
     },
-    /** 读取配置的知识分布 */
-    loadConfigDetail(id) {
-      getExamConfig(id).then(res => {
-        const data = res.data || {}
-        const rows = (data.knowledgeRules || []).map((r, i) => ({
-          knowledgePoint: r.knowledgePoint,
-          questionCount: r.questionCount,
-          ratio: r.ratio == null ? null : Number(r.ratio),
-          singleRatio: r.singleRatio == null ? null : Number(r.singleRatio),
-          sortNo: i + 1,
-          editing: false
+    typeTone(t) {
+      return { DOCUMENT: 'blue', VIDEO: 'purple', MOCK_ENTRY: 'orange' }[t] || 'gray'
+    },
+    statusText(s) {
+      return { PUBLISHED: '已发布', DRAFT: '草稿', DISABLED: '已停用' }[s] || s
+    },
+    typeText(t) {
+      return { SINGLE: '单选', MULTI: '多选', JUDGE: '判断', DOCUMENT: '文档', VIDEO: '视频', MOCK_ENTRY: '模拟题入口' }[t] || t
+    },
+
+    // ================= 模拟模块 =================
+    loadDepartments() {
+      listDept({ status: '0' }).then(res => {
+        this.deptOptions = (res.data || []).filter(dept => dept.parentId !== 0)
+      }).catch(() => { this.deptOptions = [] })
+    },
+    loadModules() {
+      this.moduleLoading = true
+      listPracticeModule({ pageNum: 1, pageSize: 200, deptId: this.isSuperAdmin ? this.moduleDeptId : null }).then(res => {
+        this.modules = (res && res.rows) || []
+        this.moduleLoading = false
+      }).catch(() => {
+        this.modules = []
+        this.moduleLoading = false
+      })
+    },
+    openModuleDialog(row) {
+      this.moduleForm = row
+        ? { id: row.id, deptId: row.deptId, name: row.name, description: row.description || '', sortNo: Number(row.sortNo) || 0, status: row.status }
+        : emptyModuleForm()
+      this.moduleDialogTitle = row ? '编辑模块' : '新建模块'
+      this.moduleDialogVisible = true
+      this.$nextTick(() => this.$refs.moduleForm && this.$refs.moduleForm.clearValidate())
+    },
+    submitModule() {
+      this.$refs.moduleForm.validate(valid => {
+        if (!valid) return
+        this.saving = true
+        const payload = {
+          id: this.moduleForm.id,
+          deptId: this.moduleForm.deptId,
+          name: this.moduleForm.name,
+          description: this.moduleForm.description,
+          sortNo: this.moduleForm.sortNo,
+          status: this.moduleForm.status
+        }
+        const fn = payload.id ? updatePracticeModule : addPracticeModule
+        fn(payload).then(() => {
+          this.saving = false
+          this.$modal.msgSuccess(payload.id ? '模块已更新' : '模块已创建')
+          // 改名后同步头部展示
+          if (this.activeModule && payload.id === this.activeModule.id) {
+            this.activeModule.name = payload.name
+            this.activeModule.description = payload.description
+          }
+          this.moduleDialogVisible = false
+          this.loadModules()
+        }).catch(() => { this.saving = false })
+      })
+    },
+    toggleModule(row) {
+      const next = row.status === 1 ? 0 : 1
+      const label = next === 1 ? '启用' : '停用'
+      this.$modal.confirm(`确认${label}模块「${row.name}」吗？停用后实习生端不再显示该模块。`).then(() => {
+        changePracticeModuleStatus(row.id, next).then(() => {
+          this.$modal.msgSuccess(label + '成功')
+          this.loadModules()
+        })
+      }).catch(() => {})
+    },
+    removeModule(row) {
+      this.$modal.confirm(`确认删除模块「${row.name}」吗？模块下仍有考核/题目时无法删除。`).then(() => {
+        return delPracticeModule(row.id)
+      }).then(() => {
+        this.$modal.msgSuccess('删除成功')
+        this.loadModules()
+      }).catch(() => {})
+    },
+    /** 进入模块：加载模块内的理论考核列表 */
+    enterModule(row) {
+      this.activeModule = row
+      this.closeExamEditor()
+      this.loadModuleExams()
+      this.loadBankMeta()
+    },
+    backToModules() {
+      this.activeModule = null
+      this.exams = []
+      this.closeExamEditor()
+      this.loadModules()
+    },
+
+    // ================= 模块下的理论模拟考核 =================
+    loadModuleExams() {
+      if (!this.activeModule) return
+      this.examLoading = true
+      listExam({ pageNum: 1, pageSize: 100, examMode: 'PRACTICE', examType: 'THEORY', moduleId: this.activeModule.id }).then(res => {
+        this.exams = (res && res.rows) || []
+        this.examLoading = false
+      }).catch(() => {
+        this.exams = []
+        this.examLoading = false
+      })
+    },
+    /** 本部门可选题库（含各库按题型的可用题量） */
+    loadBankMeta() {
+      listExamBankOptions().then(res => {
+        this.bankMeta = (res.data || []).map(b => ({
+          bankId: b.bankId,
+          bankName: b.bankName,
+          totalCount: Number(b.totalCount) || 0,
+          singleCount: Number(b.singleCount) || 0,
+          multiCount: Number(b.multiCount) || 0,
+          judgeCount: Number(b.judgeCount) || 0
         }))
-        if (rows.length) {
-          this.rules = rows
-        } else if (this.points.length) {
-          this.importAll()
-        }
-      }).catch(() => {})
+      }).catch(() => { this.bankMeta = [] })
     },
-    /** 从题库拉取知识点及题量 */
-    loadPoints() {
-      if (!this.bankId) return
-      listKnowledgePoints(this.bankId).then(res => {
-        this.points = res.data || []
-        if (!this.rules.length) {
-          this.importAll()
-        }
-      }).catch(() => { this.points = [] })
-    },
-    /** 一键铺满知识点（按可用题量分摊到题目数量） */
-    importAll() {
-      const need = this.questionTotal || 10
-      const usable = this.points.filter(p => p.totalCount > 0)
-      if (!usable.length) {
-        this.$modal.msgWarning('该题库暂无题目，先去题库管理导入题目')
+    openExamEditor(row) {
+      this.previewQuestions = []
+      if (!row) {
+        this.examForm = emptyExamForm()
+        this.examForm.examName = (this.activeModule ? this.activeModule.name : '') + ' · 理论自测'
+        this.examFormCreating = true
+        this.bankRules = []
+        this.durationPreset = 0
         return
       }
-      const totalAvail = usable.reduce((sum, p) => sum + p.totalCount, 0)
-      let assigned = 0
-      this.rules = usable.map((p, idx) => {
-        let cnt = Math.floor(need * p.totalCount / totalAvail)
-        if (cnt < 1) cnt = 1
-        if (cnt > p.totalCount) cnt = p.totalCount
-        assigned += cnt
-        return {
-          knowledgePoint: p.knowledgePoint,
-          questionCount: cnt,
-          ratio: Math.round(need * p.totalCount / totalAvail / need * 10000) / 100,
-          singleRatio: 50,
-          sortNo: idx + 1,
-          editing: false
-        }
+      this.examFormCreating = false
+      this.examForm = {
+        id: row.id,
+        examName: row.examName || '',
+        singleScore: Number(row.singleScore) || 0,
+        multiScore: Number(row.multiScore) || 0,
+        judgeScore: Number(row.judgeScore) || 0,
+        duration: Number(row.duration) || 0,
+        passLine: Number(row.passLine) || 0
+      }
+      this.durationPreset = this.durationOptions.indexOf(this.examForm.duration) > -1 ? this.examForm.duration : -1
+      getExamConfig(row.id).then(res => {
+        const data = res.data || {}
+        this.bankRules = (data.bankRules || []).map((r, i) => ({
+          bankId: r.bankId,
+          bankName: r.bankName,
+          singleCount: Number(r.singleCount) || 0,
+          multiCount: Number(r.multiCount) || 0,
+          judgeCount: Number(r.judgeCount) || 0,
+          sortNo: r.sortNo || i + 1
+        }))
+      }).catch(() => { this.bankRules = [] })
+    },
+    closeExamEditor() {
+      this.examForm = emptyExamForm()
+      this.examFormCreating = false
+      this.bankRules = []
+      this.previewQuestions = []
+    },
+    bankMetaOf(bankId) {
+      return this.bankMeta.find(b => b.bankId === bankId) ||
+        { bankName: '未选择题库', totalCount: 0, singleCount: 0, multiCount: 0, judgeCount: 0 }
+    },
+    bankNameOf(bankId) {
+      return this.bankMetaOf(bankId).bankName || '未选择题库'
+    },
+    bankAvailable(bankId) {
+      return this.bankMetaOf(bankId).totalCount
+    },
+    bankAvailOf(bankId, key) {
+      const v = this.bankMetaOf(bankId)[key]
+      return v === undefined ? 0 : v
+    },
+    bankChosen(bankId) {
+      return this.bankRules.some(r => r.bankId === bankId)
+    },
+    ruleRowTotal(row) {
+      return (Number(row.singleCount) || 0) + (Number(row.multiCount) || 0) + (Number(row.judgeCount) || 0)
+    },
+    /** 按题型汇总各库抽题量 */
+    countOf(key) {
+      return this.bankRules.reduce((sum, r) => sum + (Number(r[key]) || 0), 0)
+    },
+    addBankRule(bankId) {
+      if (!bankId) return
+      this.bankRules.push({
+        bankId,
+        bankName: this.bankNameOf(bankId),
+        singleCount: 0,
+        multiCount: 0,
+        judgeCount: 0
       })
-      // 微调使合计等于题目数量
-      let diff = need - assigned
-      for (let i = 0; i < this.rules.length && diff !== 0; i++) {
-        const avail = this.availableOf(this.rules[i].knowledgePoint)
-        if (diff > 0 && this.rules[i].questionCount < avail) {
-          this.rules[i].questionCount++
-          diff--
-        } else if (diff < 0 && this.rules[i].questionCount > 1) {
-          this.rules[i].questionCount--
-          diff++
-        }
+      this.addBankId = null
+    },
+    rulePayload() {
+      return this.bankRules.map((r, i) => ({
+        bankId: r.bankId,
+        singleCount: r.singleCount,
+        multiCount: r.multiCount,
+        judgeCount: r.judgeCount,
+        sortNo: i + 1
+      }))
+    },
+    onDurationPresetChange(v) {
+      if (v !== -1) {
+        this.examForm.duration = v
+      } else if (!this.examForm.duration) {
+        this.examForm.duration = 60
       }
-      // 占比按题量重算（合计 100%）
-      const sum = this.rules.reduce((a, r) => a + r.questionCount, 0) || 1
-      this.rules.forEach(r => { r.ratio = Math.round(r.questionCount / sum * 10000) / 100 })
-      this.$modal.msgSuccess('已按题库知识点铺满 ' + this.rules.length + ' 行，请核对抽题数量与占比')
     },
-    addRule() {
-      this.rules.push({ knowledgePoint: '', questionCount: 1, ratio: 0, singleRatio: 50, sortNo: this.rules.length + 1, editing: true })
-    },
-    availableOf(point) {
-      const hit = this.points.find(p => p.knowledgePoint === point)
-      return hit ? hit.totalCount : 0
-    },
-    /** 试抽一套（真实调后端按知识分布抽题） */
+    /** 试抽一套（真实调后端按多题库组卷配置抽题） */
     drawOnce() {
-      if (!this.configExam && !this.bankId) {
-        this.$modal.msgWarning('请先选择题源题库')
-        return
-      }
-      if (!this.rules.length) {
-        this.$modal.msgWarning('请先配置知识分布')
+      if (!this.checkOk) {
+        this.$modal.msgWarning(this.checkMessage || '请先完成组卷配置')
         return
       }
       this.drawing = true
-      tryDrawPaper(this.bankId, { knowledgeRules: this.rules }).then(res => {
+      tryDrawByBanks({ bankRules: this.rulePayload() }).then(res => {
         this.previewQuestions = res.data || []
         this.drawing = false
         if (!this.previewQuestions.length) {
-          this.$modal.msgWarning('按当前配置抽不到题，请检查题库知识点是否有题')
+          this.$modal.msgWarning('按当前配置抽不到题，请检查各题库题目是否充足')
         }
       }).catch(() => { this.drawing = false })
     },
-    /** 保存并生效：无配置则先建模拟理论考核 → 保存知识分布 → 发布 */
-    saveConfig() {
-      if (!this.bankId) {
-        this.$modal.msgWarning('请先选择题源题库')
-        return
-      }
+    /** 保存并生效：新建考核 → 保存组卷配置 → 发布；编辑则保存配置后按原状态决定是否发布 */
+    saveExam() {
       if (!this.checkOk) {
         this.$modal.msgWarning(this.checkMessage || '配置校验未通过')
         return
       }
+      if (!this.examForm.examName || !this.examForm.examName.trim()) {
+        this.$modal.msgWarning('请填写考核名称')
+        return
+      }
+      if (!this.activeModule) {
+        this.$modal.msgWarning('请先选择模块')
+        return
+      }
       this.saving = true
-      const payload = {
-        examName: (this.configExam && this.configExam.examName) || '本部门模拟理论自测配置',
-        examMode: 'PRACTICE',
-        examType: 'THEORY',
-        bankId: this.bankId,
-        singleCount: this.form.singleCount,
-        multiCount: this.form.multiCount,
-        judgeCount: this.form.judgeCount,
-        singleScore: this.form.singleScore,
-        multiScore: this.form.multiScore,
-        judgeScore: this.form.judgeScore,
-        duration: this.form.duration,
-        passLine: this.form.passLine,
-        knowledgeRules: this.rules.map((r, i) => ({
-          knowledgePoint: r.knowledgePoint,
-          questionCount: r.questionCount,
-          ratio: r.ratio,
-          singleRatio: r.singleRatio,
-          sortNo: i + 1
-        }))
+      const configPayload = {
+        examName: this.examForm.examName.trim(),
+        singleScore: this.examForm.singleScore,
+        multiScore: this.examForm.multiScore,
+        judgeScore: this.examForm.judgeScore,
+        duration: this.examForm.duration,
+        passLine: this.examForm.passLine,
+        bankRules: this.rulePayload(),
+        assignMode: 'ALL'
       }
-      const afterSave = (examId) => {
-        saveExamConfig(examId, { knowledgeRules: payload.knowledgeRules, assignMode: 'ALL' }).then(() => {
-          if (this.configExam && this.configExam.status === 'PUBLISHED') {
-            this.saving = false
-            this.$modal.msgSuccess('配置已保存并生效，实习生模拟考核将按新配置抽题')
-            this.loadConfig()
-            return
-          }
-          publishExam(examId).then(() => {
-            this.saving = false
-            this.$modal.msgSuccess('配置已保存并生效（已发布），实习生模拟考核将按新配置抽题')
-            this.loadConfig()
-          }).catch(() => { this.saving = false })
+      if (this.examForm.id) {
+        // 编辑：先改基本信息，再存配置；已发布的保持发布，草稿则发布
+        updateExam(Object.assign({ id: this.examForm.id }, configPayload)).then(() => {
+          this.afterConfigSaved(this.examForm.id)
         }).catch(() => { this.saving = false })
-      }
-      if (this.configExam) {
-        afterSave(this.configExam.id)
       } else {
-        addExam(payload).then(() => {
-          listExam({ pageNum: 1, pageSize: 50, examMode: 'PRACTICE' }).then(res => {
-            const cfg = (res.rows || []).find(r => r.examType === 'THEORY')
-            this.configExam = cfg || null
-            afterSave(cfg ? cfg.id : null)
+        addExam(Object.assign({
+          examMode: 'PRACTICE',
+          examType: 'THEORY',
+          moduleId: this.activeModule.id,
+          deptId: this.activeModule.deptId
+        }, configPayload)).then(res => {
+          // addExam 走 toAjax，返回 AjaxResult；用列表回查拿到新考核ID
+          listExam({ pageNum: 1, pageSize: 100, examMode: 'PRACTICE', examType: 'THEORY', moduleId: this.activeModule.id }).then(r2 => {
+            const rows = (r2 && r2.rows) || []
+            const created = rows.slice().sort((a, b) => b.id - a.id)[0]
+            if (!created) {
+              this.saving = false
+              this.$modal.msgWarning('创建考核失败，请重试')
+              return
+            }
+            this.examForm.id = created.id
+            this.afterConfigSaved(created.id)
           }).catch(() => { this.saving = false })
         }).catch(() => { this.saving = false })
       }
+    },
+    /** 保存组卷配置后再决定是否发布 */
+    afterConfigSaved(examId) {
+      saveExamConfig(examId, {
+        singleScore: this.examForm.singleScore,
+        multiScore: this.examForm.multiScore,
+        judgeScore: this.examForm.judgeScore,
+        duration: this.examForm.duration,
+        passLine: this.examForm.passLine,
+        bankRules: this.rulePayload(),
+        assignMode: 'ALL'
+      }).then(() => {
+        publishExam(examId).then(() => {
+          this.saving = false
+          this.$modal.msgSuccess('考核已保存并生效，实习生在该模块下即可开始自测')
+          this.closeExamEditor()
+          this.loadModuleExams()
+        }).catch(() => { this.saving = false })
+      }).catch(() => { this.saving = false })
+    },
+    publishExamRow(row) {
+      publishExam(row.id).then(() => {
+        this.$modal.msgSuccess('已发布「' + row.examName + '」')
+        this.loadModuleExams()
+      }).catch(() => {})
+    },
+    disableExamRow(row) {
+      this.$modal.confirm('确认停用「' + row.examName + '」吗？停用后实习生端不再显示。').then(() => {
+        return changeExamStatus(row.id, 'DISABLED')
+      }).then(() => {
+        this.$modal.msgSuccess('已停用')
+        this.loadModuleExams()
+      }).catch(() => {})
+    },
+    removeExam(row) {
+      this.$modal.confirm('确认删除「' + row.examName + '」吗？').then(() => {
+        return delExam(row.id)
+      }).then(() => {
+        this.$modal.msgSuccess('删除成功')
+        this.closeExamEditor()
+        this.loadModuleExams()
+      }).catch(() => {})
+    },
+    examStatusText(s) {
+      return { DRAFT: '草稿', PUBLISHED: '已发布', DISABLED: '已停用', GRADING: '批改中' }[s] || s
     }
   }
 }
@@ -574,11 +1064,21 @@ export default {
 .dtab .tab-n { margin-left: 4px; color: #98a2b3; font-size: 11px; }
 .dtab.on .tab-n { color: #1764f5; }
 .dtbl .acts .sep { color: #d0d5dd; }
+.d-empty { padding: 28px 0; text-align: center; color: #98a2b3; font-size: 13px; }
+.d-hidden-input { display: none; }
 .preview-box { min-height: 132px; }
 .pq { color: #344054; font-size: 11.5px; line-height: 2; }
 .drawing { color: #98a2b3; font-size: 12px; line-height: 2; }
 code { padding: 1px 5px; color: #344054; font-size: 11.5px; background: #f2f4f7; border-radius: 4px; }
 .embed-wrap { margin-top: 4px; }
+.exam-editor { margin-top: 8px; padding: 0 14px 6px; background: #fbfcfe; border: 1px dashed #dfe5ee; border-radius: 8px; }
+.file-preview { display: flex; align-items: center; justify-content: center; min-height: 160px; }
+.file-preview-frame { width: 100%; height: 70vh; border: none; }
+.file-preview-video { width: 100%; max-height: 70vh; background: #000; }
+.file-preview-tip { text-align: center; color: #98a2b3; padding: 24px 0; }
+.file-preview-tip i { font-size: 48px; color: #c3cdd9; display: block; margin-bottom: 12px; }
+.file-preview-tip p { margin: 0 0 8px; font-size: 13px; }
+.file-preview-hint { display: block; margin-bottom: 16px; color: #b0b8c4; font-size: 12px; }
 
 /* 复用组件自带页头与内边距，嵌入时收掉一层 */
 .embed-wrap ::v-deep .psubject-page { padding: 0; background: transparent; }

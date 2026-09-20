@@ -10,13 +10,13 @@
       <div>
         <span class="eyebrow">PRACTICE REVIEW</span>
         <h1>模拟考核回顾</h1>
-        <p>逐题回看当次题目、你的作答与正确答案；模拟成绩仅供本人查看。</p>
       </div>
     </header>
 
     <div v-loading="loading" class="review-body">
       <div v-if="record" class="rv-summary">
-        <div class="rv-item"><span class="rv-label">题库</span><b>{{ record.bankName || '-' }}</b></div>
+        <div class="rv-item"><span class="rv-label">模块</span><b>{{ record.moduleName || '—' }}</b></div>
+        <div class="rv-item"><span class="rv-label">考核</span><b>{{ record.examName || '—' }}</b></div>
         <div class="rv-item"><span class="rv-label">成绩</span><b class="ok">{{ record.correctCount }} / {{ record.totalCount }}</b></div>
         <div class="rv-item"><span class="rv-label">正确题数</span><b>{{ record.correctCount }} 题</b></div>
         <div class="rv-item"><span class="rv-label">作答时间</span><b>{{ fmtTime(record.createTime) }}</b></div>

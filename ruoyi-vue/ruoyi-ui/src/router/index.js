@@ -143,6 +143,13 @@ export const dynamicRoutes = [
             meta: { title: '正式考核', activeMenu: '/assessment/intern/learning', tab: 'InternLearningExam' }
           },
           {
+            // 单场考核结果：?exams=16,17 —— 只展示点击那一场（一个场次可能含理论+实操两个环节）
+            path: 'exam-result',
+            component: () => import('@/views/assessment/exam/result'),
+            name: 'InternExamResult',
+            meta: { title: '单场考核结果', activeMenu: '/assessment/intern/learning', tab: 'InternLearningExam' }
+          },
+          {
             path: 'result',
             component: () => import('@/views/assessment/result/index'),
             name: 'InternResult',
@@ -178,12 +185,6 @@ export const dynamicRoutes = [
         component: () => import('@/views/assessment/practice/record'),
         name: 'InternMockExamRecord',
         meta: { title: '模拟考核回顾', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
-      },
-      {
-        path: 'practice-subject',
-        component: () => import('@/views/assessment/practice/subject'),
-        name: 'InternPracticeSubject',
-        meta: { title: '实操练习', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
       },
       {
         path: 'practice-subject/:id(\\d+)',

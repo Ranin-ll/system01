@@ -20,8 +20,9 @@ public interface PracticeSubjectMapper {
     /** 按ID查询（带部门名称） */
     PracticeSubject selectSubjectById(@Param("id") Long id);
 
-    /** 实习生可见列表：本部门 + 已启用 */
-    List<PracticeSubject> selectPublishedByDept(@Param("deptId") Long deptId);
+    /** 实习生可见列表：本部门 + 已启用（moduleId 非空时只取该模块下的题） */
+    List<PracticeSubject> selectPublishedByDept(@Param("deptId") Long deptId,
+                                                @Param("moduleId") Long moduleId);
 
     /** 新增 */
     int insertSubject(PracticeSubject subject);

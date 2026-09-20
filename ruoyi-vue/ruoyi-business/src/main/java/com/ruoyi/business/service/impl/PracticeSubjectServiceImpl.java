@@ -1,6 +1,8 @@
 package com.ruoyi.business.service.impl;
 
+import com.ruoyi.business.domain.PracticeModule;
 import com.ruoyi.business.domain.PracticeSubject;
+import com.ruoyi.business.mapper.PracticeModuleMapper;
 import com.ruoyi.business.mapper.PracticeSubjectMapper;
 import com.ruoyi.business.service.IPracticeSubjectService;
 import com.ruoyi.common.exception.ServiceException;
@@ -17,14 +19,19 @@ import java.util.List;
  * - 超级管理员：查看全部实操题，并可指定部门进行维护。
  * - 部门管理员：发布并维护本部门实操题。
  * - 实习生：只看本部门「已启用」的实操题，只读、只下载附件。
+ *
+ * 「模块」层：实操题必须归属某个模块（practice_module），模块取代原「方向」的顶层分组地位。
  */
 @Service
 public class PracticeSubjectServiceImpl implements IPracticeSubjectService {
 
     private final PracticeSubjectMapper practiceSubjectMapper;
+    private final PracticeModuleMapper practiceModuleMapper;
 
-    public PracticeSubjectServiceImpl(PracticeSubjectMapper practiceSubjectMapper) {
+    public PracticeSubjectServiceImpl(PracticeSubjectMapper practiceSubjectMapper,
+                                      PracticeModuleMapper practiceModuleMapper) {
         this.practiceSubjectMapper = practiceSubjectMapper;
+        this.practiceModuleMapper = practiceModuleMapper;
     }
 
     @Override
@@ -55,6 +62,11 @@ public class PracticeSubjectServiceImpl implements IPracticeSubjectService {
             throw new ServiceException("请选择所属部门");
         }
         subject.setDeptId(deptId);
+        // 模块必填：先建模块，再在模块内上传实操题
+        if (subject.getModuleId() == null) {
+            throw new ServiceException("请选择所属模块（模拟考核先建模块）");
+        }
+        assertModuleUsable(subject.getModuleId(), deptId, false);
         subject.setContent(subject.getContent().trim());
         normalizeForWrite(subject);
         subject.setStatus(subject.getStatus() == null ? 1 : subject.getStatus());
@@ -69,7 +81,10 @@ public class PracticeSubjectServiceImpl implements IPracticeSubjectService {
             throw new ServiceException("实操题ID不能为空");
         }
         managerScopeDeptId();
-        getAccessibleSubject(subject.getId());
+        PracticeSubject exist = getAccessibleSubject(subject.getId());
+        if (subject.getModuleId() != null) {
+            assertModuleUsable(subject.getModuleId(), exist.getDeptId(), true);
+        }
         if (subject.getContent() != null) {
             if (subject.getContent().trim().isEmpty()) {
                 throw new ServiceException("请填写题干");
@@ -86,6 +101,23 @@ public class PracticeSubjectServiceImpl implements IPracticeSubjectService {
         subject.setCreateBy(null);
         subject.setDeleted(null);
         return practiceSubjectMapper.updateSubject(subject);
+    }
+
+    /**
+     * 校验模块可用：模块存在、未删除、归属同一部门；forWrite=false（新建时）还要求模块处于启用状态。
+     * 停用的模块允许继续维护其下已有题目（编辑场景），但不允许再往里新增。
+     */
+    private void assertModuleUsable(Long moduleId, Long deptId, boolean forEdit) {
+        PracticeModule module = practiceModuleMapper.selectModuleById(moduleId);
+        if (module == null) {
+            throw new ServiceException("所选模块不存在或已被删除");
+        }
+        if (deptId != null && !deptId.equals(module.getDeptId())) {
+            throw new ServiceException("所选模块不属于该部门");
+        }
+        if (!forEdit && module.getStatus() != null && module.getStatus() != 1) {
+            throw new ServiceException("所选模块已停用，请先启用或换一个模块");
+        }
     }
 
     /**
@@ -166,12 +198,20 @@ public class PracticeSubjectServiceImpl implements IPracticeSubjectService {
     }
 
     @Override
-    public List<PracticeSubject> selectPublishedForIntern() {
+    public List<PracticeSubject> selectPublishedForIntern(Long moduleId) {
         Long deptId = SecurityUtils.getDeptId();
         if (deptId == null) {
             throw new ServiceException("当前账号未配置部门，无法查看实操练习");
         }
-        List<PracticeSubject> list = practiceSubjectMapper.selectPublishedByDept(deptId);
+        if (moduleId != null) {
+            // 模块必须是本部门启用中的模块，避免拿到别的部门/已停用模块下的题
+            PracticeModule module = practiceModuleMapper.selectModuleById(moduleId);
+            if (module == null || !deptId.equals(module.getDeptId())
+                    || module.getStatus() == null || module.getStatus() != 1) {
+                throw new ServiceException("模块不存在或未启用");
+            }
+        }
+        List<PracticeSubject> list = practiceSubjectMapper.selectPublishedByDept(deptId, moduleId);
         return list == null ? new ArrayList<>() : list;
     }
 
