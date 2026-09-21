@@ -8,7 +8,7 @@
           <el-tag size="mini" effect="plain" type="warning">实操题库</el-tag>
           <el-tag v-if="bankTypeText" size="mini" effect="plain">{{ bankTypeText }}</el-tag>
         </div>
-        <p>实操题 = 逐题作业：题干 / 技能方向 / 交付要求 / 参考图·视频 / 附件 / 建议满分。考核配置时从本库挑题（不做随机抽题）。</p>
+        <p>实操题 = 逐题作业：题目描述 / 考核要点 / 提交要求 / 参考图·视频 / 附件 / 建议满分；列表默认按创建时间倒序（最新在前）。考核配置时从本库挑题（不做随机抽题）。</p>
       </div>
       <div class="heading-actions">
         <el-button size="mini" icon="el-icon-back" @click="goBack">返回题库列表</el-button>
@@ -61,6 +61,9 @@
           <template slot-scope="scope">
             <span class="muted">图 {{ imgCount(scope.row) }} · 视 {{ vidCount(scope.row) }} · 附 {{ attCount(scope.row) }}</span>
           </template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="132" align="center">
+          <template slot-scope="scope"><span class="muted">{{ fmtTime(scope.row.createTime) }}</span></template>
         </el-table-column>
         <el-table-column label="状态" width="82" align="center">
           <template slot-scope="scope">
@@ -161,10 +164,6 @@
 
         <div class="sec"><span class="sec-no">6</span>其它</div>
         <div class="fg2">
-          <el-form-item label="排序号">
-            <el-input-number v-model="form.sortNo" :min="0" :max="9999" controls-position="right" style="width:130px" />
-            <span class="unit">越小越靠前</span>
-          </el-form-item>
           <el-form-item label="状态">
             <el-radio-group v-model="form.status"><el-radio :label="1">启用</el-radio><el-radio :label="0">停用</el-radio></el-radio-group>
           </el-form-item>
@@ -221,6 +220,11 @@ export default {
         if (this.query.direction && r.direction !== this.query.direction) return false
         if (this.query.status !== null && this.query.status !== '' && Number(r.status) !== Number(this.query.status)) return false
         return true
+      }).sort((a, b) => {
+        // 不再用「排序号」，默认按创建时间倒序（最新在前）；时间相同按 id 倒序兜底
+        const ta = String(a.createTime || ''), tb = String(b.createTime || '')
+        if (ta !== tb) return tb.localeCompare(ta)
+        return Number(b.id || 0) - Number(a.id || 0)
       })
     },
     directionOptions() {
@@ -324,6 +328,7 @@ export default {
     imgCount(row) { return parseJsonList(row.referenceImages).filter(f => !this.isVideo(f.url)).length },
     vidCount(row) { return parseJsonList(row.referenceImages).filter(f => this.isVideo(f.url)).length },
     attCount(row) { return parseJsonList(row.attachmentsJson).length },
+    fmtTime(v) { return v ? String(v).replace('T', ' ').slice(0, 16) : '—' },
     diffText(d) { return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[d] || '中等' },
     goBack() {
       this.$router.push(this.$route.path.indexOf('/super') === 0 ? '/super/ops/banks' : '/department/study/banks').catch(() => {})
