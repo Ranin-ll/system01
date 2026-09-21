@@ -25,7 +25,7 @@
     <template v-if="isIntern">
       <!-- 01 身份条 -->
       <section class="i2-card">
-        <div class="panel-head"><div><span class="section-index">01</span><h2>我的身份</h2></div><span class="card-hint">入职天数暂无接口，为示例数据</span></div>
+        <div class="panel-head"><div><span class="section-index">01</span><h2>我的身份</h2></div><span class="card-hint">入职天数按账号创建时间计算</span></div>
         <div class="identity">
           <span class="big-ph">{{ (nickName || '实').charAt(0) }}</span>
           <div class="who"><b>{{ nickName || '实习生' }}</b><p>{{ isFormal ? '正式实习生' : '预备实习生' }} · {{ deptName || '所属部门' }} · {{ mentorText }}</p></div>
@@ -33,7 +33,7 @@
             <div class="fact"><span>保密协议</span><b :class="Number(protocolStatus) === 1 ? 'ok' : 'warn'">{{ Number(protocolStatus) === 1 ? '已签署' : '待签署' }}</b></div>
             <div class="fact"><span>培养阶段</span><b>{{ isFormal ? '正式 · 已转正' : '预备 → 待转正' }}</b></div>
             <div class="fact"><span>距考核门槛</span><b :class="learningGap ? 'warn' : 'ok'">{{ learningGap ? '还差 ' + learningGap + '%' : '已达到' }}</b></div>
-            <div class="fact"><span>入职天数</span><b>{{ onboardDays }} 天</b></div>
+            <div class="fact"><span>入职天数</span><b>{{ onboardDays === null ? '—' : onboardDays + ' 天' }}</b></div>
           </div>
         </div>
       </section>
@@ -41,10 +41,10 @@
       <!-- 02 六个 KPI -->
       <div class="kpi-grid">
         <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#1764f5" />必修完成率</div><div class="kpi-vl">{{ learningProgress }}<small>%</small></div><div class="bar-mini"><i :style="{ width: learningProgress + '%' }" /></div><div class="kpi-ft" :class="learningGap ? 'warn' : 'up'">{{ learningGap ? '距 70% 门槛还差 ' + learningGap + '%' : '已达到考核门槛' }}</div></div>
-        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#12b76a" />累计学习时长</div><div class="kpi-vl">{{ studyHoursTotal }}<small>小时</small></div><div class="kpi-ft up">本周 +2.3h，节奏稳定<em class="dsample">示例</em></div></div>
+        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#12b76a" />累计学习时长</div><div class="kpi-vl">{{ studyHoursTotal === null ? '--' : studyHoursTotal }}<small v-if="studyHoursTotal !== null">小时</small></div><div class="kpi-ft">按周聚合接口就绪后显示，当前不计假数</div></div>
         <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#7a5af8" />已完成单项</div><div class="kpi-vl">{{ learningOverview.completedItems }}<small>/ {{ learningOverview.itemCount }}</small></div><div class="kpi-ft">覆盖 {{ learningOverview.courseCount }} 门已发布课程</div></div>
         <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f79009" />待完成课程</div><div class="kpi-vl">{{ pendingCourses.length }}<small>门</small></div><div class="kpi-ft" :class="pendingRequiredCount ? 'warn' : ''">其中必修 {{ pendingRequiredCount }} 门</div></div>
-        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f04438" />模拟正确率</div><div class="kpi-vl">{{ mockAccuracy }}<small>%</small></div><div class="kpi-ft up">最近 3 次均 80%+<em class="dsample">示例</em></div></div>
+        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f04438" />模拟正确率</div><div class="kpi-vl">{{ mockAccuracy === null ? '--' : mockAccuracy }}<small v-if="mockAccuracy !== null">%</small></div><div class="kpi-ft">{{ practiceRecords.length ? '基于本人 ' + practiceRecords.length + ' 次模拟记录' : '暂无模拟记录' }}</div></div>
         <div class="kpi hl"><div class="kpi-lb"><i class="kpi-dot" style="background:#1764f5" />能力综合值</div><div class="kpi-vl">{{ isFormal ? 88 : '--' }}</div><div class="bar-mini"><i class="o" :style="{ width: portraitCompleteness + '%' }" /></div><div class="kpi-ft">完整度 {{ portraitCompleteness }}%{{ isFormal ? '' : '，待考核后生成' }}<em class="dsample">示例</em></div></div>
       </div>
 
@@ -208,6 +208,9 @@
 import { mapGetters } from 'vuex'
 import { listLearningCourses } from '@/api/business/learning'
 import { listAnnouncements } from '@/api/business/message'
+import { myPracticeRecords } from '@/api/business/practice'
+import { myExamList } from '@/api/business/exam'
+import { getUserProfile } from '@/api/system/user'
 import { formatLearningDuration, learningSummary } from '@/utils/learningPreview'
 
 export default {
@@ -218,7 +221,11 @@ export default {
       previewCourses: [],
       learningOverview: { progress: null, courseCount: 0, completedCourses: 0, learningCourses: 0, completedItems: 0, itemCount: 0, lastStudyTime: '尚未开始' },
       /** 工作台「公告位」：当前有效公告（最多 3 条，置顶优先），来自 /business/message/announcements */
-      announcements: []
+      announcements: [],
+      /** 考核类真数据（2026-09-22 起接真 —— 这几块原先都是硬编码示例值） */
+      practiceRecords: [],
+      myFormalExams: [],
+      entryDate: null
     }
   },
   computed: {
@@ -235,9 +242,33 @@ export default {
     learningProgress() { return this.learningOverview.progress === null ? 0 : this.learningOverview.progress },
     learningGap() { return Math.max(0, 70 - this.learningProgress) },
     // —— 设计稿 i2 新增：无后端接口的块一律示例数据并在界面标注「示例」，不用 0 占位 ——
-    onboardDays() { return 107 },
-    studyHoursTotal() { return 14.5 },
-    mockAccuracy() { return this.isFormal ? 92 : 86 },
+    /**
+     * 入职天数：由 /system/user/profile 的 createTime 算（2026-09-22 起为真值）
+     * 取不到日期 → null，模板显示「—」（不留假数）
+     */
+    onboardDays() {
+      if (!this.entryDate) return null
+      const t = new Date(String(this.entryDate).replace(/-/g, '/')).getTime()
+      if (isNaN(t)) return null
+      return Math.max(0, Math.floor((Date.now() - t) / 86400000))
+    },
+    /** 累计学习时长：仍缺「按周聚合学习时长」的后端接口（本轮未接，模板显示「—」，不再用 14.5 这类假数） */
+    studyHoursTotal() { return null },
+    /**
+     * 模拟正确率：本人全部模拟记录的 correct / total 汇总（2026-09-22 起为真值）
+     * 无记录 → null（模板显「--」）
+     */
+    mockAccuracy() {
+      const list = this.practiceRecords || []
+      let ok = 0
+      let all = 0
+      list.forEach(r => {
+        ok += Number(r.correctCount || 0)
+        all += Number(r.totalCount || 0)
+      })
+      if (!all) return null
+      return Math.round(ok * 1000 / all) / 10
+    },
     pendingCourses() { return this.previewCourses.filter(course => course.progress < 100) },
     pendingRequiredCount() { return this.pendingCourses.filter(course => Number(course.isRequired) === 1).length },
     courseBars() {
@@ -398,12 +429,33 @@ export default {
   created() {
     this.loadLearningPreview()
     this.loadAnnouncements()
+    this.loadExamStats()
   },
   activated() {
     this.loadLearningPreview()
     this.loadAnnouncements()
+    this.loadExamStats()
   },
   methods: {
+    /**
+     * 工作台考核类真数据（2026-09-22 起接真 —— 这三个接口都是实习生端现成的，无需新后端）
+     * · 模拟正确率：/business/practice/my  本人逐场记录（correct_count / total_count 汇总）
+     * · 考核成绩  ：/business/answer-sheet/my?examMode=FORMAL  本人正式答卷
+     * · 入职天数  ：/system/user/profile 的 createTime（取不到就显示「—」，不留假数）
+     */
+    loadExamStats() {
+      if (!this.isIntern) return
+      myPracticeRecords().then(res => {
+        this.practiceRecords = res.data || res.rows || []
+      }).catch(() => { this.practiceRecords = [] })
+      myExamList('FORMAL').then(res => {
+        this.myFormalExams = res.data || []
+      }).catch(() => { this.myFormalExams = [] })
+      getUserProfile().then(res => {
+        const u = (res && res.data) || {}
+        this.entryDate = u.createTime || null
+      }).catch(() => { this.entryDate = null })
+    },
     /** 工作台公告位：任何人可见（公示），不写已读、不计未读红点 */
     loadAnnouncements() {
       listAnnouncements().then(res => {
