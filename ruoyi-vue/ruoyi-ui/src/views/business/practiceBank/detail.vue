@@ -106,9 +106,9 @@
               <el-radio-button label="HARD">困难</el-radio-button>
             </el-radio-group>
           </el-form-item>
-          <el-form-item label="建议用时"><el-input-number v-model="form.estimatedMinutes" :min="0" :max="600" controls-position="right" style="width:100%" /><span class="unit">分钟</span></el-form-item>
+          <el-form-item label="建议用时（分钟）"><el-input-number v-model="form.estimatedMinutes" :min="0" :max="600" controls-position="right" style="width:100%" /></el-form-item>
 
-          <el-form-item label="建议满分"><el-input-number v-model="form.suggestScore" :min="0" :max="999" :precision="1" controls-position="right" placeholder="未填" style="width:100%" /><span class="unit">分</span></el-form-item>
+          <el-form-item label="建议满分（分）"><el-input-number v-model="form.suggestScore" :min="0" :max="999" :precision="1" controls-position="right" placeholder="未填" style="width:100%" /></el-form-item>
         </div>
         <div class="fg2 stack2">
           <el-form-item label="章节">
@@ -125,10 +125,10 @@
         </el-form-item>
         <div class="fg2">
           <el-form-item label="交付要求">
-            <el-input v-model="form.deliverables" type="textarea" :rows="4" placeholder="一行一条&#10;接口代码&#10;接口文档（含入参出参）" />
+            <el-input v-model="form.deliverables" type="textarea" :rows="4" placeholder="一行一条，如：接口代码 / 接口文档（含入参出参）" />
           </el-form-item>
           <el-form-item label="开发约束">
-            <el-input v-model="form.devConstraints" type="textarea" :rows="4" placeholder="一行一条&#10;使用 SpringBoot&#10;不得引入新依赖" />
+            <el-input v-model="form.devConstraints" type="textarea" :rows="4" placeholder="一行一条，如：使用 SpringBoot / 不得引入新依赖" />
           </el-form-item>
         </div>
         <div class="fg2">
@@ -383,6 +383,8 @@ export default {
 /* 难度分段按钮：一列内不再折行 */
 .diff-seg ::v-deep .el-radio-button__inner { padding: 7px 12px; white-space: nowrap; }
 .unit { margin-left: 6px; color: #98a2b3; font-size: 12px; }
+/* 数字框与单位永远同一行（兜底） */
+::v-deep .el-input-number { display: inline-block; }
 /* 素材区的说明单独占一行，不与按钮挤 */
 .unit.block { display: block; margin: 6px 0 0; }
 /* 素材 chip 行独占一行 */
