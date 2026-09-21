@@ -52,6 +52,9 @@ public class AnswerSheetItem implements Serializable {
     @TableField(exist = false)
     private String stem;
 
+    /** 知识点 / 章节（来自 question.knowledge_point；实操题为空）—— L2 按章节算得分率用 */
+    private String knowledgePoint;
+
     /** 正确答案（展示字段） */
     @TableField(exist = false)
     private String answer;
