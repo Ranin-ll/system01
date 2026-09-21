@@ -83,7 +83,7 @@
             <th style="width:150px">应考 · 实考 · 缺考</th>
             <th style="width:104px">已出分 · 通过</th>
             <th style="width:88px">状态</th>
-            <th style="width:80px">操作</th>
+            <th style="width:120px">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -119,7 +119,10 @@
               <span v-else class="muted">—</span>
             </td>
             <td><span class="s-badge" :class="statusTone(e.status)">{{ statusText(e.status) }}</span></td>
-            <td><el-button type="text" size="mini" @click="goConfig(e)">配置</el-button></td>
+            <td>
+              <el-button type="text" size="mini" @click="goSession(e)">详情</el-button>
+              <el-button type="text" size="mini" @click="goConfig(e)">配置</el-button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -374,6 +377,10 @@ export default {
       this.filters.deptName = deptName
       this.activeKpi = ''
       this.view = 'session'
+    },
+    /** 进 L1 单场详情（顶层路由 + ?from= 回跳） */
+    goSession(e) {
+      this.$router.push({ path: '/exam-session/' + e.id, query: { from: this.$route.path } }).catch(() => {})
     },
     /** 进该场考核的配置页（现成的、超管可用；用 from 记住来源以便返回） */
     goConfig(e) {

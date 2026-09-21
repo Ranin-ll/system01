@@ -683,6 +683,36 @@ export const dynamicRoutes = [
     ]
   },
   {
+    // 「考核与成绩」L1 单场详情（顶层 hidden；带 ?from= 回跳，activeMenu 指回 L0）
+    path: '/exam-session',
+    component: Layout,
+    hidden: true,
+    permissions: ['business:bank:list'],
+    children: [
+      {
+        path: ':examId(\\d+)',
+        component: () => import('@/views/super/ops/exams/session'),
+        name: 'SuperExamSession',
+        meta: { title: '考核详情', activeMenu: '/super/ops/exams' }
+      }
+    ]
+  },
+  {
+    // 「考核与成绩」L2 单份答卷详情（顶层 hidden；?examId= 用于取同场样本做位次对照）
+    path: '/exam-sheet',
+    component: Layout,
+    hidden: true,
+    permissions: ['business:bank:list'],
+    children: [
+      {
+        path: ':sheetId(\\d+)',
+        component: () => import('@/views/super/ops/exams/sheet'),
+        name: 'SuperExamSheet',
+        meta: { title: '答卷明细', activeMenu: '/super/ops/exams' }
+      }
+    ]
+  },
+  {
     path: '/assessment/department/exam/grading',
     component: Layout,
     hidden: true,
