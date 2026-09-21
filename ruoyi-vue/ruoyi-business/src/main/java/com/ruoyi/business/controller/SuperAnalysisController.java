@@ -64,7 +64,17 @@ public class SuperAnalysisController extends BaseController {
     }
 
     /**
-     * L3 个人档案：身份 + 逐学习项 + 逐任务（真数据）；考核类与阶段评价为 null（前端示例）。
+     * L0 知识点热力：部门 × 知识点矩阵（真数据，2026-09-22 起接真）。
+     * 一次取全，前端自行 pivot 成「部门行 × 知识点列」的热力卡。
+     */
+    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @GetMapping("/knowledge-matrix")
+    public AjaxResult knowledgeMatrix() {
+        return AjaxResult.success(superAnalysisService.knowledgeMatrix());
+    }
+
+    /**
+     * L3 个人档案：身份 + 逐学习项 + 逐任务 + <b>考核类（模拟逐场 / 正式逐场 / 知识点，2026-09-22 起为真数据）</b>。
      *
      * <p>★ 这两个查询补的是**超管读缺口** —— `/business/learning/**`、`/business/practice/**`
      * 的类级注解只放实习生角色。这里在本模块另写只读路径，**不去动那两处的类级注解**。</p>

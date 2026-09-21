@@ -13,7 +13,7 @@
         <h1>{{ user.nickName || user.userName || '个人档案' }}</h1>
         <p>
           培养状态进度 · 学习进度（逐项）· 任务交付 · 模拟与正式考核 · 知识点掌握 · 阶段评价。
-          <strong>学习与任务为实时真数据</strong>；<strong>考核类为示例</strong>（题库与考核模块待同事分支合并）。
+          <strong>除「阶段评价」（表为空）外，全部为实时真数据</strong>。
         </p>
       </div>
       <div class="s-head-actions">
@@ -176,7 +176,7 @@
         <section class="s-card s-c5">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx">②</span><h3>模拟考核（逐场）</h3></div>
-            <span class="s-badge warn">示例数据 · 待分支合并</span>
+            <!-- 2026-09-22：考核类已接真数据（practice / knowledge / formal），示例标已移除 -->
           </div>
           <div v-if="!practice.length" class="s-empty"><i class="el-icon-tickets" /><span>暂无模拟考核记录</span></div>
           <template v-else>
@@ -196,7 +196,7 @@
         <section class="s-card s-c7">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx r">⑤</span><h3>知识点掌握（最弱在上）</h3></div>
-            <span class="s-badge warn">示例数据 · 待分支合并</span>
+            <!-- 2026-09-22：考核类已接真数据（practice / knowledge / formal），示例标已移除 -->
           </div>
           <div v-if="!knowledge.length" class="s-empty"><i class="el-icon-data-analysis" /><span>暂无逐题明细</span></div>
           <template v-else>
@@ -218,7 +218,7 @@
         <section class="s-card s-c6">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx">③</span><h3>正式考核</h3></div>
-            <span class="s-badge warn">示例 · 本人无记录</span>
+            <span class="s-badge">本人无记录</span>
           </div>
           <div class="s-steps">
             <div class="s-step">
@@ -270,12 +270,12 @@
  *   ★ 这两个查询补的是「超管读缺口」—— `/business/learning/**`、`/business/practice/**`
  *     的类级注解只放实习生角色；本模块另写只读路径，**没去动那两处的类级注解**。
  *
- * 示例（`_mock.js`）：模拟考核逐场 / 知识点掌握 / 正式考核
+ * ★ 2026-09-22 起「模拟考核逐场 / 知识点掌握 / 正式考核」也**是**真数据 ——
+ *   来自同一接口返回的 practice / knowledge / formal（原先由 _mock.js 填充，前提已失效）
  * 无数据：阶段评价（`stage_evaluation` 0 行）
  */
 import { getInternDetail } from '@/api/business/analysis'
 import DataTag from '@/components/DataTag'
-import { mockIntern, mockInternKnowledge, mockInternPractice } from './_mock'
 
 /** 阶段顺序（与后端 InternStageRow.stage 的取值一致） */
 const STAGE_ORDER = ['WAIT_AUDIT', 'PRE_TRAINEE', 'PENDING_PROMOTE', 'FORMAL_TRAINEE']
@@ -290,6 +290,10 @@ export default {
       user: {},
       study: [],
       tasks: [],
+      /** 考核类（2026-09-22 起为真数据） */
+      practiceList: [],
+      formalList: [],
+      knowledgeList: [],
       threshold: 70
     }
   },
@@ -345,12 +349,14 @@ export default {
       const total = Number(this.user.learnTotal || 0)
       const done = Number(this.user.learnDone || 0)
       const learnRate = total > 0 ? done * 100 / total : 0
-      const formalPassed = mockIntern(this.userId).formalPassed
+      // 真数据：取该人最近一场正式考核的通过标志（无记录 → undefined，表示未参加）
+      const lastFormal = this.formalList.length ? this.formalList[this.formalList.length - 1] : null
+      const formalPassed = lastFormal ? Number(lastFormal.passFlag) : undefined
       const rows = [
         { key: 'learn', label: '学习达标（≥ ' + th + '）',
           ok: total > 0 && learnRate >= th, mock: false,
           text: total > 0 ? (done + '/' + total + ' 项达标，达标率 ' + Math.round(learnRate) + '%') : '暂无学习记录' },
-        { key: 'formal', label: '正式考试通过', ok: formalPassed === 1, mock: true,
+        { key: 'formal', label: '正式考试通过', ok: formalPassed === 1, mock: false,
           text: formalPassed === undefined || formalPassed === null ? '无本人考核记录' : (formalPassed === 1 ? '已通过' : '未通过') },
         { key: 'task', label: '任务无逾期', ok: Number(this.user.taskOverdue || 0) === 0, mock: false,
           text: Number(this.user.taskOverdue || 0) > 0 ? ('逾期 ' + this.user.taskOverdue + ' 个') : '无逾期' },
@@ -365,10 +371,9 @@ export default {
       }))
     },
 
-    /** 模拟考核（示例）：按分数升序，便于看趋势 */
+    /** 模拟考核逐场（真数据）：按时间升序，便于看趋势 */
     practice() {
-      const list = mockInternPractice(this.userId)
-      return list.map(p => Object.assign({}, p))
+      return (this.practiceList || []).map(p => Object.assign({}, p))
     },
     practiceAvg() {
       if (!this.practice.length) return '--'
@@ -376,9 +381,9 @@ export default {
       return Math.round(s / this.practice.length * 100) / 100
     },
 
-    /** 知识点（示例）：题次 >= 2、按正确率升序（最弱在上） */
+    /** 知识点掌握（真数据）：题次 >= 2、按正确率升序（最弱在上） */
     knowledge() {
-      return mockInternKnowledge(this.userId)
+      return (this.knowledgeList || [])
         .filter(k => k.items >= 2)
         .map(k => Object.assign({}, k, { rate: Math.round(k.correct * 100 / k.items) }))
         .sort((a, b) => a.rate - b.rate)
@@ -451,6 +456,9 @@ export default {
         this.user = d.user || {}
         this.study = d.study || []
         this.tasks = d.tasks || []
+        this.practiceList = d.practice || []
+        this.formalList = d.formal || []
+        this.knowledgeList = d.knowledge || []
         this.threshold = d.threshold || 70
       }).catch(err => {
         this.error = (err && err.message) ? err.message

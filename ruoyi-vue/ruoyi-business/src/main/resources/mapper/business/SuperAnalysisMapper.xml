@@ -346,6 +346,38 @@
         ORDER BY items DESC, t.point ASC
     </select>
 
+    <!-- 部门 × 知识点矩阵（L0 热力卡：一次取全，前端自行 pivot 成 部门行 × 知识点列） -->
+    <select id="selectKnowledgeMatrix" resultType="java.util.LinkedHashMap">
+        SELECT t.dept_id  AS deptId,
+               d.dept_name AS deptName,
+               t.point    AS point,
+               COUNT(1)   AS items,
+               SUM(CASE WHEN t.is_correct = 1 THEN 1 ELSE 0 END) AS correct
+        FROM (
+            SELECT p.dept_id AS dept_id, q.knowledge_point AS point, pri.is_correct AS is_correct
+            FROM practice_record_item pri
+            INNER JOIN practice_record p ON p.id = pri.record_id
+            INNER JOIN question q ON q.id = pri.question_id AND q.deleted = 0
+            WHERE p.dept_id IS NOT NULL
+              AND q.knowledge_point IS NOT NULL AND q.knowledge_point != ''
+            UNION ALL
+            SELECT e.dept_id AS dept_id, q2.knowledge_point AS point, asi.is_correct AS is_correct
+            FROM answer_sheet_item asi
+            INNER JOIN answer_sheet s ON s.id = asi.answer_sheet_id
+            INNER JOIN exam e ON e.id = s.exam_id AND e.deleted = 0
+            INNER JOIN question q2 ON q2.id = asi.question_id AND q2.deleted = 0
+            WHERE e.dept_id IS NOT NULL
+              AND asi.is_subjective = 0
+              AND q2.knowledge_point IS NOT NULL AND q2.knowledge_point != ''
+        ) t
+        LEFT JOIN sys_dept d ON d.dept_id = t.dept_id AND d.del_flag = '0'
+        <where>
+            <if test="deptId != null">t.dept_id = #{deptId}</if>
+        </where>
+        GROUP BY t.dept_id, d.dept_name, t.point
+        ORDER BY t.dept_id ASC, items DESC, t.point ASC
+    </select>
+
     <!-- 逐人：模拟考核逐场 -->
     <select id="selectInternPractice" resultType="java.util.LinkedHashMap">
         SELECT DATE_FORMAT(p.create_time, '%Y-%m-%d %H:%i') AS date,

@@ -160,7 +160,7 @@
         <section class="s-card s-c5">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx o">弱</span><h3>本部门薄弱知识点 Top5</h3></div>
-            <span class="s-badge warn">示例数据 · 待分支合并</span>
+            <!-- 2026-09-22：薄弱知识点已接真数据（dept-stats.knowledge），示例标已移除 -->
           </div>
           <div v-if="!weakPoints.length" class="s-empty"><i class="el-icon-data-analysis" /><span>本部门暂无逐题明细</span></div>
           <div v-for="k in weakPoints" :key="k.point" class="s-hbar low">
@@ -255,7 +255,6 @@
  */
 import { getDeptStats } from '@/api/business/analysis'
 import DataTag from '@/components/DataTag'
-import { mockKnowledge } from './_mock'
 
 export default {
   name: 'SuperOpsAnalysisDept',
@@ -272,9 +271,9 @@ export default {
     deptId() {
       return this.$route.params.deptId
     },
-    /** 薄弱知识点：按正确率升序，题次 < 2 视为噪声剔除 */
+    /** 薄弱知识点（真数据：来自 dept-stats 的 knowledge 字段）：按正确率升序，题次 < 2 视为噪声剔除 */
     weakPoints() {
-      const list = mockKnowledge(Number(this.deptId)) || []
+      const list = this.dept.knowledge || []
       return list
         .filter(k => k.items >= 2)
         .map(k => Object.assign({}, k, { rate: Math.round(k.correct * 100 / k.items) }))

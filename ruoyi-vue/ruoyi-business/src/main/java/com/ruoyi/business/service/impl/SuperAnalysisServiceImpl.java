@@ -183,6 +183,12 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
         return rows;
     }
 
+    /** L0 知识点热力：部门 × 知识点矩阵（真数据，2026-09-22 起） */
+    @Override
+    public List<Map<String, Object>> knowledgeMatrix() {
+        return analysisMapper.selectKnowledgeMatrix(scopeDeptId());
+    }
+
     @Override
     public Map<String, Object> stageProgress() {
         BigDecimal th = threshold();

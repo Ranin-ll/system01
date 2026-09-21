@@ -6,14 +6,13 @@
         <h1>培养分析看板</h1>
         <p>
           实习生培养与学习考核情况的<strong>部门横向对比</strong>，各维度一张表打尽。
-          数据分三类并显式标注：<strong>人 / 学习 / 任务</strong>为实时真数据；
-          <strong>题库与考核</strong>（模拟考核、正式考核、知识点）模块待同事分支合并，
-          当前为<strong>前端示例</strong>并打橙标；无样本一律显示「无样本」，<strong>不伪装 0%</strong>。
+          <strong>人 / 学习 / 任务 / 考核（模拟 · 正式 · 知识点）全部为实时真数据</strong>；
+          无样本一律显示「无样本 / 暂无」，<strong>不伪装 0%</strong>。
         </p>
       </div>
       <div class="s-head-actions">
         <span class="s-ro"><i class="el-icon-view" /> 全局只读</span>
-        <span v-if="anyMock" class="s-ro sample"><i class="el-icon-warning-outline" /> 含示例数据</span>
+        <!-- 2026-09-22：考核类已全部接真数据，页头不再需要「含示例数据」标 -->
         <el-button size="small" icon="el-icon-refresh" :loading="loading" @click="loadAll">刷新</el-button>
       </div>
     </header>
@@ -50,19 +49,17 @@
 
         <div class="s-kpi">
           <div class="lb"><i class="dot" style="background:#7a5af8" />模拟考核均分</div>
-          <div class="vl">{{ mockKpi.practiceAvg === null ? '--' : mockKpi.practiceAvg }}<small v-if="mockKpi.practiceAvg !== null">/10</small></div>
-          <div class="ft" :class="{ warn: mockKpi.practiceAvg !== null }">
-            {{ num(mockKpi.practiceCount) }} 人次 · N={{ mockKpi.practicePersons }} 人
-            <data-tag :mock="true" />
+          <div class="vl">{{ examKpi.practiceAvg === null ? '--' : examKpi.practiceAvg }}<small v-if="examKpi.practiceAvg !== null">/10</small></div>
+          <div class="ft" :class="{ warn: examKpi.practiceAvg !== null }">
+            {{ num(examKpi.practiceCount) }} 人次 · N={{ examKpi.practicePersons }} 人
           </div>
         </div>
 
         <div class="s-kpi">
           <div class="lb"><i class="dot" style="background:#f04438" />正式通过率</div>
-          <div class="vl">{{ mockKpi.formalRate === null ? '--' : mockKpi.formalRate }}<small v-if="mockKpi.formalRate !== null">%</small></div>
+          <div class="vl">{{ examKpi.formalRate === null ? '--' : examKpi.formalRate }}<small v-if="examKpi.formalRate !== null">%</small></div>
           <div class="ft">
-            已发布 {{ num(mockKpi.formalPublished) }} 张
-            <data-tag :mock="true" />
+            已发布 {{ num(examKpi.formalPublished) }} 张 · 通过 {{ num(examKpi.formalPassed) }} / 参加 {{ num(examKpi.formalAttended) }} 人
           </div>
         </div>
 
@@ -145,7 +142,7 @@
                     </div>
                     <span class="n1"><data-tag :mock="r.mock.practiceAvg" /></span>
                   </template>
-                  <span v-else class="none">暂无数据 <data-tag :mock="true" /></span>
+                  <span v-else class="none">暂无数据</span>
                 </td>
 
                 <td>
@@ -258,7 +255,7 @@
         <section class="s-card s-c5">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx">3</span><h3>部门模拟考核均分</h3></div>
-            <span class="s-badge warn">示例数据 · 待分支合并</span>
+            <!-- 2026-09-22：该卡已接真数据，示例标已移除 -->
           </div>
           <div v-for="r in matrix" :key="r.deptId" class="s-hbar">
             <span class="nm" :title="r.deptName">{{ r.deptName }}</span>
@@ -267,15 +264,14 @@
             <span class="pc">{{ r.practiceAvg !== null ? r.practiceAvg : '暂无' }}</span>
           </div>
           <p class="s-note">
-            满分 10 分。无数据的部门<b>显式写「暂无」</b>。
-            <data-tag :mock="true" label="本卡为示例" />：题库与考核模块将有同事的大改动，等其分支上传后合并再接真接口。
+            满分 10 分。无数据的部门<b>显式写「暂无」</b>。数据来源：模拟练习记录（<code>practice_record</code>）按部门聚合。
           </p>
         </section>
 
         <section class="s-card s-c7">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx o">4</span><h3>知识点掌握热力（部门 × 知识点）</h3></div>
-            <span class="s-badge warn">示例数据 · 待分支合并</span>
+            <!-- 2026-09-22：该卡已接真数据，示例标已移除 -->
           </div>
 
           <div v-if="!heatRows.length" class="s-empty"><i class="el-icon-data-analysis" /><span>暂无逐题明细</span></div>
@@ -332,17 +328,15 @@
 /**
  * 超管「培养分析看板」L0（培养运营 → 培养分析看板）
  *
- * 数据分三类，页面上显式标注（见 DataTag 组件）：
- *   ① 真数据 · 人 / 学习 / 任务 —— 来自 /business/super/analysis/*
- *   ② 示例   · 模拟考核 / 正式考核 / 知识点 —— 来自同目录 _mock.js（题库与考核模块待同事分支合并）
- *   ③ 无样本 · 分母为 0 —— 显示「无样本」，不伪装 0%
+ * ★ 2026-09-22 起：**人 / 学习 / 任务 / 考核（模拟 · 正式 · 知识点）全部为真数据**
+ *   （原先考核类由同目录 `_mock.js` 填充、理由是「等同事的题库/考核分支合并」—— 该前提已失效）
+ * 分母为 0 的项显示「无样本 / 暂无 / --」，不伪装 0%
  *
  * ★ 一致性：KPI 与矩阵**同源**（后端 overview 与 dept-matrix 走同一个 buildMatrix()），
  *   所以两处数字必然一致，不会出现「统计与列表对不上」。
  */
-import { getAnalysisOverview, getDeptMatrix, getStageProgress } from '@/api/business/analysis'
+import { getAnalysisOverview, getDeptMatrix, getStageProgress, getKnowledgeMatrix } from '@/api/business/analysis'
 import DataTag from '@/components/DataTag'
-import { mockDept, mockKnowledge, mockIntern, pick, MOCK_DEPT, MOCK_INTERN } from './_mock'
 
 export default {
   name: 'SuperOpsAnalysisOverview',
@@ -353,17 +347,13 @@ export default {
       error: '',
       ov: {},
       rawMatrix: [],
+      knowledgeMatrix: [],
       stages: [],
       stageRows: []
     }
   },
   computed: {
-    /** 是否页面上出现了示例数据（决定页头是否打「含示例数据」标） */
-    anyMock() {
-      return true // 模拟考核 / 知识点两卡恒为示例，合并后改为按 pick 结果判断
-    },
-
-    /** 矩阵 = 后端真数据 + 示例考核数据 合并（真值优先） */
+    /** 矩阵 = 后端真数据（含考核类），按综合健康度排序 */
     matrix() {
       return this.rawMatrix
         .map(r => this.decorate(r))
@@ -375,47 +365,60 @@ export default {
       return this.ov.alerts || []
     },
 
-    /** 模拟考核相关的全局 KPI（由示例数据聚合，保证与各卡一致） */
-    mockKpi() {
+    /** 考核相关的全局 KPI：由后端真数据聚合（部门矩阵 + 逐人阶段行），与各卡同源 */
+    examKpi() {
       let count = 0
       let scoreSum = 0
       let persons = 0
       let formalPublished = 0
-      Object.keys(MOCK_DEPT).forEach(id => {
-        const m = MOCK_DEPT[id]
-        if (m.practiceCount) {
-          count += m.practiceCount
-          scoreSum += m.practiceAvg * m.practiceCount
+      this.rawMatrix.forEach(r => {
+        const c = Number(r.practiceCount)
+        if (c > 0) {
+          count += c
+          scoreSum += Number(r.practiceAvg || 0) * c
           persons++
         }
-        if (m.formalPublished) formalPublished += m.formalPublished
+        const fp = Number(r.formalPublished)
+        if (fp > 0) formalPublished += fp
       })
-      let formalPassed = 0
-      Object.keys(MOCK_INTERN).forEach(id => {
-        if (MOCK_INTERN[id].formalPassed === 1) formalPassed++
-      })
+      // 正式通过率 = 通过人数 / **有正式答卷的人数**（无答卷的人不参与，避免把「没考」算成「没通过」）
+      const attended = this.stageRows.filter(r => r.formalPassed !== null && r.formalPassed !== undefined)
+      const passed = attended.filter(r => Number(r.formalPassed) === 1).length
       return {
         practiceCount: count || null,
         practicePersons: persons,
         practiceAvg: count ? Math.round(scoreSum / count * 100) / 100 : null,
         formalPublished,
+        formalPassed: passed,
+        formalAttended: attended.length,
         // 分母为 0 → null（不伪装 0%）
-        formalRate: formalPublished ? Math.round(formalPassed * 100 / formalPublished) : 0
+        formalRate: attended.length ? Math.round(passed * 100 / attended.length) : null
       }
     },
 
-    /** 知识点热力（示例） */
+    /** 知识点热力（真数据：部门 × 章节矩阵，来自 /knowledge-matrix） */
     heatRows() {
-      const points = {}
-      // 以开发部门的顺序为准，保证列稳定
-      ;(mockKnowledge(104) || []).forEach(c => { if (c.items >= 2) points[c.point] = 1 })
-      const order = Object.keys(points)
+      const byDept = {}
+      ;(this.knowledgeMatrix || []).forEach(c => {
+        const id = c.deptId
+        if (!byDept[id]) byDept[id] = []
+        byDept[id].push(c)
+      })
+      // 列顺序：以「题次最多」的部门的章节顺序为准，保证列稳定、且只列有样本的章节
+      const deptLists = Object.keys(byDept).map(id => byDept[id])
+      deptLists.sort((a, b) =>
+        b.reduce((s, x) => s + Number(x.items || 0), 0) - a.reduce((s, x) => s + Number(x.items || 0), 0))
+      const order = (deptLists[0] || []).filter(c => Number(c.items) >= 2).map(c => c.point)
+
       const rows = []
       this.matrix.forEach(r => {
+        const list = byDept[r.deptId] || []
         const cells = order.map(p => {
-          const hit = (mockKnowledge(r.deptId) || []).find(x => x.point === p)
+          const hit = list.find(x => x.point === p)
           // 题次 < 2 视为样本不足（不参与热力着色）
-          return hit && hit.items >= 2 ? hit : { point: p, items: 0, correct: 0, thin: true }
+          return hit && Number(hit.items) >= 2
+            ? { point: p, items: Number(hit.items), correct: Number(hit.correct) }
+            : { point: p, items: 0, correct: 0, thin: true }
         })
         if (cells.some(c => !c.thin)) {
           rows.push({ deptId: r.deptId, deptName: r.deptName, cells })
@@ -438,14 +441,15 @@ export default {
         if (rate < th) learnFail++
         if (Number(r.taskOverdue || 0) > 0) taskFail++
         if (!Number(r.protocolSigned || 0)) protoFail++
-        const fp = mockIntern(r.userId).formalPassed
+        const fp = r.formalPassed
+        // 真值：1 通过 / 0 未通过 / null 未参加 ⇒ 只有「已通过」才算达标
         if (fp !== 1) formalFail++
       })
       return [
         { key: 'learn', label: '学习达标（≥ ' + th + '）', pass: total - learnFail, total, mock: false,
           text: learnFail + ' 人未达标' },
-        { key: 'formal', label: '正式考试通过', pass: total - formalFail, total, mock: true,
-          text: formalFail + ' 人无通过记录（全库仅 1 张已发布答卷）' },
+        { key: 'formal', label: '正式考试通过', pass: total - formalFail, total, mock: false,
+          text: formalFail + ' 人未通过或未参加正式考核' },
         { key: 'task', label: '任务无逾期', pass: total - taskFail, total, mock: false,
           text: taskFail + ' 人有逾期任务' },
         { key: 'protocol', label: '协议已签', pass: total - protoFail, total, mock: false,
@@ -509,16 +513,16 @@ export default {
 
     /**
      * 把后端一行真数据 + 示例考核数据合成展示行。
-     * ★ 真值优先：若后端将来返回了考核字段（合并后），pick() 会自动用真值并去掉橙标，
+     * ★ 考核类字段自 2026-09-22 起为后端真值，直接取 r.xxx（不再走 pick(real, mock)）
      *   **本方法与模板都不需要改**。
      */
     decorate(r) {
-      const m = mockDept(r.deptId)
-      const practiceAvg = pick(r.practiceAvg, m.practiceAvg)
-      const knowledgeItems = pick(r.knowledgeItems, m.knowledgeItems)
-      const knowledgeCorrect = pick(r.knowledgeCorrect, m.knowledgeCorrect)
-      const practiceCount = pick(r.practiceCount, m.practiceCount)
-      const formalPublished = pick(r.formalPublished, m.formalPublished)
+      // 2026-09-22：考核类已由后端提供真值，不再 fallback 示例数据（保持 {value, mock} 形状）
+      const practiceAvg = { value: r.practiceAvg, mock: false }
+      const knowledgeItems = { value: r.knowledgeItems, mock: false }
+      const knowledgeCorrect = { value: r.knowledgeCorrect, mock: false }
+      const practiceCount = { value: r.practiceCount, mock: false }
+      const formalPublished = { value: r.formalPublished, mock: false }
 
       const knowledgeRate = (knowledgeCorrect.value && knowledgeItems.value)
         ? Math.round(knowledgeCorrect.value * 100 / knowledgeItems.value)
@@ -575,18 +579,21 @@ export default {
       Promise.all([
         getAnalysisOverview(),
         getDeptMatrix(),
-        getStageProgress()
-      ]).then(([ovRes, mxRes, stRes]) => {
+        getStageProgress(),
+        getKnowledgeMatrix()
+      ]).then(([ovRes, mxRes, stRes, knRes]) => {
         this.ov = ovRes.data || {}
         this.rawMatrix = mxRes.data || []
         const st = stRes.data || {}
         this.stages = st.stages || []
         this.stageRows = st.rows || []
+        this.knowledgeMatrix = knRes.data || []
       }).catch(err => {
         // ★ 绝不把失败吞成空数组 —— 那会让「403/500」看起来像「暂无数据」
         this.error = (err && err.message) ? err.message
           : '接口请求失败（可能是权限不足或后端未启动），请稍后重试'
         this.rawMatrix = []
+        this.knowledgeMatrix = []
         this.stages = []
         this.stageRows = []
       }).finally(() => { this.loading = false })

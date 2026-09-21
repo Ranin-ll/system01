@@ -98,6 +98,9 @@ public interface SuperAnalysisMapper {
     /** 部门 × 知识点明细（L1 部门详情的「薄弱知识点」；按题次降序） */
     List<Map<String, Object>> selectKnowledgeDetailByDept(@Param("deptId") Long deptId);
 
+    /** 部门 × 知识点矩阵（L0 热力卡用；一次取全，前端自行 pivot） */
+    List<Map<String, Object>> selectKnowledgeMatrix(@Param("deptId") Long deptId);
+
     /** 逐人：模拟考核逐场记录（日期 / 对题数 / 总题数 / 得分） */
     List<Map<String, Object>> selectInternPractice(@Param("userId") Long userId);
 
