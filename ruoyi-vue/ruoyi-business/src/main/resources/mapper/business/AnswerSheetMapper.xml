@@ -82,7 +82,17 @@
             s.final_score AS finalScore,
             s.pass_flag AS passFlag,
             s.subject_answer AS subjectAnswer,
-            s.submit_time AS submitTime
+            s.submit_time AS submitTime,
+            (SELECT COUNT(1) FROM answer_sheet_item ai WHERE ai.answer_sheet_id = s.id) AS itemCount,
+            (SELECT COUNT(1) FROM answer_sheet_item ai
+              WHERE ai.answer_sheet_id = s.id
+                AND ai.user_answer IS NOT NULL AND ai.user_answer != '') AS answeredFiles,
+            <!-- 本卷满分 = 该答卷逐题满分之和（取快照，题目被改版也不影响） -->
+            (SELECT COALESCE(SUM(ai.full_score), 0) FROM answer_sheet_item ai
+              WHERE ai.answer_sheet_id = s.id) AS totalFullScore,
+            <!-- 已批题数 = 已人工打分的题数（实操批阅进度） -->
+            (SELECT COUNT(1) FROM answer_sheet_item ai
+              WHERE ai.answer_sheet_id = s.id AND ai.manual_score IS NOT NULL) AS gradedCount
         FROM sys_user u
         LEFT JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
         LEFT JOIN answer_sheet s ON s.user_id = u.user_id AND s.exam_id = #{examId}
@@ -122,10 +132,21 @@
         WHERE id = #{id}
     </update>
 
+    <!-- 重新开放批改：清空已发布的成绩痕迹（总分/通过标记），状态置为批改中 -->
+    <update id="reopenSheet">
+        UPDATE answer_sheet
+        SET status = 'SCORING',
+            final_score = NULL,
+            pass_flag = NULL,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
     <resultMap type="AnswerSheetItem" id="ItemResult">
         <id     property="id"            column="id"             />
         <result property="answerSheetId" column="answer_sheet_id"/>
         <result property="questionId"    column="question_id"    />
+        <result property="subjectItemId" column="subject_item_id"/>
         <result property="seq"           column="seq"            />
         <result property="qtype"         column="qtype"          />
         <result property="isSubjective"  column="is_subjective"  />
@@ -136,28 +157,47 @@
         <result property="manualComment" column="manual_comment" />
         <result property="manualUserId"  column="manual_user_id" />
         <result property="manualTime"    column="manual_time"    />
+        <result property="stemSnapshot" column="stem_snapshot"/>
+        <result property="fullScore"   column="full_score"/>
         <result property="stem"          column="stem"           />
         <result property="answer"        column="answer"         />
         <result property="attachmentUrl" column="attachment_url" />
+        <result property="optionsJson"   column="options_json"   />
         <result property="score"         column="score"          />
+        <result property="subjectDescription" column="subject_description" />
+        <result property="subjectImages"      column="subject_images"      />
+        <result property="subjectAttachments" column="subject_attachments" />
     </resultMap>
 
+    <!-- 逐题明细：题干与满分**优先取快照**（i.stem_snapshot / i.full_score），
+         取不到再回退题目表（理论 question / 实操 exam_subject_item）。
+         题目表可被管理员编辑删除，只靠 JOIN 会让旧答卷的题干与满分变 NULL。 -->
     <select id="selectItemsBySheetId" resultMap="ItemResult">
-        SELECT i.id, i.answer_sheet_id, i.question_id, i.seq, i.qtype, i.is_subjective,
+        SELECT i.id, i.answer_sheet_id, i.question_id, i.subject_item_id, i.seq, i.qtype, i.is_subjective,
                i.user_answer, i.is_correct, i.ai_score, i.manual_score, i.manual_comment,
-               i.manual_user_id, i.manual_time,
-               q.stem, q.answer, q.attachment_url, q.score
+               i.manual_user_id, i.manual_time, i.stem_snapshot, i.full_score,
+               COALESCE(i.stem_snapshot, q.stem, si.title)            AS stem,
+               q.answer,
+               q.options_json,
+               q.attachment_url,
+               COALESCE(i.full_score, q.score, si.score)              AS score,
+               si.description                                 AS subject_description,
+               si.reference_images                            AS subject_images,
+               si.attachments_json                            AS subject_attachments
         FROM answer_sheet_item i
         LEFT JOIN question q ON q.id = i.question_id
+        LEFT JOIN exam_subject_item si ON si.id = i.subject_item_id
         WHERE i.answer_sheet_id = #{sheetId}
         ORDER BY i.seq ASC
     </select>
 
     <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO answer_sheet_item (answer_sheet_id, question_id, seq, qtype, is_subjective,
+        INSERT INTO answer_sheet_item (answer_sheet_id, question_id, subject_item_id, stem_snapshot, full_score,
+                                       seq, qtype, is_subjective,
                                        user_answer, is_correct, ai_score, manual_score, manual_comment,
                                        manual_user_id, manual_time, create_time)
-        VALUES (#{answerSheetId}, #{questionId}, #{seq}, #{qtype}, #{isSubjective},
+        VALUES (#{answerSheetId}, #{questionId}, #{subjectItemId}, #{stemSnapshot}, #{fullScore},
+                #{seq}, #{qtype}, #{isSubjective},
                 #{userAnswer}, #{isCorrect}, #{aiScore}, #{manualScore}, #{manualComment},
                 #{manualUserId}, #{manualTime}, CURRENT_TIMESTAMP)
     </insert>
@@ -165,6 +205,7 @@
     <update id="updateItem">
         UPDATE answer_sheet_item
         <set>
+            <if test="userAnswer != null">user_answer = #{userAnswer},</if>
             <if test="isCorrect != null">is_correct = #{isCorrect},</if>
             <if test="aiScore != null">ai_score = #{aiScore},</if>
             <if test="manualScore != null">manual_score = #{manualScore},</if>
@@ -174,5 +215,24 @@
         </set>
         WHERE id = #{id}
     </update>
+
+    <!-- 实操逐题交卷：按本题明细 id 批量写回作答文件路径（一条 SQL 更新多行） -->
+    <update id="updateItemAnswers">
+        UPDATE answer_sheet_item
+        SET user_answer = CASE id
+        <foreach collection="list" item="it">
+            WHEN #{it.id} THEN #{it.userAnswer}
+        </foreach>
+        END
+        WHERE id IN
+        <foreach collection="list" item="it" open="(" separator="," close=")">
+            #{it.id}
+        </foreach>
+    </update>
+
+    <!-- 删除某答卷的全部逐题明细（重新开始考核前作废旧答卷用） -->
+    <delete id="deleteItemsBySheetId">
+        DELETE FROM answer_sheet_item WHERE answer_sheet_id = #{sheetId}
+    </delete>
 
 </mapper>

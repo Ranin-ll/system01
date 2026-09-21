@@ -249,7 +249,7 @@
 </template>
 
 <script>
-import { myExamList, sheetDetail } from '@/api/business/exam'
+import { myExamList, mySheetDetail } from '@/api/business/exam'
 import { listLearningCourses } from '@/api/business/learning'
 import { learningSummary } from '@/utils/learningPreview'
 import { parseTime } from '@/utils/ruoyi'
@@ -505,7 +505,7 @@ export default {
     buildRecords() {
       const done = this.rows.filter(r => r.sheet && r.sheet.status === 'PUBLISHED')
       const pending = this.rows.filter(r => !r.sheet || r.sheet.status !== 'PUBLISHED')
-      const tasks = done.slice(0, 8).map(row => sheetDetail(row.sheet.sheetId).then(res => {
+      const tasks = done.slice(0, 8).map(row => mySheetDetail(row.sheet.sheetId).then(res => {
         const sheet = (res.data && res.data.sheet) || {}
         return {
           examId: row.examId,

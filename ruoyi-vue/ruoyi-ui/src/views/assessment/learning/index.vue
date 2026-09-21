@@ -10,7 +10,6 @@
       <div>
         <span class="eyebrow">LEARNING CENTER</span>
         <h1>在线学习</h1>
-        <p>按岗位学习已发布课程，完成进度会自动保存并同步到工作台。</p>
       </div>
       <el-button size="small" icon="el-icon-refresh" :loading="loading" @click="loadCourses">刷新进度</el-button>
     </header>
@@ -44,7 +43,6 @@
           <span class="section-index">01</span>
           <div>
             <h2>课程目录</h2>
-            <p>课程按岗位自动匹配，已停用课程和其他岗位内容不会出现在这里。</p>
           </div>
         </div>
         <span class="catalog-count">{{ filteredCourses.length }} 门课程</span>
@@ -102,15 +100,6 @@
           <span>课程发布后会按岗位自动出现在这里。</span>
         </div>
       </div>
-    </section>
-
-    <section class="learning-rules">
-      <div class="rule-icon"><i class="el-icon-info" /></div>
-      <div>
-        <strong>学习记录自动保存</strong>
-        <p>文档材料需阅读到末尾并确认完成，视频材料会保存最近播放位置；课程完成率由学习单项自动汇总。</p>
-      </div>
-      <el-button type="text" @click="comingSoon">查看学习规则</el-button>
     </section>
   </div>
 </template>
@@ -189,9 +178,6 @@ export default {
     },
     goBack() {
       this.$router.push('/index')
-    },
-    comingSoon() {
-      this.$modal.msgInfo('功能开发中')
     }
   }
 }
@@ -222,8 +208,7 @@ export default {
 .section-heading { display: flex; align-items: center; justify-content: space-between; padding-bottom: 18px; border-bottom: 1px solid #edf0f4; }
 .section-heading > div { display: flex; align-items: flex-start; gap: 12px; }
 .section-index { color: #1764f5; font-size: 11px; font-weight: 700; }
-.section-heading h2 { margin: 0 0 5px; color: #1d2939; font-size: 18px; font-weight: 600; }
-.section-heading p { margin: 0; color: #8490a0; font-size: 12px; }
+.section-heading h2 { margin: 0; color: #1d2939; font-size: 18px; font-weight: 600; }
 .catalog-count { color: #667085; font-size: 12px; }
 .catalog-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 0 10px; }
 .type-filter { width: 130px; }
@@ -248,12 +233,6 @@ export default {
 .empty-state i { color: #b7c1cc; font-size: 34px; }
 .empty-state strong { color: #667085; font-size: 14px; font-weight: 500; }
 .empty-state span { font-size: 12px; }
-.learning-rules { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 13px 16px; border: 1px solid #dbeafe; background: #f5f9ff; }
-.rule-icon { display: flex; width: 25px; height: 25px; align-items: center; justify-content: center; color: #2878c7; font-size: 16px; }
-.learning-rules > div:nth-child(2) { flex: 1; }
-.learning-rules strong { color: #344054; font-size: 12px; }
-.learning-rules p { margin: 4px 0 0; color: #667085; font-size: 11px; line-height: 1.5; }
-.learning-rules .el-button { padding: 0; font-size: 12px; }
 @media (max-width: 1000px) { .learning-overview { flex-wrap: wrap; }.overview-main { min-width: 240px; }.overview-facts { min-width: 100%; }.overview-facts div:first-child { border-left: 0; padding-left: 0; } }
-@media (max-width: 700px) { .learning-page { padding: 16px 12px 28px; }.learning-heading { align-items: flex-start; flex-direction: column; gap: 12px; }.learning-heading h1 { font-size: 24px; }.learning-overview { align-items: flex-start; flex-direction: column; gap: 18px; padding: 20px; }.overview-main { min-width: 0; width: 100%; }.overview-progress { align-items: flex-start; flex-direction: row; }.overview-facts { width: 100%; gap: 12px; }.overview-facts div { padding-left: 10px; }.catalog-section { padding: 18px 14px; }.section-heading { align-items: flex-start; gap: 10px; }.section-heading p { max-width: 240px; line-height: 1.5; }.catalog-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; }.type-filter { width: 100%; }.course-row { align-items: flex-start; flex-wrap: wrap; gap: 12px; padding: 17px 0; }.course-mark { width: 42px; height: 42px; flex-basis: 42px; font-size: 19px; }.course-content { width: calc(100% - 58px); flex: none; }.course-action { width: 100%; min-width: 0; align-items: flex-end; flex-direction: row; justify-content: flex-end; }.course-intro { white-space: normal; line-height: 1.5; }.learning-rules { align-items: flex-start; }.learning-rules .el-button { display: none; } }
+@media (max-width: 700px) { .learning-page { padding: 16px 12px 28px; }.learning-heading { align-items: flex-start; flex-direction: column; gap: 12px; }.learning-heading h1 { font-size: 24px; }.learning-overview { align-items: flex-start; flex-direction: column; gap: 18px; padding: 20px; }.overview-main { min-width: 0; width: 100%; }.overview-progress { align-items: flex-start; flex-direction: row; }.overview-facts { width: 100%; gap: 12px; }.overview-facts div { padding-left: 10px; }.catalog-section { padding: 18px 14px; }.section-heading { align-items: flex-start; gap: 10px; }.catalog-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; }.type-filter { width: 100%; }.course-row { align-items: flex-start; flex-wrap: wrap; gap: 12px; padding: 17px 0; }.course-mark { width: 42px; height: 42px; flex-basis: 42px; font-size: 19px; }.course-content { width: calc(100% - 58px); flex: none; }.course-action { width: 100%; min-width: 0; align-items: flex-end; flex-direction: row; justify-content: flex-end; }.course-intro { white-space: normal; line-height: 1.5; } }
 </style>

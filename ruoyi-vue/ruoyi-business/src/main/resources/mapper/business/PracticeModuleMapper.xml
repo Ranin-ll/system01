@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.PracticeModuleMapper">
+
+    <resultMap type="PracticeModule" id="PracticeModuleResult">
+        <id     property="id"           column="id"            />
+        <result property="deptId"       column="dept_id"       />
+        <result property="name"         column="name"          />
+        <result property="description"  column="description"   />
+        <result property="sortNo"       column="sort_no"       />
+        <result property="status"       column="status"        />
+        <result property="createBy"     column="create_by"     />
+        <result property="createTime"   column="create_time"   />
+        <result property="updateTime"   column="update_time"   />
+        <result property="deleted"      column="deleted"       />
+        <result property="deptName"     column="dept_name"     />
+        <result property="subjectCount" column="subject_count" />
+        <result property="examCount"    column="exam_count"    />
+    </resultMap>
+
+    <!--
+      模块内容计数：实操题来自 practice_subject，理论模拟考核来自 exam
+      （限定 exam_mode='PRACTICE' AND exam_type='THEORY'，正式考核不计入）
+    -->
+    <sql id="moduleColumns">
+        m.id, m.dept_id, m.name, m.description, m.sort_no, m.status,
+        m.create_by, m.create_time, m.update_time, m.deleted,
+        d.dept_name,
+        (SELECT COUNT(1) FROM practice_subject s
+          WHERE s.module_id = m.id AND s.deleted = 0) AS subject_count,
+        (SELECT COUNT(1) FROM exam e
+          WHERE e.module_id = m.id AND e.deleted = 0
+            AND e.exam_mode = 'PRACTICE' AND e.exam_type = 'THEORY') AS exam_count
+    </sql>
+
+    <select id="selectModuleList" resultMap="PracticeModuleResult">
+        SELECT <include refid="moduleColumns" />
+        FROM practice_module m
+        LEFT JOIN sys_dept d ON d.dept_id = m.dept_id AND d.del_flag = '0'
+        <where>
+            m.deleted = 0
+            <if test="scopeDeptId != null">
+                AND m.dept_id = #{scopeDeptId}
+            </if>
+            <if test="deptId != null">
+                AND m.dept_id = #{deptId}
+            </if>
+            <if test="status != null">
+                AND m.status = #{status}
+            </if>
+            <if test="name != null and name != ''">
+                AND (m.name LIKE CONCAT('%', #{name}, '%')
+                     OR m.description LIKE CONCAT('%', #{name}, '%'))
+            </if>
+        </where>
+        ORDER BY m.sort_no ASC, m.id ASC
+    </select>
+
+    <select id="selectModuleById" resultMap="PracticeModuleResult">
+        SELECT <include refid="moduleColumns" />
+        FROM practice_module m
+        LEFT JOIN sys_dept d ON d.dept_id = m.dept_id AND d.del_flag = '0'
+        WHERE m.id = #{id} AND m.deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectByName" resultMap="PracticeModuleResult">
+        SELECT m.id, m.dept_id, m.name, m.status, m.deleted
+        FROM practice_module m
+        WHERE m.deleted = 0
+          AND m.dept_id = #{deptId}
+          AND m.name = #{name}
+        <if test="excludeId != null">
+            AND m.id != #{excludeId}
+        </if>
+        LIMIT 1
+    </select>
+
+    <select id="selectByDept" resultMap="PracticeModuleResult">
+        SELECT <include refid="moduleColumns" />
+        FROM practice_module m
+        LEFT JOIN sys_dept d ON d.dept_id = m.dept_id AND d.del_flag = '0'
+        WHERE m.deleted = 0
+          AND m.dept_id = #{deptId}
+        <if test="enabledOnly">
+            AND m.status = 1
+        </if>
+        ORDER BY m.sort_no ASC, m.id ASC
+    </select>
+
+    <insert id="insertModule" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO practice_module
+            (dept_id, name, description, sort_no, status, create_by, create_time, update_time, deleted)
+        VALUES
+            (#{deptId}, #{name}, #{description}, #{sortNo}, #{status}, #{createBy}, NOW(), NOW(), 0)
+    </insert>
+
+    <update id="updateModule">
+        UPDATE practice_module
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="sortNo != null">sort_no = #{sortNo},</if>
+            <if test="status != null">status = #{status},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteModuleById">
+        UPDATE practice_module SET deleted = 1, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <select id="countSubjects" resultType="java.lang.Integer">
+        SELECT COUNT(1) FROM practice_subject WHERE module_id = #{moduleId} AND deleted = 0
+    </select>
+
+    <select id="countExams" resultType="java.lang.Integer">
+        SELECT COUNT(1) FROM exam
+        WHERE module_id = #{moduleId} AND deleted = 0
+          AND exam_mode = 'PRACTICE' AND exam_type = 'THEORY'
+    </select>
+
+</mapper>

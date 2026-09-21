@@ -30,10 +30,20 @@ public interface AnswerSheetMapper extends BaseMapper<AnswerSheet> {
 
     int updateSheet(AnswerSheet sheet);
 
-    /** 答卷明细（含题目题干/答案/附件，判分和批改用）。 */
+    /** 答卷明细（含题目题干/答案/附件，判分和批改用）。
+     *  理论题取 question.stem，实操题取 exam_subject_item.title。 */
     List<AnswerSheetItem> selectItemsBySheetId(@Param("sheetId") Long sheetId);
 
     int insertItem(AnswerSheetItem item);
 
     int updateItem(AnswerSheetItem item);
+
+    /** 删除某答卷的全部逐题明细（重新开始考核前作废旧答卷用）。 */
+    int deleteItemsBySheetId(@Param("sheetId") Long sheetId);
+
+    /** 实操逐题交卷：按明细 id 批量写回作答文件路径。 */
+    int updateItemAnswers(@Param("list") List<AnswerSheetItem> list);
+
+    /** 重新开放批改：把答卷置回批改中，并清空已发布的总分/通过标记。 */
+    int reopenSheet(@Param("id") Long id);
 }

@@ -1,9 +1,13 @@
 package com.ruoyi.business.service.impl;
 
+import com.ruoyi.business.domain.Exam;
+import com.ruoyi.business.domain.PracticeModule;
 import com.ruoyi.business.domain.PracticeRecord;
 import com.ruoyi.business.domain.PracticeRecordItem;
 import com.ruoyi.business.domain.Question;
 import com.ruoyi.business.domain.QuestionBank;
+import com.ruoyi.business.mapper.ExamMapper;
+import com.ruoyi.business.mapper.PracticeModuleMapper;
 import com.ruoyi.business.mapper.PracticeRecordItemMapper;
 import com.ruoyi.business.mapper.PracticeRecordMapper;
 import com.ruoyi.business.mapper.QuestionBankMapper;
@@ -27,10 +31,9 @@ import java.util.Set;
 /**
  * 模拟考核 Service 实现
  *
- * 规则：优先按本部门管理员配置的「模拟理论考核配置」抽题
- * （知识分布 questionCount + 题型配比 single/multi/judge），未配置时回退为
- * 「本部门模拟题库随机抽 10 题、每题 1 分」。交卷自动判分并记录，
- * 成绩仅供实习生本人查询，管理员不可见。
+ * 规则：实习生先选「模块」→ 再选模块下的「理论模拟考核」，按该考核的组卷配置抽题；
+ * 未指定考核时回退为本部门最近发布的一套模拟配置，仍未配置则「本部门模拟题库随机抽 10 题、每题 1 分」。
+ * 交卷自动判分并记录，成绩仅供实习生本人查询，管理员不可见。
  *
  * 交卷时同时写入逐题明细（practice_record_item），供本人回看题目、作答与正确答案。
  */
@@ -42,48 +45,78 @@ public class PracticeServiceImpl implements IPracticeService {
     private final PracticeRecordMapper practiceRecordMapper;
     private final PracticeRecordItemMapper practiceRecordItemMapper;
     private final com.ruoyi.business.mapper.ExamRuleMapper examRuleMapper;
+    private final ExamMapper examMapper;
+    private final PracticeModuleMapper practiceModuleMapper;
 
     public PracticeServiceImpl(QuestionBankMapper questionBankMapper,
                                QuestionMapper questionMapper,
                                PracticeRecordMapper practiceRecordMapper,
                                PracticeRecordItemMapper practiceRecordItemMapper,
-                               com.ruoyi.business.mapper.ExamRuleMapper examRuleMapper) {
+                               com.ruoyi.business.mapper.ExamRuleMapper examRuleMapper,
+                               ExamMapper examMapper,
+                               PracticeModuleMapper practiceModuleMapper) {
         this.questionBankMapper = questionBankMapper;
         this.questionMapper = questionMapper;
         this.practiceRecordMapper = practiceRecordMapper;
         this.practiceRecordItemMapper = practiceRecordItemMapper;
         this.examRuleMapper = examRuleMapper;
+        this.examMapper = examMapper;
+        this.practiceModuleMapper = practiceModuleMapper;
     }
 
     @Override
-    public Map<String, Object> startPractice() {
+    public Map<String, Object> startPractice(Long examId) {
         assertPreTrainee();
         Long deptId = SecurityUtils.getDeptId();
         if (deptId == null) {
             throw new ServiceException("当前账号未配置部门，无法进行模拟考核");
         }
         QuestionBank bank = questionBankMapper.selectPracticeBankByDept(deptId);
-        if (bank == null) {
-            throw new ServiceException("本部门暂无模拟题库，请联系管理员");
+
+        // 本次考核口径：优先用模块下选定的理论模拟考核，未指定则用本部门最近发布的一套配置
+        Map<String, Object> config = resolveConfig(deptId, examId);
+        Long fallbackBankId = null;
+        if (config != null && config.get("bankId") != null) {
+            fallbackBankId = Long.valueOf(String.valueOf(config.get("bankId")));
+        }
+        if (fallbackBankId == null && bank != null) {
+            fallbackBankId = bank.getId();
         }
 
-        // 部门管理员配置的模拟理论考核配置（未配置则回退默认 10 题）
-        Map<String, Object> config = examRuleMapper.selectActivePracticeConfig(deptId);
         List<Question> questions;
         Map<String, Object> result = new LinkedHashMap<>();
         if (config != null && config.get("examId") != null) {
-            Long examId = Long.valueOf(String.valueOf(config.get("examId")));
-            List<com.ruoyi.business.domain.ExamKnowledgeRule> rules = examRuleMapper.selectKnowledgeRules(examId);
-            questions = pickByConfig(bank.getId(), rules, config);
+            Long cfgExamId = Long.valueOf(String.valueOf(config.get("examId")));
+            java.util.List<com.ruoyi.business.domain.ExamBankRule> bankRules = examRuleMapper.selectBankRules(cfgExamId);
+            if (bankRules != null && !bankRules.isEmpty()) {
+                // 多题库组卷（当前主用）：每个题库按 单选/多选/判断 配额各自抽题
+                questions = pickByBankRules(bankRules);
+                result.put("bankRules", toBankRuleView(bankRules));
+            } else {
+                // 历史链路：单库 + 知识分布
+                if (fallbackBankId == null) {
+                    throw new ServiceException("本部门暂无模拟题库，请联系管理员");
+                }
+                List<com.ruoyi.business.domain.ExamKnowledgeRule> rules = examRuleMapper.selectKnowledgeRules(cfgExamId);
+                questions = pickByConfig(fallbackBankId, rules, config);
+                result.put("points", rules);
+            }
             result.put("configured", true);
+            result.put("examId", cfgExamId);
             result.put("configName", config.get("examName"));
+            result.put("questionCount", config.get("questionCount"));
             result.put("singleCount", config.get("singleCount"));
             result.put("multiCount", config.get("multiCount"));
             result.put("judgeCount", config.get("judgeCount"));
+            result.put("singleScore", config.get("singleScore"));
+            result.put("multiScore", config.get("multiScore"));
+            result.put("judgeScore", config.get("judgeScore"));
             result.put("duration", config.get("duration"));
             result.put("passLine", config.get("passLine"));
-            result.put("points", rules);
         } else {
+            if (bank == null) {
+                throw new ServiceException("本部门暂无模拟题库，请联系管理员");
+            }
             questions = questionMapper.selectQuestionsForExam(bank.getId(), null, 10);
             result.put("configured", false);
         }
@@ -101,10 +134,138 @@ public class PracticeServiceImpl implements IPracticeService {
             m.put("knowledgePoint", q.getKnowledgePoint());
             list.add(m);
         }
-        result.put("bankId", bank.getId());
-        result.put("bankName", bank.getBankName());
+        result.put("bankId", fallbackBankId);
+        result.put("bankName", bank != null ? bank.getBankName() : null);
         result.put("questions", list);
         return result;
+    }
+
+    /**
+     * 解析本次考核的配置口径。
+     *
+     * @param deptId 实习生所在部门
+     * @param examId 模块下选定的理论模拟考核ID；为空时回退为本部门最近发布的一套模拟配置
+     */
+    private Map<String, Object> resolveConfig(Long deptId, Long examId) {
+        if (examId == null) {
+            return examRuleMapper.selectActivePracticeConfig(deptId);
+        }
+        Exam exam = examMapper.selectExamById(examId, null);
+        if (exam == null
+                || !"PRACTICE".equals(exam.getExamMode())
+                || !"THEORY".equals(exam.getExamType())
+                || !"PUBLISHED".equals(exam.getStatus())
+                || exam.getDeptId() == null
+                || !exam.getDeptId().equals(deptId)) {
+            throw new ServiceException("考核不存在或未发布");
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("examId", exam.getId());
+        m.put("examName", exam.getExamName());
+        m.put("bankId", exam.getBankId());
+        m.put("questionCount", exam.getQuestionCount());
+        m.put("singleCount", exam.getSingleCount());
+        m.put("multiCount", exam.getMultiCount());
+        m.put("judgeCount", exam.getJudgeCount());
+        m.put("singleScore", exam.getSingleScore());
+        m.put("multiScore", exam.getMultiScore());
+        m.put("judgeScore", exam.getJudgeScore());
+        m.put("duration", exam.getDuration());
+        m.put("passLine", exam.getPassLine());
+        return m;
+    }
+
+    @Override
+    public List<Map<String, Object>> listPracticeExams(Long moduleId) {
+        Long deptId = SecurityUtils.getDeptId();
+        if (deptId == null) {
+            throw new ServiceException("当前账号未配置部门，无法查看模拟考核");
+        }
+        if (moduleId != null) {
+            PracticeModule module = practiceModuleMapper.selectModuleById(moduleId);
+            if (module == null || !deptId.equals(module.getDeptId())
+                    || module.getStatus() == null || module.getStatus() != 1) {
+                throw new ServiceException("模块不存在或未启用");
+            }
+        }
+        Exam query = new Exam();
+        query.setExamMode("PRACTICE");
+        query.setExamType("THEORY");
+        query.setStatus("PUBLISHED");
+        query.setDeptId(deptId);
+        query.setModuleId(moduleId);
+        query.setScopeDeptId(deptId);
+        List<Exam> exams = examMapper.selectExamList(query);
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (exams == null) {
+            return out;
+        }
+        for (Exam e : exams) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            int total = intOf(e.getSingleCount()) + intOf(e.getMultiCount()) + intOf(e.getJudgeCount());
+            BigDecimal full = scoreOf(e.getSingleCount(), e.getSingleScore())
+                    .add(scoreOf(e.getMultiCount(), e.getMultiScore()))
+                    .add(scoreOf(e.getJudgeCount(), e.getJudgeScore()));
+            m.put("id", e.getId());
+            m.put("examId", e.getId());
+            m.put("examName", e.getExamName());
+            m.put("moduleId", e.getModuleId());
+            m.put("singleCount", e.getSingleCount());
+            m.put("multiCount", e.getMultiCount());
+            m.put("judgeCount", e.getJudgeCount());
+            m.put("questionCount", total);
+            m.put("fullScore", full);
+            m.put("duration", e.getDuration());
+            m.put("passLine", e.getPassLine());
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** 题量 × 每题分值 */
+    private BigDecimal scoreOf(Integer count, BigDecimal unit) {
+        int c = count == null ? 0 : count;
+        BigDecimal u = unit == null ? BigDecimal.ZERO : unit;
+        return u.multiply(BigDecimal.valueOf(c));
+    }
+
+    /**
+     * 按多题库组卷配置抽题：对每个题库，分别按 单选/多选/判断 的配置数量在该库内随机取题。
+     * 不同题库之间互不影响，跨库用 usedIds 去重兜底。
+     */
+    private List<Question> pickByBankRules(List<com.ruoyi.business.domain.ExamBankRule> bankRules) {
+        List<Question> picked = new ArrayList<>();
+        Set<Long> usedIds = new LinkedHashSet<>();
+        for (com.ruoyi.business.domain.ExamBankRule rule : bankRules) {
+            addAll(picked, usedIds, pickBankType(rule.getBankId(), "SINGLE", intOf(rule.getSingleCount()), usedIds));
+            addAll(picked, usedIds, pickBankType(rule.getBankId(), "MULTI", intOf(rule.getMultiCount()), usedIds));
+            addAll(picked, usedIds, pickBankType(rule.getBankId(), "JUDGE", intOf(rule.getJudgeCount()), usedIds));
+        }
+        return picked;
+    }
+
+    /** 从某题库抽指定题型的题（不限知识点） */
+    private List<Question> pickBankType(Long bankId, String qtype, int need, Set<Long> usedIds) {
+        if (need <= 0) {
+            return Collections.emptyList();
+        }
+        List<Question> list = examRuleMapper.selectQuestionsByPoint(bankId, null, qtype, new ArrayList<>(usedIds), need);
+        return list == null ? Collections.emptyList() : list;
+    }
+
+    /** 组卷配置转前端展示结构（题库名 = 知识模块名） */
+    private List<Map<String, Object>> toBankRuleView(List<com.ruoyi.business.domain.ExamBankRule> bankRules) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (com.ruoyi.business.domain.ExamBankRule rule : bankRules) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("bankId", rule.getBankId());
+            m.put("bankName", rule.getBankName());
+            m.put("singleCount", rule.getSingleCount());
+            m.put("multiCount", rule.getMultiCount());
+            m.put("judgeCount", rule.getJudgeCount());
+            list.add(m);
+        }
+        return list;
     }
 
     /**
@@ -337,7 +498,7 @@ public class PracticeServiceImpl implements IPracticeService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Map<String, Object> submitPractice(Long bankId, List<Map<String, Object>> answers) {
+    public Map<String, Object> submitPractice(Long examId, Long bankId, List<Map<String, Object>> answers) {
         assertPreTrainee();
         Long userId = SecurityUtils.getUserId();
         Long deptId = SecurityUtils.getDeptId();
@@ -375,8 +536,17 @@ public class PracticeServiceImpl implements IPracticeService {
         }
 
         // 3. 逐题判分，构造返回明细 + 待落库明细
-        //    分值口径：配置了模拟考核配置则按题型分值（单选/多选/判断），否则每题 1 分
-        Map<String, Object> config = examRuleMapper.selectActivePracticeConfig(deptId);
+        //    分值口径：与开考时一致（模块下选定的考核配置，或本部门最近发布的一套配置），否则每题 1 分
+        Map<String, Object> config = resolveConfig(deptId, examId);
+        if (bankId == null && config != null && config.get("bankId") != null) {
+            bankId = Long.valueOf(String.valueOf(config.get("bankId")));
+        }
+        // 来源考核ID：以**实际生效的配置**为准（examId 为空时会回退到本部门最近发布的一套配置）。
+        // 落库后供「模拟考核记录」按模块归类 + 展示考核名称。
+        Long resolvedExamId = examId;
+        if (config != null && config.get("examId") != null) {
+            resolvedExamId = Long.valueOf(String.valueOf(config.get("examId")));
+        }
         java.math.BigDecimal singleScore = BigDecimal.valueOf(1);
         java.math.BigDecimal multiScore = BigDecimal.valueOf(1);
         java.math.BigDecimal judgeScore = BigDecimal.valueOf(1);
@@ -430,6 +600,7 @@ public class PracticeServiceImpl implements IPracticeService {
         PracticeRecord record = new PracticeRecord();
         record.setUserId(userId);
         record.setBankId(bankId);
+        record.setExamId(resolvedExamId);
         record.setDeptId(deptId);
         record.setTotalCount(total);
         record.setCorrectCount(correct);
@@ -468,8 +639,8 @@ public class PracticeServiceImpl implements IPracticeService {
     }
 
     @Override
-    public List<PracticeRecord> myRecords() {
-        return practiceRecordMapper.selectMyRecords(SecurityUtils.getUserId());
+    public List<PracticeRecord> myRecords(Long moduleId) {
+        return practiceRecordMapper.selectMyRecords(SecurityUtils.getUserId(), moduleId);
     }
 
     @Override

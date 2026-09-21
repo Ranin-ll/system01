@@ -15,9 +15,9 @@ const formalInternBlockedPaths = [
   '/assessment/intern/practice',
   '/assessment/intern/study-guide',
   '/assessment/intern/theory-exam',
-  // 实操练习为独立页面（含详情页），需单独声明；
-  // 其前缀 /assessment/intern/practice 亦已覆盖，此处显式列出避免后续调整时漏拦。
-  '/assessment/intern/practice-subject',
+  // 实操题详情页（/assessment/intern/practice-subject/:id）已被上面的
+  // /assessment/intern/practice 前缀覆盖，无需重复声明；
+  // 原独立「实操题库」列表页（/assessment/intern/practice-subject）已删除。
   // 「学习与考核」页签化后，备考资料 / 模拟考核的新地址挪到了 /learning 之下，
   // 上面几条旧前缀已拦不到，必须单独列出（见 utils/internTabs.js）。
   ...FORMAL_INTERN_BLOCKED_PATHS

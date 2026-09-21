@@ -17,6 +17,12 @@ public interface ExamMapper extends BaseMapper<Exam> {
 
     Exam selectExamById(@Param("id") Long id, @Param("scopeDeptId") Long scopeDeptId);
 
+    /**
+     * 指定给某实习生的已发布考核（含跨部门）。
+     * 让「指定人员」不再受部门范围限制：只要名单里有本人，即便考核不属于本人部门也能看到。
+     */
+    List<Exam> selectAssignedExamList(@Param("userId") Long userId, @Param("examMode") String examMode);
+
     int insertExam(Exam exam);
 
     int updateExam(Exam exam);

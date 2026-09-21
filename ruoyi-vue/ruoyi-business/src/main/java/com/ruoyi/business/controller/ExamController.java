@@ -63,6 +63,37 @@ public class ExamController extends BaseController {
     }
 
     /**
+     * 本部门可选题库清单（含各库按题型的可用题量）—— 多题库组卷配置页选题库用
+     * GET /business/exam/bank-options?deptId=xxx
+     */
+    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @GetMapping("/bank-options")
+    public AjaxResult bankOptions(@RequestParam(value = "deptId", required = false) Long deptId) {
+        return AjaxResult.success(examService.bankOptions(deptId));
+    }
+
+    /**
+     * 在培实习生花名册（发布设置里「指定人员」的可选名单）
+     * GET /business/exam/intern-options?deptId=xxx
+     * 部门管理员只能取本部门；超级管理员可按 deptId 取指定部门，不传则取全部在培实习生。
+     */
+    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @GetMapping("/intern-options")
+    public AjaxResult internOptions(@RequestParam(value = "deptId", required = false) Long deptId) {
+        return AjaxResult.success(examService.internOptions(deptId));
+    }
+
+    /**
+     * 按多题库组卷配置试抽一套卷（配置页「试抽一套」校验用，不落库）
+     * POST /business/exam/try-draw  body: { bankRules: [{bankId, singleCount, multiCount, judgeCount}] }
+     */
+    @PreAuthorize("@ss.hasPermi('business:bank:list')")
+    @PostMapping("/try-draw")
+    public AjaxResult tryDrawByBanks(@RequestBody(required = false) Exam params) {
+        return AjaxResult.success(examService.tryDrawByBanks(params));
+    }
+
+    /**
      * 题库知识点及题量（理论考试配置页「从题库导入知识点」）
      * GET /business/exam/bank/{bankId}/knowledge-points
      * 注意：路径用三段，避免与既有 GET /{id} 冲突。

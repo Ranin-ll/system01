@@ -6,13 +6,12 @@
       <b>{{ isFormal ? '考核记录' : '正式考核' }}</b>
     </div>
 
-    <!-- 阶段一：发布信息 + 考核场次 + 备考资料 + 资格校验 + 环节卡 -->
+    <!-- 阶段一：发布信息 + 考核场次 + 备考资料 + 资格校验 -->
     <template v-if="stage === 'list'">
       <header class="exam-heading">
         <div>
           <span class="eyebrow">{{ isFormal ? 'ASSESSMENT HISTORY' : 'FORMAL ASSESSMENT' }}</span>
           <h1>{{ isFormal ? '考核记录' : '正式考核' }}</h1>
-          <p>{{ isFormal ? '转正前的正式考核结果会继续保留，可在此查看。' : '由所属部门管理员按批次发布 · 可阶段性多次参加 · 通过后进入转正审批。' }}</p>
         </div>
         <span v-if="!isFormal" class="head-badge">{{ headBadge }}</span>
       </header>
@@ -32,12 +31,11 @@
           <div class="pm-title">
             <span class="pm-idx">场</span>
             <h3>考核场次</h3>
-            <span class="pm-hint">共 {{ sessions.length }} 场 · 已参加 {{ attendedCount }} 场 · 通过 {{ passedCount }} 场</span>
           </div>
-          <el-tag v-if="hasSampleWindow" size="mini" type="warning" effect="plain">部分场次时间窗为示例数据</el-tag>
+          <el-button size="mini" icon="el-icon-refresh" @click="loadList">刷新</el-button>
         </div>
 
-        <div v-if="!sessions.length" class="pm-empty"><i class="el-icon-document" /><span>部门尚未发布正式考核，发布后会按场次出现在这里。</span></div>
+        <div v-if="!sessions.length" class="pm-empty"><i class="el-icon-document" /><span>部门尚未发布正式考核</span></div>
 
         <div v-else class="session-grid">
           <div v-for="s in sessions" :key="s.key" class="session-card" :class="s.state.cardTone">
@@ -46,17 +44,14 @@
               <span class="session-badge" :class="s.state.badgeTone">{{ s.state.label }}</span>
             </div>
             <div class="session-window">
-              时间窗 {{ s.windowText }}
-              <el-tag v-if="s.assignedOnly" size="mini" type="warning" effect="plain" style="margin-left:6px">指定人员</el-tag>
+              截止时间：{{ s.windowText }}
+              <el-tag v-if="s.expired" size="mini" type="info" effect="plain" style="margin-left:6px">已截止</el-tag>
+              <el-tag v-if="s.assigned" size="mini" type="warning" effect="plain" style="margin-left:6px">指定人员</el-tag>
             </div>
             <div class="session-rows">
-              <div class="session-row">
-                <span>理论环节</span>
-                <b :class="stageTone(s.theory)">{{ stageText(s.theory) }}</b>
-              </div>
-              <div class="session-row">
-                <span>实操环节</span>
-                <b :class="stageTone(s.practice)">{{ stageText(s.practice) }}</b>
+              <div v-for="exam in s.exams" :key="exam.examId" class="session-row">
+                <span>{{ exam.examType === 'PRACTICAL' ? '实操考核' : '理论考核' }}</span>
+                <b :class="stageTone(exam)">{{ stageText(exam) }}</b>
               </div>
             </div>
             <div class="session-foot">
@@ -72,17 +67,12 @@
             </div>
           </div>
         </div>
-
-        <div class="pm-note">
-          <b>阶段性多次参加：</b>每个批次是独立计分单位，同一实习生可在多个批次分阶段参加；已通过批次成绩长期保留，未通过可在后续批次（补考场）重考。
-          场次分组依据考核名称中的批次 / 期次标识（示例解析），建议后端补批次字段后在列表接口直接返回。
-        </div>
       </section>
 
       <!-- ③ 备考资料 -->
       <section v-if="!isFormal" class="pm-card">
         <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">资</span><h3>备考资料</h3><span class="pm-hint">部门管理员上传 · 当前批次</span></div>
+          <div class="pm-title"><span class="pm-idx">资</span><h3>备考资料</h3></div>
           <el-button size="mini" icon="el-icon-notebook-2" @click="goGuide">打开备考资料页</el-button>
         </div>
         <div class="file-row">
@@ -92,7 +82,7 @@
         </div>
       </section>
 
-      <!-- ④⑤⑥ 资格校验 + 两个环节 -->
+      <!-- ④ 资格校验 -->
       <div v-if="!isFormal" class="trip-grid">
         <section class="pm-card">
           <div class="pm-head compact">
@@ -116,55 +106,25 @@
               <b>{{ remainTimes }} 次<em class="dsample">示例</em></b>
             </div>
           </div>
-          <div class="pm-note">
-            {{ learningGap ? '还差 ' + learningGap + '% 完成率解锁。建议先完成剩余必修章节。' : '学习门槛已满足，可在开放场次内参加考试。' }}
-          </div>
-        </section>
-
-        <section class="pm-card">
-          <div class="pm-head compact">
-            <div class="pm-title"><span class="pm-idx">5</span><h3>理论考试</h3></div>
-            <span class="session-badge info">线上考试</span>
-          </div>
-          <div class="kv-list">
-            <div class="row"><span>考试时长</span><b>{{ theoryMeta.duration }}<em class="dsample">示例</em></b></div>
-            <div class="row"><span>通过分 / 总分</span><b>{{ theoryMeta.passLine }} / 100 分</b></div>
-            <div class="row"><span>题目数量</span><b>{{ theoryMeta.questionCount }} 题</b></div>
-            <div class="row"><span>考试题型</span><b>单选 + 多选 + 判断</b></div>
-          </div>
-          <div class="pm-note">知识模块按批次规则抽题；进入后由后端随机组卷，交卷自动判分。</div>
-        </section>
-
-        <section class="pm-card">
-          <div class="pm-head compact">
-            <div class="pm-title"><span class="pm-idx purple">6</span><h3>实操考试</h3></div>
-            <span class="session-badge purple">线上提交</span>
-          </div>
-          <div class="kv-list">
-            <div class="row"><span>考试时长</span><b>{{ practiceMeta.duration }}<em class="dsample">示例</em></b></div>
-            <div class="row"><span>通过分 / 总分</span><b>{{ practiceMeta.passLine }} / 100 分</b></div>
-            <div class="row"><span>题目数量</span><b>{{ practiceMeta.questionCount }} 题</b></div>
-            <div class="row"><span>作答方式</span><b>上传文件包</b></div>
-          </div>
-          <div class="pm-note">实操题目在进入考试后直看；提交后由管理员人工批阅。</div>
         </section>
       </div>
 
-      <!-- 历史场次（正式实习生 / 已结束场次回看） -->
-      <section v-if="isFormal || sessions.length === 0" class="pm-card">
+      <!-- 历史场次（已参加的考核；通过与否都可查看详情） -->
+      <section v-if="isFormal || recordExams.length || sessions.length === 0" class="pm-card">
         <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">录</span><h3>考核记录</h3><span class="pm-hint">只读 · 含批阅中的记录</span></div>
+          <div class="pm-title"><span class="pm-idx">录</span><h3>考核记录</h3></div>
+          <el-button size="mini" icon="el-icon-refresh" @click="loadList">刷新</el-button>
         </div>
-        <div v-if="!visibleExams.length" class="pm-empty"><i class="el-icon-document" /><span>{{ isFormal ? '暂无历史考核记录' : '暂无可参加的考核' }}</span></div>
+        <div v-if="!recordExams.length" class="pm-empty"><i class="el-icon-document" /><span>{{ isFormal ? '暂无历史考核记录' : '暂无考核记录，先在上方场次里参加考核' }}</span></div>
         <table v-else class="pm-table">
-          <thead><tr><th>考核名称</th><th>环节</th><th>状态</th><th>成绩</th><th>操作</th></tr></thead>
+          <thead><tr><th>考核名称</th><th>类别</th><th>状态</th><th>成绩</th><th>操作</th></tr></thead>
           <tbody>
-            <tr v-for="exam in visibleExams" :key="exam.examId">
+            <tr v-for="exam in recordExams" :key="exam.examId">
               <td class="ellipsis">{{ exam.examName }}</td>
               <td>{{ exam.examType === 'PRACTICAL' ? '实操' : '理论' }}</td>
               <td><el-tag size="mini" effect="plain" :type="rowState(exam).tag">{{ rowState(exam).text }}</el-tag></td>
               <td>{{ exam.sheet && exam.sheet.status === 'PUBLISHED' ? exam.sheet.finalScore : '--' }}</td>
-              <td><el-button type="text" size="mini" @click="goResult">查看成绩</el-button></td>
+              <td><el-button type="text" size="mini" @click="goResult({ exams: [exam] })">{{ exam.sheet && exam.sheet.status === 'PUBLISHED' ? '查看成绩' : '查看详情' }}</el-button></td>
             </tr>
           </tbody>
         </table>
@@ -174,24 +134,92 @@
     <!-- 阶段二：作答 -->
     <template v-else-if="stage === 'exam'">
       <header class="exam-heading">
-        <div><span class="eyebrow">ANSWERING</span><h1>{{ currentExamName }}</h1><p>{{ examType === 'PRACTICAL' ? '阅读题干，上传作答文件后交卷' : '共 ' + questions.length + ' 题 · 请完成后点击交卷' }}</p></div>
-        <div v-if="examType === 'THEORY'" class="exam-progress"><el-progress :percentage="progress" :stroke-width="8" /></div>
+        <div>
+          <span class="eyebrow">ANSWERING</span>
+          <h1>{{ currentExamName }}</h1>
+        </div>
+        <div class="exam-head-right">
+          <div v-if="remainingSeconds > 0" class="countdown" :class="countdownTone">
+            <i class="el-icon-alarm-clock" />
+            <span>剩余</span>
+            <b>{{ countdownText }}</b>
+          </div>
+          <div v-if="examType === 'THEORY'" class="exam-progress"><el-progress :percentage="progress" :stroke-width="8" /></div>
+        </div>
       </header>
 
-      <!-- 实操考核 -->
+      <!-- 实操考核：逐题展示题干/描述/参考/附件，并逐题上传作答文件 -->
       <div v-if="examType === 'PRACTICAL'" class="subject-card">
-        <div class="subject-label">实操题干</div>
-        <div class="subject-content">{{ subjectContent }}</div>
-        <div v-if="subjectAttachment" class="subject-attachment">
-          <span>参考附件：</span>
-          <a :href="baseApi + subjectAttachment" target="_blank" class="attachment-link"><i class="el-icon-paperclip" /> 点击查看 / 下载</a>
+        <div class="subject-head">
+          <span class="subject-label">实操题目（共 {{ subjectItems.length }} 道 · 请逐题上传作答文件）</span>
+          <span class="subject-progress" :class="{ done: uploadedCount === subjectItems.length && subjectItems.length > 0 }">
+            已上传 {{ uploadedCount }} / {{ subjectItems.length }} 题
+          </span>
         </div>
-        <div class="subject-upload">
-          <span class="upload-label">请上传作答文件：</span>
-          <el-upload :auto-upload="false" :limit="1" :show-file-list="true" accept="*" :on-change="onSubjectFile">
-            <el-button size="small" icon="el-icon-upload">上传作答文件</el-button>
-          </el-upload>
-          <span v-if="subjectFile" class="uploaded-name"><i class="el-icon-check" /> 文件已上传</span>
+
+        <div v-if="!subjectItems.length" class="subject-empty">
+          <i class="el-icon-warning-outline" />
+          <span>本次实操考核暂未配置题目，请联系管理员</span>
+        </div>
+
+        <div v-for="(s, index) in subjectItems" :key="s.itemId || s.subjectItemId || index" class="subject-q">
+          <!-- 左卡片：描述 + 附件 + 上传按钮 -->
+          <div class="s-q-left">
+            <div class="s-q-head">
+              <span class="s-q-index">{{ index + 1 }}</span>
+              <div class="s-q-title">{{ s.title }}</div>
+              <span class="s-q-score">{{ s.score || 0 }} 分</span>
+            </div>
+            <div v-if="s.description" class="s-q-stem">{{ s.description }}</div>
+
+            <div v-if="subjectAttachments(s).length" class="s-q-attach">
+              <span class="s-q-attach-label">参考附件：</span>
+              <a
+                v-for="(a, i) in subjectAttachments(s)"
+                :key="i"
+                :href="baseApi + a.url"
+                target="_blank"
+                class="attachment-link"
+              ><i class="el-icon-paperclip" /> {{ a.name }}</a>
+            </div>
+
+            <div class="s-q-upload" :class="{ ok: !!subjectFiles[s.subjectItemId] }">
+              <el-upload
+                :auto-upload="false"
+                :limit="1"
+                :show-file-list="false"
+                accept="*"
+                :on-change="file => onSubjectItemFile(s, file)"
+              >
+                <el-button size="small" icon="el-icon-upload2" :loading="uploadingItemId === s.subjectItemId">
+                  {{ subjectFiles[s.subjectItemId] ? '重新上传' : '上传作答文件' }}
+                </el-button>
+              </el-upload>
+              <span v-if="subjectFiles[s.subjectItemId]" class="uploaded-name">
+                <i class="el-icon-check" /> {{ subjectFiles[s.subjectItemId].name }}
+              </span>
+              <span v-else class="upload-waiting">本题尚未上传作答文件</span>
+            </div>
+          </div>
+
+          <!-- 右卡片：参考图 -->
+          <div class="s-q-right">
+            <div class="s-q-right-label">参考图</div>
+            <div v-if="subjectImages(s).length" class="s-q-images">
+              <template v-for="(img, i) in subjectImages(s)">
+                <video v-if="isVideo(img.url)" :key="'v' + i" :src="baseApi + img.url" controls class="s-q-image s-q-video" />
+                <el-image
+                  v-else
+                  :key="'i' + i"
+                  :src="baseApi + img.url"
+                  :preview-src-list="subjectPreview(s)"
+                  fit="cover"
+                  class="s-q-image"
+                />
+              </template>
+            </div>
+            <div v-else class="s-q-no-image">暂无参考图</div>
+          </div>
         </div>
       </div>
 
@@ -247,9 +275,16 @@ import { listLearningCourses } from '@/api/business/learning'
 import { learningSummary, formatLearningDuration } from '@/utils/learningPreview'
 import { mapGetters } from 'vuex'
 
-/** 环节默认值（exam 列表接口暂未返回时长/题量，页面标注「示例」） */
-const DEMO_THEORY = { duration: '60 分钟', questionCount: 20, passLine: 60 }
-const DEMO_PRACTICE = { duration: '180 分钟', questionCount: 2, passLine: 60 }
+/** 解析后端 [{name,url}] 形式的 JSON 字段（实操题目的参考 / 附件） */
+function parseJsonList(json) {
+  if (!json) return []
+  try {
+    const arr = typeof json === 'string' ? JSON.parse(json) : json
+    return Array.isArray(arr) ? arr : []
+  } catch (e) {
+    return []
+  }
+}
 /** 剩余考试次数（批次规则未接接口，页面标注「示例」） */
 const DEMO_REMAIN_TIMES = 2
 
@@ -262,13 +297,20 @@ export default {
       exams: [],
       currentExamName: '',
       examType: 'THEORY',
-      subjectContent: '',
-      subjectAttachment: '',
-      subjectFile: '',
+      /** 实操题目清单（后端下发：题干 / 描述 / 参考 / 附件 / 满分） */
+      subjectItems: [],
+      /** 逐题作答文件：{ [subjectItemId]: { path, name } } */
+      subjectFiles: {},
+      uploadingItemId: null,
       sheetId: null,
       questions: [],
       answers: [],
       submitting: false,
+      /** 剩余作答秒数（服务端下发；0 = 不限时，不启动倒计时） */
+      remainingSeconds: 0,
+      countdownTimer: null,
+      /** 列表成绩静默轮询定时器（发布成绩后自动刷新用） */
+      refreshTimer: null,
       learningOverview: { progress: null, courseCount: 0, completedCourses: 0, learningCourses: 0, completedItems: 0, itemCount: 0, lastStudyTime: '尚未开始' }
     }
   },
@@ -276,7 +318,13 @@ export default {
     ...mapGetters(['roles', 'protocolStatus', 'deptName']),
     baseApi() { return process.env.VUE_APP_BASE_API || '' },
     isFormal() { return this.roles.indexOf('FORMAL_TRAINEE') > -1 },
-    visibleExams() { return this.isFormal ? this.exams.filter(exam => !!exam.sheet) : this.exams },
+    /**
+     * 考核记录：本人真正参加过的考核（有答卷且已交卷）。
+     * 通过与否都进这张表，未通过的也能点「查看详情」进结果页。
+     */
+    recordExams() {
+      return this.exams.filter(exam => exam.sheet && exam.sheet.status !== 'IN_PROGRESS')
+    },
     examMode() { return this.$route.name === 'InternMockExam' ? 'PRACTICE' : 'FORMAL' },
     progress() {
       const answered = this.answers.filter(a => {
@@ -284,6 +332,10 @@ export default {
         return !!a
       }).length
       return this.questions.length ? Math.round(answered / this.questions.length * 100) : 0
+    },
+    /** 实操：已上传作答文件的题目数 */
+    uploadedCount() {
+      return this.subjectItems.filter(s => !!this.subjectFiles[s.subjectItemId]).length
     },
     learningProgress() { return this.learningOverview.progress === null ? 0 : this.learningOverview.progress },
     learningGap() { return Math.max(0, 70 - this.learningProgress) },
@@ -294,16 +346,10 @@ export default {
       const map = {}
       this.exams.forEach(exam => {
         const key = this.batchKeyOf(exam)
-        if (!map[key]) map[key] = { key, name: key, exams: [], theory: null, practice: null }
+        if (!map[key]) map[key] = { key, name: key, exams: [] }
         map[key].exams.push(exam)
-        if (exam.examType === 'PRACTICAL') map[key].practice = exam
-        else map[key].theory = exam
       })
       return Object.keys(map).map(key => this.decorateSession(map[key]))
-    },
-    /** 是否有场次缺时间窗（缺则打示例标记） */
-    hasSampleWindow() {
-      return this.sessions.some(s => !s.exams.some(e => e.startTime || e.endTime))
     },
     attendedCount() { return this.sessions.filter(s => s.attended).length },
     passedCount() { return this.sessions.filter(s => s.passed).length },
@@ -321,21 +367,20 @@ export default {
       const running = this.sessions.find(s => s.running)
       return running ? '● ' + running.name + ' 进行中' : '● 暂无进行中场次'
     },
-    theoryMeta() {
-      const theory = this.sessions.map(s => s.theory).filter(Boolean)[0]
-      return {
-        duration: DEMO_THEORY.duration,
-        questionCount: (theory && theory.questionCount) || DEMO_THEORY.questionCount,
-        passLine: (theory && theory.passLine) || DEMO_THEORY.passLine
-      }
+    /** 倒计时展示：≥1 小时用 HH:MM:SS，否则 MM:SS */
+    countdownText() {
+      const total = this.remainingSeconds
+      const h = Math.floor(total / 3600)
+      const m = Math.floor((total % 3600) / 60)
+      const s = total % 60
+      const pad = n => (n < 10 ? '0' + n : '' + n)
+      return h > 0 ? pad(h) + ':' + pad(m) + ':' + pad(s) : pad(m) + ':' + pad(s)
     },
-    practiceMeta() {
-      const practice = this.sessions.map(s => s.practice).filter(Boolean)[0]
-      return {
-        duration: DEMO_PRACTICE.duration,
-        questionCount: DEMO_PRACTICE.questionCount,
-        passLine: (practice && practice.passLine) || DEMO_PRACTICE.passLine
-      }
+    /** 倒计时紧迫度：≤1 分钟红、≤5 分钟橙 */
+    countdownTone() {
+      if (this.remainingSeconds <= 60) return 'danger'
+      if (this.remainingSeconds <= 300) return 'warn'
+      return ''
     }
   },
   created() {
@@ -344,16 +389,35 @@ export default {
   },
   mounted() {
     window.addEventListener('beforeunload', this.handleBeforeUnload)
+    // 管理员发布成绩后，实习生这边要"及时"看到分数：
+    // ① 回到本页（keep-alive 激活）/ 切回浏览器标签 / 窗口重新聚焦时静默拉一次；
+    // ② 停留在列表页时每 30s 轮询一次。
+    this.refreshTimer = setInterval(this.refreshSilently, 30000)
+    document.addEventListener('visibilitychange', this.onVisible)
+    window.addEventListener('focus', this.onFocus)
+  },
+  activated() {
+    // 本页可能被 keep-alive 缓存，切回页签时重新取一次成绩
+    this.refreshSilently()
   },
   beforeDestroy() {
     window.removeEventListener('beforeunload', this.handleBeforeUnload)
+    window.removeEventListener('focus', this.onFocus)
+    document.removeEventListener('visibilitychange', this.onVisible)
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer)
+      this.refreshTimer = null
+    }
+    this.clearCountdown()
   },
   beforeRouteLeave(to, from, next) {
     if (this.stage === 'exam' && !this.submitting) {
       this.$modal.confirm('退出后本次作答进度不会保存，也不会自动交卷，确定退出吗？').then(() => {
+        this.clearCountdown()
         next()
       }).catch(() => next(false))
     } else {
+      this.clearCountdown()
       next()
     }
   },
@@ -365,6 +429,19 @@ export default {
         this.loading = false
       }).catch(() => { this.loading = false })
     },
+    /** 静默刷新：不显示 loading、不打断答题界面，仅在列表页生效 */
+    refreshSilently() {
+      if (this.stage !== 'list' || document.hidden) return
+      myExamList(this.examMode).then(res => {
+        this.exams = res.data || []
+      }).catch(() => {})
+    },
+    onVisible() {
+      if (!document.hidden) this.refreshSilently()
+    },
+    onFocus() {
+      this.refreshSilently()
+    },
     loadLearning() {
       listLearningCourses().then(res => {
         this.learningOverview = learningSummary(res.data || [])
@@ -372,60 +449,112 @@ export default {
         this.learningOverview = learningSummary([])
       })
     },
-    /** 时间窗展示：2026-10-08 09:00 ~ 2026-10-20 18:00 */
-    fmtWindow(start, end) {
-      const f = v => v ? String(v).replace('T', ' ').slice(0, 16) : '--'
-      return f(start) + ' ~ ' + f(end)
+    /**
+     * 解析后端时间串（兼容 "2026-10-20T18:00:00" 与 "2026-10-20 18:00:00"）。
+     * 统一换成 "y/m/d h:m:s" 再交给 Date，避免部分浏览器把带 "-" 的日期串当 UTC 或直接判为 Invalid。
+     */
+    parseTime(v) {
+      if (!v) return null
+      const t = new Date(String(v).replace('T', ' ').replace(/-/g, '/')).getTime()
+      return isNaN(t) ? null : t
+    },
+    /**
+     * 是否已过截止时间（后端 startExam 也会拦，这里让列表同步显示，避免"能点但点了报错"）。
+     * **优先用后端下发的 `expired`**——它按服务器时间算，不受本机时钟偏差影响；
+     * 仅在字段缺失时（老接口）才回退到客户端时间。
+     */
+    isExpired(exam) {
+      if (exam && typeof exam.expired === 'boolean') return exam.expired
+      const t = this.parseTime(exam && exam.endTime)
+      return t !== null && t < Date.now()
+    },
+    /** 截止时间展示：2026-10-20 18:00；未设置截止时间则「不限」 */
+    fmtDeadline(end) {
+      return end ? String(end).replace('T', ' ').slice(0, 16) : '不限'
     },
     batchKeyOf(exam) {
       const name = exam.examName || '未命名场次'
       const matched = name.match(/(\d{4}Q\d)|(第[一二三四五六七八九十\d]+[期批场])/)
       return matched ? matched[0] : name
     },
-    /** 场次状态机：已通过 / 待批阅 / 进行中 / 已结束 / 未解锁 */
+    /** 场次状态机：已通过 / 待批阅 / 进行中 / 已截止 / 已结束 / 未解锁 */
     decorateSession(session) {
-      const sheets = session.exams.map(e => e.sheet).filter(Boolean)
+      // 作答中(IN_PROGRESS)的答卷视为「未提交」：答题时离开/刷新页面不保留进度、不交卷，
+      // 遗留的 IN_PROGRESS 答卷不计入「已参加」，回到列表仍显示「开始考试」（后端 startExam 会作废重开）。
+      const sheets = session.exams.map(e => e.sheet).filter(s => s && s.status !== 'IN_PROGRESS')
       const published = sheets.filter(s => s.status === 'PUBLISHED')
-      const passed = published.length > 0 && published.every(s => s.passFlag === 1)
+      // 「已通过」必须等本场次**所有**环节都出分且都通过：
+      // 只看 published 会让"一个环节已发布通过、另一个还在批阅"的场次提前显示已通过，
+      // 管理员发布另一环节后分数变了，列表看起来就像"没更新"。
+      const allPublished = sheets.length > 0 && sheets.length === session.exams.length &&
+        published.length === sheets.length
+      const passed = allPublished && published.every(s => s.passFlag === 1)
       const pending = sheets.some(s => s.status !== 'PUBLISHED')
-      const openExam = session.exams.find(e => !e.sheet && e.status === 'PUBLISHED')
-      const ended = session.exams.length > 0 && session.exams.every(e => !e.sheet && e.status !== 'PUBLISHED')
+      // 已过截止时间的考核不再算「可开考」——否则按钮可点、点下去才被后端以「该考核已截止」拒绝
+      const openExam = session.exams.find(e =>
+        e.status === 'PUBLISHED' && (!e.sheet || e.sheet.status === 'IN_PROGRESS') && !this.isExpired(e))
+      const ended = session.exams.length > 0 && session.exams.every(e => e.status !== 'PUBLISHED' && (!e.sheet || e.sheet.status === 'IN_PROGRESS'))
       const attended = sheets.length > 0
       const running = !attended && !!openExam
+      // 「已截止」只在本场次还有过期考核、且已无任何可开考的考核时成立
+      const expired = !attended && !openExam && session.exams.some(e => e.status === 'PUBLISHED' && this.isExpired(e))
 
       let state
       if (passed) state = { label: '已通过', tone: 'good', cardTone: 'done', badgeTone: 'ok' }
       else if (attended && pending) state = { label: '待批阅', tone: 'warn', cardTone: '', badgeTone: 'warn' }
       else if (running) state = { label: '进行中', tone: 'info', cardTone: 'running', badgeTone: 'info' }
+      else if (expired) state = { label: '已截止', tone: 'muted', cardTone: '', badgeTone: 'muted' }
       else if (attended) state = { label: '已结束', tone: 'muted', cardTone: '', badgeTone: 'muted' }
       else if (ended) state = { label: '已结束', tone: 'muted', cardTone: '', badgeTone: 'muted' }
       else state = { label: '未开始', tone: 'muted', cardTone: 'idle', badgeTone: 'muted' }
 
-      const windows = session.exams
-        .map(e => (e.startTime || e.endTime) ? this.fmtWindow(e.startTime, e.endTime) : '')
-        .filter(t => !!t)
+      // 截止时间：同一场次有多个考核时取**最早（最紧）**的那个；全都没设则「不限」
+      let deadlineRaw = null
+      let deadlineTs = null
+      session.exams.forEach(e => {
+        const ts = this.parseTime(e.endTime)
+        if (ts !== null && (deadlineTs === null || ts < deadlineTs)) {
+          deadlineTs = ts
+          deadlineRaw = e.endTime
+        }
+      })
+
+      let footText
+      // 已出分环节的得分合计：把数字直接摆到场次卡上，管理员发布后一眼能看到变化
+      const scored = published.reduce((acc, s) => acc + (Number(s.finalScore) || 0), 0)
+      if (passed) footText = '综合结果 已通过 · 得分合计 ' + scored
+      else if (attended) footText = published.length
+        ? '已出分 ' + published.length + '/' + sheets.length + ' 项 · 得分合计 ' + scored
+        : '已完成 ' + sheets.length + ' 项考核'
+      else if (running) footText = '剩余次数 ' + this.remainTimes + ' 次'
+      else if (expired) footText = '已过截止时间'
+      else footText = '未解锁'
+
       const assignedOnly = session.exams.some(e => e.assigned)
       return Object.assign({}, session, {
         state,
         attended,
         passed,
         running,
+        expired,
         assignedOnly,
-        windowText: windows.length ? windows[0] : '以管理员发布为准',
-        footText: passed ? '综合结果 已通过' : (attended ? '已完成 ' + sheets.length + ' 个环节' : (running ? '剩余次数 ' + this.remainTimes + ' 次' : '未解锁')),
-        action: this.buildAction(session, { passed, running, attended, openExam })
+        windowText: deadlineRaw ? this.fmtDeadline(deadlineRaw) : '不限',
+        footText,
+        action: this.buildAction(session, { passed, running, attended, openExam, expired })
       })
     },
     buildAction(session, ctx) {
-      if (ctx.passed) return { label: '查看成绩', primary: false, disabled: false, run: () => this.goResult() }
-      if (ctx.attended) return { label: '已提交', primary: false, disabled: true, run: () => {} }
-      if (ctx.openExam && this.qualified) {
+      // 已参加过的场次一律可点开看详情：通过的看成绩，未通过的看作答与批阅明细。
+      // 以前这里对 attended 直接 disabled，导致"没通过的考核看不到任何详情"。
+      if (ctx.attended) {
+        return { label: ctx.passed ? '查看成绩' : '查看详情', primary: false, disabled: false, run: () => this.goResult(session) }
+      }
+      if (ctx.expired) return { label: '已截止', primary: false, disabled: true, run: () => {} }
+      // 【临时】停用资质审核门槛（学习进度≥70% + 保密协议），开放考试入口；提交前请还原为 qualified 判断
+      if (ctx.openExam) {
         return { label: '开始考试', primary: true, disabled: false, run: () => this.startExam(ctx.openExam) }
       }
-      if (ctx.openExam && !this.qualified) {
-        return { label: '未解锁', primary: false, disabled: true, run: () => {} }
-      }
-      if (ctx.running) return { label: '查看成绩', primary: false, disabled: false, run: () => this.goResult() }
+      if (ctx.running) return { label: '查看成绩', primary: false, disabled: false, run: () => this.goResult(session) }
       return { label: '未开始', primary: false, disabled: true, run: () => {} }
     },
     stageText(exam) {
@@ -434,21 +563,25 @@ export default {
         return (exam.sheet.passFlag === 1 ? '已通过 ' : '未通过 ') + exam.sheet.finalScore + ' 分'
       }
       if (exam.sheet) return '批阅中'
-      if (exam.status === 'PUBLISHED') return '已开放 · 可参加'
+      if (exam.status === 'PUBLISHED') return this.isExpired(exam) ? '已截止' : '已开放 · 可参加'
       return '未发布'
     },
     stageTone(exam) {
       if (!exam) return 'muted'
       if (exam.sheet && exam.sheet.status === 'PUBLISHED') return exam.sheet.passFlag === 1 ? 'good' : 'warn'
       if (exam.sheet) return 'warn'
-      return exam.status === 'PUBLISHED' ? 'info' : 'muted'
+      if (exam.status !== 'PUBLISHED') return 'muted'
+      return this.isExpired(exam) ? 'muted' : 'info'
     },
     rowState(exam) {
       if (exam.sheet && exam.sheet.status === 'PUBLISHED') {
         return { text: exam.sheet.passFlag === 1 ? '已通过' : '未通过', tag: exam.sheet.passFlag === 1 ? 'success' : 'danger' }
       }
       if (exam.sheet) return { text: '批阅中', tag: 'warning' }
-      return exam.status === 'PUBLISHED' ? { text: '可参加', tag: 'success' } : { text: '已结束', tag: 'info' }
+      if (exam.status === 'PUBLISHED') {
+        return this.isExpired(exam) ? { text: '已截止', tag: 'info' } : { text: '可参加', tag: 'success' }
+      }
+      return { text: '已结束', tag: 'info' }
     },
     formatDuration(minutes) { return formatLearningDuration(minutes) },
     startExam(exam) {
@@ -458,27 +591,81 @@ export default {
         this.sheetId = data.sheetId
         this.currentExamName = data.examName
         this.examType = data.examType || 'THEORY'
-        this.subjectContent = data.subjectContent || ''
-        this.subjectAttachment = data.subjectAttachment || ''
-        this.subjectFile = ''
+        this.subjectItems = data.subjectItems || []
+        this.subjectFiles = {}
+        this.uploadingItemId = null
         this.questions = data.questions || []
         this.answers = this.questions.map(q => q.qtype === 'MULTI' ? [] : '')
         this.loading = false
         this.stage = 'exam'
+        // 服务端下发剩余作答秒数：> 0 才启动倒计时（0 = 不限时）
+        this.startCountdown(Number(data.remainingSeconds) || 0)
       }).catch(() => { this.loading = false })
     },
-    onSubjectFile(file) {
+    /** 启动倒计时（以服务端剩余秒数为基准，本地每秒递减） */
+    startCountdown(seconds) {
+      this.clearCountdown()
+      this.remainingSeconds = seconds > 0 ? seconds : 0
+      if (this.remainingSeconds <= 0) {
+        return
+      }
+      this.countdownTimer = setInterval(() => {
+        if (this.remainingSeconds <= 1) {
+          this.remainingSeconds = 0
+          this.clearCountdown()
+          this.onTimeUp()
+          return
+        }
+        this.remainingSeconds -= 1
+      }, 1000)
+    },
+    clearCountdown() {
+      if (this.countdownTimer) {
+        clearInterval(this.countdownTimer)
+        this.countdownTimer = null
+      }
+    },
+    /**
+     * 倒计时归零：提示「将自动提交」，确认后自动交卷并返回考核列表。
+     * 注意：旧写法 `this.$modal.alert(x).catch(...)` 会因 alert 没 return 而抛
+     * TypeError（异常在定时器回调里被静默吞掉，导致后面的 doSubmit 根本不执行）。
+     */
+    onTimeUp() {
+      if (this.stage !== 'exam' || this.submitting) {
+        return
+      }
+      this.clearCountdown()
+      this.remainingSeconds = 0
+      this.$modal.confirmOnly('考试时间已到，将自动提交本次作答。').then(() => {
+        this.doSubmit('back')
+      }).catch(() => {})
+    },
+    /** 实操：逐题上传作答文件（每题一份） */
+    onSubjectItemFile(subject, file) {
       const formData = new FormData()
       formData.append('file', file.raw)
+      this.uploadingItemId = subject.subjectItemId
       uploadFile(formData).then(res => {
-        this.subjectFile = res.fileName
-        this.$modal.msgSuccess('作答文件上传成功')
-      })
+        // 用 $set 写入对象新键，保证视图响应式更新
+        this.$set(this.subjectFiles, subject.subjectItemId, { path: res.fileName, name: file.name })
+        this.uploadingItemId = null
+        this.$modal.msgSuccess('第 ' + subject.seq + ' 题作答文件上传成功')
+      }).catch(() => { this.uploadingItemId = null })
     },
+    /** 实操题目参考 / 附件（后端下发 JSON 字符串） */
+    subjectImages(s) { return parseJsonList(s.referenceImages) },
+    subjectAttachments(s) { return parseJsonList(s.attachments) },
+    subjectPreview(s) { return this.subjectImages(s).filter(i => !this.isVideo(i.url)).map(i => this.baseApi + i.url) },
+    isVideo(url) { return /\.(mp4|webm|ogg|ogv|mov|avi|m4v)$/i.test(String(url || '')) },
     submitExam() {
       if (this.examType === 'PRACTICAL') {
-        if (!this.subjectFile) {
+        const missing = this.subjectItems.filter(s => !this.subjectFiles[s.subjectItemId])
+        if (missing.length === this.subjectItems.length) {
           this.$modal.msgWarning('请先上传作答文件')
+          return
+        }
+        if (missing.length) {
+          this.$modal.confirm('还有 ' + missing.length + ' 道题未上传作答文件，确定交卷吗？').then(() => this.doSubmit()).catch(() => {})
           return
         }
         this.$modal.confirm('确认提交作答文件吗？提交后不可修改。').then(() => this.doSubmit()).catch(() => {})
@@ -494,11 +681,19 @@ export default {
       }
       this.doSubmit()
     },
-    doSubmit() {
+    /**
+     * 交卷。
+     * @param {String} [done] 传 'back' 表示倒计时到点自动交卷：提交成功后直接回考核列表；
+     *                        不传则走「作答完成」页（手动点「交卷」）。
+     */
+    doSubmit(done) {
       this.submitting = true
       let answers
       if (this.examType === 'PRACTICAL') {
-        answers = [{ questionId: '0', userAnswer: this.subjectFile }]
+        // 逐题交卷：questionId 传实操题目ID，后端按题对齐写入作答明细
+        answers = this.subjectItems
+          .filter(s => !!this.subjectFiles[s.subjectItemId])
+          .map(s => ({ questionId: String(s.subjectItemId), userAnswer: this.subjectFiles[s.subjectItemId].path }))
       } else {
         answers = this.questions.map((q, i) => {
           const ans = this.answers[i]
@@ -507,16 +702,43 @@ export default {
       }
       submitExam({ sheetId: this.sheetId, answers }).then(() => {
         this.submitting = false
-        this.stage = 'done'
-      }).catch(() => { this.submitting = false })
+        this.clearCountdown()
+        this.remainingSeconds = 0
+        if (done === 'back') {
+          // 自动交卷：直接回考核列表（loadList 会带上最新答卷状态）
+          this.stage = 'list'
+          this.loadList()
+        } else {
+          this.stage = 'done'
+        }
+      }).catch(() => {
+        this.submitting = false
+        // 自动交卷必须让用户看见失败并有机会重试，不能静默吞掉
+        if (done === 'back') {
+          this.$modal.alertError('自动提交失败，请点击「交卷」重试。').catch(() => {})
+        }
+      })
     },
     backToList() {
       this.$modal.confirm('退出后本次作答进度不会保存，也不会自动交卷，确定退出吗？').then(() => {
+        this.clearCountdown()
+        this.remainingSeconds = 0
         this.stage = 'list'
         this.loadList()
       }).catch(() => {})
     },
-    goResult() { this.$router.push('/assessment/intern/learning/result') },
+    /**
+     * 查看成绩：带上本场次内所有考核ID，跳到「单场考核结果」页（只展示这一场）。
+     * 不带参（或误传事件对象）时退回全部成绩页。
+     */
+    goResult(session) {
+      const ids = ((session && session.exams) || []).map(e => e.examId).filter(id => id != null)
+      if (!ids.length) {
+        this.$router.push('/assessment/intern/learning/result')
+        return
+      }
+      this.$router.push({ path: '/assessment/intern/learning/exam-result', query: { exams: ids.join(',') } })
+    },
     goGuide() { this.$router.push('/assessment/intern/learning/guide') },
     goBack() {
       this.$router.push('/index')
@@ -531,10 +753,10 @@ export default {
       try { return JSON.parse(json || '[]') } catch (e) { return [] }
     },
     typeLabel(qtype) {
-      return { SINGLE: '单选', MULTI: '多选', JUDGE: '判断' }[qtype] || qtype
+      return { SINGLE: '单选', MULTI: '多选', JUDGE: '判断', SUBJECT: '主观' }[qtype] || qtype
     },
     typeTag(qtype) {
-      return { SINGLE: 'success', MULTI: 'warning', JUDGE: 'primary' }[qtype] || 'info'
+      return { SINGLE: 'success', MULTI: 'warning', JUDGE: 'primary', SUBJECT: 'info' }[qtype] || 'info'
     }
   }
 }
@@ -548,8 +770,13 @@ export default {
 .exam-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .eyebrow { color: #1764f5; font-size: 11px; letter-spacing: .08em; }
 .exam-heading h1 { margin: 5px 0 7px; color: #1d2939; font-size: 26px; font-weight: 600; }
-.exam-heading p { margin: 0; color: #667085; font-size: 13px; }
 .exam-progress { width: 240px; }
+.exam-head-right { display: flex; align-items: center; gap: 16px; }
+.countdown { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; color: #1764f5; background: #e8f1fd; font-size: 13px; border-radius: 18px; }
+.countdown b { font-size: 16px; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.countdown.warn { color: #b54708; background: #fff4e5; }
+.countdown.danger { color: #b42318; background: #fee4e2; animation: cd-blink 1s steps(2, start) infinite; }
+@keyframes cd-blink { 50% { opacity: .55; } }
 .head-badge { display: inline-flex; height: 26px; align-items: center; padding: 0 12px; color: #1a7a58; background: #e4f5ee; font-size: 12px; border-radius: 13px; }
 
 /* ① 发布信息条 */
@@ -596,9 +823,6 @@ export default {
 .pm-idx { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; color: #1764f5; background: #e8f1fd; font-size: 12px; font-weight: 700; border-radius: 4px; }
 .pm-idx.warn { color: #b54708; background: #fff4e5; }
 .pm-idx.purple { color: #6f42c1; background: #f1ebfd; }
-.pm-hint { color: #98a2b3; font-size: 12px; }
-.pm-note { margin-top: 12px; color: #98a2b3; font-size: 11.5px; line-height: 1.7; }
-.pm-note b { color: #667085; }
 .pm-empty { display: flex; min-height: 150px; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: #98a2b3; }
 .pm-empty i { color: #b7c1cc; font-size: 32px; }
 .pm-empty span { font-size: 13px; }
@@ -609,8 +833,8 @@ export default {
 .file-name b { display: block; color: #1d2939; font-size: 13.5px; }
 .file-name span { display: block; margin-top: 4px; color: #98a2b3; font-size: 11.5px; }
 
-/* 资格校验 + 环节三卡 */
-.trip-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+/* 资格校验 */
+.trip-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
 .trip-grid .pm-card { margin-bottom: 0; }
 .chk-list { display: grid; gap: 10px; margin-top: 14px; }
 .chk { display: flex; align-items: center; gap: 8px; color: #475467; font-size: 12.5px; }
@@ -632,15 +856,38 @@ export default {
 
 /* 作答 / 完成（沿用既有实现） */
 .subject-card { padding: 20px 22px; margin-bottom: 16px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; }
-.subject-label { color: #1764f5; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
-.subject-content { color: #1d2939; font-size: 15px; line-height: 1.7; white-space: pre-wrap; }
-.subject-attachment { margin: 12px 0; color: #667085; font-size: 13px; }
+.subject-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid #edf0f4; }
+.subject-label { color: #1764f5; font-size: 12px; font-weight: 600; }
+.subject-progress { flex: none; padding: 3px 10px; color: #667085; background: #f2f4f7; font-size: 12px; border-radius: 11px; }
+.subject-progress.done { color: #1a7a58; background: #e4f5ee; }
+.subject-empty { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 30px 14px; color: #98a2b3; font-size: 13px; }
+.subject-empty i { color: #f0a020; font-size: 16px; }
 .attachment-link { color: #1764f5; text-decoration: none; }
 .attachment-link i { margin-right: 4px; }
-.subject-upload { display: flex; align-items: center; gap: 12px; padding: 14px; background: #f8fafc; border: 1px dashed #d0d5dd; border-radius: 6px; }
-.upload-label { color: #475467; font-size: 13px; }
-.uploaded-name { color: #23966f; font-size: 12px; }
+.uploaded-name { color: #23966f; font-size: 12.5px; }
 .uploaded-name i { margin-right: 3px; }
+.upload-waiting { color: #98a2b3; font-size: 12.5px; }
+/* 实操题目：左右两卡片 —— 左=描述+附件+上传，右=参考图 */
+.subject-q { display: flex; align-items: stretch; gap: 16px; padding: 16px; margin-bottom: 12px; background: #f8fafc; border: 1px solid #eef1f5; border-radius: 10px; }
+.s-q-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.s-q-right { flex: none; width: 300px; display: flex; flex-direction: column; padding: 12px 14px; background: #fff; border: 1px solid #eef1f6; border-radius: 8px; }
+.s-q-right-label { margin-bottom: 9px; color: #8490a0; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; }
+.s-q-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.s-q-index { flex: none; display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; color: #fff; background: #7a5af8; font-size: 12px; border-radius: 50%; }
+.s-q-title { flex: 1; min-width: 0; color: #1d2939; font-size: 14px; font-weight: 600; line-height: 1.6; }
+.s-q-score { flex: none; color: #1764f5; font-size: 12px; font-weight: 600; }
+.s-q-stem { margin-bottom: 10px; color: #475467; font-size: 13px; line-height: 1.75; white-space: pre-wrap; }
+.s-q-images { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.s-q-image { width: 100%; height: 108px; object-fit: cover; border: 1px solid #eef1f6; border-radius: 6px; cursor: zoom-in; background: #f2f4f7; }
+.s-q-video { object-fit: cover; background: #000; cursor: default; }
+.s-q-no-image { display: flex; align-items: center; justify-content: center; min-height: 108px; color: #b0b8c4; font-size: 12.5px; border: 1px dashed #e4e9f0; border-radius: 6px; }
+.s-q-attach { margin-bottom: 10px; color: #667085; font-size: 12.5px; }
+.s-q-attach-label { margin-right: 6px; color: #8490a0; }
+.s-q-attach .attachment-link { margin-right: 14px; }
+.s-q-upload { display: flex; align-items: center; gap: 12px; margin-top: auto; padding: 11px 13px; background: #fff; border: 1px dashed #d0d5dd; border-radius: 6px; }
+.s-q-upload.ok { background: #f6fdfa; border: 1px solid #c7ecdc; }
+.s-q-options { margin-top: 8px; display: grid; gap: 5px; }
+.s-q-option { color: #475467; font-size: 13px; line-height: 1.6; }
 .question-card { margin-bottom: 16px; padding: 20px 22px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; }
 .q-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .q-index { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; color: #fff; background: #1764f5; font-size: 13px; border-radius: 50%; }
@@ -664,5 +911,7 @@ export default {
   .session-grid { grid-template-columns: 1fr; }
   .pub-strip { gap: 16px; }
   .pub-fact.right { margin-left: 0; }
+  .subject-q { flex-direction: column; }
+  .s-q-right { width: 100%; }
 }
 </style>

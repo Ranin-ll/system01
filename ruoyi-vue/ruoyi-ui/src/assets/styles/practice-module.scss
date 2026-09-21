@@ -2,9 +2,11 @@
    模拟考核模块公共样式
    被以下独立页面以 ~@/assets/styles/practice-module.scss 引入：
    - views/assessment/practice/record.vue        理论模拟考核回顾
-   - views/assessment/practice/subject.vue       实操练习列表
    - views/assessment/practice/subjectDetail.vue 实操题详情
    视觉规范与 views/assessment/practice/index.vue（理论自测）保持一致。
+   （原 views/assessment/practice/subject.vue「实操练习列表」已删除：
+     实操题入口统一收敛到 index.vue 的「模块 › 模块内实操题」，
+     详情页「返回」回到该模块的模块内内容。）
    ========================================================================== */
 
 /* ---- 页面外壳 ---- */

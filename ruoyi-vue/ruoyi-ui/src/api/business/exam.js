@@ -38,6 +38,10 @@ export function gradingList(examId) {
 export function sheetDetail(sheetId) {
   return request({ url: '/business/answer-sheet/detail/' + sheetId, method: 'get' })
 }
+// 本人答卷详情（实习生端：通过与否都能看作答与批阅明细）
+export function mySheetDetail(sheetId) {
+  return request({ url: '/business/answer-sheet/my/detail/' + sheetId, method: 'get' })
+}
 // 批改（实操题打分）
 export function gradeSheet(data) {
   return request({ url: '/business/answer-sheet/grade', method: 'put', data })
@@ -45,6 +49,10 @@ export function gradeSheet(data) {
 // 发布成绩
 export function publishResult(examId, params) {
   return request({ url: '/business/answer-sheet/publish/' + examId, method: 'put', params })
+}
+// 重新开放批改（已发布成绩回退到批改中）
+export function reopenSheet(sheetId) {
+  return request({ url: '/business/answer-sheet/reopen/' + sheetId, method: 'put' })
 }
 
 // 实习生端
@@ -69,6 +77,22 @@ export function uploadFile(formData) {
     data: formData,
     headers: { 'Content-Type': 'multipart/form-data' }
   })
+}
+
+// ---------- 多题库组卷配置（当前主用） ----------
+// 本部门可选题库清单（含各库按题型的可用题量）
+export function listExamBankOptions(deptId) {
+  return request({ url: '/business/exam/bank-options', method: 'get', params: deptId ? { deptId } : {} })
+}
+// 按多题库组卷配置试抽一套卷（校验用，不落库）
+export function tryDrawByBanks(data) {
+  return request({ url: '/business/exam/try-draw', method: 'post', data })
+}
+
+// ---------- 正式考核发布：指定人员 ----------
+// 在培实习生花名册（「指定人员」可选名单；部门管理员只看本部门，超管可传 deptId）
+export function listExamInternOptions(deptId) {
+  return request({ url: '/business/exam/intern-options', method: 'get', params: deptId ? { deptId } : {} })
 }
 
 // ---------- 理论考试配置（知识分布 / 指定人员 / 试抽） ----------

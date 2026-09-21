@@ -3,6 +3,73 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ruoyi.business.mapper.ExamRuleMapper">
 
+    <!-- ==================== 多题库组卷配置（当前主用） ==================== -->
+
+    <resultMap type="ExamBankRule" id="BankRuleResult">
+        <id     property="id"              column="id"              />
+        <result property="examId"          column="exam_id"         />
+        <result property="bankId"          column="bank_id"         />
+        <result property="singleCount"     column="single_count"    />
+        <result property="multiCount"      column="multi_count"     />
+        <result property="judgeCount"      column="judge_count"     />
+        <result property="sortNo"          column="sort_no"         />
+        <result property="createTime"      column="create_time"     />
+        <result property="bankName"        column="bank_name"       />
+        <result property="availableSingle" column="available_single"/>
+        <result property="availableMulti"  column="available_multi" />
+        <result property="availableJudge"  column="available_judge" />
+        <result property="availableTotal"  column="available_total" />
+    </resultMap>
+
+    <!-- 已配置的组卷题库，附带各库按题型的可用题量（校验「抽题量 ≤ 可用量」） -->
+    <select id="selectBankRules" resultMap="BankRuleResult">
+        SELECT r.id, r.exam_id, r.bank_id, r.single_count, r.multi_count, r.judge_count,
+               r.sort_no, r.create_time,
+               b.bank_name,
+               (SELECT COUNT(1) FROM question q
+                 WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
+                   AND q.bank_id = r.bank_id AND q.qtype = 'SINGLE')  AS available_single,
+               (SELECT COUNT(1) FROM question q
+                 WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
+                   AND q.bank_id = r.bank_id AND q.qtype = 'MULTI')   AS available_multi,
+               (SELECT COUNT(1) FROM question q
+                 WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
+                   AND q.bank_id = r.bank_id AND q.qtype = 'JUDGE')   AS available_judge,
+               (SELECT COUNT(1) FROM question q
+                 WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
+                   AND q.bank_id = r.bank_id)                          AS available_total
+        FROM exam_bank_rule r
+        LEFT JOIN question_bank b ON b.id = r.bank_id AND b.deleted = 0
+        WHERE r.exam_id = #{examId}
+        ORDER BY r.sort_no, r.id
+    </select>
+
+    <delete id="deleteBankRules">
+        DELETE FROM exam_bank_rule WHERE exam_id = #{examId}
+    </delete>
+
+    <insert id="insertBankRules">
+        INSERT INTO exam_bank_rule
+            (exam_id, bank_id, single_count, multi_count, judge_count, sort_no, create_time)
+        VALUES
+        <foreach collection="list" item="it" separator=",">
+            (#{it.examId}, #{it.bankId}, #{it.singleCount}, #{it.multiCount}, #{it.judgeCount}, #{it.sortNo}, NOW())
+        </foreach>
+    </insert>
+
+    <!-- 单库可用题量（按题型），配置时即时校验用 -->
+    <select id="selectBankAvailable" resultType="java.util.LinkedHashMap">
+        SELECT COUNT(1)                                           AS totalCount,
+               SUM(CASE WHEN q.qtype = 'SINGLE' THEN 1 ELSE 0 END) AS singleCount,
+               SUM(CASE WHEN q.qtype = 'MULTI'  THEN 1 ELSE 0 END) AS multiCount,
+               SUM(CASE WHEN q.qtype = 'JUDGE'  THEN 1 ELSE 0 END) AS judgeCount
+        FROM question q
+        WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
+          AND q.bank_id = #{bankId}
+    </select>
+
+    <!-- ==================== 知识分布（历史兼容） ==================== -->
+
     <resultMap type="ExamKnowledgeRule" id="KnowledgeRuleResult">
         <id     property="id"             column="id"             />
         <result property="examId"         column="exam_id"        />
@@ -117,6 +184,32 @@
         </foreach>
     </insert>
 
+    <!--
+      在培实习生花名册（「指定人员」可选名单）。
+      只取 PRE_TRAINEE（预备实习生）——正式考核的开考校验（assertPreTrainee）只放行该阶段，
+      把 FORMAL_TRAINEE 也列出来会让管理员指定了却开不了考，故这里与准入保持一致。
+      deptId 为 null 时不限部门（超级管理员），否则按部门过滤（部门管理员）。
+    -->
+    <select id="selectInternOptions" resultType="java.util.LinkedHashMap">
+        SELECT u.user_id        AS userId,
+               u.user_name      AS userName,
+               u.nick_name      AS nickName,
+               u.dept_id        AS deptId,
+               d.dept_name      AS deptName,
+               pos.position_name AS positionName,
+               u.user_status    AS userStatus
+        FROM sys_user u
+        LEFT JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
+        LEFT JOIN position pos ON pos.id = u.position_id
+        WHERE u.del_flag = '0'
+          AND u.status = '0'
+          AND u.user_status = 'PRE_TRAINEE'
+          <if test="deptId != null">
+              AND u.dept_id = #{deptId}
+          </if>
+        ORDER BY u.dept_id, u.user_id
+    </select>
+
     <!-- 本部门已生效的模拟理论配置（取最近发布的一条） -->
     <select id="selectActivePracticeConfig" resultType="java.util.LinkedHashMap">
         SELECT e.id            AS examId,
@@ -140,5 +233,42 @@
         ORDER BY e.published_at DESC, e.id DESC
         LIMIT 1
     </select>
+
+    <!-- ==================== 实操题目清单（实操考核专用，不抽题） ==================== -->
+
+    <resultMap type="ExamSubjectItem" id="SubjectItemResult">
+        <id     property="id"               column="id"                />
+        <result property="examId"           column="exam_id"           />
+        <result property="seq"              column="seq"               />
+        <result property="title"            column="title"             />
+        <result property="description"      column="description"       />
+        <result property="score"            column="score"             />
+        <result property="referenceImages"  column="reference_images"  />
+        <result property="attachmentsJson"  column="attachments_json"  />
+        <result property="createTime"       column="create_time"       />
+        <result property="updateTime"       column="update_time"       />
+    </resultMap>
+
+    <select id="selectSubjectItems" resultMap="SubjectItemResult">
+        SELECT id, exam_id, seq, title, description, score,
+               reference_images, attachments_json, create_time, update_time
+        FROM exam_subject_item
+        WHERE exam_id = #{examId}
+        ORDER BY seq ASC, id ASC
+    </select>
+
+    <delete id="deleteSubjectItems">
+        DELETE FROM exam_subject_item WHERE exam_id = #{examId}
+    </delete>
+
+    <insert id="insertSubjectItems">
+        INSERT INTO exam_subject_item (exam_id, seq, title, description, score,
+                                       reference_images, attachments_json, create_time)
+        VALUES
+        <foreach collection="list" item="it" separator=",">
+            (#{it.examId}, #{it.seq}, #{it.title}, #{it.description}, #{it.score},
+             #{it.referenceImages}, #{it.attachmentsJson}, NOW())
+        </foreach>
+    </insert>
 
 </mapper>

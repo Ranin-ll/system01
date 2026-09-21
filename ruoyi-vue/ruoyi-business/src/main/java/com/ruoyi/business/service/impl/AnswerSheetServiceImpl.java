@@ -53,8 +53,17 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         if (exam == null) {
             throw new ServiceException("考核不存在");
         }
+        Long loginUserId = SecurityUtils.getUserId();
+        // 指定人员校验放在部门校验之前：被点名的实习生可以跨部门参加，
+        // 与实习生端列表（名单内的场次跨部门也可见）保持一致。
+        java.util.List<Long> assigned = examRuleMapper.selectParticipantUserIds(examId);
+        boolean named = !assigned.isEmpty() && assigned.contains(loginUserId);
+        if (!assigned.isEmpty() && !named) {
+            throw new ServiceException("本场考核为指定人员参加，你不在名单内");
+        }
         Long deptId = SecurityUtils.getDeptId();
-        if (deptId == null || !deptId.equals(exam.getDeptId())) {
+        // 未被点名时才要求部门一致（未指定人员的场次仍是"本部门在培实习生均可参加"）
+        if (!named && (deptId == null || !deptId.equals(exam.getDeptId()))) {
             throw new ServiceException("考核不存在或不适用于当前部门");
         }
         if (!"PUBLISHED".equals(exam.getStatus())) {
@@ -68,15 +77,17 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         if (exam.getEndTime() != null && now.after(exam.getEndTime())) {
             throw new ServiceException("该考核已截止，不能再参加");
         }
-        // 指定人员校验
-        java.util.List<Long> assigned = examRuleMapper.selectParticipantUserIds(examId);
-        if (!assigned.isEmpty() && !assigned.contains(SecurityUtils.getUserId())) {
-            throw new ServiceException("本场考核为指定人员参加，你不在名单内");
-        }
-        Long userId = SecurityUtils.getUserId();
+        Long userId = loginUserId;
         AnswerSheet exist = answerSheetMapper.selectByExamAndUser(examId, userId);
         if (exist != null) {
-            throw new ServiceException("你已参加过该考核，不能重复参加");
+            // 作答中（未交卷）的答卷：通常是实习生答题时离开/刷新页面遗留，
+            // 不保留进度、不视为提交，本次重新开始时作废旧答卷后重开。
+            if ("IN_PROGRESS".equals(exist.getStatus())) {
+                answerSheetMapper.deleteItemsBySheetId(exist.getId());
+                answerSheetMapper.deleteById(exist.getId());
+            } else {
+                throw new ServiceException("你已参加过该考核，不能重复参加");
+            }
         }
 
         String type = exam.getExamType() == null ? "THEORY" : exam.getExamType();
@@ -96,17 +107,8 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         result.put("examType", type);
 
         if ("THEORY".equals(type)) {
-            // 理论考核：按题型分别从题库随机抽题
-            if (exam.getBankId() == null) {
-                throw new ServiceException("理论考核题库未配置");
-            }
-            List<Question> singles = questionMapper.selectQuestionsByType(exam.getBankId(), null, "SINGLE", exam.getSingleCount());
-            List<Question> multis = questionMapper.selectQuestionsByType(exam.getBankId(), null, "MULTI", exam.getMultiCount());
-            List<Question> judges = questionMapper.selectQuestionsByType(exam.getBankId(), null, "JUDGE", exam.getJudgeCount());
-            List<Question> questions = new ArrayList<>();
-            questions.addAll(singles);
-            questions.addAll(multis);
-            questions.addAll(judges);
+            // 理论考核：组卷抽题（优先多题库配置，未配置回退单库）
+            List<Question> questions = pickTheoryQuestions(exam);
             if (questions.isEmpty()) {
                 throw new ServiceException("题库暂无可用题目");
             }
@@ -121,6 +123,9 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
                 item.setSeq(seq++);
                 item.setQtype(q.getQtype());
                 item.setIsSubjective(0);
+                // 题干与满分落快照：题目表可被管理员编辑删除，只靠实时 JOIN 会让旧答卷批阅时取不到值
+                item.setStemSnapshot(q.getStem());
+                item.setFullScore(getScoreByQtype(exam, q.getQtype()));
                 answerSheetMapper.insertItem(item);
             }
 
@@ -140,20 +145,132 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
             result.put("subjectAttachment", null);
             result.put("questions", questionList);
         } else {
-            // 实操考核：返回题干 + 附件，不抽题
-            if (exam.getSubjectContent() == null || exam.getSubjectContent().trim().isEmpty()) {
-                throw new ServiceException("实操考核题干未配置");
+            // 实操考核：题目由管理员逐条填写（不从题库抽题）。
+            // 进入考试即为每道题生成一条作答明细，实习生在题下上传自己的作答文件，
+            // 交卷后由管理员逐题打分、系统求和 —— 因此明细里没有客观题判分逻辑。
+            List<com.ruoyi.business.domain.ExamSubjectItem> subjectItems =
+                    examRuleMapper.selectSubjectItems(examId);
+            if (subjectItems == null || subjectItems.isEmpty()) {
+                throw new ServiceException("该实操考核尚未配置题目，请联系管理员");
             }
-            sheet.setQuestionCount(0);
+            sheet.setQuestionCount(subjectItems.size());
             answerSheetMapper.insertSheet(sheet);
 
+            List<Map<String, Object>> subjectList = new ArrayList<>();
+            int seq = 1;
+            for (com.ruoyi.business.domain.ExamSubjectItem si : subjectItems) {
+                AnswerSheetItem item = new AnswerSheetItem();
+                item.setAnswerSheetId(sheet.getId());
+                item.setSubjectItemId(si.getId());
+                item.setSeq(seq++);
+                item.setQtype("SUBJECT");
+                item.setIsSubjective(1);
+                // 题干（=题目 title）与满分落快照：管理员改版题目会删旧行插新行，
+                // 只靠实时 JOIN 会让旧答卷批阅时题干与满分变 NULL
+                item.setStemSnapshot(si.getTitle());
+                item.setFullScore(si.getScore());
+                answerSheetMapper.insertItem(item);
+
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("itemId", item.getId());
+                m.put("subjectItemId", si.getId());
+                m.put("seq", item.getSeq());
+                m.put("title", si.getTitle());
+                m.put("description", si.getDescription());
+                m.put("score", si.getScore());
+                m.put("referenceImages", si.getReferenceImages());
+                m.put("attachments", si.getAttachmentsJson());
+                subjectList.add(m);
+            }
             result.put("sheetId", sheet.getId());
-            result.put("subjectContent", exam.getSubjectContent());
-            result.put("subjectAttachment", exam.getSubjectAttachment());
+            result.put("subjectItems", subjectList);
+            result.put("subjectContent", null);
+            result.put("subjectAttachment", null);
             result.put("questions", Collections.emptyList());
         }
 
+        // 计时信息：以**服务端时间**为准，前端按 remainingSeconds 倒计时，到点自动交卷。
+        // duration <= 0 表示不限时（remainingSeconds 返回 0，前端不启动倒计时）。
+        int duration = exam.getDuration() == null ? 0 : exam.getDuration();
+        long remainSeconds = 0;
+        if (duration > 0) {
+            long elapsed = (System.currentTimeMillis() - sheet.getStartTime().getTime()) / 1000L;
+            remainSeconds = Math.max(0, duration * 60L - elapsed);
+            // 若考核设了截止时间，倒计时不得超过截止时间
+            if (exam.getEndTime() != null) {
+                long toEnd = (exam.getEndTime().getTime() - System.currentTimeMillis()) / 1000L;
+                if (toEnd > 0 && toEnd < remainSeconds) {
+                    remainSeconds = toEnd;
+                }
+            }
+        }
+        result.put("duration", duration);
+        result.put("remainingSeconds", remainSeconds);
+        result.put("serverTime", System.currentTimeMillis());
+
         return result;
+    }
+
+    /**
+     * 理论考核组卷抽题。
+     *
+     * 优先多题库配置（exam_bank_rule）：「题库即知识模块」，每个题库分别按
+     * 单选/多选/判断 的配置数量在该库内随机抽取，各库互不干扰、跨库去重。
+     * 未配置时回退历史单库逻辑（exam.bank_id + 题型数量）。
+     */
+    private List<Question> pickTheoryQuestions(Exam exam) {
+        List<Question> questions = pickByBankRules(exam.getId());
+        if (!questions.isEmpty()) {
+            return questions;
+        }
+        // 历史单库链路
+        if (exam.getBankId() == null) {
+            throw new ServiceException("理论考核题库未配置");
+        }
+        questions.addAll(questionMapper.selectQuestionsByType(exam.getBankId(), null, "SINGLE", exam.getSingleCount()));
+        questions.addAll(questionMapper.selectQuestionsByType(exam.getBankId(), null, "MULTI", exam.getMultiCount()));
+        questions.addAll(questionMapper.selectQuestionsByType(exam.getBankId(), null, "JUDGE", exam.getJudgeCount()));
+        return questions;
+    }
+
+    /**
+     * 多题库组卷抽题（理论与实操共用同一套逻辑）：
+     * 对每个题库分别按 单选/多选/判断 的配置数量在该库内随机取题，跨库去重。
+     * 未配置组卷时返回空列表，由调用方决定回退方式。
+     */
+    private List<Question> pickByBankRules(Long examId) {
+        List<Question> questions = new ArrayList<>();
+        List<com.ruoyi.business.domain.ExamBankRule> bankRules = examRuleMapper.selectBankRules(examId);
+        if (bankRules == null || bankRules.isEmpty()) {
+            return questions;
+        }
+        List<Long> used = new ArrayList<>();
+        for (com.ruoyi.business.domain.ExamBankRule rule : bankRules) {
+            addPicked(questions, used, examRuleMapper.selectQuestionsByPoint(
+                    rule.getBankId(), null, "SINGLE", new ArrayList<>(used), nz(rule.getSingleCount())));
+            addPicked(questions, used, examRuleMapper.selectQuestionsByPoint(
+                    rule.getBankId(), null, "MULTI", new ArrayList<>(used), nz(rule.getMultiCount())));
+            addPicked(questions, used, examRuleMapper.selectQuestionsByPoint(
+                    rule.getBankId(), null, "JUDGE", new ArrayList<>(used), nz(rule.getJudgeCount())));
+        }
+        return questions;
+    }
+
+    /** 合并抽到的题并跨库去重 */
+    private void addPicked(List<Question> target, List<Long> used, List<Question> src) {
+        if (src == null) {
+            return;
+        }
+        for (Question q : src) {
+            if (!used.contains(q.getId())) {
+                used.add(q.getId());
+                target.add(q);
+            }
+        }
+    }
+
+    private static int nz(Integer v) {
+        return v == null ? 0 : v;
     }
 
     @Override
@@ -221,14 +338,45 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
             updSheet.setPassFlag(pass);
             updSheet.setSubmitType("MANUAL");
         } else {
-            // 实操考核：保存作答文件路径，待管理员批改
-            String filePath = null;
-            if (answers != null && !answers.isEmpty()) {
-                filePath = answers.get(0).get("userAnswer"); // 实操考核只有一个文件路径
+            // 实操考核：逐题收作答文件（每题一份），落进对应明细，等待管理员逐题打分。
+            List<AnswerSheetItem> items = answerSheetMapper.selectItemsBySheetId(sheetId);
+            Map<Long, String> answerMap = new HashMap<>();
+            if (answers != null) {
+                for (Map<String, String> a : answers) {
+                    if (a == null || a.get("userAnswer") == null) {
+                        continue;
+                    }
+                    try {
+                        // 实操明细以 subjectItemId 对齐（前端按题提交）
+                        answerMap.put(Long.valueOf(a.get("questionId")), a.get("userAnswer"));
+                    } catch (Exception ignore) {
+                    }
+                }
             }
+            List<AnswerSheetItem> toUpdate = new ArrayList<>();
+            String firstFile = null;
+            for (AnswerSheetItem item : items) {
+                String path = item.getSubjectItemId() == null ? null : answerMap.get(item.getSubjectItemId());
+                if (path == null || path.trim().isEmpty()) {
+                    continue;
+                }
+                AnswerSheetItem upd = new AnswerSheetItem();
+                upd.setId(item.getId());
+                upd.setUserAnswer(path.trim());
+                toUpdate.add(upd);
+                if (firstFile == null) {
+                    firstFile = path.trim();
+                }
+            }
+            // 白卷（未上传任何作答文件）也允许交卷：明细仍在，管理员批阅时逐题判 0 分即可。
+            if (!toUpdate.isEmpty()) {
+                answerSheetMapper.updateItemAnswers(toUpdate);
+            }
+
             updSheet.setStatus("SUBMITTED");
             updSheet.setSubmitType("MANUAL");
-            updSheet.setSubjectAnswer(filePath);
+            // 兼容旧字段：留第一份文件路径，便于批改列表一眼看到入口
+            updSheet.setSubjectAnswer(firstFile);
 
             // exam 变待批改
             if (exam != null && "PUBLISHED".equals(exam.getStatus())) {
@@ -258,14 +406,51 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         if (examMode != null && !examMode.isEmpty()) {
             query.setExamMode(examMode);
         }
-        List<Exam> exams = examMapper.selectExamList(query);
+        List<Exam> deptExams = examMapper.selectExamList(query);
+        // 「按人指定」的场次单独补一遍：名单里有本人就能看到，不受部门限制（跨部门指派也生效）
+        List<Exam> assignedToMe = examMapper.selectAssignedExamList(userId, examMode);
+        List<Exam> merged = new ArrayList<>();
+        java.util.Set<Long> seen = new java.util.LinkedHashSet<>();
+        if (deptExams != null) {
+            for (Exam e : deptExams) {
+                if (e != null && e.getId() != null && seen.add(e.getId())) {
+                    merged.add(e);
+                }
+            }
+        }
+        if (assignedToMe != null) {
+            for (Exam e : assignedToMe) {
+                if (e != null && e.getId() != null && seen.add(e.getId())) {
+                    merged.add(e);
+                }
+            }
+        }
+        // 合并后按创建时间倒序，保证跨部门补入的场次不会乱序
+        merged.sort((a, b) -> {
+            java.util.Date d1 = a.getCreateTime();
+            java.util.Date d2 = b.getCreateTime();
+            if (d1 == null && d2 == null) {
+                return 0;
+            }
+            if (d1 == null) {
+                return 1;
+            }
+            if (d2 == null) {
+                return -1;
+            }
+            return d2.compareTo(d1);
+        });
+
         List<Map<String, Object>> list = new ArrayList<>();
-        for (Exam exam : exams) {
+        // 过期判断以**服务端时间**为准下发（前端若拿客户端时钟自己算，机器时间不准就会误判按钮状态）
+        Date now = new Date();
+        for (Exam exam : merged) {
             if ("DRAFT".equals(exam.getStatus())) {
                 continue;
             }
-            // 指定人员过滤：该场次有指定名单且本人不在名单内 → 不展示
+            // 名单只查一次：既用于"是否对本人生效"的过滤，也用于前端「指定人员」标记
             java.util.List<Long> assigned = examRuleMapper.selectParticipantUserIds(exam.getId());
+            // 有指定名单但本人不在名单内 → 不展示
             if (!assigned.isEmpty() && !assigned.contains(userId)) {
                 continue;
             }
@@ -280,13 +465,11 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
             m.put("startTime", exam.getStartTime());
             m.put("endTime", exam.getEndTime());
             m.put("publishedAt", exam.getPublishedAt());
-            // 指定人员：名单为空 = 本部门全体；非空时仅名单内可见（跨部门一律不可见）
-            boolean assignedOnly = !examRuleMapper.selectParticipantUserIds(exam.getId()).isEmpty();
-            if (assignedOnly) {
-                m.put("assigned", true);
-            } else {
-                m.put("assigned", false);
-            }
+            // 已过截止时间：**只表示"不能再参加"**，不会把考核置为 DISABLED
+            // （实操考核截止后管理员还要批改，自动停用会打断批改流程；停用只在发布成绩时手动勾选）
+            m.put("expired", exam.getEndTime() != null && now.after(exam.getEndTime()));
+            // 指定人员：名单为空 = 本部门全体可见；非空 = 仅名单内可见（含跨部门指派）
+            m.put("assigned", !assigned.isEmpty());
             AnswerSheet sheet = answerSheetMapper.selectByExamAndUser(exam.getId(), userId);
             if (sheet != null) {
                 Map<String, Object> sm = new LinkedHashMap<>();
@@ -319,12 +502,47 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         return result;
     }
 
+    /**
+     * 实习生查看本人答卷详情。
+     *
+     * 走独立的「本人」通道，而不是复用管理员的 sheetDetail：后者用
+     * getAccessibleSheet → currentManagerDeptScope 做**部门管理范围**校验，
+     * 实习生的账号没有这个范围，直接调用会被判成"无权操作"。
+     * 这里只校验「这张答卷是不是本人的」，通过与否都能看；
+     * 答卷未发布时抹掉正确答案，避免批改期间提前泄露答案。
+     */
+    @Override
+    public Map<String, Object> mySheetDetail(Long sheetId) {
+        Long userId = SecurityUtils.getUserId();
+        AnswerSheet sheet = answerSheetMapper.selectSheetById(sheetId);
+        if (sheet == null || sheet.getUserId() == null || !sheet.getUserId().equals(userId)) {
+            throw new ServiceException("答卷不存在或无权查看");
+        }
+        List<AnswerSheetItem> items = answerSheetMapper.selectItemsBySheetId(sheetId);
+        boolean published = "PUBLISHED".equals(sheet.getStatus());
+        if (!published && items != null) {
+            for (AnswerSheetItem it : items) {
+                it.setAnswer(null);
+            }
+        }
+        Exam exam = examMapper.selectExamById(sheet.getExamId(), null);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sheet", sheet);
+        result.put("examType", exam == null || exam.getExamType() == null ? "THEORY" : exam.getExamType());
+        result.put("passLine", exam == null ? null : exam.getPassLine());
+        result.put("items", items);
+        return result;
+    }
+
     @Override
     public int grade(Long sheetId, List<AnswerSheetItem> items) {
         Long userId = SecurityUtils.getUserId();
         AnswerSheet sheet = getAccessibleSheet(sheetId);
         if ("PUBLISHED".equals(sheet.getStatus())) {
             throw new ServiceException("成绩已发布，不能再批改");
+        }
+        if ("IN_PROGRESS".equals(sheet.getStatus())) {
+            throw new ServiceException("该答卷尚未交卷，无法批改");
         }
         BigDecimal manualScore = BigDecimal.ZERO;
         Set<Long> sheetItemIds = new HashSet<>();
@@ -364,6 +582,9 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         AnswerSheet sheet = getAccessibleSheet(sheetId);
         if ("PUBLISHED".equals(sheet.getStatus())) {
             throw new ServiceException("成绩已发布，不能再批改");
+        }
+        if ("IN_PROGRESS".equals(sheet.getStatus())) {
+            throw new ServiceException("该答卷尚未交卷，无法批改");
         }
         AnswerSheet upd = new AnswerSheet();
         upd.setId(sheetId);
@@ -429,8 +650,39 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
             e.setId(examId);
             e.setStatus("DISABLED");
             examMapper.updateExam(e);
+        } else if ("GRADING".equals(exam.getStatus())) {
+            // 成绩已发布但不停用考核：把考核从「待批改」同步回「已发布」，
+            // 避免考核列表一直显示待批改、而答卷却已锁定为已发布的矛盾状态。
+            Exam e = new Exam();
+            e.setId(examId);
+            e.setStatus("PUBLISHED");
+            examMapper.updateExam(e);
         }
         return count;
+    }
+
+    @Override
+    public int reopenForGrading(Long sheetId) {
+        AnswerSheet sheet = getAccessibleSheet(sheetId);
+        // 仅实操答卷支持重新批改；理论卷交卷即自动出分，无需人工改分。
+        Exam exam = examMapper.selectExamById(sheet.getExamId(), null);
+        if (exam == null || !"PRACTICAL".equals(exam.getExamType())) {
+            throw new ServiceException("仅实操考核支持重新批改");
+        }
+        if (!"PUBLISHED".equals(sheet.getStatus())) {
+            throw new ServiceException("仅已发布的答卷可重新批改");
+        }
+        // 已发布成绩回退：清空总分/通过标记，状态置回批改中，让管理员重新逐题打分后再发布。
+        answerSheetMapper.reopenSheet(sheetId);
+
+        // 考核同步回「待批改」
+        if ("PUBLISHED".equals(exam.getStatus()) || "DISABLED".equals(exam.getStatus())) {
+            Exam e = new Exam();
+            e.setId(exam.getId());
+            e.setStatus("GRADING");
+            examMapper.updateExam(e);
+        }
+        return 1;
     }
 
     private AnswerSheet getAccessibleSheet(Long sheetId) {
