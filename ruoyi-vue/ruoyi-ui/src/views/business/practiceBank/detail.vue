@@ -8,7 +8,7 @@
           <el-tag size="mini" effect="plain" type="warning">实操题库</el-tag>
           <el-tag v-if="bankTypeText" size="mini" effect="plain">{{ bankTypeText }}</el-tag>
         </div>
-        <p>实操题 = 逐题作业：题干 / 技能方向 / 交付要求 / 附件 / 建议满分。考核配置时从本库**挑题**（不做随机抽题）。</p>
+        <p>实操题 = 逐题作业：题干 / 技能方向 / 交付要求 / 参考图·视频 / 附件 / 建议满分。考核配置时从本库挑题（不做随机抽题）。</p>
       </div>
       <div class="heading-actions">
         <el-button size="mini" icon="el-icon-back" @click="goBack">返回题库列表</el-button>
@@ -59,7 +59,7 @@
         </el-table-column>
         <el-table-column label="素材" width="96" align="center">
           <template slot-scope="scope">
-            <span class="muted">图 {{ imgCount(scope.row) }} · 附 {{ attCount(scope.row) }}</span>
+            <span class="muted">图 {{ imgCount(scope.row) }} · 视 {{ vidCount(scope.row) }} · 附 {{ attCount(scope.row) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="82" align="center">
@@ -135,14 +135,16 @@
           <el-form-item label="命名规则"><el-input v-model="form.namingRule" maxlength="255" placeholder="如：姓名_学号_题名.zip" /></el-form-item>
         </div>
 
-        <div class="sec"><span class="sec-no">3</span>素材<i class="sec-tip">参考图给实习生看效果；附件为起始素材</i></div>
-        <el-form-item label="参考图">
-          <el-upload :show-file-list="false" :http-request="uploadRefImage" accept="image/*" class="inline-up">
-            <el-button size="mini" icon="el-icon-picture-outline">上传参考图</el-button>
+        <div class="sec"><span class="sec-no">3</span>素材<i class="sec-tip">参考图/视频给实习生看效果；附件为起始素材</i></div>
+        <el-form-item label="参考图/视频">
+          <el-upload :show-file-list="false" :http-request="uploadRefImage" accept="image/*,video/*" class="inline-up">
+            <el-button size="mini" icon="el-icon-picture-outline">上传图片 / 视频</el-button>
           </el-upload>
+          <span class="unit">支持图片与视频（mp4/webm 等）；给实习生看效果或示范</span>
           <div class="files">
-            <span v-for="(f, i) in form.images" :key="'img' + i" class="filechip">
-              <a :href="baseApi + f.url" target="_blank">{{ f.name || '图片' }}</a>
+            <span v-for="(f, i) in form.images" :key="'img' + i" class="filechip" :class="{ video: isVideo(f.url) }">
+              <i :class="isVideo(f.url) ? 'el-icon-video-camera' : 'el-icon-picture-outline'" />
+              <a :href="baseApi + f.url" target="_blank">{{ f.name || (isVideo(f.url) ? '视频' : '图片') }}</a>
               <i class="el-icon-close" @click="form.images.splice(i, 1)" />
             </span>
             <span v-if="!form.images.length" class="muted">（未上传）</span>
@@ -152,6 +154,7 @@
           <el-upload :show-file-list="false" :http-request="uploadAttachment" class="inline-up">
             <el-button size="mini" icon="el-icon-upload2">上传附件</el-button>
           </el-upload>
+          <span class="unit">起始素材 / 说明文档、数据包等（图片与视频请放上面的参考图区）</span>
           <div class="files">
             <span v-for="(f, i) in form.attachments" :key="'att' + i" class="filechip">
               <a :href="baseApi + f.url" target="_blank">{{ f.name || '附件' }}</a>
@@ -322,7 +325,9 @@ export default {
         delPracticeSubject(row.id).then(() => { this.$modal.msgSuccess('删除成功'); this.loadList() })
       }).catch(() => {})
     },
-    imgCount(row) { return parseJsonList(row.referenceImages).length },
+    isVideo(url) { return /\.(mp4|webm|ogg|ogv|mov|avi|m4v)(\?|#|$)/i.test(String(url || '')) },
+    imgCount(row) { return parseJsonList(row.referenceImages).filter(f => !this.isVideo(f.url)).length },
+    vidCount(row) { return parseJsonList(row.referenceImages).filter(f => this.isVideo(f.url)).length },
     attCount(row) { return parseJsonList(row.attachmentsJson).length },
     diffText(d) { return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[d] || '中等' },
     goBack() {
@@ -372,6 +377,8 @@ export default {
 .files { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: 10px; }
 .filechip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; color: #475467; background: #f1f5f9; border-radius: 4px; font-size: 12px; }
 .filechip i { color: #98a2b3; cursor: pointer; }
+.filechip.video { background: #f2eeff; }
+.filechip.video > i:first-child { color: #7b5cf0; }
 .filechip i:hover { color: #f56c6c; }
 @media (max-width: 1100px) { .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fg2, .fg3 { grid-template-columns: 1fr; } }
 </style>
