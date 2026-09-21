@@ -7,6 +7,18 @@ export function listLearningCourses() {
   })
 }
 
+/**
+ * 本人近 N 天逐日学习时长（2026-09-22 新增）
+ * 返回 [{date, seconds, items}]，只含有记录的天（缺的天前端补 0），单位秒
+ */
+export function getDailyDuration(days = 14) {
+  return request({
+    url: '/business/learning/duration-daily',
+    method: 'get',
+    params: { days }
+  })
+}
+
 export function getLearningCourse(courseId) {
   return request({
     url: '/business/learning/courses/' + courseId,

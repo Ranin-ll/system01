@@ -45,27 +45,40 @@
         <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#7a5af8" />已完成单项</div><div class="kpi-vl">{{ learningOverview.completedItems }}<small>/ {{ learningOverview.itemCount }}</small></div><div class="kpi-ft">覆盖 {{ learningOverview.courseCount }} 门已发布课程</div></div>
         <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f79009" />待完成课程</div><div class="kpi-vl">{{ pendingCourses.length }}<small>门</small></div><div class="kpi-ft" :class="pendingRequiredCount ? 'warn' : ''">其中必修 {{ pendingRequiredCount }} 门</div></div>
         <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f04438" />模拟正确率</div><div class="kpi-vl">{{ mockAccuracy === null ? '--' : mockAccuracy }}<small v-if="mockAccuracy !== null">%</small></div><div class="kpi-ft">{{ practiceRecords.length ? '基于本人 ' + practiceRecords.length + ' 次模拟记录' : '暂无模拟记录' }}</div></div>
-        <div class="kpi hl"><div class="kpi-lb"><i class="kpi-dot" style="background:#1764f5" />能力综合值</div><div class="kpi-vl">{{ isFormal ? 88 : '--' }}</div><div class="bar-mini"><i class="o" :style="{ width: portraitCompleteness + '%' }" /></div><div class="kpi-ft">完整度 {{ portraitCompleteness }}%{{ isFormal ? '' : '，待考核后生成' }}<em class="dsample">示例</em></div></div>
+        <div class="kpi hl"><div class="kpi-lb"><i class="kpi-dot" style="background:#1764f5" />能力综合值</div><div class="kpi-vl">--</div><div class="bar-mini"><i class="o" :style="{ width: portraitCompleteness + '%' }" /></div><div class="kpi-ft">能力模型维度待定义后生成（当前不计假数）</div></div>
       </div>
 
       <div class="i2-grid">
-        <!-- 03 学习完成率趋势（70% 考核门槛虚线） -->
+        <!-- 03 学习时长趋势（真数据：近 14 天逐日学习时长；无记录走空态） -->
         <section class="i2-card i2-span8">
-          <div class="panel-head"><div><span class="section-index">03</span><h2>学习完成率趋势</h2></div><span class="card-hint">近 6 周<em class="dsample">示例</em></span></div>
-          <svg viewBox="0 0 900 210" class="trend-svg">
-            <g stroke="#eef1f6" stroke-width="1"><line x1="46" y1="20" x2="880" y2="20" /><line x1="46" y1="60" x2="880" y2="60" /><line x1="46" y1="100" x2="880" y2="100" /><line x1="46" y1="140" x2="880" y2="140" /><line x1="46" y1="180" x2="880" y2="180" /></g>
-            <g fill="#98a2b3" font-size="11" text-anchor="end"><text x="38" y="24">100%</text><text x="38" y="64">75%</text><text x="38" y="104">50%</text><text x="38" y="144">25%</text><text x="38" y="184">0%</text></g>
-            <line x1="46" y1="68" x2="880" y2="68" stroke="#f79009" stroke-width="1.5" stroke-dasharray="6 5" />
-            <text x="50" y="62" fill="#b54708" font-size="11">考核门槛 70%</text>
-            <path :d="trendArea" fill="#e8f1fd" opacity="0.9" />
-            <polyline :points="trendPolyline" fill="none" stroke="#1764f5" stroke-width="2.5" stroke-linejoin="round" />
-            <g fill="#fff" stroke="#1764f5" stroke-width="2.5"><circle v-for="w in trendWeeks" :key="w.label" :cx="w.x" :cy="w.y" r="4" /></g>
-            <rect :x="trendBadge.x" :y="trendBadge.y" width="92" height="26" rx="6" fill="#1764f5" />
-            <text :x="trendBadge.x + 46" :y="trendBadge.y + 17" fill="#fff" font-size="12" text-anchor="middle">本周 {{ learningProgress }}%</text>
-            <g fill="#98a2b3" font-size="11" text-anchor="middle"><text v-for="w in trendWeeks" :key="'lb-' + w.label" :x="w.x" y="200">{{ w.label }}</text></g>
-          </svg>
-          <div class="legend"><span><i style="background:#1764f5" />实际完成率</span><span><i style="background:#f79009" />考核门槛 70%</span></div>
-          <div class="note">口径：本人岗位全部已发布必修课程的完成率简单平均，与「在线学习」列表同源；本周为真实数据，历史 6 周为示例。</div>
+          <div class="panel-head">
+            <div><span class="section-index">03</span><h2>学习时长趋势</h2></div>
+            <span class="card-hint">近 14 天 / 小时</span>
+          </div>
+          <div v-if="!hasDailyData" class="i2-empty">
+            <i class="el-icon-time" /><strong>暂无学习时长记录</strong>
+            <span>开始学习课程后，这里会按天显示你的学习时长。</span>
+          </div>
+          <template v-else>
+            <svg viewBox="0 0 900 210" class="trend-svg">
+              <g stroke="#eef1f6" stroke-width="1"><line x1="46" y1="20" x2="880" y2="20" /><line x1="46" y1="60" x2="880" y2="60" /><line x1="46" y1="100" x2="880" y2="100" /><line x1="46" y1="140" x2="880" y2="140" /><line x1="46" y1="180" x2="880" y2="180" /></g>
+              <g fill="#98a2b3" font-size="11" text-anchor="end">
+                <text x="38" y="24">{{ trendMaxHours }}h</text>
+                <text x="38" y="64">{{ (trendMaxHours * 0.75).toFixed(1) }}h</text>
+                <text x="38" y="104">{{ (trendMaxHours * 0.5).toFixed(1) }}h</text>
+                <text x="38" y="144">{{ (trendMaxHours * 0.25).toFixed(1) }}h</text>
+                <text x="38" y="184">0</text>
+              </g>
+              <path :d="trendArea" fill="#e8f1fd" opacity="0.9" />
+              <polyline :points="trendPolyline" fill="none" stroke="#1764f5" stroke-width="2.5" stroke-linejoin="round" />
+              <g fill="#fff" stroke="#1764f5" stroke-width="2.5"><circle v-for="w in trendWeeks" :key="w.label" :cx="w.x" :cy="w.y" r="4" /></g>
+              <rect :x="trendBadge.x" :y="trendBadge.y" width="104" height="26" rx="6" fill="#1764f5" />
+              <text :x="trendBadge.x + 52" :y="trendBadge.y + 17" fill="#fff" font-size="12" text-anchor="middle">今日 {{ dailySeries[dailySeries.length - 1].hours }} h</text>
+              <g fill="#98a2b3" font-size="11" text-anchor="middle"><text v-for="w in trendWeeks" :key="'lb-' + w.label" :x="w.x" y="200">{{ w.label }}</text></g>
+            </svg>
+            <div class="legend"><span><i style="background:#1764f5" />每日学习时长</span><span>近 14 天合计 {{ (dailySeries.reduce((s, d) => s + d.hours, 0)).toFixed(1) }} 小时</span></div>
+            <div class="note">口径：本人在每个自然日的学习时长之和（<code>study_record.study_duration</code> 按 <code>last_study_time</code> 归日）；没有学习的天记 0。</div>
+          </template>
         </section>
 
         <!-- 04 能力画像雷达 -->
@@ -110,13 +123,25 @@
           <div class="note">绿色为已完成，橙色为低于 50% 的短板课程；点击行可直达课程。</div>
         </section>
 
-        <!-- 06 学习时长分布 -->
+        <!-- 06 学习时长分布（与 03 同源真数据；无记录走空态） -->
         <section class="i2-card i2-span6">
-          <div class="panel-head"><div><span class="section-index">06</span><h2>学习时长分布</h2></div><span class="card-hint">近 6 周 / 小时<em class="dsample">示例</em></span></div>
-          <div class="vchart">
-            <div v-for="w in weeklyHours" :key="w.label" class="vcol"><span class="bar" :class="{ hi: w.hours >= 2.3 }" :style="{ height: Math.round(w.hours / weeklyHoursMax * 100) + '%' }">{{ w.hours }}</span><span class="vcol-lb">{{ w.label }}</span></div>
+          <div class="panel-head">
+            <div><span class="section-index">06</span><h2>学习时长分布</h2></div>
+            <span class="card-hint">近 14 天 / 小时</span>
           </div>
-          <div class="legend"><span><i style="background:#1764f5" />当周学习时长</span><span>累计 {{ studyHoursTotal }} 小时</span></div>
+          <div v-if="!hasDailyData" class="i2-empty">
+            <i class="el-icon-time" /><strong>暂无学习时长记录</strong>
+            <span>有学习记录后这里会按天显示柱状分布。</span>
+          </div>
+          <template v-else>
+            <div class="vchart">
+              <div v-for="w in weeklyHours" :key="w.label" class="vcol">
+                <span class="bar" :class="{ hi: w.hours > 0 && w.hours === weeklyHoursMax }" :style="{ height: Math.max(Math.round(w.hours / weeklyHoursMax * 100), w.hours > 0 ? 6 : 0) + '%' }">{{ w.hours }}</span>
+                <span class="vcol-lb">{{ w.label }}</span>
+              </div>
+            </div>
+            <div class="legend"><span><i style="background:#1764f5" />每日学习时长</span><span>近 14 天合计 {{ (dailySeries.reduce((s, d) => s + d.hours, 0)).toFixed(1) }} 小时</span></div>
+          </template>
         </section>
 
         <!-- 07 考核成绩 -->
@@ -206,7 +231,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { listLearningCourses } from '@/api/business/learning'
+import { listLearningCourses, getDailyDuration } from '@/api/business/learning'
 import { listAnnouncements } from '@/api/business/message'
 import { myPracticeRecords } from '@/api/business/practice'
 import { myExamList } from '@/api/business/exam'
@@ -225,7 +250,9 @@ export default {
       /** 考核类真数据（2026-09-22 起接真 —— 这几块原先都是硬编码示例值） */
       practiceRecords: [],
       myFormalExams: [],
-      entryDate: null
+      entryDate: null,
+      /** 近 14 天逐日学习时长（真数据；空数组 = 一直没有学习记录） */
+      dailyDurations: []
     }
   },
   computed: {
@@ -276,11 +303,41 @@ export default {
         cls: course.progress === 100 ? 'done' : (course.progress < 50 ? 'low' : '')
       }))
     },
+    /** 近 14 天学习时长序列（真数据；接口只给有记录的天，缺的天补 0 = 当天确实没学） */
+    dailySeries() {
+      const N = 14
+      const map = {}
+      ;(this.dailyDurations || []).forEach(d => { map[String(d.date)] = Number(d.seconds) || 0 })
+      const out = []
+      for (let i = N - 1; i >= 0; i--) {
+        const dt = new Date(Date.now() - i * 86400000)
+        const p = n => (n < 10 ? '0' + n : '' + n)
+        const key = dt.getFullYear() + '-' + p(dt.getMonth() + 1) + '-' + p(dt.getDate())
+        const sec = map[key] || 0
+        out.push({ label: (dt.getMonth() + 1) + '/' + dt.getDate(), seconds: sec, hours: Math.round(sec / 36) / 100 })
+      }
+      return out
+    },
+    /** 序列里是否有学习记录（全 0 → 走空态，而不是画一条 0 线假装"有数据"） */
+    hasDailyData() { return (this.dailyDurations || []).length > 0 },
+    trendMaxHours() {
+      const m = Math.max.apply(null, this.dailySeries.map(d => d.hours))
+      return m > 0 ? Math.round(m * 10) / 10 : 0
+    },
+    /**
+     * 趋势线坐标（真数据）：x 均匀分布，y 按本序列最大值归一
+     * ⚠️ 口径已变：原设计画「完成率 %」，但**历史完成率没有数据源** ⇒ 改画「每日学习时长（小时）」
+     */
     trendWeeks() {
-      const labels = ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', '本周']
-      const xs = [60, 190, 320, 450, 580, 710, 840]
-      const values = [8, 22, 36, 45, 52, 56, this.learningProgress]
-      return labels.map((label, i) => ({ label, value: values[i], x: xs[i], y: Math.round(180 - values[i] * 1.6) }))
+      const list = this.dailySeries
+      const maxSec = Math.max(1, ...list.map(d => d.seconds))
+      const stepX = list.length > 1 ? 834 / (list.length - 1) : 0
+      return list.map((d, i) => ({
+        label: d.label,
+        value: d.hours,
+        x: Math.round(46 + i * stepX),
+        y: Math.round(180 - (d.seconds / maxSec) * 160)
+      }))
     },
     trendPolyline() { return this.trendWeeks.map(w => w.x + ',' + w.y).join(' ') },
     trendArea() {
@@ -309,10 +366,14 @@ export default {
       })
     },
     radarPolygon() { return this.radarPoints.map(p => p.x + ',' + p.y).join(' ') },
+    /** 时长分布（与 03 卡同源的真数据，只是展示形式不同） */
     weeklyHours() {
-      return [{ label: 'W1', hours: 1.2 }, { label: 'W2', hours: 1.8 }, { label: 'W3', hours: 2.6 }, { label: 'W4', hours: 1.6 }, { label: 'W5', hours: 1.1 }, { label: '本周', hours: 2.3 }]
+      return this.dailySeries.map(d => ({ label: d.label, hours: d.hours }))
     },
-    weeklyHoursMax() { return Math.max.apply(null, this.weeklyHours.map(w => w.hours)) },
+    weeklyHoursMax() {
+      const m = Math.max.apply(null, this.weeklyHours.map(w => w.hours))
+      return m > 0 ? m : 1
+    },
     examScoreBars() {
       if (this.isFormal) return [
         { label: '自测 1', score: 90 }, { label: '自测 2', score: 88 }, { label: '自测 3', score: 94 }, { label: '正式理论', score: 86 }, { label: '正式实操', score: 91 }
@@ -430,13 +491,22 @@ export default {
     this.loadLearningPreview()
     this.loadAnnouncements()
     this.loadExamStats()
+    this.loadDailyDuration()
   },
   activated() {
     this.loadLearningPreview()
     this.loadAnnouncements()
     this.loadExamStats()
+    this.loadDailyDuration()
   },
   methods: {
+    /** 近 14 天逐日学习时长（真数据；接口只返回有记录的天，缺的天在前端补 0） */
+    loadDailyDuration() {
+      if (!this.isIntern) return
+      getDailyDuration(14).then(res => {
+        this.dailyDurations = res.data || []
+      }).catch(() => { this.dailyDurations = [] })
+    },
     /**
      * 工作台考核类真数据（2026-09-22 起接真 —— 这三个接口都是实习生端现成的，无需新后端）
      * · 模拟正确率：/business/practice/my  本人逐场记录（correct_count / total_count 汇总）
@@ -618,4 +688,9 @@ export default {
 @media (max-width: 1000px) { .entry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.identity-facts { gap: 16px; } }
 @media (max-width: 760px) { .workspace-page { padding: 14px; }.workspace-head, .identity-band { align-items: flex-start; flex-direction: column; }.metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.workspace-grid, .records-grid { grid-template-columns: 1fr; }.learning-dashboard-body { grid-template-columns: 1fr; }.learning-summary-panel { min-height: 0; }.identity-facts { width: 100%; justify-content: space-between; }.entry-grid, .entry-grid.three-columns { grid-template-columns: 1fr; }.task-row { align-items: flex-start; flex-wrap: wrap; padding: 12px 0; }.task-row > div { min-width: calc(100% - 22px); }.task-row .el-button { margin-left: 19px; }.dashboard-course-intro { white-space: normal; line-height: 1.5; } }
 @media (max-width: 440px) { .metric-grid { grid-template-columns: 1fr; }.head-actions { width: 100%; }.head-actions .el-button { flex: 1; }.identity-facts { align-items: flex-start; flex-direction: column; gap: 10px; }.identity-facts div { display: flex; width: 100%; justify-content: space-between; }.identity-facts span { margin: 0; } }
+/* 无数据空态（2026-09-22：能接真数据的接真，接不到就空着，不留假数） */
+.i2-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 46px 14px; text-align: center; }
+.i2-empty i { color: #d0d5dd; font-size: 30px; }
+.i2-empty strong { color: #1d2939; font-size: 14px; }
+.i2-empty span { color: #8490a0; font-size: 12.5px; line-height: 1.7; }
 </style>
