@@ -408,7 +408,9 @@ export default {
       if (this.statusFilter === 'GRADED') return this.gradedRows
       return this.rows
     },
-    queueRows() { return this.filteredRows },
+    /** 队列只列「有答卷」的人；未交卷的人仅在汇总表里以「未交卷」出现
+     *  （否则点未交卷的人会拿 undefined 的 sheetId 去请求，后端报参数类型不匹配） */
+    queueRows() { return this.filteredRows.filter(r => r.sheetId) },
     statusChips() {
       return [
         { key: 'ALL', label: '全部', count: this.rows.length },
@@ -547,6 +549,8 @@ export default {
       }).catch(() => { this.chapterLoading = false })
     },
     openSheet(row) {
+      // 防御：没有答卷的人（sheetId 为空）不能进评分面板，否则会请求 /detail/undefined
+      if (!row || !row.sheetId) return
       this.currentSheetId = row.sheetId
       sheetDetail(row.sheetId).then(res => {
         const data = (res && res.data) || {}
