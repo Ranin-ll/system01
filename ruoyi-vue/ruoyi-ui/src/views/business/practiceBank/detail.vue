@@ -42,7 +42,7 @@
           <template slot-scope="scope">
             <div class="tt-cell">
               <strong>{{ scope.row.title }}</strong>
-              <small>{{ scope.row.direction || '未分方向' }}<template v-if="scope.row.chapter"> · {{ scope.row.chapter }}</template></small>
+              <small>{{ scope.row.direction || '未分方向' }}</small>
             </div>
           </template>
         </el-table-column>
@@ -109,14 +109,6 @@
           <el-form-item label="建议用时（分钟）"><el-input-number v-model="form.estimatedMinutes" :min="0" :max="600" controls-position="right" style="width:100%" /></el-form-item>
 
           <el-form-item label="建议满分（分）"><el-input-number v-model="form.suggestScore" :min="0" :max="999" :precision="1" controls-position="right" placeholder="未填" style="width:100%" /></el-form-item>
-        </div>
-        <div class="fg2 stack2">
-          <el-form-item label="章节">
-            <el-input v-model="form.chapter" maxlength="64" placeholder="与理论题库口径统一（可选）" />
-          </el-form-item>
-          <el-form-item label="方向说明">
-            <el-input v-model="form.directionDesc" maxlength="255" placeholder="一句话说明该方向的考察点（可选）" />
-          </el-form-item>
         </div>
 
         <div class="sec"><span class="sec-no">2</span>题目描述<i class="sec-tip">要做成什么、什么标准算通过</i></div>
