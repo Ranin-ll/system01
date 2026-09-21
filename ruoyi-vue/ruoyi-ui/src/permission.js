@@ -44,7 +44,19 @@ function isDeptAdminOnly() {
     && roles.indexOf('admin') === -1
 }
 
+/** 超管（SUPER_ADMIN 或内置 admin）——登录后直接进设计稿的全局工作台 */
+export const SUPER_DASHBOARD_PATH = '/super/dashboard'
+
+function isSuperAdminRole() {
+  const roles = store.getters.roles || []
+  return roles.indexOf('SUPER_ADMIN') > -1 || roles.indexOf('admin') > -1
+}
+
 function protectedTarget(to) {
+  // 超管：不再进旧的通用工作台 /index，直接落到全局工作台
+  if (isSuperAdminRole() && (to.path === '/index' || to.path === '/')) {
+    return SUPER_DASHBOARD_PATH
+  }
   // 部门管理员不再进旧的通用工作台，直接落到部门工作台
   if (isDeptAdminOnly() && (to.path === '/index' || to.path === '/')) {
     return DEPT_DASHBOARD_PATH

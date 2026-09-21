@@ -149,11 +149,15 @@
           </div>
         </section>
 
-        <!-- 10 通知 -->
+        <!-- 10 公告 -->
         <section class="i2-card i2-span4">
-          <div class="panel-head"><div><span class="section-index">10</span><h2>通知</h2></div><el-button type="text" @click="go(messagePath)">全部 ›</el-button></div>
-          <button v-for="n in notices" :key="n.title" type="button" class="notice" @click="go(messagePath)"><b>{{ n.title }}</b><span>{{ n.desc }}</span></button>
-          <div class="note">通知暂无接口，为示例数据。<em class="dsample">示例</em></div>
+          <div class="panel-head"><div><span class="section-index">10</span><h2>公告</h2></div><el-button type="text" @click="go(messagePath)">全部 ›</el-button></div>
+          <button v-for="a in announcements" :key="a.id" type="button" class="notice" @click="go(messagePath)">
+            <b>{{ a.title }}<em v-if="a.isTop" class="dsample">置顶</em></b>
+            <span>{{ a.publishTime || a.createTime }}</span>
+          </button>
+          <div v-if="!announcements.length" class="note">暂无公告</div>
+          <div v-else class="note">取自 <code>notice</code> 表有效公告（最多 3 条，置顶优先），接口 <code>/business/message/announcements</code>。</div>
         </section>
       </div>
 
@@ -174,7 +178,7 @@
           <em>{{ record.status }}</em>
         </button>
       </section>
-      <div class="note band-note">电子证书统一在此查看与下载（考核成绩与转正申请页不重复展示）；未生成的记录点击不跳空页，而是提示生成条件。</div>
+      <div class="note band-note">电子证书统一在此查看与下载（考核成绩与转正页不重复展示）；未生成的记录点击不跳空页，而是提示生成条件。</div>
     </template>
 
     <template v-else>
@@ -203,6 +207,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import { listLearningCourses } from '@/api/business/learning'
+import { listAnnouncements } from '@/api/business/message'
 import { formatLearningDuration, learningSummary } from '@/utils/learningPreview'
 
 export default {
@@ -211,7 +216,9 @@ export default {
     return {
       learningLoading: false,
       previewCourses: [],
-      learningOverview: { progress: null, courseCount: 0, completedCourses: 0, learningCourses: 0, completedItems: 0, itemCount: 0, lastStudyTime: '尚未开始' }
+      learningOverview: { progress: null, courseCount: 0, completedCourses: 0, learningCourses: 0, completedItems: 0, itemCount: 0, lastStudyTime: '尚未开始' },
+      /** 工作台「公告位」：当前有效公告（最多 3 条，置顶优先），来自 /business/message/announcements */
+      announcements: []
     }
   },
   computed: {
@@ -298,13 +305,6 @@ export default {
         { label: '转正发证', state: 'todo', desc: '考核通过 + 部门管理员审批转正后生成电子证书' }
       ]
     },
-    notices() {
-      return [
-        { title: '部门管理员发布了正式考核', desc: '《2026 秋季正式考核 v1.0》已发布 · 2 小时前' },
-        { title: (this.mentorName || '导师') + ' 给你留了言', desc: '"本周重点回顾错题与课程笔记" · 昨天 18:20' },
-        { title: '模拟考核成绩已生成', desc: '正确率 ' + this.mockAccuracy + '%，继续保持 · 昨天 15:40' }
-      ]
-    },
     dashboardCourses() {
       return this.previewCourses.slice().sort((left, right) => {
         const rank = course => course.progress > 0 && course.progress < 100 ? 0 : (course.progress === 0 ? 1 : 2)
@@ -328,7 +328,7 @@ export default {
     },
     metrics() {
       if (this.isFormal) return [
-        { label: '培养状态', value: '已转正', hint: '正式实习生', tone: 'green', icon: 'el-icon-circle-check' }, { label: '课程完成率', value: this.learningProgress + '%', hint: '历史学习记录已保留', tone: 'blue', icon: 'el-icon-reading' }, { label: '综合成绩', value: '88 分', hint: '历史考核已通过', tone: 'violet', icon: 'el-icon-data-analysis' }, { label: '未读消息', value: '2 条', hint: '近期业务通知', tone: 'orange', icon: 'el-icon-message' }
+        { label: '培养状态', value: '已转正', hint: '正式实习生', tone: 'green', icon: 'el-icon-circle-check' }, { label: '课程完成率', value: this.learningProgress + '%', hint: '已发布课程仍可学习', tone: 'blue', icon: 'el-icon-reading' }, { label: '综合成绩', value: '88 分', hint: '历史考核已通过', tone: 'violet', icon: 'el-icon-data-analysis' }, { label: '未读消息', value: '2 条', hint: '近期业务通知', tone: 'orange', icon: 'el-icon-message' }
       ]
       if (this.isPre) return [
         { label: '待学课程', value: this.previewCourses.filter(course => course.progress < 100).length + ' 门', hint: `共 ${this.learningOverview.courseCount} 门已发布课程`, tone: 'orange', icon: 'el-icon-time' }, { label: '课程完成率', value: this.learningProgress + '%', hint: this.learningGap ? `距考核资格还差 ${this.learningGap}%` : '已满足考核资格', tone: 'blue', icon: 'el-icon-reading' }, { label: '理论考试', value: '未开始', hint: this.learningGap ? '等待满足学习资格' : '已达到学习门槛', tone: 'violet', icon: 'el-icon-edit-outline' }, { label: '能力画像', value: '72', hint: '当前阶段综合值', tone: 'green', icon: 'el-icon-data-line' }
@@ -375,7 +375,7 @@ export default {
           status: certified ? '已获得' : '未获得',
           tone: certified ? 'is-ready' : 'is-idle',
           path: '/assessment/intern/agreements',
-          tip: certified ? '证书已生成，可在线查看与下载（考核成绩与转正申请页也有一句去向指引）' : '考核通过并经部门管理员审批转正后生成电子证书'
+          tip: certified ? '证书已生成，可在线查看与下载（考核成绩与转正页也有一句去向指引）' : '考核通过并经部门管理员审批转正后生成电子证书'
         }
       ]
       if (signed) {
@@ -397,11 +397,19 @@ export default {
   },
   created() {
     this.loadLearningPreview()
+    this.loadAnnouncements()
   },
   activated() {
     this.loadLearningPreview()
+    this.loadAnnouncements()
   },
   methods: {
+    /** 工作台公告位：任何人可见（公示），不写已读、不计未读红点 */
+    loadAnnouncements() {
+      listAnnouncements().then(res => {
+        this.announcements = res.data || []
+      }).catch(() => { this.announcements = [] })
+    },
     loadLearningPreview() {
       if (!this.isIntern) return
       this.learningLoading = true

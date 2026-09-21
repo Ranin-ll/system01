@@ -3,8 +3,8 @@
     <header class="page-heading">
       <div>
         <div class="eyebrow">学习考核 / 部门运营</div>
-        <div class="title-line"><h2>部门课程管理</h2><el-tag size="mini" effect="plain" :type="readOnly ? 'info' : 'success'">{{ readOnly ? '全局只读' : '本部门范围' }}</el-tag></div>
-        <p>{{ readOnly ? '查看全组织课程与学习汇总。超级管理员不参与部门课程编辑、发布和停用。' : '维护本部门岗位课程、学习章节和学员学习情况，已发布课程会同步展示在实习生学习中心。' }}</p>
+        <div class="title-line"><h2>{{ superAdmin ? '课程管理（全组织）' : '部门课程管理' }}</h2><el-tag size="mini" effect="plain" :type="superAdmin ? 'warning' : 'success'">{{ superAdmin ? '全局范围 · 可写' : '本部门范围' }}</el-tag></div>
+        <p>{{ superAdmin ? '管理全组织课程、章节与学习资料 —— 超管可维护任意部门岗位的课程（2026-09-20 规则调整：超管可写课程与题库）。' : '维护本部门岗位课程、学习章节和学员学习情况，已发布课程会同步展示在实习生学习中心。' }}</p>
       </div>
       <div class="heading-actions">
         <el-button icon="el-icon-refresh" size="small" @click="refreshAll">刷新数据</el-button>
@@ -13,7 +13,7 @@
     </header>
 
     <section class="scope-strip">
-      <div class="scope-main"><span class="scope-icon"><i class="el-icon-office-building" /></span><div><strong>{{ readOnly ? '全局课程视图' : (deptName || '当前部门') }}</strong><span>{{ readOnly ? '可查看五个部门的课程数据' : '仅管理本部门已绑定岗位：' + managedPositionText }}</span></div></div>
+      <div class="scope-main"><span class="scope-icon"><i class="el-icon-office-building" /></span><div><strong>{{ superAdmin ? '全组织课程' : (deptName || '当前部门') }}</strong><span>{{ superAdmin ? '可维护五个部门全部岗位的课程' : '仅管理本部门已绑定岗位：' + managedPositionText }}</span></div></div>
       <div class="scope-meta"><span><i class="el-icon-lock" /> 数据范围由登录账号决定</span><el-button v-if="readOnly" type="text" size="mini" @click="comingSoon">查看全局统计</el-button></div>
     </section>
 
@@ -121,9 +121,10 @@
         <el-table-column label="更新时间" width="150">
           <template slot-scope="scope">{{ formatDate(scope.row.updateTime || scope.row.publishedAt || scope.row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="310" fixed="right" align="center" class-name="course-actions">
+        <el-table-column label="操作" width="366" fixed="right" align="center" class-name="course-actions">
           <template slot-scope="scope">
             <el-button type="text" size="mini" @click="openContent(scope.row)">{{ canEditContent(scope.row) ? '编排内容' : '查看内容' }}</el-button>
+            <el-button v-if="canPreview(scope.row)" type="text" size="mini" icon="el-icon-view" @click="openPreview(scope.row)">预览</el-button>
             <el-button type="text" size="mini" @click="openRecords(scope.row)">记录</el-button>
             <el-button v-if="!readOnly && scope.row.status !== 'PUBLISHED'" v-hasPermi="['business:course:edit']" type="text" size="mini" @click="handleUpdate(scope.row)">编辑信息</el-button>
             <el-button v-if="!readOnly && (scope.row.status === 'DRAFT' || scope.row.status === 'DISABLED')" v-hasPermi="['business:course:publish']" type="text" size="mini" @click="handlePublish(scope.row)">{{ scope.row.status === 'DISABLED' ? '重新发布' : '发布' }}</el-button>
@@ -187,7 +188,7 @@
                 <div v-for="item in chapter.items" :key="item.id" class="resource-row">
                   <button v-if="canEditContent(currentCourse)" type="button" class="drag-handle resource-drag-handle" title="拖拽调整资料顺序"><i class="el-icon-rank" /></button>
                   <span class="resource-icon" :class="item.itemType.toLowerCase()"><i :class="resourceIcon(item.itemType)" /></span>
-                  <div class="resource-info"><strong>{{ item.itemTitle }}</strong><small v-if="item.itemIntro" class="resource-intro">{{ item.itemIntro }}</small><span>{{ resourceTypeLabel(item.itemType) }} · {{ item.duration || 0 }} 分钟 · {{ completionRuleLabel(item.completionRule) }}</span><small class="resource-file-state" :class="item.fileName || item.contentUrl ? 'is-bound' : 'is-missing'"><i :class="item.fileName || item.contentUrl ? 'el-icon-paperclip' : 'el-icon-warning-outline'" /> {{ item.fileName || (item.itemType === 'QUIZ' ? '题目接口待接入' : '待上传文件') }}</small></div>
+                  <div class="resource-info"><strong>{{ item.itemTitle }}</strong><small v-if="item.itemIntro" class="resource-intro">{{ item.itemIntro }}</small><span>{{ resourceTypeLabel(item.itemType) }} · {{ item.duration || 0 }} 分钟 · {{ completionRuleLabel(item.completionRule) }}</span><small class="resource-file-state" :class="item.fileName || item.contentUrl ? 'is-bound' : 'is-missing'"><i :class="item.fileName || item.contentUrl ? 'el-icon-paperclip' : 'el-icon-warning-outline'" /> {{ item.fileName || '待上传文件' }}</small></div>
                   <div v-if="canEditContent(currentCourse)" class="resource-actions"><el-button type="text" size="mini" @click="openItemDialog(chapter, item)">编辑</el-button><el-button type="text" size="mini" class="danger-text" @click="removeItem(chapter, item)">删除</el-button></div>
                 </div>
               </draggable>
@@ -212,12 +213,12 @@
       <el-form ref="itemForm" :model="itemForm" :rules="itemRules" label-width="98px">
         <el-form-item label="资料名称" prop="itemTitle"><el-input v-model="itemForm.itemTitle" maxlength="128" placeholder="请输入学习资料名称" /></el-form-item>
         <el-form-item label="内容简介" prop="itemIntro"><el-input v-model="itemForm.itemIntro" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="简要说明本节学习目标、主要内容和学习重点" /></el-form-item>
-        <el-form-item label="资料类型" prop="itemType"><el-radio-group v-model="itemForm.itemType" @change="handleItemTypeChange"><el-radio label="DOC">文档</el-radio><el-radio label="VIDEO">视频</el-radio><el-radio label="QUIZ">章节测试</el-radio></el-radio-group></el-form-item>
+        <el-form-item label="资料类型" prop="itemType"><el-radio-group v-model="itemForm.itemType" @change="handleItemTypeChange"><el-radio label="DOC">文档</el-radio><el-radio label="VIDEO">视频</el-radio></el-radio-group></el-form-item>
         <el-form-item label="预计时长"><el-input-number v-model="itemForm.duration" :min="0" :max="600" controls-position="right" /><span class="unit-text">分钟</span></el-form-item>
-        <el-form-item label="完成方式"><el-select v-model="itemForm.completionRule" class="form-full"><el-option label="阅读到底并确认" value="SCROLL_END" /><el-option label="观看至完成进度" value="PLAY_TO_END" /><el-option label="提交测试答案" value="QUIZ_SUBMIT" /></el-select></el-form-item>
+        <el-form-item label="完成方式"><el-select v-model="itemForm.completionRule" class="form-full"><el-option label="阅读到底并确认" value="SCROLL_END" /><el-option label="观看至完成进度" value="PLAY_TO_END" /></el-select></el-form-item>
         <el-form-item label="完成要求"><el-switch v-model="itemForm.isRequired" :active-value="1" :inactive-value="0" active-text="必修" inactive-text="选修" /><span v-if="itemForm.itemType === 'VIDEO'" class="threshold-text">视频完成阈值 {{ itemForm.completionThreshold || 100 }}%</span></el-form-item>
         <el-form-item v-if="itemForm.itemType === 'VIDEO'" label="完成阈值"><el-slider v-model="itemForm.completionThreshold" :min="80" :max="100" :step="5" show-stops /><span class="form-tip">达到该播放进度后自动完成，后端仍会校验进度。</span></el-form-item>
-        <el-form-item v-if="itemForm.itemType !== 'QUIZ'" label="资料文件">
+        <el-form-item label="资料文件">
           <el-upload ref="assetUpload" class="asset-upload" action="#" :auto-upload="false" :show-file-list="false" :accept="itemAccept" :limit="1" :on-change="handleAssetChange" :on-exceed="handleAssetExceed">
             <el-button size="small" plain icon="el-icon-upload2" :disabled="assetUploadState === 'UPLOADING'">{{ itemForm.fileName ? '替换文件' : '选择文件' }}</el-button>
           </el-upload>
@@ -232,7 +233,6 @@
           </div>
           <span class="form-tip">支持 {{ itemForm.itemType === 'VIDEO' ? 'MP4、WebM、MOV，单文件不超过 500MB' : 'PDF、DOCX、PPTX、TXT、ZIP，单文件不超过 50MB' }}。文件上传到服务器资源目录，数据库保存访问路径和文件元数据。</span>
         </el-form-item>
-        <el-form-item v-else label="题目配置"><el-alert title="章节测试沿用考核题库接口，本轮先保留资料类型和完成规则入口。" type="info" :closable="false" show-icon /></el-form-item>
       </el-form>
       <div slot="footer"><el-button @click="itemDialogOpen = false">取消</el-button><el-button type="primary" :loading="itemSubmitting" @click="saveItem">保存资料</el-button></div>
     </el-dialog>
@@ -327,8 +327,7 @@ function defaultContent(course) {
       { id: 'item-' + course.id + '-2', itemTitle: '岗位资料安全操作演示', itemType: 'VIDEO', duration: 14, completionRule: 'PLAY_TO_END' }
     ] },
     { id: 'chapter-' + course.id + '-2', chapterName: '第二章 协作流程与质量要求', chapterIntro: '掌握日常协作流程、交付检查点和基本质量标准。', isRequired: 1, items: [
-      { id: 'item-' + course.id + '-3', itemTitle: '流程检查清单', itemType: 'DOC', duration: 20, completionRule: 'SCROLL_END' },
-      { id: 'item-' + course.id + '-4', itemTitle: '章节自测', itemType: 'QUIZ', duration: 10, completionRule: 'QUIZ_SUBMIT' }
+      { id: 'item-' + course.id + '-3', itemTitle: '流程检查清单', itemType: 'DOC', duration: 20, completionRule: 'SCROLL_END' }
     ] }
   ]
 }
@@ -380,8 +379,23 @@ export default {
     deptName() {
       return this.$store.getters.deptName || ''
     },
-    readOnly() {
+    /** 是否超管 —— 只用于文案（超管是「全局范围」，不是「本部门范围」） */
+    superAdmin() {
       return this.roles.indexOf('SUPER_ADMIN') > -1 || this.roles.indexOf('admin') > -1
+    },
+    /**
+     * 是否只读。
+     *
+     * <p><b>2026-09-20 规则调整</b>：超管由「业务实例一律只读」改为
+     * <b>「可管理全部课程与题库」</b>，所以这里不再把超管当只读 ——
+     * 否则「新建课程 / 编辑 / 发布 / 停用」按钮会被 {@code v-if="!readOnly"} 隐藏，
+     * 即使后端已放开也点不到。</p>
+     *
+     * <p>保留这个 computed 是因为模板里仍有多处 v-if / 文案引用它；
+     * 与后端 {@code CourseServiceImpl#managerScopeDeptId()} 的「超管返回 null（不限部门）」配套。</p>
+     */
+    readOnly() {
+      return false
     },
     managedPositionText() {
       const names = this.positionOptions.map(item => item.positionName).filter(Boolean)
@@ -593,6 +607,29 @@ export default {
         })
       }).catch(() => {})
     },
+    /**
+     * 是否显示「预览」：数据库课程 + 状态为「已保存(DRAFT)」或「已发布(PUBLISHED)」+ 已配置内容。
+     *
+     * 内容判据与后端 `CourseServiceImpl.publish()` 的前置校验同口径的前两项
+     * （至少一个章节、每个章节至少一项资料）—— 列表接口已带回 chapterCount / itemCount，不用额外请求。
+     * 第三项「所有资料都已上传文件」列表里拿不到，交给预览页如实呈现（未上传的资料会显示为无法预览）。
+     */
+    canPreview(row) {
+      if (this.previewMode) return false
+      if (!/^\d+$/.test(String(row.id))) return false
+      if (row.status !== 'DRAFT' && row.status !== 'PUBLISHED') return false
+      return Number(row.chapterCount || 0) > 0 && Number(row.itemCount || 0) > 0
+    },
+    /** 新标签页打开「实习生视角」的课程页（复用 detail.vue，路由 meta.preview=true） */
+    openPreview(row) {
+      const href = this.$router.resolve({
+        name: 'CoursePreview',
+        params: { courseId: row.id },
+        query: { from: this.$route.fullPath }
+      }).href
+      const win = window.open(href, '_blank')
+      if (!win) this.$modal.msgWarning('浏览器拦截了新标签页，请允许本站弹出窗口后重试')
+    },
     openContent(course) {
       this.currentCourse = course
       this.contentDirty = false
@@ -664,7 +701,7 @@ export default {
       chapters.forEach((chapter, index) => {
         if (!chapter.items || !chapter.items.length) missing.push('第' + (index + 1) + '章还没有学习资料')
         ;(chapter.items || []).forEach(item => {
-          if (item.itemType !== 'QUIZ' && !item.fileName && !item.contentUrl) missing.push('“' + item.itemTitle + '”尚未绑定文件')
+          if (!item.fileName && !item.contentUrl) missing.push('“' + item.itemTitle + '”尚未绑定文件')
         })
       })
       return { ready: missing.length === 0, label: missing.length ? '还缺 ' + missing.length + ' 项' : '发布条件已满足', missing: missing.slice(0, 4) }
@@ -747,7 +784,7 @@ export default {
       this.itemDialogOpen = true
     },
     handleItemTypeChange(type) {
-      this.itemForm.completionRule = type === 'VIDEO' ? 'PLAY_TO_END' : (type === 'QUIZ' ? 'QUIZ_SUBMIT' : 'SCROLL_END')
+      this.itemForm.completionRule = type === 'VIDEO' ? 'PLAY_TO_END' : 'SCROLL_END'
       this.itemForm.fileName = ''
       this.itemForm.fileSize = 0
       this.itemForm.fileExt = ''
@@ -914,9 +951,9 @@ export default {
       return position ? position.positionName : ''
     },
     courseTypeLabel(type) { return type === 'PRACTICE' ? '实操训练' : '理论学习' },
-    resourceTypeLabel(type) { return { DOC: '文档学习', VIDEO: '视频学习', QUIZ: '章节测试' }[type] || type },
-    completionRuleLabel(rule) { return { SCROLL_END: '阅读确认', PLAY_TO_END: '观看完成', QUIZ_SUBMIT: '提交测试' }[rule] || '完成学习' },
-    resourceIcon(type) { return { DOC: 'el-icon-document', VIDEO: 'el-icon-video-camera', QUIZ: 'el-icon-edit-outline' }[type] || 'el-icon-document' },
+    resourceTypeLabel(type) { return { DOC: '文档学习', VIDEO: '视频学习' }[type] || type },
+    completionRuleLabel(rule) { return { SCROLL_END: '阅读确认', PLAY_TO_END: '观看完成' }[rule] || '完成学习' },
+    resourceIcon(type) { return { DOC: 'el-icon-document', VIDEO: 'el-icon-video-camera' }[type] || 'el-icon-document' },
     courseTone(course) { return course.courseType === 'PRACTICE' ? 'orange' : 'blue' },
     statusLabel(status) { return { DRAFT: '草稿', PUBLISHED: '已发布', DISABLED: '已停用' }[status] || status || '草稿' },
     statusTagType(status) { return { DRAFT: 'info', PUBLISHED: 'success', DISABLED: 'danger' }[status] || 'info' },

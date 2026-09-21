@@ -52,7 +52,7 @@ INSERT INTO `sys_menu` (`menu_name`, `parent_id`, `order_num`, `path`, `componen
     ('注册重新提交', @registerMenuId, 3, '#', '', 1, 0, 'F', '0', '0', 'business:register:resubmit', '#', 'admin', NOW(), '');
 
 -- ============== 2. 为超级管理员分配所有业务权限 ==============
--- 按 role_key 查找角色，兼容若依内置 admin 与业务超级管理员角色的不同自增 ID。
+-- 按 role_key 查找角色，兼容内置 admin 与业务超级管理员角色的不同自增 ID。
 INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
 SELECT r.role_id, m.menu_id
 FROM `sys_role` r

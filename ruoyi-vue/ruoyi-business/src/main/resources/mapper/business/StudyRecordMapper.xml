@@ -89,6 +89,8 @@
             AND u.position_id = c.position_id
             AND u.del_flag = '0'
             AND u.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')
+            AND EXISTS (SELECT 1 FROM sys_user_role iur JOIN sys_role ir ON ir.role_id = iur.role_id
+                         WHERE iur.user_id = u.user_id AND ir.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
         LEFT JOIN course_chapter cc ON cc.course_id = c.id AND cc.deleted = 0
         LEFT JOIN study_item si ON si.chapter_id = cc.id AND si.deleted = 0
         LEFT JOIN study_record sr ON sr.user_id = u.user_id

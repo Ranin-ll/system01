@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.LearningTaskMapper">
+
+    <!-- 计数子查询：分配数 / 已提交人数 / 待批阅数 / 讨论帖数 / 资料数 -->
+    <sql id="counts">
+        <!-- 分配人数也要过角色校验：否则「分配 5 人」与提交看板实际列出的 2 行对不上
+             （任务卡的 分配/提交 两个数来自这里，看板行数来自 selectAssignmentBoard） -->
+        (SELECT COUNT(*) FROM task_assignment a
+          JOIN sys_user au ON au.user_id = a.user_id
+                         AND EXISTS (SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id
+                                      WHERE ur.user_id = au.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+         WHERE a.task_id = t.id) AS assignedCount,
+        (SELECT COUNT(DISTINCT s.user_id) FROM task_submission s WHERE s.task_id = t.id) AS submittedCount,
+        (SELECT COUNT(*) FROM task_submission s WHERE s.task_id = t.id AND s.status = 'SUBMITTED') AS pendingReviewCount,
+        (SELECT COUNT(*) FROM task_post tp WHERE tp.task_id = t.id AND tp.deleted_by IS NULL) AS postCount,
+        (SELECT COUNT(*) FROM task_attachment ta WHERE ta.task_id = t.id AND ta.deleted = 0) AS attachmentCount
+    </sql>
+
+    <select id="selectTaskList" resultType="com.ruoyi.business.domain.LearningTask">
+        SELECT t.*, p.position_name AS positionName,
+               pu.nick_name AS publisherName, ru.nick_name AS reviewerName,
+               (SELECT GROUP_CONCAT(u.nick_name ORDER BY u.user_id)
+                  FROM task_target_user tt JOIN sys_user u ON u.user_id = tt.user_id
+                 WHERE tt.task_id = t.id) AS targetNames, <include refid="counts"/>
+               <if test="userId != null">
+               , (SELECT a2.status FROM task_assignment a2
+                   WHERE a2.task_id = t.id AND a2.user_id = #{userId}) AS assignStatus
+               </if>
+          FROM learning_task t
+          LEFT JOIN position p ON p.id = t.position_id
+          LEFT JOIN sys_user pu ON pu.user_id = t.publisher_id
+          LEFT JOIN sys_user ru ON ru.user_id = t.reviewer_id
+         WHERE t.deleted = 0
+        <!-- 部门范围：
+             ① 有岗位的任务 → 岗位属于该部门；
+             ② 不带岗位的任务（assign_scope=DEPT/USER 的部门级任务）→ 看发布人所属部门。
+             ★ 少了 ② 这类任务会直接从部门管理员的列表里消失（NULL IN (...) 永远不成立）。
+             超管 scopeDeptId=null → 不加条件，看全部。 -->
+        <if test="scopeDeptId != null">
+           AND (
+                t.position_id IN (
+                    SELECT dp.position_id FROM dept_position dp
+                     WHERE dp.dept_id = #{scopeDeptId} AND dp.status = 1)
+             OR (t.position_id IS NULL AND EXISTS (
+                    SELECT 1 FROM sys_user pdu
+                     WHERE pdu.user_id = t.publisher_id AND pdu.dept_id = #{scopeDeptId}))
+           )
+        </if>
+        <if test="positionId != null">
+           AND t.position_id = #{positionId}
+        </if>
+        <if test="status != null and status != ''">
+           AND t.status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+           AND t.task_name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <!-- 按实习生筛选：只留分配给了 TA 的任务 -->
+        <if test="userId != null">
+           AND EXISTS (SELECT 1 FROM task_assignment a3
+                        WHERE a3.task_id = t.id AND a3.user_id = #{userId})
+        </if>
+         ORDER BY t.create_time DESC, t.id DESC
+    </select>
+
+    <select id="selectTaskDetail" resultType="com.ruoyi.business.domain.LearningTask">
+        SELECT t.*, p.position_name AS positionName,
+               pu.nick_name AS publisherName, pu.dept_id AS publisherDeptId, ru.nick_name AS reviewerName,
+               (SELECT GROUP_CONCAT(u.nick_name ORDER BY u.user_id)
+                  FROM task_target_user tt JOIN sys_user u ON u.user_id = tt.user_id
+                 WHERE tt.task_id = t.id) AS targetNames, <include refid="counts"/>
+          FROM learning_task t
+          LEFT JOIN position p ON p.id = t.position_id
+          LEFT JOIN sys_user pu ON pu.user_id = t.publisher_id
+          LEFT JOIN sys_user ru ON ru.user_id = t.reviewer_id
+         WHERE t.id = #{id} AND t.deleted = 0
+    </select>
+
+    <!-- 我的任务：以 assignment 为主表 → 未开始的任务也会出现 -->
+    <select id="selectMyTasks" resultType="com.ruoyi.business.domain.LearningTask">
+        SELECT t.id, t.task_name AS taskName, t.course_id AS courseId, t.position_id AS positionId,
+               t.target, t.description, t.theory_hours AS theoryHours, t.practice_hours AS practiceHours,
+               t.start_time AS startTime, t.deadline, t.need_assignment AS needAssignment,
+               t.allow_resubmit AS allowResubmit, t.discussion_enabled AS discussionEnabled,
+               t.status, t.create_time AS createTime,
+               p.position_name AS positionName,
+               (SELECT COUNT(*) FROM task_post tp WHERE tp.task_id = t.id AND tp.deleted_by IS NULL) AS postCount,
+               (SELECT COUNT(*) FROM task_attachment ta WHERE ta.task_id = t.id AND ta.deleted = 0) AS attachmentCount,
+               a.id AS assignmentId, a.status AS assignStatus,
+               s.status AS submissionStatus, s.review_status AS reviewStatus,
+               s.review_comment AS reviewComment, s.submit_time AS submitTime,
+               s.file_url AS fileUrl, s.file_name AS fileName
+          FROM task_assignment a
+          JOIN learning_task t ON t.id = a.task_id AND t.deleted = 0 AND t.status &lt;&gt; 'DRAFT'
+          LEFT JOIN position p ON p.id = t.position_id
+          LEFT JOIN task_submission s
+            ON s.assignment_id = a.id
+           AND s.version = (SELECT MAX(x.version) FROM task_submission x WHERE x.assignment_id = a.id)
+         WHERE a.user_id = #{userId}
+         ORDER BY (t.deadline IS NULL), t.deadline ASC, t.id DESC
+    </select>
+
+    <!-- 发布时展开：该岗位 + 对应部门下的在培实习生。
+
+         ⚠️ 「在培实习生」= **user_status 在培 且 真的持有实习生角色**。
+         只看 user_status 会捞进「没有任何角色的遗留废号」（历史上就有一个昵称叫
+         「测试超级管理员」的废号混进实习生名单、还会被分配任务）。
+         注意：这不是「排除管理员」——管理员账号的 user_status 本来就是 NON_INTERN。 -->
+    <select id="selectCandidateUserIds" resultType="java.lang.Long">
+        SELECT u.user_id
+          FROM sys_user u
+          JOIN dept_position dp ON dp.position_id = u.position_id AND dp.status = 1
+         WHERE u.del_flag = '0'
+           AND u.status = '0'
+           AND u.position_id = #{positionId}
+           AND u.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE', 'PENDING_PROMOTE')
+           AND EXISTS (SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id
+                        WHERE ur.user_id = u.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+         ORDER BY u.user_id
+    </select>
+
+    <!-- 「按部门」发布：该部门下的全部在培实习生（不分岗位）。
+         与 selectCandidateUserIds 同一套人员口径（状态三态 + 真持有实习生角色 +
+         部门与岗位在 dept_position 里是生效绑定），只是把「岗位过滤」换成「部门过滤」。 -->
+    <select id="selectCandidateUserIdsByDept" resultType="java.lang.Long">
+        SELECT u.user_id
+          FROM sys_user u
+          JOIN dept_position dp ON dp.position_id = u.position_id AND dp.status = 1
+         WHERE u.del_flag = '0'
+           AND u.dept_id = #{deptId}
+           AND u.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE', 'PENDING_PROMOTE')
+           AND EXISTS (SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id
+                        WHERE ur.user_id = u.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+         ORDER BY u.user_id
+    </select>
+
+    <!-- 提交情况：未提交的也要列出来（assignment 为主表）。
+         带出「批阅记录」需要的字段（批阅人 / 批阅时间）与提交次数（历次提交的入口计数）。
+
+         ★ 为什么要 JOIN 一层角色校验：task_assignment 是**发布那一刻**按岗位展开的**快照**。
+         历史上有 3 个「无任何角色」的遗留废号（116/122/123）被铺进了分配行，
+         它们既不会提交、也早已停用，却会一直挂在看板上显示「未开始 / 未交」，
+         还会被「催办」和逾期定时任务当成提醒对象。分配快照改不了（那是历史事实），
+         但**看板只应展示「现在仍然是实习生」的人** —— 与全项目的实习生口径保持一致。 -->
+    <select id="selectAssignmentBoard" resultType="java.util.Map">
+        SELECT a.id            AS assignmentId,
+               a.user_id       AS userId,
+               a.status        AS assignStatus,
+               u.user_name     AS userName,
+               u.nick_name     AS nickName,
+               d.dept_name     AS deptName,
+               s.id            AS submissionId,
+               s.status        AS submissionStatus,
+               s.review_status AS reviewStatus,
+               s.review_comment AS reviewComment,
+               s.reviewer_id   AS reviewerId,
+               s.review_time   AS reviewTime,
+               ru.nick_name    AS reviewerName,
+               s.submit_time   AS submitTime,
+               s.version       AS version,
+               s.content       AS content,
+               s.file_url      AS fileUrl,
+               s.file_name     AS fileName,
+               (SELECT COUNT(*) FROM task_submission x WHERE x.assignment_id = a.id) AS submissionCount
+          FROM task_assignment a
+          JOIN sys_user u ON u.user_id = a.user_id
+                         AND EXISTS (SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id
+                                      WHERE ur.user_id = u.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+          LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+          LEFT JOIN task_submission s
+            ON s.assignment_id = a.id
+           AND s.version = (SELECT MAX(x.version) FROM task_submission x WHERE x.assignment_id = a.id)
+          LEFT JOIN sys_user ru ON ru.user_id = s.reviewer_id
+         WHERE a.task_id = #{taskId}
+         ORDER BY (s.id IS NULL) DESC, u.user_id
+    </select>
+
+    <!-- 某个分配的「历次提交」——重复提交走 version+1，旧版本不能丢，
+         批阅人要能看到「上一次被退回时交的是什么、当时给了什么批语」。
+         必须先经 Service 校验该分配属于当前部门管理员可管的任务。 -->
+    <select id="selectSubmissionHistory" resultType="java.util.Map">
+        SELECT s.id            AS submissionId,
+               s.assignment_id AS assignmentId,
+               s.task_id       AS taskId,
+               s.user_id       AS userId,
+               u.nick_name     AS nickName,
+               s.version       AS version,
+               s.content       AS content,
+               s.file_url      AS fileUrl,
+               s.file_name     AS fileName,
+               s.submit_time   AS submitTime,
+               s.status        AS submissionStatus,
+               s.review_status AS reviewStatus,
+               s.review_comment AS reviewComment,
+               s.review_time   AS reviewTime,
+               ru.nick_name    AS reviewerName
+          FROM task_submission s
+          JOIN sys_user u ON u.user_id = s.user_id
+          LEFT JOIN sys_user ru ON ru.user_id = s.reviewer_id
+         WHERE s.assignment_id = #{assignmentId}
+         ORDER BY s.version DESC
+    </select>
+
+    <!-- 本部门在培实习生（含待转正）。
+         ★ 为什么不复用 /system/user/list：那个接口要 system:user:list 权限，部门管理员是 403，
+         前端拿到的永远是空列表（「指定人员」选择器与「按实习生筛选」都踩过这个坑）。
+         这里走业务侧、按 token 里的 deptId 收范围，超管传 null 看全部。 -->
+    <!-- 本部门在培实习生（含待转正）—— 「任务 / 通知 / 批阅」三页的「按实习生筛选」共用，
+         也是「按部门发布」与「指定人员」的可选范围。
+
+         ★ 这里的成员口径必须与 selectCandidateUserIds / selectCandidateUserIdsByDept **完全一致**：
+           前端能勾到的人，后端校验就必须通过；否则会出现「选得中、存不下」的假报错。
+           所以三处都用同一组条件：账号有效 + 状态三态 + 真持有实习生角色 + 部门与岗位在
+           dept_position 里是生效绑定。 -->
+    <select id="selectDeptTrainees" resultType="java.util.Map">
+        SELECT u.user_id       AS userId,
+               u.user_name     AS userName,
+               u.nick_name     AS nickName,
+               u.dept_id       AS deptId,
+               u.position_id   AS positionId,
+               u.user_status   AS userStatus,
+               p.position_name AS positionName
+          FROM sys_user u
+          LEFT JOIN position p ON p.id = u.position_id
+          JOIN dept_position dp ON dp.position_id = u.position_id AND dp.status = 1
+         WHERE u.del_flag = '0'
+           AND u.status = '0'
+           AND u.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE', 'PENDING_PROMOTE')
+           AND EXISTS (SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id
+                        WHERE ur.user_id = u.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+        <if test="deptId != null">
+           AND u.dept_id = #{deptId}
+        </if>
+         ORDER BY u.position_id, u.user_id
+    </select>
+
+    <!-- ============ P3：定时任务用 ============ -->
+
+    <!-- 已逾期未完成：任务必须是已发布状态（已结束的不再标逾期） -->
+    <select id="selectOverdueAssignments" resultType="java.util.Map">
+        SELECT a.id        AS assignmentId,
+               a.user_id   AS userId,
+               u.nick_name AS userName,
+               t.id        AS taskId,
+               t.task_name AS taskName,
+               t.deadline  AS deadline,
+               t.reviewer_id AS reviewerId
+          FROM task_assignment a
+          JOIN learning_task t ON t.id = a.task_id
+                              AND t.deleted = 0
+                              AND t.status = 'PUBLISHED'
+          JOIN sys_user u ON u.user_id = a.user_id
+                         AND EXISTS (SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id
+                                      WHERE ur.user_id = u.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+         WHERE a.status &lt;&gt; 'DONE'
+           AND t.deadline IS NOT NULL
+           AND t.deadline &lt; NOW()
+    </select>
+
+    <!-- 即将到期且"尚未提交过"（已提交但未批阅的不再打扰） -->
+    <select id="selectDueSoonAssignments" resultType="java.util.Map">
+        SELECT a.id        AS assignmentId,
+               a.user_id   AS userId,
+               t.id        AS taskId,
+               t.task_name AS taskName,
+               t.deadline  AS deadline,
+               t.reviewer_id AS reviewerId
+          FROM task_assignment a
+          JOIN learning_task t ON t.id = a.task_id
+                              AND t.deleted = 0
+                              AND t.status = 'PUBLISHED'
+          JOIN sys_user u ON u.user_id = a.user_id
+                         AND EXISTS (SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id
+                                      WHERE ur.user_id = u.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+         WHERE a.status &lt;&gt; 'DONE'
+           AND t.deadline IS NOT NULL
+           AND t.deadline &gt;= NOW()
+           AND t.deadline &lt;= DATE_ADD(NOW(), INTERVAL #{days} DAY)
+           AND NOT EXISTS (SELECT 1 FROM task_submission s WHERE s.assignment_id = a.id)
+    </select>
+
+</mapper>

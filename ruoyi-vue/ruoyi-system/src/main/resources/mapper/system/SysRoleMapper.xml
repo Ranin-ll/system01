@@ -19,11 +19,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		<result property="updateBy"           column="update_by"             />
 		<result property="updateTime"         column="update_time"           />
 		<result property="remark"             column="remark"                />
+		<!-- ★ 项目扩展（2026-09-20）：成员数，仅 selectRoleList 的子查询会带出 user_count -->
+		<result property="userCount"          column="user_count"            />
 	</resultMap>
 	
 	<sql id="selectRoleVo">
 	    select distinct r.role_id, r.role_name, r.role_key, r.role_sort, r.data_scope, r.menu_check_strictly, r.dept_check_strictly,
-            r.status, r.del_flag, r.create_time, r.remark 
+            r.status, r.del_flag, r.create_time, r.remark,
+            <!-- ★ 项目扩展（2026-09-20）：角色成员数。放在本片段内是必须的 ——
+                 本片段含 from/left join，若把子查询放在调用处的 include 之后，
+                 会落到 FROM 之后（PageHelper 的 count 包装会直接报 Unknown column 'r.role_id'）。
+                 别名 ur2 避免与下面的 ur 冲突；resultMap 用 user_count → userCount。 -->
+            (select count(*) from sys_user_role ur2 where ur2.role_id = r.role_id) as user_count
         from sys_role r
 	        left join sys_user_role ur on ur.role_id = r.role_id
 	        left join sys_user u on u.user_id = ur.user_id

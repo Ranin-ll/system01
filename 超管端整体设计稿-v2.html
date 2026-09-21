@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="cXJj27gVIpzOQ4m5xcQNKQ">
+<head data-page-node-id="VjmQ43VybHLO5U0okSiKDh">
+<meta charset="utf-8" data-page-node-id="I9AFL9B3xloYg79jy1Jt1h" />
+<meta name="viewport" content="width=device-width,initial-scale=1" data-page-node-id="v8qGnJmBaZBX0GGw88h7PQ" />
+<title>实习生学习考核系统 · 超管端 整体设计稿 V2（优化完善版）</title>
+<style>
+/* ============================================================
+   统一设计稿 · 实习生端 + 部门管理员端
+   样式分三层：① 共享基础与文档外壳  ② .ri 实习生端作用域  ③ .rd 部门管理员端作用域
+   两端各自保留了原稿的全部差异（如 .badge 颜色不同），互不覆盖。
+   ============================================================ */
+
+/* ---------- ① 共享基础 / 文档外壳 ---------- */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--blue);text-decoration:none}
+.doc{max-width:1300px;margin:0 auto;padding:0 24px 96px}
+.doc-hero{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px 32px;margin:24px 0 22px}
+.doc-hero h1{margin:0 0 6px;font-size:24px;letter-spacing:.3px}
+.doc-hero .sub{color:var(--ink-3);font-size:13px}
+.doc-hero .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tag{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;background:var(--gray-soft);color:var(--ink-2);font-size:12px}
+.tag.blue{background:var(--blue-soft);color:var(--blue)}
+.tag.green{background:var(--green-soft);color:#067647}
+.tag.orange{background:var(--orange-soft);color:var(--orange-ink)}
+.tag.purple{background:var(--purple-soft);color:#5c37d6}
+.doc-nav{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;gap:6px;background:rgba(238,242,247,.93);backdrop-filter:blur(6px);padding:12px 0;margin-bottom:8px}
+.doc-nav a{height:30px;display:inline-flex;align-items:center;padding:0 12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--ink-2);font-size:12.5px;text-decoration:none}
+.doc-nav a:hover{border-color:var(--blue);color:var(--blue)}
+.doc-nav a.hot{background:var(--blue);border-color:var(--blue);color:#fff}
+.sec{margin-top:40px}
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;flex-wrap:wrap}
+.sec-no{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:var(--blue);color:#fff;font-size:13px;font-weight:600;flex:none}
+.sec-no.p{background:var(--purple)}
+.sec-head h2{margin:0;font-size:19px}
+.sec-desc{color:var(--ink-3);font-size:13.5px;margin:0 0 16px 38px;max-width:1000px}
+.sec-desc b{color:var(--ink-2);font-weight:600}
+.frame{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.frame-bar{display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+.dot{width:10px;height:10px;border-radius:50%;background:#dfe4ec}
+.dot.r{background:#f6c9c4}
+.url{margin-left:10px;flex:1;height:24px;display:flex;align-items:center;padding:0 12px;background:#fff;border:1px solid var(--line);border-radius:6px;color:var(--ink-4);font-size:12px}
+.todo .tdot.o{background:var(--orange)}
+.todo .tdot.g{background:var(--green)}
+.kbd{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:var(--gray-soft);padding:1px 6px;border-radius:4px;color:var(--ink-2)}
+.sec-sub{display:flex;align-items:baseline;gap:10px;margin:26px 0 12px}
+.sec-sub b{font-size:14.5px;color:var(--ink)}
+.sec-sub span{font-size:12px;color:var(--ink-4)}
+.boxed{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+code{font-size:11px;color:var(--ink-4);background:var(--gray-soft);padding:1px 6px;border-radius:4px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.tag.red{background:var(--red-soft);color:#b42318}
+.mut{color:var(--ink-4)}
+.todo .tdot.p{background:var(--purple)}
+
+.rolesw{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+.rolesw .rs{height:32px;display:inline-flex;align-items:center;padding:0 16px;border-radius:8px;background:var(--gray-soft);color:var(--ink-2);font-size:13px;font-weight:600;cursor:pointer;user-select:none;}
+.rolesw .rs:hover{color:var(--blue);}
+.rolesw .rs.on{background:var(--blue);color:#fff;}
+.navset{display:flex;flex-wrap:wrap;gap:6px;}
+body[data-role="intern"] .rd{display:none;}
+body[data-role="dept"] .ri{display:none;}
+html{scroll-behavior:smooth;}
+
+/* ---------- ② 实习生端（.ri） ---------- */
+:root{--bg:#eef2f7; --panel:#ffffff; --panel-2:#f7f9fc;
+    --line:#e4e9f0; --line-2:#eef1f6;
+    --ink:#1d2939; --ink-2:#344054; --ink-3:#667085; --ink-4:#98a2b3;
+    --blue:#1764f5; --blue-soft:#e8f1fd; --blue-soft-2:#d7e7fc;
+    --green:#12b76a; --green-soft:#e7f7ef;
+    --orange:#f79009; --orange-soft:#fff4e5; --orange-ink:#b54708;
+    --purple:#7a5af8; --purple-soft:#f4eeff;
+    --gray-soft:#f2f4f7; --red:#f04438; --red-soft:#feecea;
+    --font:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Segoe UI",system-ui,sans-serif;}
+.ri .app{display:flex;min-height:640px;background:var(--panel-2);}
+.ri .rail{width:208px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;}
+.ri .rail-brand{height:58px;display:flex;align-items:center;gap:9px;padding:0 18px;border-bottom:1px solid var(--line-2);font-weight:600;color:var(--ink);}
+.ri .rail-brand .logo{width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+.ri .rail-brand .logo.p{background:var(--purple);}
+.ri .rail-group{padding:12px 10px 0;color:var(--ink-4);font-size:11px;letter-spacing:.6px;}
+.ri .rail-item{display:flex;align-items:center;gap:10px;margin:3px 10px;padding:9px 12px;border-radius:7px;color:var(--ink-2);font-size:13.5px;cursor:default;}
+.ri .rail-item .ic{width:16px;text-align:center;color:var(--ink-3);font-size:14px;}
+.ri .rail-item.active{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.ri .rail-item.active .ic{color:var(--blue);}
+.ri .rail-item.act-p{background:var(--purple-soft);color:#5c37d6;font-weight:600;}
+.ri .rail-foot{margin-top:auto;padding:14px 18px;border-top:1px solid var(--line-2);color:var(--ink-4);font-size:11.5px;}
+.ri .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--panel-2);}
+.ri .topbar{height:58px;flex:none;display:flex;align-items:center;gap:14px;padding:0 22px;background:#fff;border-bottom:1px solid var(--line);}
+.ri .crumb{font-size:13.5px;color:var(--ink-3);}
+.ri .crumb b{color:var(--ink);font-weight:600;}
+.ri .topbar .spacer{flex:1;}
+.ri .bell{position:relative;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink-2);}
+.ri .bell i{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;font-style:normal;display:flex;align-items:center;justify-content:center;}
+.ri .avatar{display:flex;align-items:center;gap:8px;}
+.ri .avatar .ph{width:30px;height:30px;border-radius:50%;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
+.ri .avatar .ph.p{background:var(--purple-soft);color:#5c37d6;}
+.ri .body{padding:18px 22px 26px;overflow:hidden;}
+.ri .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;}
+.ri .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;}
+.ri .card.flat{background:var(--panel-2);}
+.ri .c3{grid-column:span 3;}
+.ri .c4{grid-column:span 4;}
+.ri .c5{grid-column:span 5;}
+.ri .c6{grid-column:span 6;}
+.ri .c7{grid-column:span 7;}
+.ri .c8{grid-column:span 8;}
+.ri .c12{grid-column:span 12;}
+.ri .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.ri .card-h h3{margin:0;font-size:14.5px;font-weight:600;color:var(--ink);}
+.ri .card-h .hint{font-size:11.5px;color:var(--ink-4);}
+.ri .idx{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;margin-right:8px;flex:none;}
+.ri .idx.g{background:var(--green-soft);color:#067647;}
+.ri .idx.o{background:var(--orange-soft);color:var(--orange-ink);}
+.ri .card-h .tt{display:flex;align-items:center;}
+.ri .note{font-size:11.5px;color:var(--ink-4);margin-top:10px;line-height:1.5;}
+.ri .ph-page-title{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;gap:14px;}
+.ri .ph-page-title h2{margin:0 0 2px;font-size:19px;}
+.ri .ph-page-title .d{color:var(--ink-3);font-size:12.5px;}
+.ri .btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--ink-2);font-size:13px;white-space:nowrap;}
+.ri .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.ri .btn.ghost{background:var(--blue-soft);border-color:transparent;color:var(--blue);}
+.ri .btn.dis{opacity:.45;}
+.ri .btn.sm{height:28px;font-size:12px;padding:0 11px;}
+.ri .btn-row{display:flex;gap:8px;}
+.ri .identity{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.ri .identity .big-ph{width:46px;height:46px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex:none;}
+.ri .identity .who b{font-size:15.5px;color:var(--ink);}
+.ri .identity .who p{margin:2px 0 0;color:var(--ink-3);font-size:12.5px;}
+.ri .identity .facts{margin-left:auto;display:flex;gap:26px;flex-wrap:wrap;}
+.ri .fact{min-width:78px;}
+.ri .fact span{display:block;color:var(--ink-4);font-size:11.5px;margin-bottom:3px;}
+.ri .fact b{font-size:13.5px;color:var(--ink);}
+.ri .fact b.ok{color:#067647;}
+.ri .fact b.warn{color:var(--orange-ink);}
+.ri .fact b.idle{color:var(--ink-4);}
+.ri .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+.ri .kpi .lb{display:flex;align-items:center;gap:6px;color:var(--ink-3);font-size:12px;margin-bottom:8px;}
+.ri .kpi .lb .d{width:6px;height:6px;border-radius:50%;background:var(--blue);}
+.ri .kpi .vl{font-size:24px;font-weight:700;letter-spacing:.4px;color:var(--ink);line-height:1.1;}
+.ri .kpi .vl small{font-size:12px;font-weight:500;color:var(--ink-4);margin-left:3px;}
+.ri .kpi .ft{font-size:11.5px;color:var(--ink-4);margin-top:7px;}
+.ri .kpi .ft.up{color:#067647;}
+.ri .kpi .ft.warn{color:var(--orange-ink);}
+.ri .kpi.hl{border-color:var(--blue-soft-2);}
+.ri .bar-mini{height:5px;border-radius:3px;background:var(--gray-soft);margin-top:9px;overflow:hidden;}
+.ri .bar-mini i{display:block;height:100%;border-radius:3px;background:var(--blue);}
+.ri .bar-mini i.g{background:var(--green);}
+.ri .bar-mini i.o{background:var(--orange);}
+.ri svg{display:block;width:100%;height:auto;}
+.ri .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--ink-3);}
+.ri .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+.ri .portrait{display:flex;gap:14px;align-items:center;}
+.ri .portrait .radar{flex:none;width:180px;}
+.ri .portrait .meta{flex:1;min-width:0;}
+.ri .dim-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:12px;}
+.ri .dim-row .nm{width:62px;color:var(--ink-2);flex:none;}
+.ri .dim-row .bar{flex:1;height:6px;border-radius:3px;background:var(--gray-soft);overflow:hidden;}
+.ri .dim-row .bar i{display:block;height:100%;border-radius:3px;}
+.ri .dim-row .vv{width:62px;text-align:right;color:var(--ink-3);flex:none;font-size:11.5px;}
+.ri .completeness{margin-top:4px;padding-top:12px;border-top:1px dashed var(--line);}
+.ri .completeness .t{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3);margin-bottom:6px;}
+.ri .completeness .t b{color:var(--ink);}
+.ri .hbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:12.5px;}
+.ri .hbar .nm{width:144px;color:var(--ink-2);flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ri .hbar .track{flex:1;height:9px;border-radius:5px;background:var(--gray-soft);overflow:hidden;}
+.ri .hbar .track i{display:block;height:100%;border-radius:5px;background:var(--blue);}
+.ri .hbar .pc{width:42px;text-align:right;color:var(--ink-2);font-weight:600;flex:none;font-size:12px;}
+.ri .hbar.low .track i{background:var(--orange);}
+.ri .hbar.done .track i{background:var(--green);}
+.ri .vchart{display:flex;align-items:flex-end;gap:14px;height:132px;padding:0 4px;}
+.ri .vcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+.ri .vcol .bar{width:100%;max-width:38px;border-radius:6px 6px 0 0;background:var(--blue-soft-2);border:1px solid var(--blue-soft-2);display:flex;align-items:flex-start;justify-content:center;padding-top:4px;font-size:10.5px;color:var(--blue);}
+.ri .vcol .bar.hi{background:var(--blue);border-color:var(--blue);color:#fff;}
+.ri .vcol .bar.g{background:var(--green);border-color:var(--green);color:#fff;}
+.ri .vcol .bar.o{background:var(--orange);border-color:var(--orange);color:#fff;}
+.ri .vcol .bar.none{background:var(--gray-soft);border-color:var(--gray-soft);color:var(--ink-4);}
+.ri .vcol .lb{font-size:11px;color:var(--ink-4);}
+.ri .steps{display:flex;flex-direction:column;gap:0;}
+.ri .step{display:flex;gap:12px;position:relative;padding-bottom:16px;}
+.ri .step:last-child{padding-bottom:0;}
+.ri .step .mark{width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;z-index:2;background:var(--gray-soft);color:var(--ink-4);}
+.ri .step.done .mark{background:var(--green);color:#fff;}
+.ri .step.now .mark{background:var(--blue);color:#fff;}
+.ri .step:not(:last-child)::before{content:"";position:absolute;left:10.5px;top:22px;bottom:0;width:2px;background:var(--line);}
+.ri .step.done:not(:last-child)::before{background:var(--green-soft);}
+.ri .step .txt b{font-size:13px;color:var(--ink);display:block;}
+.ri .step .txt span{font-size:11.5px;color:var(--ink-4);}
+.ri .todo{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line-2);border-radius:8px;margin-bottom:9px;background:#fff;}
+.ri .todo:last-child{margin-bottom:0;}
+.ri .todo .tdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--blue);}
+.ri .todo .tx{flex:1;min-width:0;}
+.ri .todo .tx b{font-size:13px;color:var(--ink);display:block;}
+.ri .todo .tx span{font-size:11.5px;color:var(--ink-3);}
+.ri .notice{padding:11px 0;border-bottom:1px dashed var(--line);}
+.ri .notice:last-child{border-bottom:0;padding-bottom:0;}
+.ri .notice b{font-size:13px;color:var(--ink);display:block;margin-bottom:2px;}
+.ri .notice span{font-size:11.5px;color:var(--ink-4);}
+.ri .record-band{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+.ri .record-band .lbl{color:var(--ink-2);font-size:13.5px;flex:none;}
+.ri .pill{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 16px;border:0;border-radius:8px;background:var(--blue-soft);color:var(--blue);font-size:13.5px;font-family:var(--font);}
+.ri .pill em{padding:1px 7px;border-radius:10px;background:rgba(23,100,245,.12);font-size:11px;font-style:normal;}
+.ri .pill.pending{background:var(--orange-soft);color:var(--orange-ink);}
+.ri .pill.pending em{background:rgba(181,71,8,.12);}
+.ri .pill.idle{background:var(--gray-soft);color:var(--ink-4);}
+.ri .pill.idle em{background:rgba(152,162,179,.18);}
+.ri .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 16px;overflow-x:auto;}
+.ri .tab{padding:10px 16px;font-size:13.5px;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+.ri .tab.active{color:var(--blue);font-weight:600;border-bottom-color:var(--blue);}
+.ri .tab .n{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--gray-soft);color:var(--ink-3);font-size:10.5px;}
+.ri .tab.active .n{background:var(--blue-soft);color:var(--blue);}
+.ri .overview{display:flex;align-items:center;gap:26px;}
+.ri .donut{flex:none;width:104px;height:104px;position:relative;}
+.ri .donut .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ri .donut .center b{font-size:21px;color:var(--ink);line-height:1;}
+.ri .donut .center span{font-size:11px;color:var(--ink-4);margin-top:3px;}
+.ri .ov-facts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex:1;}
+.ri .ov-fact{background:var(--panel-2);border-radius:8px;padding:11px 13px;}
+.ri .ov-fact span{display:block;font-size:11.5px;color:var(--ink-4);margin-bottom:3px;}
+.ri .ov-fact b{font-size:17px;color:var(--ink);}
+.ri .ov-fact b small{font-size:11.5px;color:var(--ink-4);font-weight:500;}
+.ri .filter{display:flex;align-items:center;gap:12px;margin:14px 0;flex-wrap:wrap;}
+.ri .seg{display:inline-flex;background:var(--gray-soft);border-radius:8px;padding:3px;}
+.ri .seg span{padding:5px 13px;border-radius:6px;font-size:12.5px;color:var(--ink-3);}
+.ri .seg span.on{background:#fff;color:var(--ink);font-weight:600;}
+.ri .sel{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;color:var(--ink-2);background:#fff;}
+.ri .filter .spacer{flex:1;}
+.ri .course{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line-2);border-radius:10px;margin-bottom:10px;background:#fff;}
+.ri .course:last-child{margin-bottom:0;}
+.ri .ctype{width:38px;height:38px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--blue-soft);color:var(--blue);}
+.ri .ctype.v{background:var(--purple-soft);color:#5c37d6;}
+.ri .ctype.p{background:var(--orange-soft);color:var(--orange-ink);}
+.ri .course .info{flex:1;min-width:0;}
+.ri .course .info .tt{display:flex;align-items:center;gap:8px;}
+.ri .course .info .tt b{font-size:13.5px;color:var(--ink);}
+.ri .badge{font-size:10.5px;padding:1px 7px;border-radius:5px;background:var(--red-soft);color:#b42318;font-weight:600;}
+.ri .badge.opt{background:var(--gray-soft);color:var(--ink-3);font-weight:500;}
+.ri .badge.done{background:var(--green-soft);color:#067647;}
+.ri .badge.blue{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.ri .badge.purple{background:var(--purple-soft);color:#5c37d6;font-weight:600;}
+.ri .badge.pub{background:var(--green-soft);color:#067647;font-weight:600;}
+.ri .course .info p{margin:4px 0 0;font-size:11.5px;color:var(--ink-4);}
+.ri .course .prog{width:150px;flex:none;}
+.ri .course .prog .top{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3);margin-bottom:5px;}
+.ri .course .prog .top b{color:var(--ink-2);}
+.ri .course .go{flex:none;}
+.ri .full-top{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:#fff;}
+.ri .full-top .bk{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-2);}
+.ri .full-top .tt{font-size:14.5px;font-weight:600;}
+.ri .full-top .spacer{flex:1;}
+.ri .full-body{display:flex;min-height:520px;}
+.ri .toc{width:250px;flex:none;border-right:1px solid var(--line);background:#fff;padding:14px 12px;}
+.ri .toc .ch{margin-bottom:10px;}
+.ri .toc .ch > b{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);padding:6px 8px;}
+.ri .toc .it{display:flex;align-items:center;gap:8px;padding:7px 8px 7px 18px;border-radius:6px;font-size:12.5px;color:var(--ink-3);position:relative;}
+.ri .toc .it::before{content:"";position:absolute;left:8px;top:50%;transform:translateY(-50%);width:5px;height:5px;border-radius:50%;background:var(--line);}
+.ri .toc .it.on{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.ri .toc .it.on::before{background:var(--blue);width:3px;height:16px;border-radius:2px;left:6px;}
+.ri .toc .it.done::before{background:var(--green);}
+.ri .toc .it .r{margin-left:auto;font-size:11px;color:var(--ink-4);}
+.ri .content{flex:1;padding:22px 26px;background:var(--panel-2);position:relative;}
+.ri .content .reader{background:#fff;border:1px solid var(--line);border-radius:10px;height:100%;min-height:420px;display:flex;align-items:center;justify-content:center;color:var(--ink-4);font-size:13px;}
+.ri .saveflag{position:absolute;top:30px;right:40px;font-size:11.5px;color:#067647;}
+.ri .full-foot{display:flex;align-items:center;gap:16px;padding:12px 20px;border-top:1px solid var(--line);background:#fff;}
+.ri .full-foot .mm{flex:none;padding:8px 16px;border:1px solid var(--line);border-radius:7px;font-size:13px;color:var(--ink-2);}
+.ri .full-foot .mid{flex:1;text-align:center;color:var(--ink-4);font-size:12px;}
+.ri .full-foot .ok{background:var(--blue);border-color:var(--blue);color:#fff;}
+.ri .ia{background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px 30px;}
+.ri .ia-row{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.ri .ia-node{border:1px solid var(--line);border-radius:9px;padding:12px 18px;font-size:13.5px;color:var(--ink-2);background:#fff;}
+.ri .ia-node.root{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;}
+.ri .ia-node.lv1{background:var(--blue-soft);border-color:var(--blue-soft-2);color:var(--blue);font-weight:600;}
+.ri .ia-node.lv2{background:var(--panel-2);font-size:12.5px;}
+.ri .ia-node.hid{background:var(--gray-soft);color:var(--ink-4);font-size:12.5px;border-style:dashed;}
+.ri .ia-node.adm{background:var(--purple-soft);border-color:#e2d9ff;color:#5c37d6;font-weight:600;}
+.ri .ia-line{width:34px;height:2px;background:var(--line);flex:none;}
+.ri .ia-col{display:flex;flex-direction:column;gap:8px;flex:1;}
+.ri .ia-note{font-size:11.5px;color:var(--ink-4);margin-left:4px;}
+.ri .tb{width:100%;border-collapse:collapse;font-size:12.5px;}
+.ri .tb th{text-align:left;font-weight:600;color:var(--ink-3);background:var(--panel-2);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+.ri .tb td{padding:11px 12px;border-bottom:1px solid var(--line-2);color:var(--ink-2);}
+.ri .tb tr:last-child td{border-bottom:0;}
+.ri .tb .op{display:flex;flex-direction:column;gap:3px;font-size:11px;text-align:center;}
+.ri .tb .op a{color:var(--blue);}
+.ri .tb .op a.del{color:var(--ink-4);}
+.ri .tb-scroll{overflow-x:auto;}
+.ri .st{display:inline-flex;padding:2px 8px;border-radius:5px;font-size:11px;}
+.ri .st.pass{background:var(--green-soft);color:#067647;}
+.ri .st.wait{background:var(--orange-soft);color:var(--orange-ink);}
+.ri .st.none{background:var(--gray-soft);color:var(--ink-4);}
+.ri .cert{display:flex;gap:18px;align-items:center;border:1px solid var(--blue-soft-2);border-radius:10px;background:var(--blue-soft);padding:16px 18px;}
+.ri .cert .seal{width:60px;height:60px;border-radius:50%;background:#fff;border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:11px;font-weight:700;flex:none;text-align:center;line-height:1.2;}
+.ri .cert .ct b{font-size:14.5px;color:var(--ink);}
+.ri .cert .ct p{margin:3px 0 0;font-size:12px;color:var(--ink-3);}
+.ri .cert.off{background:var(--panel-2);border-color:var(--line);}
+.ri .cert.off .seal{border-color:var(--ink-4);color:var(--ink-4);}
+.ri .lg{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-3);background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 9px;}
+.ri .lg i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+.ri .stat-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;}
+.ri .stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+.ri .stat span{font-size:11.5px;color:var(--ink-4);display:block;margin-bottom:5px;}
+.ri .stat b{font-size:21px;color:var(--ink);line-height:1.1;}
+.ri .stat b small{font-size:12px;color:var(--ink-4);font-weight:500;margin-left:2px;}
+.ri .stat .sub{font-size:11px;color:var(--ink-4);margin-top:5px;}
+.ri .kv{display:grid;grid-template-columns:repeat(2,1fr);gap:11px 28px;}
+.ri .kv .row{display:flex;align-items:center;gap:10px;font-size:12.5px;}
+.ri .kv .row > span{color:var(--ink-4);width:78px;flex:none;}
+.ri .kv .row > b{color:var(--ink);font-weight:600;}
+.ri .kv .row .inp{flex:1;height:30px;border:1px solid var(--line);border-radius:6px;background:#fff;display:flex;align-items:center;padding:0 10px;color:var(--ink-2);font-size:12.5px;}
+.ri .blk{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px;}
+.ri .blk:last-child{margin-bottom:0;}
+.ri .blk-h{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.ri .blk-h h3{margin:0;font-size:15px;}
+.ri .blk-h .d{font-size:11.5px;color:var(--ink-4);margin-top:2px;}
+.ri .blk-h .spacer{flex:1;}
+.ri .blk-grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start;}
+.ri .blk-sub{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:12px;}
+.ri .pub-bar{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid var(--line);background:#fff;font-size:12px;color:var(--ink-4);flex-wrap:wrap;}
+.ri .pub-bar .spacer{flex:1;}
+.ri .filecard{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line-2);border-radius:9px;background:var(--panel-2);flex-wrap:wrap;}
+.ri .filecard .fi{width:34px;height:34px;border-radius:8px;background:var(--red-soft);color:#b42318;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none;}
+.ri .filecard .fn b{font-size:13px;color:var(--ink);display:block;}
+.ri .filecard .fn span{font-size:11.5px;color:var(--ink-4);}
+.ri .filecard .spacer{flex:1;}
+.ri .chk-list{display:flex;flex-direction:column;gap:9px;}
+.ri .chk{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+.ri .chk .ok{width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;flex:none;}
+.ri .chk .no{width:16px;height:16px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;flex:none;}
+.ri .chk b{color:var(--ink);}
+.ri .chk .spacer{flex:1;}
+.ri .tile{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line-2);border-radius:9px;margin-bottom:9px;background:#fff;}
+.ri .tile:last-child{margin-bottom:0;}
+.ri .tile .no{width:44px;height:26px;border-radius:6px;background:var(--gray-soft);color:var(--ink-3);font-size:11px;display:flex;align-items:center;justify-content:center;flex:none;}
+.ri .tile .tx{flex:1;min-width:0;}
+.ri .tile .tx b{font-size:13px;color:var(--ink);}
+.ri .tile .tx p{margin:3px 0 0;font-size:11.5px;color:var(--ink-4);}
+.ri .hero{display:flex;align-items:center;gap:24px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 24px;}
+.ri .hero-l{flex:1;min-width:280px;}
+.ri .hero-l h3{margin:10px 0 6px;font-size:20px;}
+.ri .hero-l p{margin:0;font-size:12.5px;color:var(--ink-3);}
+.ri .hero-stats{display:flex;flex:none;}
+.ri .hero-stats > div{padding:0 26px;text-align:center;border-left:1px solid var(--line);}
+.ri .hero-stats > div:first-child{border-left:0;}
+.ri .hero-stats b{display:block;font-size:26px;color:var(--blue);line-height:1.1;}
+.ri .hero-stats b small{font-size:12px;color:var(--ink-4);font-weight:500;}
+.ri .hero-stats span{font-size:11.5px;color:var(--ink-4);}
+.ri .grp{margin-top:22px;}
+.ri .grp-h{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px;gap:12px;}
+.ri .grp-h h4{margin:0 0 2px;font-size:15px;}
+.ri .grp-h p{margin:0;font-size:11.5px;color:var(--ink-4);}
+.ri .grp-h .hint{font-size:12px;color:var(--ink-4);}
+.ri .qgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+.ri .qcard{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+.ri .thumb{height:104px;background:var(--panel-2);display:flex;align-items:flex-end;border-bottom:1px solid var(--line-2);}
+.ri .thumb svg{width:100%;height:100%;display:block;}
+.ri .qc-b{padding:10px 12px 11px;}
+.ri .qc-b > b{display:block;font-size:12.5px;color:var(--ink);margin-bottom:8px;line-height:1.4;}
+.ri .qc-f{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--ink-4);}
+.ri .qc-f b{color:var(--ink-2);font-size:11.5px;}
+.ri .bigimg{background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;height:340px;display:flex;align-items:flex-end;overflow:hidden;}
+.ri .bigimg svg{width:100%;height:100%;}
+.ri .tstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px;}
+.ri .tstrip .t{height:58px;border:1px solid var(--line-2);border-radius:7px;background:var(--panel-2);overflow:hidden;display:flex;align-items:flex-end;}
+.ri .tstrip .t.on{border:2px solid var(--blue);}
+.ri .info2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 4px;}
+.ri .info2 > div{border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;background:var(--panel-2);}
+.ri .info2 span{display:block;font-size:11px;color:var(--ink-4);margin-bottom:3px;}
+.ri .info2 b{font-size:13px;}
+.ri .grp-sub{font-size:12.5px;font-weight:600;color:var(--ink-2);margin:14px 0 7px;}
+.ri .ul{margin:0;padding-left:18px;}
+.ri .ul li{font-size:12.5px;color:var(--ink-2);margin-bottom:5px;line-height:1.5;}
+.ri .box{border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;margin-top:10px;background:var(--panel-2);}
+.ri .box span{display:block;font-size:11px;color:var(--ink-4);margin-bottom:3px;}
+.ri .box b{font-size:12.5px;color:var(--ink);font-family:ui-monospace,Consolas,monospace;word-break:break-all;}
+.ri .eyebrow{display:block;color:var(--blue);font-size:11px;letter-spacing:.08em;margin-bottom:6px;}
+.ri .ov-lead{display:flex;align-items:center;gap:13px;flex:1.15;min-width:0;}
+.ri .ov-lead .ic{width:50px;height:50px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--blue);color:#fff;font-size:22px;}
+.ri .ov-lead .lb{font-size:11.5px;color:var(--ink-4);}
+.ri .ov-lead h3{margin:4px 0 4px;font-size:16px;color:var(--ink);}
+.ri .ov-lead p{margin:0;font-size:11.5px;color:var(--ink-3);line-height:1.5;}
+.ri .cat-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--line);}
+.ri .cat-head .idx{color:var(--blue);font-size:11px;font-weight:700;flex:none;padding-top:3px;}
+.ri .cat-head h3{margin:0 0 4px;font-size:16px;color:var(--ink);}
+.ri .cat-head p{margin:0;font-size:11.5px;color:var(--ink-4);}
+.ri .cat-head .cnt{color:var(--ink-3);font-size:12px;flex:none;}
+.ri .course .kicker{display:block;font-size:10.5px;color:var(--blue);}
+.ri .course .meta{display:flex;flex-wrap:wrap;gap:13px;margin-top:6px;font-size:11px;color:var(--ink-4);}
+.ri .course .lastt{display:block;margin-top:6px;font-size:11px;color:var(--ink-4);}
+.ri .course .side{flex:none;width:98px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+.ri .rule-strip{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 15px;border:1px solid var(--blue-soft-2);border-radius:9px;background:var(--blue-soft);}
+.ri .rule-strip .rc{width:24px;height:24px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--blue);font-size:13px;font-weight:700;}
+.ri .rule-strip b{display:block;font-size:12.5px;color:var(--ink-2);}
+.ri .rule-strip p{margin:3px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.5;}
+.ri .crumbline{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;color:var(--ink-3);}
+.ri .crumbline .bk{color:var(--blue);}
+.ri .crumbline b{color:var(--ink-2);font-weight:500;}
+.ri .course-hero{display:flex;align-items:center;gap:16px;padding:16px 18px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:14px;}
+.ri .course-hero .mark{width:52px;height:52px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--green);color:#fff;font-size:23px;}
+.ri .course-hero .mark.v{background:var(--blue);}
+.ri .course-hero .cp{flex:1;min-width:0;}
+.ri .course-hero .cp .k{font-size:10.5px;color:var(--blue);}
+.ri .course-hero .cp h3{margin:3px 0 0;font-size:17px;color:var(--ink);display:inline-block;}
+.ri .course-hero .cp p{margin:6px 0 0;font-size:11.5px;color:var(--ink-3);}
+.ri .course-hero .cp .meta{display:flex;gap:14px;margin-top:7px;font-size:11px;color:var(--ink-4);}
+.ri .course-hero .hp{flex:none;width:128px;}
+.ri .course-hero .hp span{font-size:11px;color:var(--ink-4);}
+.ri .course-hero .hp b{display:block;font-size:20px;color:var(--ink);margin:3px 0 7px;}
+/* ---------- ③ 部门管理员端（.rd） ---------- */
+
+.rd .app{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+.rd .rail{width:212px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:14px 0 0;}
+.rd .rail-brand{display:flex;align-items:center;gap:9px;padding:0 16px 16px;}
+.rd .rail-brand i{width:28px;height:28px;border-radius:8px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-style:normal;font-weight:700;flex:none;}
+.rd .rail-brand b{display:block;font-size:13.5px;color:var(--ink);line-height:1.3;}
+.rd .rail-brand span{display:block;font-size:11px;color:var(--ink-4);}
+.rd .rail-item{display:flex;align-items:center;gap:9px;margin:2px 10px;padding:8px 11px;border-radius:7px;color:var(--ink-2);font-size:13px;}
+.rd .rail-item .ic{width:15px;text-align:center;color:var(--ink-4);font-size:12px;}
+.rd .rail-item .arw{margin-left:auto;color:var(--ink-4);font-size:12px;}
+.rd .rail-item.active{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.rd .rail-item.active .ic{color:var(--blue);}
+.rd .rail-item.lv2{margin:1px 10px 1px 24px;font-size:12.5px;padding:6px 10px;}
+.rd .rail-item.lv2.active{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.rd .rail-item.lv2 .dot{width:5px;height:5px;border-radius:50%;background:var(--line);flex:none;}
+.rd .rail-item.lv2.active .dot{background:var(--blue);}
+.rd .rail-foot{margin-top:auto;padding:12px 16px;border-top:1px solid var(--line-2);color:var(--ink-4);font-size:11px;}
+.rd .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--panel-2);}
+.rd .topbar{height:56px;flex:none;display:flex;align-items:center;gap:13px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line);}
+.rd .crumb{font-size:13px;color:var(--ink-3);}
+.rd .crumb b{color:var(--ink);font-weight:600;}
+.rd .topbar .spacer{flex:1;}
+.rd .bell{position:relative;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:14px;flex:none;}
+.rd .bell i{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;font-style:normal;display:flex;align-items:center;justify-content:center;}
+.rd .avatar{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);}
+.rd .avatar .ph{width:28px;height:28px;border-radius:50%;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
+.rd .body{padding:16px 20px 24px;}
+.rd .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:13px;}
+.rd .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:15px 16px;}
+.rd .card.flat{background:var(--panel-2);}
+.rd .c2{grid-column:span 2;}
+.rd .c3{grid-column:span 3;}
+.rd .c4{grid-column:span 4;}
+.rd .c5{grid-column:span 5;}
+.rd .c6{grid-column:span 6;}
+.rd .c7{grid-column:span 7;}
+.rd .c8{grid-column:span 8;}
+.rd .c9{grid-column:span 9;}
+.rd .c12{grid-column:span 12;}
+.rd .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;gap:10px;flex-wrap:wrap;}
+.rd .card-h h3{margin:0;font-size:14px;font-weight:600;color:var(--ink);}
+.rd .card-h .hint{font-size:11.5px;color:var(--ink-4);}
+.rd .idx{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;margin-right:7px;flex:none;}
+.rd .idx.g{background:var(--green-soft);color:#067647;}
+.rd .idx.o{background:var(--orange-soft);color:var(--orange-ink);}
+.rd .idx.p{background:var(--purple-soft);color:#5c37d6;}
+.rd .card-h .tt{display:flex;align-items:center;}
+.rd .note{font-size:11.5px;color:var(--ink-4);margin-top:10px;line-height:1.55;}
+.rd .note.warn{color:var(--orange-ink);}
+.rd .btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--ink-2);font-size:12.5px;white-space:nowrap;}
+.rd .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.rd .btn.ghost{background:var(--blue-soft);border-color:transparent;color:var(--blue);}
+.rd .btn.sm{height:26px;font-size:11.5px;padding:0 9px;}
+.rd .btn.dis{opacity:.45;}
+.rd .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+.rd .identity{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.rd .identity .big-ph{width:44px;height:44px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex:none;}
+.rd .identity .who b{font-size:15px;color:var(--ink);}
+.rd .identity .who p{margin:2px 0 0;color:var(--ink-3);font-size:12px;}
+.rd .identity .facts{margin-left:auto;display:flex;gap:24px;flex-wrap:wrap;}
+.rd .fact{min-width:74px;}
+.rd .fact span{display:block;color:var(--ink-4);font-size:11.5px;margin-bottom:3px;}
+.rd .fact b{font-size:13.5px;color:var(--ink);}
+.rd .fact b.ok{color:#067647;}
+.rd .fact b.warn{color:var(--orange-ink);}
+.rd .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+.rd .kpi .lb{display:flex;align-items:center;gap:6px;color:var(--ink-3);font-size:11.5px;margin-bottom:7px;}
+.rd .kpi .lb .d{width:6px;height:6px;border-radius:50%;background:var(--blue);}
+.rd .kpi .vl{font-size:23px;font-weight:700;color:var(--ink);line-height:1.1;}
+.rd .kpi .vl small{font-size:11.5px;font-weight:500;color:var(--ink-4);margin-left:3px;}
+.rd .kpi .ft{font-size:11px;color:var(--ink-4);margin-top:6px;}
+.rd .kpi .ft.up{color:#067647;}
+.rd .kpi .ft.warn{color:var(--orange-ink);}
+.rd .bar-mini{height:5px;border-radius:3px;background:var(--gray-soft);margin-top:8px;overflow:hidden;}
+.rd .bar-mini i{display:block;height:100%;border-radius:3px;background:var(--blue);}
+.rd .bar-mini i.g{background:var(--green);}
+.rd .todo{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--line-2);border-radius:8px;background:#fff;margin-bottom:9px;}
+.rd .todo:last-child{margin-bottom:0;}
+.rd .todo .tdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--blue);}
+.rd .todo .tx{flex:1;min-width:0;}
+.rd .todo .tx b{font-size:12.5px;color:var(--ink);display:block;}
+.rd .todo .tx span{font-size:11px;color:var(--ink-4);}
+.rd .hbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px;}
+.rd .hbar .nm{width:86px;color:var(--ink-2);flex:none;}
+.rd .hbar .track{flex:1;height:8px;border-radius:5px;background:var(--gray-soft);overflow:hidden;}
+.rd .hbar .track i{display:block;height:100%;border-radius:5px;background:var(--blue);}
+.rd .hbar .pc{width:56px;text-align:right;color:var(--ink-2);font-weight:600;flex:none;font-size:11.5px;}
+.rd .hbar.low .track i{background:var(--orange);}
+.rd .hbar.done .track i{background:var(--green);}
+.rd .vchart{display:flex;align-items:flex-end;gap:12px;height:120px;padding:0 4px;}
+.rd .vcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+.rd .vcol .bar{width:100%;max-width:34px;border-radius:6px 6px 0 0;background:var(--blue-soft-2);border:1px solid var(--blue-soft-2);display:flex;align-items:flex-start;justify-content:center;padding-top:3px;font-size:10px;color:var(--blue);}
+.rd .vcol .bar.hi{background:var(--blue);border-color:var(--blue);color:#fff;}
+.rd .vcol .bar.g{background:var(--green);border-color:var(--green);color:#fff;}
+.rd .vcol .bar.o{background:var(--orange);border-color:var(--orange);color:#fff;}
+.rd .vcol .lb{font-size:10.5px;color:var(--ink-4);text-align:center;line-height:1.3;}
+.rd .steps{display:flex;flex-direction:column;}
+.rd .step{display:flex;gap:11px;position:relative;padding-bottom:14px;}
+.rd .step:last-child{padding-bottom:0;}
+.rd .step .mark{width:21px;height:21px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;z-index:2;background:var(--gray-soft);color:var(--ink-4);}
+.rd .step.done .mark{background:var(--green);color:#fff;}
+.rd .step.now .mark{background:var(--blue);color:#fff;}
+.rd .step:not(:last-child)::before{content:"";position:absolute;left:10px;top:21px;bottom:0;width:2px;background:var(--line);}
+.rd .step .txt b{font-size:12.5px;color:var(--ink);display:block;}
+.rd .step .txt span{font-size:11px;color:var(--ink-4);}
+.rd .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 15px;overflow-x:auto;}
+.rd .tab{padding:9px 15px;font-size:13px;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+.rd .tab.active{color:var(--blue);font-weight:600;border-bottom-color:var(--blue);}
+.rd .tab .n{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--gray-soft);color:var(--ink-3);font-size:10.5px;}
+.rd .tab.active .n{background:var(--blue-soft);color:var(--blue);}
+.rd .tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.rd .tbl th{text-align:left;padding:9px 10px;background:var(--panel-2);color:var(--ink-3);font-weight:500;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11.5px;}
+.rd .tbl td{padding:9px 10px;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:middle;}
+.rd .tbl tr:last-child td{border-bottom:0;}
+.rd .tbl .nm{color:var(--ink);font-weight:600;}
+.rd .tbl .op{color:var(--blue);}
+.rd .tbl .op i{font-style:normal;color:var(--line);margin:0 6px;}
+.rd .badge{font-size:10.5px;padding:1px 7px;border-radius:5px;background:var(--gray-soft);color:var(--ink-3);font-weight:500;white-space:nowrap;}
+.rd .badge.done{background:var(--green-soft);color:#067647;}
+.rd .badge.blue{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.rd .badge.purple{background:var(--purple-soft);color:#5c37d6;font-weight:600;}
+.rd .badge.orange{background:var(--orange-soft);color:var(--orange-ink);font-weight:600;}
+.rd .badge.red{background:var(--red-soft);color:#b42318;font-weight:600;}
+.rd .filter{display:flex;align-items:center;gap:11px;margin:12px 0;flex-wrap:wrap;}
+.rd .seg{display:inline-flex;background:var(--gray-soft);border-radius:8px;padding:3px;}
+.rd .seg span{padding:5px 12px;border-radius:6px;font-size:12px;color:var(--ink-3);}
+.rd .seg span.on{background:#fff;color:var(--ink);font-weight:600;}
+.rd .sel{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border:1px solid var(--line);border-radius:7px;font-size:12px;color:var(--ink-2);background:#fff;}
+.rd .filter .spacer{flex:1;}
+.rd .field{display:flex;flex-direction:column;gap:6px;}
+.rd .field label{font-size:11.5px;color:var(--ink-3);}
+.rd .field label b{color:var(--red);font-weight:400;}
+.rd .inp{min-height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;display:flex;align-items:center;padding:0 11px;font-size:12.5px;color:var(--ink-3);}
+.rd .inp.ta{height:auto;min-height:62px;align-items:flex-start;padding:9px 11px;line-height:1.6;}
+.rd .fg2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.rd .fg3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.rd .drop{border:1.5px dashed var(--blue-soft-2);border-radius:10px;background:var(--blue-soft);padding:20px;text-align:center;color:var(--blue);font-size:12.5px;}
+.rd .drop b{display:block;font-size:13.5px;margin-bottom:3px;}
+.rd .drop span{color:var(--ink-3);font-size:11.5px;}
+.rd .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);padding:7px 0;}
+.rd .chk .box{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+.rd .chk .box.on{background:var(--blue);border-color:var(--blue);}
+.rd .chk .box.sw{background:var(--green);border-color:var(--green);}
+.rd .ia-node{position:relative;display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:#fff;margin:0 0 8px 20px;flex-wrap:wrap;}
+.rd .ia-node::before{content:"";position:absolute;left:-20px;top:50%;width:18px;height:2px;background:var(--line);}
+.rd .ia-node.lv2{margin-left:48px;}
+.rd .ia-node.lv3{margin-left:76px;}
+.rd .ia-node b{font-size:12.5px;color:var(--ink);}
+.rd .ia-node .r{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
+.rd .ia-node.dir{background:var(--panel-2);}
+.rd .ia-node.dir b{color:var(--ink-2);}
+.rd .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.rd .callout{border-left:3px solid var(--blue);background:var(--blue-soft);border-radius:0 8px 8px 0;padding:11px 14px;font-size:12.5px;color:var(--ink-2);line-height:1.65;}
+.rd .callout.warn{border-left-color:var(--orange);background:var(--orange-soft);}
+.rd .callout.ok{border-left-color:var(--green);background:var(--green-soft);}
+.rd .callout b{color:var(--ink);}
+.rd .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.rd .kv .it{background:var(--panel-2);border-radius:8px;padding:10px 12px;}
+.rd .kv .it span{display:block;font-size:11px;color:var(--ink-4);margin-bottom:3px;}
+.rd .kv .it b{font-size:15px;color:var(--ink);}
+.rd .kv .it b small{font-size:11px;color:var(--ink-4);font-weight:500;}
+.rd .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);}
+.rd .flow .nd{padding:6px 11px;border-radius:7px;background:var(--panel-2);border:1px solid var(--line);}
+.rd .flow .nd.on{background:var(--blue-soft);border-color:var(--blue-soft-2);color:var(--blue);font-weight:600;}
+.rd .flow .ar{color:var(--ink-4);}
+/* ---------- ④ 响应式（两端各一份） ---------- */
+@media (max-width:1080px){
+  .ri .app{flex-direction:column;}
+  .ri .rail{width:100%;border-right:0;border-bottom:1px solid var(--line);}
+  .ri .c2,.ri .c3,.ri .c4,.ri .c5,.ri .c6,.ri .c7,.ri .c8,.ri .c9{grid-column:span 12;}
+  .ri .fg3,.ri .kv,.ri .grid2{grid-template-columns:repeat(2,1fr);}
+  .rd .app{flex-direction:column;}
+  .rd .rail{width:100%;border-right:0;border-bottom:1px solid var(--line);}
+  .rd .c2,.rd .c3,.rd .c4,.rd .c5,.rd .c6,.rd .c7,.rd .c8,.rd .c9{grid-column:span 12;}
+  .rd .fg3,.rd .kv,.rd .grid2{grid-template-columns:repeat(2,1fr);}
+}
+
+
+/* ===== 超管端补充：.ri 作用域缺的 4 组组件规则（等价复制自 .rd 定义） ===== */
+.ri .tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.ri .tbl th{text-align:left;padding:9px 10px;background:var(--panel-2);color:var(--ink-3);font-weight:500;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11.5px;}
+.ri .tbl td{padding:9px 10px;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:middle;}
+.ri .tbl tr:last-child td{border-bottom:0;}
+.ri .tbl .nm{color:var(--ink);font-weight:600;}
+.ri .tbl .op{color:var(--blue);}
+.ri .tbl .op i{font-style:normal;color:var(--line);margin:0 6px;}
+.ri .callout{border-left:3px solid var(--blue);background:var(--blue-soft);border-radius:0 8px 8px 0;padding:11px 14px;font-size:12.5px;color:var(--ink-2);line-height:1.65;}
+.ri .callout.warn{border-left-color:var(--orange);background:var(--orange-soft);}
+.ri .callout.ok{border-left-color:var(--green);background:var(--green-soft);}
+.ri .callout b{color:var(--ink);}
+.ri .field{display:flex;flex-direction:column;gap:6px;}
+.ri .field label{font-size:11.5px;color:var(--ink-3);}
+.ri .field label b{color:var(--red);font-weight:400;}
+.ri .inp{min-height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;display:flex;align-items:center;padding:0 11px;font-size:12.5px;color:var(--ink-3);}
+.ri .inp.ta{height:auto;min-height:62px;align-items:flex-start;padding:9px 11px;line-height:1.6;}
+</style>
+</head>
+<body data-role="intern">
+<!-- 超管端沿用统一设计稿的 .ri 令牌作用域（同一套 :root 变量与组件类，避免复制 200+ 条规则） -->
+<div class="ri">
+
+  <header class="doc-hero">
+    <div class="eyebrow">SUPER ADMIN CONSOLE · DESIGN SPEC V2</div>
+    <h1>超管端整体设计稿 <span class="v">V2</span></h1>
+    <p class="sub">
+      面向 <b>超级管理员（SUPER_ADMIN / admin）</b> 的全局管理台。三条硬约束贯穿全稿：
+      <b>① 业务实例只读</b>（课程 / 题库 / 考核 / 成绩均不可增删改，后端 6 个 Service 已用 <code>isGlobalReadOnly()</code> 兜底）；
+      <b>② 系统管理独占</b>（用户 / 角色 / 菜单 / 参数 / 日志 / 监控只有超管能进）；
+      <b>③ 全局可统计</b>（跨部门聚合指标是超管存在的核心理由，也是本次要补的主要缺口）。
+    </p>
+    <div class="stat-strip" style="margin-top:16px">
+      <div class="fact"><span>目录</span><b>5 个一级</b></div>
+      <div class="fact"><span>页面</span><b>14 个（含 6 个复用）</b></div>
+      <div class="fact"><span>真实接口</span><b>平台原生 18 项</b></div>
+      <div class="fact"><span>待补接口</span><b>跨部门聚合 7 项</b></div>
+    </div>
+  </header>
+
+  <!-- ============================================================ 修订摘要 -->
+  <section class="sec" id="s0">
+    <div class="sec-head"><span class="sec-no">0</span><h2>V1 → V2 修订摘要（8 处优化）</h2></div>
+    <p class="sec-desc">V1 只有 6 节：信息架构 + 看板 + 两级下钻 + 账号管理 + 权限对照。V2 把它补成一份<b>可施工</b>的完整稿。</p>
+    <div class="grid">
+      <div class="card c12">
+        <table class="tbl">
+          <thead><tr><th style="width:44px">#</th><th style="width:230px">修订点</th><th>V1 的问题</th><th>V2 的做法</th></tr></thead>
+          <tbody>
+            <tr><td class="nm">1</td><td><b>目录从 3 项扩到 5 项</b></td><td>「三项目录」把系统管理挤到业务目录里，与原生菜单打架</td><td>全局工作台 / 组织与人员 / 培养运营 / 规则与配置 / <b>系统管理（原生 18 项直接复用）</b></td></tr>
+            <tr><td class="nm">2</td><td><b>补齐「规则与配置」</b></td><td>超管唯一能改的考核侧内容（门槛 / 权重 / 补考 / 协议模板 / 证书模板）无落点</td><td>新增第 4 目录，逐项给出字段与影响范围</td></tr>
+            <tr><td class="nm">3</td><td><b>只读边界可视化</b></td><td>只在文字里提了一句「只读」</td><td>每页顶部标「只读 / 可写 / 可代操作」，并给后端已有校验点（6 个 Service）</td></tr>
+            <tr><td class="nm">4</td><td><b>看板拆成 6 个指标 + 3 张对比图</b></td><td>指标混在一个卡里，且不区分真实/示例</td><td>KPI 逐项标注数据来源与口径，示例值统一打 <span class="badge orange">示例</span></td></tr>
+            <tr><td class="nm">5</td><td><b>新增「考核运营总览」</b></td><td>缺考核侧运营视角（批次 / 发布 / 参考率）</td><td>与部门端「批次」概念对齐的一页，跨部门横向看</td></tr>
+            <tr><td class="nm">6</td><td><b>新增「成绩与统计分析」</b></td><td>只有个人档案下钻，没有全局分布</td><td>部门对比 + 通过率分布 + 薄弱知识点 Top + 导出</td></tr>
+            <tr><td class="nm">7</td><td><b>新增「审计与合规」</b></td><td>超管自己改了什么没有专项视图</td><td>超管操作留痕、只读越权尝试记录、数据导出审批</td></tr>
+            <tr><td class="nm">8</td><td><b>落地状态与实施顺序</b></td><td>没有区分「现在能做」和「要补接口」</td><td>第 13 节给出四阶段实施表与后端缺口清单</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 一、信息架构 -->
+  <section class="sec" id="s1">
+    <div class="sec-head"><span class="sec-no">1</span><h2>信息架构：五项目录，业务只读 + 系统可写</h2></div>
+    <p class="sec-desc">
+      与实习生端 / 部门端同一套「扁平路由 + 前端分组侧栏」思路。超管 <b>不套用部门端侧栏</b>，走自己的五目录；
+      系统管理 / 系统监控 / 系统工具 <b>完全复用 平台原生菜单</b>（<code>sys_menu</code> 里已存在，零改造）。
+    </p>
+
+    <div class="grid">
+      <div class="card c7">
+        <div class="card-h"><div class="tt"><span class="idx">①</span><h3>五项目录与页面清单</h3></div><span class="hint">14 个页面 / 6 个复用</span></div>
+        <table class="tbl">
+          <thead><tr><th style="width:150px">目录</th><th>页面</th><th style="width:96px">写权限</th><th style="width:86px">状态</th></tr></thead>
+          <tbody>
+            <tr><td class="nm">全局工作台</td><td>工作台（跨部门看板）</td><td><span class="badge blue">只读</span></td><td><span class="badge done">待建</span></td></tr>
+            <tr><td class="nm">组织与人员</td><td>组织架构与岗位绑定</td><td><span class="badge blue">只读</span></td><td><span class="badge done">复用部门</span></td></tr>
+            <tr><td class="nm">组织与人员</td><td>账号管理（含创建部门管理员）</td><td><span class="badge purple">可写</span></td><td><span class="badge done">复用系统用户</span></td></tr>
+            <tr><td class="nm">组织与人员</td><td>角色与权限矩阵</td><td><span class="badge purple">可写</span></td><td><span class="badge done">复用系统角色</span></td></tr>
+            <tr><td class="nm">组织与人员</td><td>全局花名册（实习生全景）</td><td><span class="badge blue">只读</span></td><td><span class="badge done">待建</span></td></tr>
+            <tr><td class="nm">培养运营</td><td>课程与题库总览</td><td><span class="badge blue">只读</span></td><td><span class="badge done">复用考核管理</span></td></tr>
+            <tr><td class="nm">培养运营</td><td>考核运营总览（批次 / 参考率）</td><td><span class="badge blue">只读</span></td><td><span class="badge done">待建</span></td></tr>
+            <tr><td class="nm">培养运营</td><td>成绩与统计分析</td><td><span class="badge blue">只读</span></td><td><span class="badge done">待建</span></td></tr>
+            <tr><td class="nm">规则与配置</td><td>考核规则（门槛 / 权重 / 补考）</td><td><span class="badge purple">可写</span></td><td><span class="badge orange">待补接口</span></td></tr>
+            <tr><td class="nm">规则与配置</td><td>协议模板与版本</td><td><span class="badge purple">可写</span></td><td><span class="badge orange">待补接口</span></td></tr>
+            <tr><td class="nm">规则与配置</td><td>证书模板</td><td><span class="badge purple">可写</span></td><td><span class="badge orange">待补接口</span></td></tr>
+            <tr><td class="nm">审计与合规</td><td>超管操作留痕 / 越权尝试 / 导出审批</td><td><span class="badge blue">只读</span></td><td><span class="badge done">部分真实</span></td></tr>
+            <tr><td class="nm">系统管理</td><td>用户 / 角色 / 菜单 / 部门 / 岗位 / 字典 / 参数 / 公告 / 日志（9）</td><td><span class="badge purple">可写</span></td><td><span class="badge done">原生复用</span></td></tr>
+            <tr><td class="nm">系统监控 · 工具</td><td>在线用户 / 定时任务 / 数据 / 服务 / 缓存（6）+ 表单 / 代码生成 / 接口（3）</td><td><span class="badge purple">可写</span></td><td><span class="badge done">原生复用</span></td></tr>
+          </tbody>
+        </table>
+        <div class="note">「复用」= 直接指向已有页面（如 <code>system/user/index</code>、<code>business/exam/index</code> 的超管分支），不再单独造页。</div>
+      </div>
+
+      <div class="card c5">
+        <div class="card-h"><div class="tt"><span class="idx">②</span><h3>为什么不是「部门端 × 5 倍」</h3></div></div>
+        <div class="callout warn">
+          <b>职责不同，不是放大版。</b>部门管理员是<b>生产者</b>（写课程、发考核、批阅、终审转正）；
+          超管是<b>裁判与运维</b>（看全局数据、定规则、管账号与系统）。因此超管的业务侧页面<b>全部只读</b>，
+          且不出现「代部门发布 / 代批阅」的按钮 —— 避免两个角色在同一份数据上互相覆盖。
+        </div>
+        <div class="chk-list" style="margin-top:12px">
+          <div class="chk"><span class="ok">✓</span><span>能看：全部门课程 / 题库 / 考核 / 成绩 / 画像</span></div>
+          <div class="chk"><span class="ok">✓</span><span>能改：考核规则、协议与证书模板、账号与角色</span></div>
+          <div class="chk"><span class="no">✕</span><span>不能：改课程内容、发考核、批阅答卷、审批转正</span></div>
+          <div class="chk"><span class="no">✕</span><span>不能：修改任何业务实例的历史数据</span></div>
+        </div>
+        <div class="note">后端已在 <code>Course / CourseContent / Exam / Question / QuestionBank / PracticeSubject</code> 六个 Service 里实现
+          <code>isGlobalReadOnly()</code>，命中即抛「超级管理员仅可查看…，不能执行写入操作」。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 二、侧栏与菜单 -->
+  <section class="sec" id="s2">
+    <div class="sec-head"><span class="sec-no">2</span><h2>侧栏与菜单落地：DB 菜单为主，不硬编码</h2></div>
+    <p class="sec-desc">
+      与两端相反 —— 超管侧栏<b>走 <code>sys_menu</code></b>（原生能力，含系统管理），只把「学习考核」这段老目录改成新的 4 项目录。
+      平台的 <code>admin</code> 角色天然拥有全部菜单（<code>SysMenuServiceImpl</code> 对 admin 返回全量），因此改造只需<b>追加/调整菜单行</b>。
+    </p>
+    <div class="grid">
+      <div class="card c8">
+        <div class="card-h"><div class="tt"><span class="idx">菜</span><h3>菜单改造清单（幂等 SQL）</h3></div><span class="hint">新增 13 行 / 下架 7 行</span></div>
+        <table class="tbl">
+          <thead><tr><th style="width:150px">动作</th><th style="width:210px">菜单</th><th>path / component</th><th style="width:120px">备注</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge done">保留</span></td><td>系统管理（9 子项）</td><td>system/user · role · menu · dept · post · dict · config · notice · log</td><td>零改造</td></tr>
+            <tr><td><span class="badge done">保留</span></td><td>系统监控（6）+ 系统工具（3）</td><td>monitor/* · tool/*</td><td>零改造</td></tr>
+            <tr><td><span class="badge orange">改造</span></td><td>学习考核 → <b>全局工作台</b></td><td>manage/dashboard → <code>super/dashboard/index</code></td><td>新建页面</td></tr>
+            <tr><td><span class="badge orange">改造</span></td><td>业务管理 → <b>组织与人员</b></td><td>org/people · org/accounts · org/roles · org/roster</td><td>3 复用 + 1 新建</td></tr>
+            <tr><td><span class="badge orange">改造</span></td><td>—（新目录）→ <b>培养运营</b></td><td>ops/courses · ops/exams · ops/scores</td><td>2 复用 + 1 新建</td></tr>
+            <tr><td><span class="badge orange">改造</span></td><td>—（新目录）→ <b>规则与配置</b></td><td>rule/exam · rule/agreement · rule/certificate</td><td>新建（待接口）</td></tr>
+            <tr><td><span class="badge orange">改造</span></td><td>—（新目录）→ <b>审计与合规</b></td><td>audit/operation · audit/export</td><td>复用日志 + 新建</td></tr>
+            <tr><td><span class="badge" style="background:var(--gray-soft);color:var(--ink-3)">下架</span></td><td>实习生门户 / 部门运营 / 考核认证管理 / 系统运营 / 学习考核工作台</td><td>intern · department · manage · system · overview（旧的 ParentView 分组）</td><td>都是同事分支的占位，与两端真实页面重复</td></tr>
+          </tbody>
+        </table>
+        <div class="note">改造走<b>追加式幂等脚本</b>（先 <code>information_schema</code> 查存在性再 INSERT/UPDATE），不动同事分支正在引用的菜单行，避免合并冲突。</div>
+      </div>
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">路</span><h3>路由与组件落点</h3></div></div>
+        <div class="btn-row"><span class="badge blue">/super/dashboard</span><span class="badge blue">/super/org/*</span><span class="badge blue">/super/ops/*</span><span class="badge blue">/super/rule/*</span><span class="badge blue">/super/audit/*</span></div>
+        <div class="note" style="margin-top:12px">
+          新页面统一放 <code>views/super/&lt;目录&gt;/&lt;页面&gt;/index.vue</code>；复用页直接写已有 component 路径。
+          超管侧<b>不新增前端硬编码侧栏</b>（<code>store/modules/permission.js</code> 只对实习生与部门管理员做定制）。
+        </div>
+        <div class="callout" style="margin-top:12px">
+          <b>与同事分支的边界：</b><code>sys_menu</code> 与 <code>router</code> 是「共同登记区」。
+          本稿只<b>追加</b> <code>/super/**</code> 段 + 调整「学习考核」旧目录的 <code>visible</code>，不改动部门/实习生相关行。
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============================================================ 三、全局工作台 -->
+  <section class="sec" id="s3">
+    <div class="sec-head"><span class="sec-no">3</span><h2>全局工作台 · 跨部门看板</h2><span class="tag" style="margin-left:8px">只读 · 数据更新 11:28</span></div>
+    <p class="sec-desc">
+      超管登录后的第一页。结构：<b>6 个全局 KPI</b> → <b>部门对比（完成率 / 通过率）</b> → <b>考核运营概览</b> → <b>异常预警</b> → <b>最近动态</b>。
+      能接真实接口的直接接（<code>sys_dept</code> / <code>sys_user</code> / <code>exam</code> / <code>answer_sheet</code> 已有），跨部门聚合缺口在页面上逐项标注。
+    </p>
+
+    <div class="frame">
+      <div class="frame-bar"><span class="dot r"></span><span class="dot"></span><span class="dot"></span><span class="url">127.0.0.1:9530/super/dashboard</span></div>
+      <div class="app">
+        <aside class="rail">
+          <div class="rail-brand"><i>管</i><div><b>全局管理台</b><span>超级管理员 · 全组织</span></div></div>
+          <div class="rail-group">业务</div>
+          <div class="rail-item active"><span class="ic">▦</span>全局工作台</div>
+          <div class="rail-item"><span class="ic">◍</span>组织与人员<span class="arw">›</span></div>
+          <div class="rail-item"><span class="ic">▤</span>培养运营<span class="arw">›</span></div>
+          <div class="rail-item"><span class="ic">⚙</span>规则与配置<span class="arw">›</span></div>
+          <div class="rail-item"><span class="ic">◔</span>审计与合规<span class="arw">›</span></div>
+          <div class="rail-group">系统</div>
+          <div class="rail-item"><span class="ic">✱</span>系统管理<span class="arw">›</span></div>
+          <div class="rail-item"><span class="ic">◈</span>系统监控<span class="arw">›</span></div>
+          <div class="rail-item"><span class="ic">⌘</span>系统工具<span class="arw">›</span></div>
+          <div class="rail-foot">超级管理员 · 业务只读 / 系统可写</div>
+        </aside>
+        <div class="main">
+          <div class="topbar"><span class="crumb">全局管理台 / <b>工作台</b></span><span class="spacer"></span><span class="badge blue">全局只读</span><span class="btn sm">切换周期（本期）</span></div>
+          <div class="body">
+            <div class="ph-page-title">
+              <div><h2>早上好，林致远</h2><div class="d">全组织 · 5 个部门 · 68 名在培实习生 · 数据更新 11:28</div></div>
+              <div class="btn-row"><span class="btn">导出看板</span><span class="btn primary">查看异常（3）</span></div>
+            </div>
+
+            <!-- 6 个全局 KPI -->
+            <div class="stat-strip" style="margin-bottom:13px">
+              <div class="stat"><span>在培实习生</span><b>68<small>人</small></b><div class="sub">5 个部门 · 在训 + 待转正</div></div>
+              <div class="stat"><span>本期转正</span><b>15<small>人</small></b><div class="sub">通过率 86%</div></div>
+              <div class="stat"><span>全局学习完成率</span><b>74<small>%</small></b><div class="sub">部门均值 · 待补聚合接口</div></div>
+              <div class="stat"><span>进行中考核</span><b>3<small>场</small></b><div class="sub">2 场已发布 · 1 场草稿</div></div>
+              <div class="stat"><span>待处理异常</span><b style="color:var(--orange-ink)">3<small>项</small></b><div class="sub">低于门槛 / 逾期未提交</div></div>
+              <div class="stat"><span>超管操作留痕</span><b>12<small>条</small></b><div class="sub">近 30 天</div></div>
+            </div>
+
+            <div class="grid">
+              <!-- 部门对比 -->
+              <div class="card c7">
+                <div class="card-h"><div class="tt"><span class="idx">1</span><h3>部门对比 · 学习完成率 / 考核通过率</h3></div><span class="hint">横轴：5 个部门</span></div>
+                <div class="vchart" style="height:190px">
+                  <div class="vcol"><span class="bar" style="height:82%">82</span><span class="lb">交付</span></div>
+                  <div class="vcol"><span class="bar" style="height:91%">91</span><span class="lb">开发</span></div>
+                  <div class="vcol"><span class="bar" style="height:68%">68</span><span class="lb">设计</span></div>
+                  <div class="vcol"><span class="bar" style="height:76%">76</span><span class="lb">质检</span></div>
+                  <div class="vcol"><span class="bar" style="height:59%">59</span><span class="lb">建模</span></div>
+                </div>
+                <div class="legend"><span><i style="background:var(--blue)"></i>学习完成率（%）</span><span><i style="background:var(--orange)"></i>最低部门需关注（建模 59%）</span></div>
+                <div class="note">口径：每部门「在培实习生 × 必修单项」的完成率均值；<b>跨部门聚合接口待补</b>（现只能按部门逐个取，页面上限 5 次请求后可前端归并）。</div>
+              </div>
+
+              <!-- 考核运营概览 -->
+              <div class="card c5">
+                <div class="card-h"><div class="tt"><span class="idx">2</span><h3>考核运营概览</h3></div><span class="badge blue">按批次</span></div>
+                <table class="tbl">
+                  <thead><tr><th>批次</th><th style="width:78px">部门</th><th style="width:62px">参考</th><th style="width:62px">通过</th><th style="width:70px">状态</th></tr></thead>
+                  <tbody>
+                    <tr><td class="nm">2026Q4 第一期</td><td>开发</td><td>18</td><td>15</td><td><span class="badge done">已结束</span></td></tr>
+                    <tr><td class="nm">2026Q4 第二期（补考）</td><td>开发</td><td>4</td><td>—</td><td><span class="badge blue">进行中</span></td></tr>
+                    <tr><td class="nm">2026Q3 交付专场</td><td>交付</td><td>12</td><td>9</td><td><span class="badge done">已结束</span></td></tr>
+                    <tr><td class="nm">2026Q4 设计专场</td><td>设计</td><td>—</td><td>—</td><td><span class="badge orange">草稿</span></td></tr>
+                  </tbody>
+                </table>
+                <div class="note">复用部门端的「批次 = 一条 <code>exam</code>」模型；超管侧<b>只是跨部门读</b>，不提供发布按钮。</div>
+              </div>
+
+              <!-- 异常预警 -->
+              <div class="card c5">
+                <div class="card-h"><div class="tt"><span class="idx o">3</span><h3>异常预警</h3></div><span class="badge orange">3 项</span></div>
+                <div class="steps">
+                  <div class="step now"><span class="mark">!</span><div class="txt"><b>建模部门完成率 59%</b><span>低于全局门槛 70% · 涉及 8 人；建议通知部门管理员</span></div></div>
+                  <div class="step now"><span class="mark">!</span><div class="txt"><b>2 名实习生考核逾期未提交</b><span>2026Q4 第二期实操环节，截止 10-20</span></div></div>
+                  <div class="step now"><span class="mark">!</span><div class="txt"><b>1 个题库题目不足</b><span>质检部门正式题库题量 &lt; 单场组卷所需</span></div></div>
+                </div>
+                <div class="note">预警规则在第 4 目录「规则与配置」里定义（门槛 / 逾期天数 / 题库下限），本期先内置 3 条。</div>
+              </div>
+
+              <!-- 最近动态 -->
+              <div class="card c7">
+                <div class="card-h"><div class="tt"><span class="idx">4</span><h3>最近动态（全局）</h3></div><span class="hint">来自审计日志 + 业务时间线</span></div>
+                <table class="tb">
+                  <thead><tr><th style="width:120px">时间</th><th style="width:130px">主体</th><th>事件</th></tr></thead>
+                  <tbody>
+                    <tr><td>今天 11:20</td><td>开发部门管理员</td><td>发布考核「2026Q4 第二期（补考）· 理论环节」</td></tr>
+                    <tr><td>今天 10:05</td><td>超管 林致远</td><td>修改考核规则：理论权重 40% → 40%（未变）· 补考次数 1 → 2</td></tr>
+                    <tr><td>昨天 17:40</td><td>交付部门管理员</td><td>审批转正通过 2 人，证书自动生成</td></tr>
+                    <tr><td>昨天 15:02</td><td>超管 林致远</td><td>创建部门管理员账号「质检部门管理员」并授权</td></tr>
+                  </tbody>
+                </table>
+                <div class="note">数据源：<code>sys_oper_log</code>（原生）+ <code>business.audit_record</code>（业务）。两表结构都有，只需一个合并列表接口。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 四、组织架构与岗位 -->
+  <section class="sec" id="s4">
+    <div class="sec-head"><span class="sec-no">4</span><h2>组织与人员 › 组织架构与岗位绑定</h2><span class="tag blue" style="margin-left:8px">只读 · 复用部门管理页</span></div>
+    <p class="sec-desc">
+      一页看清「部门 ↔ 岗位 ↔ 实习生人数」的绑定关系。<b>真实数据已齐</b>：<code>sys_dept</code>（深圳总公司下 5 个部门）、<code>position</code>（5 个岗位）、
+      <code>dept_position</code>（一一对应）。超管只读，改动请走「系统管理 › 部门管理 / 岗位管理」。
+    </p>
+    <div class="grid">
+      <div class="card c8">
+        <div class="card-h"><div class="tt"><span class="idx">组</span><h3>部门 · 岗位 · 人数</h3></div><span class="hint">真实数据</span></div>
+        <table class="tbl">
+          <thead><tr><th>部门</th><th style="width:130px">绑定岗位</th><th style="width:90px">在培人数</th><th style="width:110px">部门管理员</th><th style="width:96px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="nm">交付部门</td><td>实施实习生</td><td>15</td><td><span class="badge done">已配置</span></td><td class="op">查看</td></tr>
+            <tr><td class="nm">开发部门</td><td>开发实习生</td><td>18</td><td><span class="badge done">已配置</span></td><td class="op">查看</td></tr>
+            <tr><td class="nm">设计部门</td><td>设计实习生</td><td>12</td><td><span class="badge done">已配置</span></td><td class="op">查看</td></tr>
+            <tr><td class="nm">质检部门</td><td>质检实习生</td><td>11</td><td><span class="badge done">已配置</span></td><td class="op">查看</td></tr>
+            <tr><td class="nm">建模部门</td><td>建模实习生</td><td>12</td><td><span class="badge orange">待指派</span></td><td class="op">查看<i>|</i>去指派</td></tr>
+          </tbody>
+        </table>
+        <div class="note">「去指派」跳「系统管理 › 用户管理」按角色 <code>DEPT_ADMIN</code> + 部门过滤，属于系统侧写操作（超管有权）。</div>
+      </div>
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">关</span><h3>绑定规则</h3></div></div>
+        <div class="chk-list">
+          <div class="chk"><span class="ok">✓</span><span>一个部门对应一个岗位（当前实现）</span></div>
+          <div class="chk"><span class="ok">✓</span><span>岗位决定课程可见性与考核配置</span></div>
+          <div class="chk"><span class="ok">✓</span><span>实习生注册时按部门推导岗位</span></div>
+          <div class="chk"><span class="no">!</span><span>暂不支持一部门多岗位</span></div>
+        </div>
+        <div class="callout warn" style="margin-top:12px">
+          <b>改动成本提示：</b>若要支持「一个部门多岗位」（如交付部门同时培养实施 / 实施运维），
+          需放开 <code>dept_position</code> 唯一约束并让注册时出现岗位下拉 —— 属结构变更，本稿不做。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 五、账号管理 -->
+  <section class="sec" id="s5">
+    <div class="sec-head"><span class="sec-no">5</span><h2>组织与人员 › 账号管理（含创建部门管理员）</h2><span class="tag purple" style="margin-left:8px">可写 · 复用系统用户</span></div>
+    <p class="sec-desc">
+      超管的独有职责之一：<b>部门管理员账号由超管创建并授权</b>（部门管理员自己不能建账号，也不能改自己的角色）。
+      页面复用平台 <code>system/user/index</code>，本页只补充<b>超管视角的筛选与提示</b>。
+    </p>
+    <div class="grid">
+      <div class="card c12">
+        <div class="card-h"><div class="tt"><span class="idx">账</span><h3>按角色分类的账号池</h3></div><span class="hint">真实数据 · 复用 system/user</span></div>
+        <div class="btn-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <span class="badge purple">超级管理员 2</span>
+          <span class="badge blue">部门管理员 5</span>
+          <span class="badge orange">预备实习生 8</span>
+          <span class="badge done">正式实习生 15</span>
+          <span class="badge" style="background:var(--gray-soft);color:var(--ink-3)">待审核 3</span>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>账号</th><th style="width:120px">姓名</th><th style="width:140px">角色</th><th style="width:120px">部门 / 岗位</th><th style="width:110px">最近登录</th><th style="width:90px">状态</th><th style="width:130px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="nm">lin.zhiyuan</td><td>林致远</td><td><span class="badge purple">超级管理员</span></td><td>—</td><td>今天 11:28</td><td><span class="badge done">正常</span></td><td class="op">查看<i>|</i>重置密码</td></tr>
+            <tr><td class="nm">test_dev_admin</td><td>开发部门管理员</td><td><span class="badge blue">部门管理员</span></td><td>开发 / 开发实习生</td><td>今天 10:02</td><td><span class="badge done">正常</span></td><td class="op">查看<i>|</i>停用</td></tr>
+            <tr><td class="nm">test_model_intern</td><td>建模部门实习生</td><td><span class="badge orange">预备实习生</span></td><td>建模 / 建模实习生</td><td>昨天 16:31</td><td><span class="badge done">在培</span></td><td class="op">查看<i>|</i>档案</td></tr>
+            <tr><td class="nm">155****2231</td><td>王同学</td><td><span class="badge" style="background:var(--gray-soft);color:var(--ink-3)">待审核</span></td><td>交付 / —</td><td>—</td><td><span class="badge orange">待审核</span></td><td class="op">查看</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <b>写权限边界：</b>账号增删改、角色授权、重置密码 → 超管可写（系统侧）；
+          <b>但不可直接改实习生的培养状态</b>（<code>user_status</code>）—— 该字段由注册审核与转正审批驱动，超管改需走「纠错」专用入口并留痕（见第 11 节）。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 六、角色与权限矩阵 -->
+  <section class="sec" id="s6">
+    <div class="sec-head"><span class="sec-no">6</span><h2>角色与权限矩阵：超管 = 部门管理员的全局超集 + 系统管理</h2></div>
+    <p class="sec-desc">一页用于验收：每个能力在四类角色上的开关，以及「能不能写」的边界。★ 标注超管独有项。</p>
+    <div class="grid">
+      <div class="card c12">
+        <table class="tbl">
+          <thead>
+            <tr><th style="width:190px">能力</th><th style="width:120px">超管</th><th style="width:130px">部门管理员</th><th style="width:110px">预备实习生</th><th style="width:110px">正式实习生</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="nm">注册审核</td><td>只读（全局）</td><td><b>可写</b>（本部门）</td><td>—</td><td>—</td><td>超管不代审，避免与部门管理员冲突</td></tr>
+            <tr><td class="nm">课程内容</td><td>只读（全局）</td><td><b>可写</b>（本部门）</td><td>只读（已发布）</td><td>只读（历史）</td><td>后端 <code>isGlobalReadOnly()</code> 兜底</td></tr>
+            <tr><td class="nm">题库</td><td>只读（全局）</td><td><b>可写</b>（本部门）</td><td>—</td><td>—</td><td>含 Excel 导入</td></tr>
+            <tr><td class="nm">模拟考核配置</td><td>只读</td><td><b>可写</b></td><td>只做题</td><td>—</td><td>知识分布驱动抽题</td></tr>
+            <tr><td class="nm">正式考核（发布 / 指定人员 / 时间窗）</td><td>只读</td><td><b>可写</b></td><td>参考</td><td>只读历史</td><td>批次 = 一条 <code>exam</code></td></tr>
+            <tr><td class="nm">批阅与发布成绩</td><td>只读</td><td><b>可写</b></td><td>—</td><td>查看</td><td>理论自动 / 实操人工</td></tr>
+            <tr><td class="nm">转正审批</td><td>只读（可撤回纠错 ★）</td><td><b>终审即生效</b></td><td>提交申请</td><td>查看</td><td>跳过 SUPER_PENDING</td></tr>
+            <tr><td class="nm">考核规则（门槛 / 权重 / 补考）</td><td><b>可写 ★</b></td><td>只读</td><td>—</td><td>—</td><td>本期新增，需补接口</td></tr>
+            <tr><td class="nm">协议 / 证书模板</td><td><b>可写 ★</b></td><td>只读（用）</td><td>签署</td><td>查看</td><td>版本化管理</td></tr>
+            <tr><td class="nm">账号与角色</td><td><b>可写 ★</b></td><td>—</td><td>—</td><td>—</td><td>平台原生</td></tr>
+            <tr><td class="nm">菜单 / 字典 / 参数 / 日志 / 监控</td><td><b>可写 ★</b></td><td>—</td><td>—</td><td>—</td><td>平台原生 18 项</td></tr>
+            <tr><td class="nm">全局统计与导出</td><td><b>可用 ★</b></td><td>本部门</td><td>本人</td><td>本人</td><td>导出需留痕（第 11 节）</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn" style="margin-top:10px">
+          <b>唯一例外（可写）：</b>转正审批的<b>撤回纠错</b> —— 超管可把误批的转正退回 <code>PRE_TRAINEE</code> 并作废证书，
+          但必须走独立入口 + 二次确认 + 必填原因，写入 <code>operate_log</code>。
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============================================================ 七、课程与题库总览 -->
+  <section class="sec" id="s7">
+    <div class="sec-head"><span class="sec-no">7</span><h2>培养运营 › 课程与题库总览</h2><span class="tag blue" style="margin-left:8px">只读 · 跨部门</span></div>
+    <p class="sec-desc">
+      超管要看的是<b>「每个部门的培养资料是否齐备」</b>，而不是编辑课程。两个关键指标：<b>课程发布状态</b>（草稿/已发布/停用）
+      与 <b>题库健康度</b>（题量是否够单场组卷、知识点是否有覆盖）。
+    </p>
+    <div class="grid">
+      <div class="card c7">
+        <div class="card-h"><div class="tt"><span class="idx">课</span><h3>课程发布总览</h3></div><span class="hint">按部门 / 岗位</span></div>
+        <table class="tbl">
+          <thead><tr><th>部门 · 岗位</th><th style="width:150px">课程</th><th style="width:70px">章节</th><th style="width:70px">单项</th><th style="width:88px">状态</th><th style="width:104px">缺文件项</th></tr></thead>
+          <tbody>
+            <tr><td class="nm">交付 · 实施实习生</td><td>项目实施与交付规范</td><td>2</td><td>3</td><td><span class="badge done">已发布</span></td><td><span class="badge" style="background:var(--green-soft);color:var(--green)">0</span></td></tr>
+            <tr><td class="nm">交付 · 实施实习生</td><td>交付工具基础操作</td><td>1</td><td>2</td><td><span class="badge done">已发布</span></td><td><span class="badge" style="background:var(--green-soft);color:var(--green)">0</span></td></tr>
+            <tr><td class="nm">开发 · 开发实习生</td><td>开发流程与代码交付规范</td><td>2</td><td>3</td><td><span class="badge done">已发布</span></td><td><span class="badge" style="background:var(--green-soft);color:var(--green)">0</span></td></tr>
+            <tr><td class="nm">质检 · 质检实习生</td><td>质量检查与缺陷处理规范</td><td>2</td><td>3</td><td><span class="badge orange">草稿</span></td><td><span class="badge orange">1</span></td></tr>
+            <tr><td class="nm">建模 · 建模实习生</td><td>模型检查与交付标准</td><td>2</td><td>3</td><td><span class="badge done">已发布</span></td><td><span class="badge orange">1</span></td></tr>
+          </tbody>
+        </table>
+        <div class="note">「缺文件项」= 单项未绑定文件数（后端已有 <code>countUnboundAssets</code>）；草稿课程 + 缺文件是超管提醒部门管理员的两个抓手。</div>
+      </div>
+
+      <div class="card c5">
+        <div class="card-h"><div class="tt"><span class="idx">库</span><h3>题库健康度</h3></div><span class="hint">模拟 / 正式分库</span></div>
+        <table class="tb">
+          <thead><tr><th>题库</th><th style="width:60px">题量</th><th style="width:88px">知识点</th><th style="width:96px">够不够组卷</th></tr></thead>
+          <tbody>
+            <tr><td>开发 · 模拟题库</td><td>24</td><td>14</td><td><span class="badge done">充足</span></td></tr>
+            <tr><td>开发 · 正式题库</td><td>24</td><td>13</td><td><span class="badge done">充足</span></td></tr>
+            <tr><td>设计 · 正式题库</td><td>24</td><td>13</td><td><span class="badge done">充足</span></td></tr>
+            <tr><td>交付 · 模拟题库</td><td>0</td><td>0</td><td><span class="badge orange">空库</span></td></tr>
+            <tr><td>质检 · 正式题库</td><td>0</td><td>0</td><td><span class="badge orange">空库</span></td></tr>
+            <tr><td>建模 · 正式题库</td><td>0</td><td>0</td><td><span class="badge orange">空库</span></td></tr>
+          </tbody>
+        </table>
+        <div class="note">判据：<b>题量 ≥ 组卷需求 × 2</b> 且 <b>每个配置知识点的可用题量 ≥ 抽题数量</b>（与知识分布校验同源）。空库直接进异常预警。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 八、考核运营总览 -->
+  <section class="sec" id="s8">
+    <div class="sec-head"><span class="sec-no">8</span><h2>培养运营 › 考核运营总览</h2><span class="tag blue" style="margin-left:8px">只读 · 跨部门批次</span></div>
+    <p class="sec-desc">
+      把「批次」拉到全局维度：每行一个批次（═一条 <code>exam</code>），列显示<b>环节发布状态、时间窗、指定人员范围、参考与通过</b>。
+      超管在此判断「哪些部门该开考却没开」，但不提供发布按钮（发布属部门管理员）。
+    </p>
+    <div class="grid">
+      <div class="card c12">
+        <div class="card-h"><div class="tt"><span class="idx">批</span><h3>全局批次列表</h3></div><span class="hint">3 个进行中 · 9 个已结束</span></div>
+        <table class="tbl">
+          <thead><tr><th>批次</th><th style="width:70px">部门</th><th style="width:92px">理论环节</th><th style="width:92px">实操环节</th><th style="width:150px">时间窗</th><th style="width:110px">人员范围</th><th style="width:96px">参考 / 通过</th><th style="width:80px">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="nm">2026Q4 第二期（补考）</td><td>开发</td><td><span class="badge done">已发布</span></td><td><span class="badge orange">草稿</span></td><td>10-08 09:00 ~ 10-20 18:00</td><td><span class="badge blue">指定 4 人</span></td><td>4 / —</td><td class="op">查看</td></tr>
+            <tr><td class="nm">2026Q4 第一期</td><td>开发</td><td><span class="badge done">已发布</span></td><td><span class="badge done">已发布</span></td><td>08-29 ~ 09-30</td><td>全部在培 18 人</td><td>18 / 15</td><td class="op">查看<i>|</i>成绩</td></tr>
+            <tr><td class="nm">2026Q3 交付专场</td><td>交付</td><td><span class="badge done">已发布</span></td><td><span class="badge done">已发布</span></td><td>07-01 ~ 07-31</td><td>全部在培 12 人</td><td>12 / 9</td><td class="op">查看<i>|</i>成绩</td></tr>
+            <tr><td class="nm">2026Q4 设计专场</td><td>设计</td><td><span class="badge orange">草稿</span></td><td><span class="badge orange">草稿</span></td><td>未设置</td><td>—</td><td>— / —</td><td class="op">查看</td></tr>
+            <tr><td class="nm">2026Q4 质检专场</td><td>质检</td><td><span class="badge" style="background:var(--gray-soft);color:var(--ink-3)">未创建</span></td><td><span class="badge" style="background:var(--gray-soft);color:var(--ink-3)">未创建</span></td><td>—</td><td>—</td><td>— / —</td><td class="op">提醒部门</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <b>复用结论：</b>批次 = <code>exam</code> 记录（<code>exam_mode=FORMAL</code>），环节 = <code>exam_type</code> 为 THEORY / PRACTICAL 的两条记录，
+          各自 <code>status</code> 独立 —— 所以「理论已发布 · 实操草稿」这种半场态天然可表达，超管只需一个<b>跨部门列表接口</b>（现按部门逐个查再合并）。
+        </div>
+      </div>
+
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">率</span><h3>关键转化率</h3></div></div>
+        <div class="hbar"><span class="nm">报名 → 通过审核</span><span class="track"><i style="width:92%"></i></span><span class="pc">92%</span></div>
+        <div class="hbar"><span class="nm">审核 → 完成学习门槛</span><span class="track"><i style="width:74%"></i></span><span class="pc">74%</span></div>
+        <div class="hbar"><span class="nm">达门槛 → 实际参考</span><span class="track"><i style="width:88%"></i></span><span class="pc">88%</span></div>
+        <div class="hbar low"><span class="nm">参考 → 通过</span><span class="track"><i style="width:83%"></i></span><span class="pc">83%</span></div>
+        <div class="hbar low"><span class="nm">通过 → 转正生效</span><span class="track"><i style="width:80%"></i></span><span class="pc">80%</span></div>
+        <div class="note">漏斗口径需跨表聚合（<code>register_application → study_record → answer_sheet → promotion_application</code>），<b>接口待补</b>，本期先用示例值 + 标注。</div>
+      </div>
+
+      <div class="card c8">
+        <div class="card-h"><div class="tt"><span class="idx">漏</span><h3>漏斗瓶颈（按部门）</h3></div><span class="hint">哪一步掉人最多</span></div>
+        <table class="tb">
+          <thead><tr><th>部门</th><th style="width:100px">报名</th><th style="width:110px">过门槛</th><th style="width:100px">参考</th><th style="width:100px">通过</th><th>主要瓶颈</th></tr></thead>
+          <tbody>
+            <tr><td>交付</td><td>17</td><td>15</td><td>13</td><td>9</td><td>参考 → 通过（掉 4 人）</td></tr>
+            <tr><td>开发</td><td>19</td><td>18</td><td>18</td><td>15</td><td>健康</td></tr>
+            <tr><td>设计</td><td>14</td><td>10</td><td>9</td><td>7</td><td>报名 → 过门槛（掉 4 人）</td></tr>
+            <tr><td>建模</td><td>15</td><td>9</td><td>7</td><td>5</td><td>报名 → 过门槛（掉 6 人，完成率仅 59%）</td></tr>
+            <tr><td>质检</td><td>13</td><td>11</td><td>—</td><td>—</td><td>尚未组织考核</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 九、成绩与统计分析 -->
+  <section class="sec" id="s9">
+    <div class="sec-head"><span class="sec-no">9</span><h2>培养运营 › 成绩与统计分析</h2><span class="tag blue" style="margin-left:8px">只读 · 可导出（留痕）</span></div>
+    <p class="sec-desc">
+      超管的统计页回答三个问题：<b>整体水平如何</b>、<b>哪个部门偏弱</b>、<b>哪个知识点是共性短板</b>。三段式：分布 → 部门对比 → 薄弱知识点 Top5。
+    </p>
+    <div class="grid">
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">布</span><h3>综合分分布</h3></div><span class="hint">本期 48 人</span></div>
+        <div class="vchart" style="height:160px">
+          <div class="vcol"><span class="bar" style="height:12%">2</span><span class="lb">&lt;60</span></div>
+          <div class="vcol"><span class="bar" style="height:34%">7</span><span class="lb">60-69</span></div>
+          <div class="vcol"><span class="bar" style="height:68%">16</span><span class="lb">70-79</span></div>
+          <div class="vcol"><span class="bar hi" style="height:88%">21</span><span class="lb">80-89</span></div>
+          <div class="vcol"><span class="bar" style="height:22%">2</span><span class="lb">≥90</span></div>
+        </div>
+        <div class="legend"><span><i style="background:var(--blue)"></i>人数分布</span><span>通过线 60 · 均值 78.4</span></div>
+      </div>
+
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">比</span><h3>部门对比</h3></div><span class="hint">均值 / 通过率</span></div>
+        <div class="hbar"><span class="nm">开发</span><span class="track"><i style="width:88%"></i></span><span class="pc">83%</span></div>
+        <div class="hbar"><span class="nm">交付</span><span class="track"><i style="width:75%"></i></span><span class="pc">69%</span></div>
+        <div class="hbar"><span class="nm">设计</span><span class="track"><i style="width:78%"></i></span><span class="pc">71%</span></div>
+        <div class="hbar low"><span class="nm">质检</span><span class="track"><i style="width:64%"></i></span><span class="pc">—</span></div>
+        <div class="hbar low"><span class="nm">建模</span><span class="track"><i style="width:52%"></i></span><span class="pc">50%</span></div>
+        <div class="note">柱为通过率；质检尚未组织考核，显示 —（不以 0 占位）。</div>
+      </div>
+
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">点</span><h3>薄弱知识点 Top5</h3></div><span class="hint">全局得分率</span></div>
+        <div class="hbar low"><span class="nm">Docker 部署</span><span class="track"><i style="width:47%"></i></span><span class="pc">47%</span></div>
+        <div class="hbar low"><span class="nm">MySQL 索引优化</span><span class="track"><i style="width:58%"></i></span><span class="pc">58%</span></div>
+        <div class="hbar"><span class="nm">代码交付规范</span><span class="track"><i style="width:63%"></i></span><span class="pc">63%</span></div>
+        <div class="hbar"><span class="nm">接口异常处理</span><span class="track"><i style="width:69%"></i></span><span class="pc">69%</span></div>
+        <div class="hbar"><span class="nm">多表关联查询</span><span class="track"><i style="width:72%"></i></span><span class="pc">72%</span></div>
+        <div class="note">数据源 <code>question.knowledge_point</code> + <code>answer_sheet_item.is_correct</code>；部门端已有单部门版本，超管需全局版。</div>
+      </div>
+
+      <div class="card c12">
+        <div class="card-h"><div class="tt"><span class="idx">导</span><h3>导出与报表</h3></div><span class="badge blue">导出即留痕</span></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <span class="btn sm">部门成绩汇总（Excel）</span>
+          <span class="btn sm">实习生明细台账（Excel）</span>
+          <span class="btn sm">题库覆盖度报表（Excel）</span>
+          <span class="btn sm">考核运营月报（PDF）</span>
+        </div>
+        <div class="callout warn" style="margin-top:10px">
+          <b>合规要求：</b>超管导出含个人成绩 / 身份信息的数据，必须记录「谁、何时、导出了哪份、多少行」→ 写入 <code>audit_record</code>，
+          并在第 11 节「导出审批」里可查。字段级方案：<code>export_time / export_by / data_scope / row_count / file_hash</code>。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 十、规则与配置 -->
+  <section class="sec" id="s10">
+    <div class="sec-head"><span class="sec-no">10</span><h2>规则与配置（超管专属可写）</h2><span class="tag purple" style="margin-left:8px">可写 · 待补接口</span></div>
+    <p class="sec-desc">
+      这是超管<b>在业务侧唯一能写</b>的地方。三类配置：<b>考核规则</b>（门槛 / 权重 / 补考）、<b>协议模板</b>、<b>证书模板</b>。
+      后端表结构已存在（<code>exam_rule_snapshot</code> / <code>agreement_template</code> / <code>certificate</code>），<b>缺接口与前端页</b>。
+    </p>
+    <div class="grid">
+      <div class="card c7">
+        <div class="card-h"><div class="tt"><span class="idx">规</span><h3>考核规则（全局默认值）</h3></div><span class="badge orange">接口待补</span></div>
+        <div class="grid" style="gap:10px">
+          <div class="c6">
+            <div class="field"><label>学习门槛（必修完成率）</label><div class="inp">70 %</div></div>
+            <div class="field" style="margin-top:9px"><label>理论权重 / 实操权重</label><div class="inp">40 % / 60 %</div></div>
+            <div class="field" style="margin-top:9px"><label>理论通过线 / 实操通过线</label><div class="inp">60 / 60 分</div></div>
+          </div>
+          <div class="c6">
+            <div class="field"><label>补考次数</label><div class="inp">2 次</div></div>
+            <div class="field" style="margin-top:9px"><label>协议是否必签</label><div class="inp">必须签署（门槛）</div></div>
+            <div class="field" style="margin-top:9px"><label>证书生成条件</label><div class="inp">考核通过 + 转正审批通过</div></div>
+          </div>
+        </div>
+        <div class="callout" style="margin-top:10px">
+          <b>生效方式：</b>全局默认可被部门管理员在<b>发布批次时</b>覆盖（写入 <code>exam_rule_snapshot</code> 冻结快照）。
+          因此本页改的是「默认值」，<b>不影响已发布批次</b>—— 这是审计友好的关键设计。
+        </div>
+        <div class="note">表 <code>exam_rule_snapshot</code> 字段已备齐：<code>theory_weight / practice_weight / theory_pass_line / practice_pass_line / need_course_done / course_done_threshold / protocol_required / retake_count</code>。</div>
+      </div>
+
+      <div class="card c5">
+        <div class="card-h"><div class="tt"><span class="idx">签</span><h3>协议模板与版本</h3></div><span class="badge orange">接口待补</span></div>
+        <table class="tb">
+          <thead><tr><th>版本</th><th style="width:90px">生效时间</th><th style="width:70px">状态</th><th style="width:70px">操作</th></tr></thead>
+          <tbody>
+            <tr><td>保密协议 v1.2</td><td>2026-08-01</td><td><span class="badge done">生效中</span></td><td class="op">查看</td></tr>
+            <tr><td>保密协议 v1.1</td><td>2026-05-01</td><td><span class="badge" style="background:var(--gray-soft);color:var(--ink-3)">已归档</span></td><td class="op">查看</td></tr>
+          </tbody>
+        </table>
+        <div class="note">实习生签署时写入 <code>agreement_signature</code>（含版本号），工作台底部「签署凭证」可查 —— <b>模板只增不改</b>，新版本只对新签人生效。</div>
+        <div class="field" style="margin-top:10px"><label>新增版本</label><div class="inp">上传 PDF + 填写生效日期 + 版本号</div></div>
+        <div class="btn-row" style="margin-top:10px;justify-content:flex-end"><span class="btn sm">保存草稿</span><span class="btn primary sm">发布新版本</span></div>
+      </div>
+
+      <div class="card c5">
+        <div class="card-h"><div class="tt"><span class="idx">证</span><h3>证书模板</h3></div><span class="badge orange">接口待补</span></div>
+        <div class="filecard">
+          <span class="fi">模板</span>
+          <div class="fn"><b>实习生转正考核合格证书 · 模板 A</b><span>含姓名 / 岗位 / 综合分 / 证书编号 / 发证日期占位符</span></div>
+          <span class="spacer"></span>
+          <span class="btn sm">预览</span>
+        </div>
+        <div class="field" style="margin-top:10px"><label>编号规则</label><div class="inp">{岗位缩写}-{年}-{月日}-{序号} ，如 DEV-2026-0917-001</div></div>
+        <div class="field" style="margin-top:9px"><label>签发人</label><div class="inp">部门管理员（终审即发证）</div></div>
+        <div class="note">证书在转正审批通过时生成（<code>certificate.cert_no</code>），实习生在工作台底部「电子证书」查看与下载。</div>
+      </div>
+
+      <div class="card c7">
+        <div class="card-h"><div class="tt"><span class="idx">警</span><h3>异常预警规则</h3></div><span class="badge orange">接口待补</span></div>
+        <table class="tbl">
+          <thead><tr><th>规则</th><th style="width:130px">阈值</th><th style="width:110px">触发对象</th><th style="width:90px">动作</th></tr></thead>
+          <tbody>
+            <tr><td class="nm">部门完成率偏低</td><td>&lt; 70%</td><td>部门</td><td>工作台预警</td></tr>
+            <tr><td class="nm">考核逾期未提交</td><td>截止后 24h</td><td>实习生</td><td>预警 + 通知部门</td></tr>
+            <tr><td class="nm">题库题量不足</td><td>&lt; 需求 × 2</td><td>题库</td><td>预警</td></tr>
+            <tr><td class="nm">考核长期未组织</td><td>超过 1 个季度</td><td>部门</td><td>预警</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 十一、审计与合规 -->
+  <section class="sec" id="s11">
+    <div class="sec-head"><span class="sec-no">11</span><h2>审计与合规：超管自己的操作也要留痕</h2><span class="tag blue" style="margin-left:8px">只读 · 部分真实</span></div>
+    <p class="sec-desc">
+      超管权限最大，因此需要一页专门回答「谁动了什么」。三段：<b>超管操作留痕</b>（可写动作）、<b>只读越权尝试</b>（被后端拦下的写请求）、<b>数据导出记录</b>。
+    </p>
+    <div class="grid">
+      <div class="card c8">
+        <div class="card-h"><div class="tt"><span class="idx">痕</span><h3>超管操作留痕</h3></div><span class="hint">近 30 天 12 条</span></div>
+        <table class="tbl">
+          <thead><tr><th style="width:120px">时间</th><th style="width:130px">动作</th><th>对象</th><th style="width:170px">变更内容</th><th style="width:80px">来源</th></tr></thead>
+          <tbody>
+            <tr><td>今天 10:05</td><td><span class="badge purple">改规则</span></td><td>全局考核规则</td><td>补考次数 1 → 2</td><td><code>oper_log</code></td></tr>
+            <tr><td>昨天 15:02</td><td><span class="badge blue">建账号</span></td><td>test_qa_admin</td><td>角色 DEPT_ADMIN · 部门 质检</td><td><code>oper_log</code></td></tr>
+            <tr><td>09-15 09:40</td><td><span class="badge orange">发模板</span></td><td>保密协议 v1.2</td><td>版本发布</td><td><code>audit_record</code></td></tr>
+            <tr><td>09-14 16:22</td><td><span class="badge" style="background:var(--red-soft);color:var(--red)">纠错</span></td><td>实习生姜某</td><td>撤回转正（理由：材料造假）</td><td><code>audit_record</code></td></tr>
+          </tbody>
+        </table>
+        <div class="note">落库：<code>sys_oper_log</code>（平台原生，<code>@Log</code> 注解自动记录）+ <code>business.audit_record</code>（业务级，需补写）。</div>
+      </div>
+
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">挡</span><h3>只读越权尝试</h3></div><span class="badge done">后端已强制</span></div>
+        <div class="chk-list">
+          <div class="chk"><span class="ok">✓</span><span>课程写入拦截 <code>CourseServiceImpl</code></span></div>
+          <div class="chk"><span class="ok">✓</span><span>课程内容拦截 <code>CourseContentServiceImpl</code></span></div>
+          <div class="chk"><span class="ok">✓</span><span>考核读写拦截 <code>ExamServiceImpl</code></span></div>
+          <div class="chk"><span class="ok">✓</span><span>题库 / 题目拦截 <code>QuestionBank / Question</code></span></div>
+          <div class="chk"><span class="ok">✓</span><span>实操题库拦截 <code>PracticeSubjectServiceImpl</code></span></div>
+        </div>
+        <div class="note">拦截时返回「超级管理员仅可查看…不能执行写入操作」。建议<b>同时写一条尝试记录</b>（当前未记录），便于发现账号被盗用。</div>
+      </div>
+
+      <div class="card c12">
+        <div class="card-h"><div class="tt"><span class="idx">审</span><h3>转正纠错（唯一的业务写入口，需二次确认 + 必填原因）</h3></div><span class="badge orange">流程待补</span></div>
+        <div class="steps">
+          <div class="step now"><span class="mark">1</span><div class="txt"><b>发起撤回</b><span>在全局花名册选中已达转正的实习生 → 「撤回转正」</span></div></div>
+          <div class="step"><span class="mark">2</span><div class="txt"><b>填写原因（必填，≥20 字）</b><span>原因写入审计日志并同步通知该部门管理员与该实习生</span></div></div>
+          <div class="step"><span class="mark">3</span><div class="txt"><b>二次确认</b><span>输入实习生姓名以确认操作，防止误点</span></div></div>
+          <div class="step"><span class="mark">4</span><div class="txt"><b>生效</b><span><code>user_status</code> 退回 PRE_TRAINEE、证书作废（<code>certificate.status=REVOKED</code>）、学习与考核记录保留</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 十二、系统管理 -->
+  <section class="sec" id="s12">
+    <div class="sec-head"><span class="sec-no">12</span><h2>系统管理 / 监控 / 工具：18 项原生能力直接复用</h2><span class="tag done" style="margin-left:8px">零改造</span></div>
+    <p class="sec-desc">
+      超管的系统侧能力 <b>100% 复用 平台原生菜单</b>（<code>sys_menu</code> 已存在、<code>admin</code> 角色天然可见），
+      本稿只需把它们<b>在侧栏里归到「系统」分组</b>，并在关键页做两处「本系统语义」的补充说明。
+    </p>
+    <div class="grid">
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">管</span><h3>系统管理（9）</h3></div></div>
+        <div class="btn-row" style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="badge blue">用户管理</span><span class="badge blue">角色管理</span><span class="badge blue">菜单管理</span>
+          <span class="badge blue">部门管理</span><span class="badge blue">岗位管理</span><span class="badge blue">字典管理</span>
+          <span class="badge blue">参数设置</span><span class="badge blue">通知公告</span><span class="badge blue">日志管理</span>
+        </div>
+        <div class="note">本系统语义补充：① 「角色管理」需保证四业务角色（SUPER_ADMIN / DEPT_ADMIN / PRE_TRAINEE / FORMAL_TRAINEE）的权限串与后端 <code>@PreAuthorize</code> 一致；② 「部门管理」的部门 = 培养部门，与 <code>dept_position</code> 绑定联动。</div>
+      </div>
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">控</span><h3>系统监控（6）</h3></div></div>
+        <div class="btn-row" style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="badge blue">在线用户</span><span class="badge blue">定时任务</span><span class="badge blue">数据监控</span>
+          <span class="badge blue">服务监控</span><span class="badge blue">缓存监控</span><span class="badge blue">缓存列表</span>
+        </div>
+        <div class="note">定时任务可用于：考核时间窗到点自动开放 / 逾期自动结束（当前靠请求时校验，可选升级为 Quartz 任务）。</div>
+      </div>
+      <div class="card c4">
+        <div class="card-h"><div class="tt"><span class="idx">具</span><h3>系统工具（3）</h3></div></div>
+        <div class="btn-row" style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="badge blue">表单构建</span><span class="badge blue">代码生成</span><span class="badge blue">系统接口</span>
+        </div>
+        <div class="note">「代码生成」可直接为 <code>exam_knowledge_rule</code> / <code>exam_participant</code> 等新表生成 CRUD 骨架（可选，本项目已手写）。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 十三、落地状态 -->
+  <section class="sec" id="s13">
+    <div class="sec-head"><span class="sec-no">13</span><h2>落地状态与实施顺序</h2></div>
+    <p class="sec-desc">按「不依赖新接口 → 依赖新接口」分四阶段；每阶段都能独立验收。</p>
+    <div class="grid">
+      <div class="card c12">
+        <table class="tbl">
+          <thead><tr><th style="width:70px">阶段</th><th style="width:280px">内容</th><th>依赖</th><th style="width:120px">产出</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="nm">P0</td>
+              <td><b>侧栏与菜单</b>：五目录改造（幂等 SQL）+ 路由追加 <code>/super/**</code></td>
+              <td>无（纯菜单 + 前端）</td>
+              <td>4 个新页面骨架可进</td>
+            </tr>
+            <tr>
+              <td class="nm">P1</td>
+              <td><b>全局工作台</b>：6 KPI + 部门对比 + 考核概览 + 异常预警 + 动态</td>
+              <td>部门逐个查后端现成接口，前端归并（5 次请求）；<b>或</b>补 1 个聚合接口</td>
+              <td>超管第一页可用</td>
+            </tr>
+            <tr>
+              <td class="nm">P2</td>
+              <td><b>组织与人员</b>（组织架构 / 账号管理 / 角色矩阵 / 全局花名册）+ <b>系统管理分组</b></td>
+              <td>全部可复用（<code>sys_dept</code> / <code>sys_user</code> / <code>sys_role</code> / <code>register_application</code>）</td>
+              <td>管理能力闭环</td>
+            </tr>
+            <tr>
+              <td class="nm">P3</td>
+              <td><b>培养运营</b>（课程与题库总览 / 考核运营 / 成绩统计）+ <b>审计与合规</b></td>
+              <td>需补：跨部门批次列表、全局成绩聚合、薄弱知识点全局版、审计记录写入<br>（<code>sys_oper_log</code> 现成，业务侧需补）</td>
+              <td>统计与合规可用</td>
+            </tr>
+            <tr>
+              <td class="nm">P4</td>
+              <td><b>规则与配置</b>（考核规则 / 协议模板 / 证书模板 / 预警规则）</td>
+              <td>需补：4 组配置读写接口（表结构均已存在）</td>
+              <td>超管业务侧唯一写入口</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card c6">
+        <div class="card-h"><div class="tt"><span class="idx">缺</span><h3>后端缺口清单（7 项）</h3></div></div>
+        <table class="tb">
+          <thead><tr><th>#</th><th>接口</th><th style="width:90px">优先级</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>跨部门聚合统计（部门对比 / 漏斗）</td><td><span class="badge" style="background:var(--red-soft);color:var(--red)">P0</span></td></tr>
+            <tr><td>2</td><td>全局批次列表（跨部门 <code>exam</code> + 参考/通过）</td><td><span class="badge" style="background:var(--red-soft);color:var(--red)">P0</span></td></tr>
+            <tr><td>3</td><td>全局成绩聚合 + 薄弱知识点（<code>knowledge_point</code>）</td><td><span class="badge orange">P1</span></td></tr>
+            <tr><td>4</td><td>全局花名册（跨部门实习生 + 状态 + 画像完整度）</td><td><span class="badge orange">P1</span></td></tr>
+            <tr><td>5</td><td>考核规则读写（<code>exam_rule_snapshot</code> 全局默认值）</td><td><span class="badge orange">P1</span></td></tr>
+            <tr><td>6</td><td>协议 / 证书模板读写（<code>agreement_template</code> / <code>certificate</code>）</td><td><span class="badge blue">P2</span></td></tr>
+            <tr><td>7</td><td>审计写入（业务级 <code>audit_record</code>）+ 越权尝试记录</td><td><span class="badge blue">P2</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card c6">
+        <div class="card-h"><div class="tt"><span class="idx">收</span><h3>验收清单（12 条）</h3></div></div>
+        <div class="chk-list">
+          <div class="chk"><span class="ok">1</span><span>登录后落到 <code>/super/dashboard</code>，侧栏五目录 + 系统三目录</span></div>
+          <div class="chk"><span class="ok">2</span><span>业务页面（课程 / 题库 / 考核）<b>看不到任何写入按钮</b>，直接调接口也被后端拒绝</span></div>
+          <div class="chk"><span class="ok">3</span><span>系统管理 18 项全部可进且可写</span></div>
+          <div class="chk"><span class="ok">4</span><span>部门对比图覆盖 5 个部门，可下钻到部门 → 实习生明细</span></div>
+          <div class="chk"><span class="ok">5</span><span>考核运营页显示「理论已发布 · 实操草稿」的半场态</span></div>
+          <div class="chk"><span class="ok">6</span><span>成绩页通过线 60、显示「-」而不是 0（未组织考核的部门）</span></div>
+          <div class="chk"><span class="ok">7</span><span>薄弱知识点 Top5 可追溯到 <code>knowledge_point</code></span></div>
+          <div class="chk"><span class="ok">8</span><span>导出任意报表 → 审计页出现一条导出记录</span></div>
+          <div class="chk"><span class="ok">9</span><span>改全局考核规则后，<b>已发布批次不受影响</b></span></div>
+          <div class="chk"><span class="ok">10</span><span>撤回转正需二次确认 + 必填原因，且学习记录保留</span></div>
+          <div class="chk"><span class="ok">11</span><span>实习生端 / 部门端页面零回归（侧栏、功能、权限均不变）</span></div>
+          <div class="chk"><span class="ok">12</span><span>菜单改造为幂等脚本，可重复执行；同事分支合并无冲突</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 十四、落地记录 -->
+  <section class="sec" id="s14">
+    <div class="sec-head"><span class="sec-no">14</span><h2>V2 落地记录（2026-09-17 已实现）</h2><span class="tag done" style="margin-left:8px">前端已上线</span></div>
+    <p class="sec-desc">
+      本稿的 <b>P0 + P1 + P2 部分</b>已落地并跑通：侧栏五目录、超管授权、8 个页面。<b>侧栏与 URL 均按本稿的扁平五目录实现</b>（`/super/**`），系统管理 / 监控 / 工具三项复用 平台原生菜单。
+    </p>
+    <div class="grid">
+      <div class="card c7">
+        <div class="card-h"><div class="tt"><span class="idx">落</span><h3>已落地清单</h3></div><span class="hint">1 个幂等脚本 + 5 个页面</span></div>
+        <table class="tbl">
+          <thead><tr><th style="width:170px">项</th><th>内容</th><th style="width:96px">状态</th></tr></thead>
+          <tbody>
+            <tr><td class="nm">菜单改造</td><td><code>sql/intern_assessment_super_admin_pages.sql</code>：5 个菜单 <code>component</code> → <code>super/**</code>；「系统运营」改名「超管运营」</td><td><span class="badge done">已执行</span></td></tr>
+            <tr><td class="nm">超管授权</td><td>系统管理 / 系统监控 / 系统工具 整棵子树 + 岗位管理 → SUPER_ADMIN（120 条菜单授权，含 <code>system:*</code> / <code>monitor:*</code> / <code>business:position:list</code>）</td><td><span class="badge done">已执行</span></td></tr>
+            <tr><td class="nm">全局工作台</td><td><code>views/super/dashboard/index.vue</code>：6 KPI + 部门分布柱图 + 考核概览 + 题库健康度 + 异常预警 + 操作日志动态（<b>全部真实数据</b>）</td><td><span class="badge done">已上线</span></td></tr>
+            <tr><td class="nm">组织岗位</td><td><code>views/super/org/organization/index.vue</code>：部门 × 绑定岗位 × 在培/待审人数（真实）+ 绑定规则与「一部门多岗位」结构提示</td><td><span class="badge done">已上线</span></td></tr>
+            <tr><td class="nm">角色权限</td><td><code>views/super/org/roles/index.vue</code>：真实角色清单 + 12 行「能力 × 角色」验收矩阵 + 可写 / 只读边界</td><td><span class="badge done">已上线</span></td></tr>
+            <tr><td class="nm">系统规则</td><td><code>views/super/rule/index.vue</code>：考核规则 / 协议模板 / 证书模板 / 预警规则（只读展示 + 接口待补标注）</td><td><span class="badge orange">只读版</span></td></tr>
+            <tr><td class="nm">审计日志</td><td><code>views/super/audit/index.vue</code>：操作日志（真实 <code>operlog</code>，含搜索/筛选/详情）+ 越权边界 + 转正纠错四步</td><td><span class="badge done">已上线</span></td></tr>
+            <tr><td class="nm">侧栏五目录</td><td><code>buildSuperSidebar()</code>：全局工作台（单链接）/ 组织与人员 / 培养运营 / 规则与配置（单链接）/ 审计与合规（单链接）+ 原生系统三项</td><td><span class="badge done">已上线</span></td></tr>
+            <tr><td class="nm">登录落点</td><td>超管登录 / 访问 <code>/index</code> → 改投 <code>/super/dashboard</code>；面包屑首项同步为「工作台」</td><td><span class="badge done">已上线</span></td></tr>
+            <tr><td class="nm">培养运营三页</td><td><code>super/ops/courses</code>（课程+题库健康度，真实）/ <code>super/ops/exams</code>（批次×环节，真实）/ <code>super/ops/scores</code>（分布与批次统计骨架，聚合接口待补）</td><td><span class="badge done">已上线</span></td></tr>
+            <tr><td class="nm">共享样式</td><td><code>assets/styles/super-module.scss</code>（前缀 <code>s</code>，SCSS 变量、无 <code>:root</code>）</td><td><span class="badge done">已上线</span></td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <b>三个关键细节：</b>① 权限是<b>登录时快照</b> —— 授权后必须<b>重新登录</b>超管账号才生效；
+          ② 超管角色原本只有业务菜单授权、没有 <code>system:*</code>，本次迁移一并补齐；
+          ③ 新增页面目录后必须<b>重启 dev server</b>（webpack 解析缓存不含新目录）。
+        </div>
+      </div>
+
+      <div class="card c5">
+        <div class="card-h"><div class="tt"><span class="idx">形</span><h3>已落地的侧栏与 URL</h3></div></div>
+        <table class="tb">
+          <thead><tr><th>侧栏</th><th>URL</th></tr></thead>
+          <tbody>
+            <tr><td>全局工作台</td><td><code>/super/dashboard</code></td></tr>
+            <tr><td>组织与人员 › 组织岗位</td><td><code>/super/org/organization</code></td></tr>
+            <tr><td>组织与人员 › 角色权限</td><td><code>/super/org/roles</code></td></tr>
+            <tr><td>组织与人员 › 账号管理</td><td><code>/super/org/accounts</code>（复用系统用户页）</td></tr>
+            <tr><td>培养运营 › 课程与题库总览</td><td><code>/super/ops/courses</code></td></tr>
+            <tr><td>培养运营 › 考核运营总览</td><td><code>/super/ops/exams</code></td></tr>
+            <tr><td>培养运营 › 成绩与统计分析</td><td><code>/super/ops/scores</code></td></tr>
+            <tr><td>规则与配置</td><td><code>/super/rule</code></td></tr>
+            <tr><td>审计与合规</td><td><code>/super/audit</code></td></tr>
+            <tr><td>系统管理 / 系统监控 / 系统工具</td><td>平台原生（DB 菜单，已授权）</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok" style="margin-top:12px">
+          <i class="el-icon-success" />
+          <span>
+            <b>实现方式：</b>侧栏由 <code>store/modules/permission.js → buildSuperSidebar()</code> 按本稿五目录分组（同实习生端 / 部门端的做法），
+            路由来自 <code>dynamicRoutes</code> 的 <code>/super</code> 段（<code>roles: ['SUPER_ADMIN','admin']</code>），
+            系统三项透传 DB 菜单 —— <b>零 SQL 冲突</b>，同事分支引用的菜单行完全没动。
+          </span>
+        </div>
+        <div class="callout warn" style="margin-top:10px">
+          <i class="el-icon-warning-outline" />
+          <span><b>仍待补（P3/P4）：</b>跨部门聚合统计、全局批次列表、全局成绩与薄弱知识点、全局花名册、考核规则读写、协议 / 证书模板读写、审计写入 —— 共 7 项接口。</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

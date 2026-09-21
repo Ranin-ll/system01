@@ -17,6 +17,7 @@ const getters = {
   mentorName: state => state.user.mentorName,
   mentorPhone: state => state.user.mentorPhone,
   deptName: state => state.user.deptName,
+  deptId: state => state.user.deptId,
   permission_routes: state => state.permission.routes,
   topbarRouters:state => state.permission.topbarRouters,
   defaultRoutes:state => state.permission.defaultRoutes,

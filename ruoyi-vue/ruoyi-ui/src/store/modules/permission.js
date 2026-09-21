@@ -45,9 +45,11 @@ const permission = {
           commit('SET_ROUTES', rewriteRoutes)
           const sidebar = isInternRole(rootGetters.roles)
             ? buildInternSidebar(rootGetters.roles)
-            : (isDeptAdminRole(rootGetters.roles) && !rootGetters.roles.includes('SUPER_ADMIN')
-              ? buildDeptAdminSidebar()
-              : constantRoutes.concat(sidebarRoutes))
+            : (isSuperAdminRole(rootGetters.roles)
+              ? buildSuperSidebar(sidebarRoutes)
+              : (isDeptAdminRole(rootGetters.roles)
+                ? buildDeptAdminSidebar()
+                : constantRoutes.concat(sidebarRoutes)))
           commit('SET_SIDEBAR_ROUTERS', sidebar)
           commit('SET_DEFAULT_ROUTES', sidebarRoutes)
           commit('SET_TOPBAR_ROUTES', sidebarRoutes)
@@ -64,6 +66,102 @@ function isInternRole(roles = []) {
 
 function isDeptAdminRole(roles = []) {
   return roles.indexOf('DEPT_ADMIN') > -1
+}
+
+/** 超管：内置 admin（role_key='admin'）与业务超管角色 SUPER_ADMIN 都算 */
+function isSuperAdminRole(roles = []) {
+  return roles.indexOf('SUPER_ADMIN') > -1 || roles.indexOf('admin') > -1
+}
+
+// ==========================================================================
+// 超管端一级目录（V2 定稿五目录 → 2026-09-17 决策「三端命名统一」后为六目录）：
+//   全局工作台（单链接）· 组织与人员 · 培养运营 · 任务与通知（单链接）· 规则与配置（单链接）· 审计与合规（单链接）
+// 后面再接平台原生的「系统管理 / 系统监控 / 系统工具」三项（来自 DB 菜单）。
+//
+// 为什么在 store 里手搓，而不是直接用后端菜单树：
+//   `sys_menu` 里超管仍是旧的「业务管理 / 学习考核（内含 部门运营 / 考核认证管理 / 系统运营）」结构，
+//   与设计稿的五目录长期不一致，且其中多个页面指向骨架页。侧栏只影响展示，路由仍来自
+//   dynamicRoutes（/super/**）+ DB 菜单，改造零 SQL、零冲突。
+// ==========================================================================
+function buildSuperSidebar(dbRoutes = []) {
+  const root = dynamicRoutes.find(route => route.path === '/super')
+  const all = (root ? root.children : []).filter(child => !child.hidden)
+
+  // 组内 path 只取末段，使「组路径 + 末段」正好等于真实路由（同部门端做法）
+  const group = (path, title, icon, segs) => {
+    const children = segs
+      .map(seg => all.find(child => child.path === seg))
+      .filter(Boolean)
+      .map(child => Object.assign({}, child, { path: child.path.split('/').pop() }))
+    if (!children.length) return null
+    return {
+      path,
+      component: Layout,
+      alwaysShow: true,
+      redirect: path + '/' + children[0].path,
+      meta: { title, icon },
+      children
+    }
+  }
+
+  // 单项目录：包一层 Layout 子项，侧栏自动折叠成一级链接
+  //
+  // ⚠️ 子项必须写成**绝对真实路由**，不能沿用相对段。
+  // SidebarItem 用 `path.resolve(basePath, childPath)` 拼最终链接，basePath 取目录自身的 path。
+  // 例：目录 '/super/rule' + 子段 'rule' → 拼成 '/super/rule/rule' → 404。
+  // 分组目录（group）之所以没这问题，是因为「组路径 + 末段」正好等于真实路由
+  // （'/super/org' + 'organization' = '/super/org/organization'）；
+  // 而单项目录的目录路径**本身就是**真实路由，再拼一段就多了一层。
+  // 传入的 path 是目录（菜单项）路径，真实路由 = '/super' + '/' + child.path。
+  const single = (path, seg) => {
+    const child = all.find(item => item.path === seg)
+    if (!child) return null
+    const realPath = '/super/' + child.path
+    return { path, component: Layout, children: [Object.assign({}, child, { path: realPath })] }
+  }
+
+  // 板块分组（跨前缀安全）：子项写**绝对路由**，组路径只作容器标识。
+  //
+  // 为什么需要它：group() 靠「组路径 + 末段 = 真实路由」的巧合，而「通知与督办」的两个子项
+  // 来自 notify / todo 两个**不同前缀**，取末段会拼出 /super/notify/todo 这种错路径。
+  // 改用绝对路由后这条易错规则在本函数里彻底消失。
+  // 注意：**不改既有 group() / single()**（部门端仍在用 group()）。
+  const absGroup = (path, title, icon, segs) => {
+    const children = segs
+      .map(seg => all.find(child => child.path === seg))
+      .filter(Boolean)
+      .map(child => Object.assign({}, child, { path: '/super/' + child.path }))
+    if (!children.length) return null
+    return {
+      path,
+      component: Layout,
+      alwaysShow: true,
+      redirect: children[0].path,
+      meta: { title, icon },
+      children
+    }
+  }
+
+  // 原生系统三项（系统管理 / 系统监控 / 系统工具）直接透传 DB 菜单
+  const systemDirs = dbRoutes.filter(route =>
+    ['system', 'monitor', 'tool'].indexOf(route.path) > -1)
+
+  return [
+    single('/super', 'dashboard'),
+    // 「组织岗位」页已于 2026-09-20 整合部门/岗位管理（三个页签），
+    // 原独立的 `org/positions` 入口从侧栏移除（路由保留，避免旧链接 404）。
+    // 「部门管理员」页已于 2026-09-20 并入「督办看板」的「按人」视角（内容与看板同源）；
+    // 路由保留并重定向到 /super/todo?view=people，侧栏不再单独列出 —— 本组回归纯「组织」语义。
+    absGroup('/super/org', '组织与人员', 'peoples',
+      ['org/organization', 'org/roles', 'org/accounts']),
+    group('/super/ops', '培养运营', 'education',
+      ['ops/analysis', 'ops/courses', 'ops/course-admin', 'ops/bank-admin', 'ops/psubject-admin', 'ops/exams', 'ops/scores']),
+    // 「任务与通知」→「通知与督办」：多了「督办看板」，单项目录升级为分组。
+    // 两个子项来自 notify / todo 两个前缀 → 必须用 absGroup（group 取末段会拼错）。
+    absGroup('/super/notify', '通知与督办', 'message', ['notify', 'todo']),
+    single('/super/rule', 'rule'),
+    single('/super/audit', 'audit')
+  ].filter(Boolean).concat(systemDirs)
 }
 
 // 部门管理员端一级目录（设计稿 §一）：四目录 —— 工作台 / 人员管理 / 学习与考核管理 / 任务与通知。
@@ -97,7 +195,7 @@ function buildDeptAdminSidebar() {
     }
   }
 
-  // 工作台：单项顶层目录（只有一个子项，RuoYi 侧栏会自动折叠成一级链接）
+  // 工作台：单项顶层目录（只有一个子项，侧栏会自动折叠成一级链接）
   const dashboard = all.find(child => child.path === 'dashboard')
   const dash = dashboard
     ? [{ path: '/department', component: Layout, children: [Object.assign({}, dashboard)] }]
@@ -109,19 +207,23 @@ function buildDeptAdminSidebar() {
     group('/department/study', '学习与考核管理', 'education',
       ['study/courses', 'study/banks', 'study/prep', 'study/exam', 'study/scores']),
     group('/department/messages', '任务与通知', 'message',
-      ['messages/tasks', 'messages/notices'])
+      ['messages/tasks', 'messages/review', 'messages/notices'])
   ].filter(Boolean))
 }
 
-// 实习生端一级目录（设计稿 V1.2）：只保留「工作台」与「学习与考核」两项。
+// 实习生端一级目录（设计稿 V1.2，2026-09-17 起加第三项）：
+//   ① 工作台  ② 学习与考核  ③ 任务与通知
 //
 // 为什么在 store 里手搓，而不直接用后端菜单树（/getRouters）：
 // 后端菜单树是给管理端用的，「学习考核」目录下还挂着部门运营 / 考核认证管理 /
 // 系统运营等实习生用不到的目录，直接透传会让实习生侧栏出现一堆无用层级。
-// 这里显式声明两项目录，只影响侧栏渲染（sidebarRouters 仅用于展示），
+// 这里显式声明三项目录，只影响侧栏渲染（sidebarRouters 仅用于展示），
 // 真正参与路由匹配的仍是 dynamicRoutes + 后端菜单生成的 rewriteRoutes。
 //
-// 「消息中心」不再占一级目录，改由顶栏铃铛承载（见 layout/components/Navbar.vue）。
+// 「消息中心」有**两个入口**：顶栏铃铛（未读红点，见 layout/components/Navbar.vue）
+// 与侧栏一级「任务与通知」（复用 constantRoutes 的 `/messages` 路由，该页含
+// 「通知 / 我的任务」两个页签）。侧栏文案叫「任务与通知」，页面标题仍是「消息中心」——
+// 侧栏是入口，页面是容器。
 function buildInternSidebar(roles = []) {
   // ① 工作台：沿用 constantRoutes 的首页路由（affix，刷新后仍能定位）
   const dashboard = constantRoutes.filter(route => !route.hidden && route.path === '')
@@ -145,7 +247,20 @@ function buildInternSidebar(roles = []) {
       }]
     : []
 
-  return dashboard.concat(learning)
+  // ③ 任务与通知：单链接，复用 constantRoutes 的 /messages。
+  //    子项 path 保持空串 —— SidebarItem 用 path.resolve(basePath, childPath) 拼链接，
+  //    resolve('/messages', '') 正好回到 /messages；若写成相对段（如 'tasks'）会被拼成
+  //    /messages/tasks 而 404（README：单项目录必须让子项解析回目录路径本身）。
+  //    只覆盖 meta.title：侧栏显示「任务与通知」，页面内的标题仍由页面自己决定。
+  const messageCenter = constantRoutes
+    .filter(route => !route.hidden && route.path === '/messages')
+    .map(route => Object.assign({}, route, {
+      children: (route.children || []).map(child => Object.assign({}, child, {
+        meta: Object.assign({}, child.meta, { title: '任务与通知' })
+      }))
+    }))
+
+  return dashboard.concat(learning).concat(messageCenter)
 }
 
 // 遍历后台传来的路由字符串，转换为组件对象

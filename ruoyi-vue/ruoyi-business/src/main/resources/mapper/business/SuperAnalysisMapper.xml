@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.SuperAnalysisMapper">
+
+    <!--
+      超管「培养分析看板」只读聚合。
+
+      ⚠️ 本文件两个必须遵守的约定
+      1) 本项目 mybatis-config.xml 里 mapUnderscoreToCamelCase 是**被注释掉的**
+         → 每一列都必须显式起 camelCase 别名，否则 VO 字段全部为 null。
+      2) 数人一律 EXISTS 判角色（user_status 不是权限），**不用 JOIN** ——
+         多角色行会让计数与均值翻倍。
+    -->
+
+    <!-- ★ 与 CourseMapper.xml#internRoleExists 是同一个判定，两处必须同步修改。
+         （这里不复用 <include> 是因为跨 namespace 引用依赖 mapper 加载顺序，不稳。） -->
+    <sql id="internRoleExists">
+        EXISTS (SELECT 1 FROM sys_user_role ur
+                JOIN sys_role r ON r.role_id = ur.role_id
+                WHERE ur.user_id = u.user_id
+                  AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+    </sql>
+
+    <!-- 可选部门过滤：超管传 null 看全量；非超管由 Service 收成本部门 -->
+    <sql id="deptScope">
+        <if test="deptId != null">
+            AND d.dept_id = #{deptId}
+        </if>
+    </sql>
+
+    <!-- 学习达标门槛与预警阈值统一走 IAssessmentRuleService.getConfig()
+         （它已处理「表在但行被删」的兜底补行）—— 本 Mapper 不重复读配置表。 -->
+
+    <!-- ==================== 维度 A · 在培实习生按部门 ==================== -->
+    <select id="selectInternByDept" resultType="com.ruoyi.business.domain.DeptMatrixRow">
+        SELECT d.dept_id                                  AS deptId,
+               d.dept_name                                AS deptName,
+               COUNT(DISTINCT u.user_id)                  AS internCount,
+               COUNT(DISTINCT CASE WHEN u.user_status = 'FORMAL_TRAINEE'
+                                   THEN u.user_id END)    AS formalCount
+        FROM sys_user u
+        JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
+        WHERE u.del_flag = '0'
+          AND u.status = '0'
+          AND <include refid="internRoleExists"/>
+          <include refid="deptScope"/>
+        GROUP BY d.dept_id, d.dept_name
+        ORDER BY internCount DESC, d.dept_id
+    </select>
+
+    <!-- ==================== 维度 B · 学习按部门 ==================== -->
+    <select id="selectLearnByDept" resultType="com.ruoyi.business.domain.DeptMatrixRow">
+        SELECT d.dept_id                                                    AS deptId,
+               d.dept_name                                                  AS deptName,
+               COUNT(DISTINCT s.id)                                         AS learnTotal,
+               COUNT(DISTINCT CASE WHEN s.progress >= #{threshold}
+                                   THEN s.id END)                           AS learnDone,
+               COUNT(DISTINCT s.user_id)                                    AS learnPersons,
+               ROUND(AVG(s.progress), 1)                                    AS learnAvgProgress,
+               COALESCE(SUM(CASE WHEN s.item_type = 'VIDEO'
+                                 THEN s.study_duration ELSE 0 END), 0)      AS videoSeconds
+        FROM study_record s
+        JOIN sys_user u ON u.user_id = s.user_id AND u.del_flag = '0' AND u.status = '0'
+        JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
+        WHERE <include refid="internRoleExists"/>
+          <include refid="deptScope"/>
+        GROUP BY d.dept_id, d.dept_name
+    </select>
+
+    <!-- ==================== 维度 E · 任务交付按部门 ==================== -->
+    <select id="selectTaskByDept" resultType="com.ruoyi.business.domain.DeptMatrixRow">
+        SELECT d.dept_id                                              AS deptId,
+               d.dept_name                                            AS deptName,
+               COUNT(DISTINCT ta.id)                                  AS taskTotal,
+               COUNT(DISTINCT CASE WHEN ta.status = 'DONE'
+                                   THEN ta.id END)                    AS taskDone,
+               COUNT(DISTINCT CASE WHEN ta.status = 'OVERDUE'
+                                   THEN ta.id END)                    AS taskOverdue,
+               COUNT(DISTINCT CASE WHEN ta.status = 'NOT_STARTED'
+                                   THEN ta.id END)                    AS taskNotStarted
+        FROM task_assignment ta
+        JOIN sys_user u ON u.user_id = ta.user_id AND u.del_flag = '0' AND u.status = '0'
+        JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
+        WHERE <include refid="internRoleExists"/>
+          <include refid="deptScope"/>
+        GROUP BY d.dept_id, d.dept_name
+    </select>
+
+    <!-- ==================== 培养状态进度 · 逐人明细 ==================== -->
+    <!--
+      stage 的归一规则（★ 以角色为主、user_status 为辅）：
+        实测存在「已持 PRE_TRAINEE 角色但 user_status 仍为 WAIT_AUDIT」的行（角色已发、审核未闭环）。
+        按 user_status 分档会把这批人算进「待审」，与「预备」重复计数 → 单独用 statusConflict 标出。
+    -->
+    <select id="selectInternStageRows" resultType="com.ruoyi.business.domain.InternStageRow">
+        SELECT u.user_id                          AS userId,
+               u.user_name                        AS userName,
+               u.nick_name                        AS nickName,
+               d.dept_id                          AS deptId,
+               d.dept_name                        AS deptName,
+               p.position_name                    AS positionName,
+               u.phonenumber                      AS phonenumber,
+               u.user_status                      AS userStatus,
+               CASE
+                   WHEN u.user_status = 'WAIT_AUDIT'      THEN 'WAIT_AUDIT'
+                   WHEN u.user_status = 'PENDING_PROMOTE' THEN 'PENDING_PROMOTE'
+                   WHEN u.user_status = 'FORMAL_TRAINEE'  THEN 'FORMAL_TRAINEE'
+                   ELSE 'PRE_TRAINEE'
+               END                                AS stage,
+               CASE WHEN u.user_status = 'WAIT_AUDIT' THEN 1 ELSE 0 END  AS statusConflict,
+               u.mentor_name                      AS mentorName,
+               CASE WHEN u.protocol_status = '1' THEN 1 ELSE 0 END       AS protocolSigned,
+               DATEDIFF(NOW(), u.create_time)     AS stayDays,
+               (SELECT COUNT(*) FROM study_record s
+                 WHERE s.user_id = u.user_id)                             AS learnTotal,
+               (SELECT COUNT(*) FROM study_record s
+                 WHERE s.user_id = u.user_id AND s.progress >= #{threshold}) AS learnDone,
+               (SELECT ROUND(AVG(s.progress), 1) FROM study_record s
+                 WHERE s.user_id = u.user_id)                             AS learnAvgProgress,
+               (SELECT COUNT(*) FROM task_assignment ta
+                 WHERE ta.user_id = u.user_id)                            AS taskTotal,
+               (SELECT COUNT(*) FROM task_assignment ta
+                 WHERE ta.user_id = u.user_id AND ta.status = 'OVERDUE')  AS taskOverdue
+        FROM sys_user u
+        JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
+        LEFT JOIN position p ON p.id = u.position_id
+        WHERE u.del_flag = '0'
+          AND u.status = '0'
+          AND <include refid="internRoleExists"/>
+          <include refid="deptScope"/>
+        ORDER BY d.dept_id, u.user_id
+    </select>
+
+    <!-- ==================================================================
+         L1 · 部门详情
+         ================================================================== -->
+
+    <!-- 部门身份 + 绑定岗位（dept_position 1:1；无绑定时 positionId/Name 为 null） -->
+    <select id="selectDeptHeader" resultType="com.ruoyi.business.domain.DeptStatsVO">
+        SELECT d.dept_id     AS deptId,
+               d.dept_name   AS deptName,
+               dp.position_id AS positionId,
+               p.position_name AS positionName
+        FROM sys_dept d
+        LEFT JOIN dept_position dp ON dp.dept_id = d.dept_id AND dp.status = 1
+        LEFT JOIN position p ON p.id = dp.position_id
+        WHERE d.dept_id = #{deptId}
+          AND d.del_flag = '0'
+    </select>
+
+    <!-- 本部门在培实习生的岗位分布 -->
+    <select id="selectPositionDist" resultType="java.util.LinkedHashMap">
+        SELECT u.position_id       AS positionId,
+               p.position_name     AS positionName,
+               COUNT(DISTINCT u.user_id) AS cnt
+        FROM sys_user u
+        JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
+        LEFT JOIN position p ON p.id = u.position_id
+        WHERE u.del_flag = '0'
+          AND u.status = '0'
+          AND d.dept_id = #{deptId}
+          AND <include refid="internRoleExists"/>
+        GROUP BY u.position_id, p.position_name
+        ORDER BY cnt DESC, u.position_id
+    </select>
+
+    <!--
+      本部门岗位下的各门课程学习情况。
+      ★ 用派生表先在「本部门实习生」范围内聚合学习记录，**不是**先 JOIN 再把部门塞进 WHERE ——
+        后者会让「无人学的课程」整行消失，而这类课程恰恰是要显示的（前端按无样本呈现）。
+    -->
+    <select id="selectCourseProgress" resultType="java.util.LinkedHashMap">
+        SELECT c.id                              AS courseId,
+               c.course_name                     AS courseName,
+               c.status                          AS status,
+               c.is_required                     AS isRequired,
+               COUNT(DISTINCT s.user_id)         AS learnedCount,
+               COUNT(DISTINCT s.id)              AS recordCount,
+               COUNT(DISTINCT CASE WHEN s.progress >= #{threshold} THEN s.id END) AS doneCount,
+               ROUND(AVG(s.progress), 1)         AS avgProgress
+        FROM course c
+        JOIN dept_position dp ON dp.dept_id = #{deptId} AND dp.status = 1
+             AND dp.position_id = c.position_id
+        LEFT JOIN (
+            SELECT sr.id, sr.user_id, sr.course_id, sr.progress
+            FROM study_record sr
+            JOIN sys_user su ON su.user_id = sr.user_id
+                 AND su.dept_id = #{deptId} AND su.del_flag = '0' AND su.status = '0'
+        ) s ON s.course_id = c.id
+        WHERE c.deleted = 0
+        GROUP BY c.id, c.course_name, c.status, c.is_required
+        ORDER BY c.status, c.id
+    </select>
+
+    <!-- ==================================================================
+         L3 · 个人档案
+         ⚠️ 这两个查询补的是**超管读缺口**：/business/learning/** 与 /business/practice/**
+            的类级注解只放 PRE_TRAINEE/FORMAL_TRAINEE，超管读不到。
+            做法是在本模块另写读路径，**不去动那两处的类级注解**。
+         ================================================================== -->
+
+    <!-- 逐学习项：课程 → 章节 → 单项，含进度 / 时长 / 读完确认 / 完成时间 -->
+    <select id="selectInternStudy" resultType="java.util.LinkedHashMap">
+        SELECT s.id                  AS recordId,
+               s.course_id           AS courseId,
+               c.course_name         AS courseName,
+               s.chapter_id          AS chapterId,
+               s.item_id             AS itemId,
+               i.item_title          AS itemTitle,
+               s.item_type           AS itemType,
+               i.is_required         AS isRequired,
+               i.completion_threshold AS completionThreshold,
+               s.status              AS status,
+               s.progress            AS progress,
+               s.study_duration      AS studyDuration,
+               s.read_confirm        AS readConfirm,
+               s.first_open_time     AS firstOpenTime,
+               s.finish_time         AS finishTime,
+               s.unfinished_reason   AS unfinishedReason
+        FROM study_record s
+        LEFT JOIN study_item i ON i.id = s.item_id
+        LEFT JOIN course c ON c.id = s.course_id
+        WHERE s.user_id = #{userId}
+        ORDER BY s.course_id, s.chapter_id, i.sort_no, s.id
+    </select>
+
+    <!--
+      逐任务：★ 审核结果取**最新一次提交**。
+      task_submission 一个 assignment 会有多个版本行（实测同一任务有 PASSED/REJECTED/PASSED 三行），
+      直接 JOIN 会让清单行数翻倍、审核结果还会串到别的版本上。
+    -->
+    <select id="selectInternTasks" resultType="java.util.LinkedHashMap">
+        SELECT ta.id                AS assignmentId,
+               ta.task_id           AS taskId,
+               lt.task_name         AS taskName,
+               lt.theory_hours      AS theoryHours,
+               lt.practice_hours    AS practiceHours,
+               lt.deadline          AS deadline,
+               ta.status            AS status,
+               ta.create_time       AS assignTime,
+               ta.finish_time       AS finishTime,
+               sub.review_status    AS reviewStatus,
+               sub.submit_time      AS submitTime,
+               sub.file_name        AS fileName,
+               sub.file_url         AS fileUrl,
+               sub.version          AS submitVersion,
+               sub.review_comment   AS reviewComment,
+               (SELECT COUNT(*) FROM task_submission allsub
+                 WHERE allsub.assignment_id = ta.id) AS submitCount
+        FROM task_assignment ta
+        LEFT JOIN learning_task lt ON lt.id = ta.task_id
+        LEFT JOIN task_submission sub ON sub.id = (
+            SELECT ts.id FROM task_submission ts
+            WHERE ts.assignment_id = ta.id
+            ORDER BY ts.submit_time DESC, ts.id DESC
+            LIMIT 1)
+        WHERE ta.user_id = #{userId}
+        ORDER BY FIELD(ta.status, 'OVERDUE', 'NOT_STARTED', 'DONE'), ta.id
+    </select>
+
+</mapper>

@@ -1,11 +1,11 @@
 # 项目相关配置
 ruoyi:
   # 名称
-  name: RuoYi
+  name: 融谷实习生学习考核系统
   # 版本
-  version: 3.8.8
+  version: 1.0.0
   # 版权年份
-  copyrightYear: 2024
+  copyrightYear: 2026
   # 本地开发文件路径；部署时通过环境专用配置替换为服务器目录或对象存储。
   profile: ${RUOYI_PROFILE:E:/ia-dev/uploads}
   # 获取ip地址开关

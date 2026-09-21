@@ -27,6 +27,15 @@ public interface IQuestionService extends IService<Question> {
     /** Excel 批量导入题目 */
     QuestionImportResult importQuestions(Long bankId, List<QuestionImportRow> rows);
 
+    /**
+     * 导出某题库的全部题目为「导入行」。
+     *
+     * <p>刻意复用 {@link QuestionImportRow}：导出的 Excel 与导入模板<b>同结构</b>，
+     * 可以直接再导入到别的题库 —— 形成「导出 → 修改 → 导入」闭环，
+     * 不必维护第二套表头（也就不用担心两边字段对不上）。</p>
+     */
+    List<QuestionImportRow> exportRows(Long bankId);
+
     /** 实习生抽题（不含答案和解析） */
     List<Question> previewQuestions(Long bankId, Integer limit);
 

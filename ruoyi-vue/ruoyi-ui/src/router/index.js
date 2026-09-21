@@ -94,7 +94,7 @@ export const constantRoutes = [
     children: [
       {
         path: '',
-        component: () => import('@/views/assessment/index'),
+        component: () => import('@/views/message/index'),
         name: 'MessageCenter',
         meta: { title: '消息中心', icon: 'message' }
       }
@@ -111,7 +111,7 @@ export const dynamicRoutes = [
     roles: ['PRE_TRAINEE', 'FORMAL_TRAINEE'],
     children: [
       {
-        // 「学习与考核」页签壳：承载 5 个页签子路由（在线学习 / 备考资料 / 模拟考核 / 正式考核 / 考核成绩与转正申请）
+        // 「学习与考核」页签壳：承载 5 个页签子路由（在线学习 / 备考资料 / 模拟考核 / 正式考核 / 考核成绩与转正）
         path: 'learning',
         component: () => import('@/views/assessment/learning/shell'),
         name: 'InternLearningShell',
@@ -153,7 +153,7 @@ export const dynamicRoutes = [
             path: 'result',
             component: () => import('@/views/assessment/result/index'),
             name: 'InternResult',
-            meta: { title: '考核成绩与转正申请', activeMenu: '/assessment/intern/learning', tab: 'InternResult' }
+            meta: { title: '考核成绩与转正', activeMenu: '/assessment/intern/learning', tab: 'InternResult' }
           }
         ]
       },
@@ -201,9 +201,39 @@ export const dynamicRoutes = [
         meta: { title: '能力画像', activeMenu: '/index' }
       },
       {
-        // 旧路径兼容：考核记录已并入「学习与考核 · 考核成绩与转正申请」页签
+        // 旧路径兼容：考核记录已并入「学习与考核 · 考核成绩与转正」页签
         path: 'scores',
         redirect: '/assessment/intern/learning/result'
+      }
+    ]
+  },
+
+  // ==========================================================================
+  // 课程预览（管理侧）
+  //
+  // 需求：课程管理里每条「符合发布要求且已保存 / 已发布」的课程，管理员可点「预览」，
+  //       进去看到**和实习生一样的课程页面**。
+  //
+  // 为什么不复用实习生那条路由：`/assessment/intern` 整段带 `roles: ['PRE_TRAINEE','FORMAL_TRAINEE']`，
+  // 管理员连路由都进不去。所以另起一条，用**权限**（business:course:query，超管与部门管理员都持有）
+  // 管控可见性，并复用**同一个 detail.vue**（只是换成管理侧数据源），避免两套模板各自跑偏。
+  //
+  // 数据源：detail.vue 检测到 meta.preview 时改调
+  //   GET /business/course/{id}          （课程本体）
+  //   GET /business/course/{id}/contents （章节+资料，字段与实习生接口完全一致，只是进度为 null）
+  // 且**不写任何学习进度**（管理员没有 study_record，也不该产生）。
+  // ==========================================================================
+  {
+    path: '/course-preview',
+    component: Layout,
+    hidden: true,
+    permissions: ['business:course:query'],
+    children: [
+      {
+        path: 'course/:courseId',
+        component: () => import('@/views/assessment/learning/detail'),
+        name: 'CoursePreview',
+        meta: { title: '课程预览', preview: true }
       }
     ]
   },
@@ -274,6 +304,14 @@ export const dynamicRoutes = [
         meta: { title: '题库管理', icon: 'list', activeMenu: '/department/study/banks' }
       },
       {
+        // 题库详情（独立页）：与超管端共用同一组件（统计 + 题目管理）
+        path: 'study/bank-detail/:bankId',
+        component: () => import('@/views/business/questionBank/detail'),
+        name: 'DeptBankDetail',
+        hidden: true,
+        meta: { title: '题库详情', activeMenu: '/department/study/banks' }
+      },
+      {
         path: 'study/prep',
         component: () => import('@/views/department/study/prep/index'),
         name: 'DeptPrep',
@@ -300,10 +338,185 @@ export const dynamicRoutes = [
         meta: { title: '任务管理', icon: 'job', activeMenu: '/department/messages/tasks' }
       },
       {
+        // 任务批阅工作台：完成情况统计 + 内联批阅 + 资料 + 讨论（原来散在「任务管理」的弹窗里）
+        path: 'messages/review',
+        component: () => import('@/views/department/messages/review'),
+        name: 'DeptTaskReview',
+        meta: { title: '任务批阅', icon: 'edit', activeMenu: '/department/messages/review' }
+      },
+      {
         path: 'messages/notices',
         component: () => import('@/views/department/messages/notices'),
         name: 'DeptNotices',
         meta: { title: '通知管理', icon: 'message', activeMenu: '/department/messages/notices' }
+      }
+    ]
+  },
+
+  // ==========================================================================
+  // 超管端（设计稿 V2 五目录：全局工作台 / 组织与人员 / 培养运营 / 规则与配置 / 审计与合规）
+  //
+  // 与实习生端、部门端同一套思路：本段只声明「真实路由」，**侧栏分组**由
+  // store/modules/permission.js 的 buildSuperSidebar() 按设计稿五目录重排；
+  // 「系统管理 / 系统监控 / 系统工具」三项继续复用平台原生菜单（由 DB 菜单提供）。
+  // roles 同时匹配内置 admin（role_key='admin'）与业务超管角色 SUPER_ADMIN。
+  // ==========================================================================
+  {
+    path: '/super',
+    component: Layout,
+    hidden: true,
+    roles: ['SUPER_ADMIN', 'admin'],
+    children: [
+      {
+        // ① 全局工作台（单项目录，侧栏会自动折叠成一级链接）
+        path: 'dashboard',
+        component: () => import('@/views/super/dashboard/index'),
+        name: 'SuperDashboard',
+        meta: { title: '全局工作台', icon: 'dashboard', activeMenu: '/super/dashboard' }
+      },
+      // ② 组织与人员
+      {
+        path: 'org/organization',
+        component: () => import('@/views/super/org/organization/index'),
+        name: 'SuperOrganization',
+        meta: { title: '组织与岗位管理', icon: 'tree', activeMenu: '/super/org/organization' }
+      },
+      {
+        path: 'org/roles',
+        component: () => import('@/views/super/org/roles/index'),
+        name: 'SuperRoles',
+        meta: { title: '角色权限', icon: 'lock', activeMenu: '/super/org/roles' }
+      },
+      {
+        // 人员与账号信息管理（2026-09-20 由超管自建，替换原先直接复用 `views/system/user/index` 的做法）：
+        // 页签一 人员与账号（sys_user 全量，增删改 + 重置密码）、页签二 注册申请（通过 / 驳回）。
+        // 原生「系统管理 › 用户管理」菜单未动，仍可单独使用。
+        path: 'org/accounts',
+        component: () => import('@/views/super/org/accounts/index'),
+        name: 'SuperAccounts',
+        meta: { title: '人员与账号', icon: 'user', activeMenu: '/super/org/accounts' }
+      },
+      {
+        // 2026-09-20：本页内容（各部门管理员的待办量 + 催办）与「督办看板」**同源**
+        //（页面自己也写着"两个页面的数字必然一致"），已并入 /super/todo 的「按人」视角。
+        // 这里保留路由并重定向 —— 与之前 org/positions 的处理一致，旧书签不会 404。
+        //
+        // ⚠️ 必须用**函数式** redirect：字符串形式会把 `?view=people` 整串当成 path
+        //（vue-router 3 不会把 path 里的 query 拆出来），匹配不到就掉进 /404。
+        path: 'org/dept-admins',
+        name: 'SuperDeptAdmins',
+        redirect: () => ({ path: '/super/todo', query: { view: 'people' } })
+      },
+      {
+        // 超管维护业务岗位（position 表）：复用部门端的岗位管理页。
+        // 部门本身用 RuoYi 原生「系统管理 › 部门管理」（超管已有 system:dept:* 全套权限）；
+        // 两者的**绑定关系**在「组织岗位」页维护。
+        path: 'org/positions',
+        component: () => import('@/views/business/position/index'),
+        name: 'SuperPositions',
+        meta: { title: '岗位管理', icon: 'tree', activeMenu: '/super/org/positions' }
+      },
+      // ③ 培养运营（全局只读）
+      {
+        // 培养分析看板 L0（2026-09-20 新增）：部门横向对比 + 培养状态进度 + 预警。
+        // 只读聚合，后端 /business/super/analysis/*；下钻页紧跟其后两条。
+        path: 'ops/analysis',
+        component: () => import('@/views/super/ops/analysis/overview'),
+        name: 'SuperOpsAnalysis',
+        meta: { title: '培养分析看板', icon: 'chart', activeMenu: '/super/ops/analysis' }
+      },
+      {
+        // L1 部门详情（下钻第一层）。不进侧栏：数量随部门增长，activeMenu 恒指父页。
+        path: 'ops/analysis/dept/:deptId',
+        component: () => import('@/views/super/ops/analysis/dept'),
+        name: 'SuperOpsAnalysisDept',
+        hidden: true,
+        meta: { title: '部门详情', activeMenu: '/super/ops/analysis' }
+      },
+      {
+        // L3 个人档案（下钻到个人）。不进侧栏，同上。
+        path: 'ops/analysis/intern/:userId',
+        component: () => import('@/views/super/ops/analysis/intern'),
+        name: 'SuperOpsAnalysisIntern',
+        hidden: true,
+        meta: { title: '个人档案', activeMenu: '/super/ops/analysis' }
+      },
+      {
+        path: 'ops/courses',
+        component: () => import('@/views/super/ops/courses/index'),
+        name: 'SuperOpsCourses',
+        meta: { title: '课程与题库总览', icon: 'reading', activeMenu: '/super/ops/courses' }
+      },
+      {
+        // 超管「可写」课程（2026-09-20 规则调整）：复用部门端的**运行时**页面
+        // （`course/runtime` 才接了真实接口；`course/index` 是含 previewMode 的基类/演示版）
+        path: 'ops/course-admin',
+        component: () => import('@/views/business/course/runtime'),
+        name: 'SuperCourseAdmin',
+        meta: { title: '课程管理', icon: 'edit', activeMenu: '/super/ops/course-admin' }
+      },
+      {
+        // 超管「可写」题库：同理复用部门端的题库管理页
+        path: 'ops/bank-admin',
+        component: () => import('@/views/business/questionBank/index'),
+        name: 'SuperBankAdmin',
+        meta: { title: '题库管理', icon: 'collection', activeMenu: '/super/ops/bank-admin' }
+      },
+      {
+        // 题库详情（独立页）：统计 + 题目列表。从题库列表点「查看详情」进来，不进侧栏。
+        path: 'ops/bank-detail/:bankId',
+        component: () => import('@/views/business/questionBank/detail'),
+        name: 'SuperBankDetail',
+        hidden: true,
+        meta: { title: '题库详情', activeMenu: '/super/ops/bank-admin' }
+      },
+      {
+        // 超管「可写」模拟实操题：该模块本就支持超管（Service 返回 null + 权限全套 + 页面文案已写「全局管理」），
+        // 此前缺的只是超管端入口。
+        path: 'ops/psubject-admin',
+        component: () => import('@/views/business/practiceSubject/index'),
+        name: 'SuperPsubjectAdmin',
+        meta: { title: '实操题库', icon: 'form', activeMenu: '/super/ops/psubject-admin' }
+      },
+      {
+        path: 'ops/exams',
+        component: () => import('@/views/super/ops/exams/index'),
+        name: 'SuperOpsExams',
+        meta: { title: '考核运营总览', icon: 'date', activeMenu: '/super/ops/exams' }
+      },
+      {
+        path: 'ops/scores',
+        component: () => import('@/views/super/ops/scores/index'),
+        name: 'SuperOpsScores',
+        meta: { title: '成绩与统计分析', icon: 'chart', activeMenu: '/super/ops/scores' }
+      },
+      // ④ 任务与通知（单项目录；三端命名统一 —— 决策 6）
+      {
+        path: 'notify',
+        component: () => import('@/views/super/notify/index'),
+        name: 'SuperNotify',
+        meta: { title: '通知中心', icon: 'message', activeMenu: '/super/notify' }
+      },
+      {
+        // 督办看板：四源待办按责任人归集 + 批量催办（超管督办视图）
+        path: 'todo',
+        component: () => import('@/views/super/todo/index'),
+        name: 'SuperTodo',
+        meta: { title: '督办看板', icon: 'checkbox', activeMenu: '/super/todo' }
+      },
+      // ⑤ 规则与配置（单项目录）
+      {
+        path: 'rule',
+        component: () => import('@/views/super/rule/index'),
+        name: 'SuperRule',
+        meta: { title: '规则与配置', icon: 'edit', activeMenu: '/super/rule' }
+      },
+      // ⑤ 审计与合规（单项目录）
+      {
+        path: 'audit',
+        component: () => import('@/views/super/audit/index'),
+        name: 'SuperAudit',
+        meta: { title: '审计与合规', icon: 'documentation', activeMenu: '/super/audit' }
       }
     ]
   },

@@ -27,6 +27,12 @@ public interface CourseMapper extends BaseMapper<Course> {
     /** 校验岗位是否绑定到指定部门。 */
     int countPositionInDept(@Param("positionId") Long positionId, @Param("deptId") Long deptId);
 
+    /**
+     * 扩展（2026-09-20）：岗位是否真实存在。
+     * 超管不限部门时用它替代 {@link #countPositionInDept} 的部门绑定校验。
+     */
+    int countPosition(@Param("positionId") Long positionId);
+
     /** 发布前校验课程至少有一个有效章节。 */
     int countActiveChapters(@Param("courseId") Long courseId);
 

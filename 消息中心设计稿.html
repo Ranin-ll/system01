@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="6ufchXmy0EG3Q3bQ44NZjz">
+<head data-page-node-id="MzXkg1UIcSxq8eACfKnjXe">
+<meta charset="utf-8" data-page-node-id="lHrhEtDopPodYG1dqIB6r7" />
+<meta name="viewport" content="width=device-width,initial-scale=1" data-page-node-id="NDQprSGhJ1RFJK3ujSXhhg" />
+<title>实习生学习考核系统 · 消息中心设计稿 V1</title>
+<style>
+/* ============================================================
+   统一设计稿 · 实习生端 + 部门管理员端
+   样式分三层：① 共享基础与文档外壳  ② .ri 实习生端作用域  ③ .rd 部门管理员端作用域
+   两端各自保留了原稿的全部差异（如 .badge 颜色不同），互不覆盖。
+   ============================================================ */
+
+/* ---------- ① 共享基础 / 文档外壳 ---------- */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--blue);text-decoration:none}
+.doc{max-width:1300px;margin:0 auto;padding:0 24px 96px}
+.doc-hero{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px 32px;margin:24px 0 22px}
+.doc-hero h1{margin:0 0 6px;font-size:24px;letter-spacing:.3px}
+.doc-hero .sub{color:var(--ink-3);font-size:13px}
+.doc-hero .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tag{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;background:var(--gray-soft);color:var(--ink-2);font-size:12px}
+.tag.blue{background:var(--blue-soft);color:var(--blue)}
+.tag.green{background:var(--green-soft);color:#067647}
+.tag.orange{background:var(--orange-soft);color:var(--orange-ink)}
+.tag.purple{background:var(--purple-soft);color:#5c37d6}
+.doc-nav{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;gap:6px;background:rgba(238,242,247,.93);backdrop-filter:blur(6px);padding:12px 0;margin-bottom:8px}
+.doc-nav a{height:30px;display:inline-flex;align-items:center;padding:0 12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--ink-2);font-size:12.5px;text-decoration:none}
+.doc-nav a:hover{border-color:var(--blue);color:var(--blue)}
+.doc-nav a.hot{background:var(--blue);border-color:var(--blue);color:#fff}
+.sec{margin-top:40px}
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;flex-wrap:wrap}
+.sec-no{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:var(--blue);color:#fff;font-size:13px;font-weight:600;flex:none}
+.sec-no.p{background:var(--purple)}
+.sec-head h2{margin:0;font-size:19px}
+.sec-desc{color:var(--ink-3);font-size:13.5px;margin:0 0 16px 38px;max-width:1000px}
+.sec-desc b{color:var(--ink-2);font-weight:600}
+.frame{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.frame-bar{display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+.dot{width:10px;height:10px;border-radius:50%;background:#dfe4ec}
+.dot.r{background:#f6c9c4}
+.url{margin-left:10px;flex:1;height:24px;display:flex;align-items:center;padding:0 12px;background:#fff;border:1px solid var(--line);border-radius:6px;color:var(--ink-4);font-size:12px}
+.todo .tdot.o{background:var(--orange)}
+.todo .tdot.g{background:var(--green)}
+.kbd{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:var(--gray-soft);padding:1px 6px;border-radius:4px;color:var(--ink-2)}
+.sec-sub{display:flex;align-items:baseline;gap:10px;margin:26px 0 12px}
+.sec-sub b{font-size:14.5px;color:var(--ink)}
+.sec-sub span{font-size:12px;color:var(--ink-4)}
+.boxed{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+code{font-size:11px;color:var(--ink-4);background:var(--gray-soft);padding:1px 6px;border-radius:4px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.tag.red{background:var(--red-soft);color:#b42318}
+.mut{color:var(--ink-4)}
+.todo .tdot.p{background:var(--purple)}
+
+.rolesw{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+.rolesw .rs{height:32px;display:inline-flex;align-items:center;padding:0 16px;border-radius:8px;background:var(--gray-soft);color:var(--ink-2);font-size:13px;font-weight:600;cursor:pointer;user-select:none;}
+.rolesw .rs:hover{color:var(--blue);}
+.rolesw .rs.on{background:var(--blue);color:#fff;}
+.navset{display:flex;flex-wrap:wrap;gap:6px;}
+body[data-role="intern"] .rd{display:none;}
+body[data-role="dept"] .ri{display:none;}
+html{scroll-behavior:smooth;}
+
+/* ---------- ② 实习生端（.ri） ---------- */
+:root{--bg:#eef2f7; --panel:#ffffff; --panel-2:#f7f9fc;
+    --line:#e4e9f0; --line-2:#eef1f6;
+    --ink:#1d2939; --ink-2:#344054; --ink-3:#667085; --ink-4:#98a2b3;
+    --blue:#1764f5; --blue-soft:#e8f1fd; --blue-soft-2:#d7e7fc;
+    --green:#12b76a; --green-soft:#e7f7ef;
+    --orange:#f79009; --orange-soft:#fff4e5; --orange-ink:#b54708;
+    --purple:#7a5af8; --purple-soft:#f4eeff;
+    --gray-soft:#f2f4f7; --red:#f04438; --red-soft:#feecea;
+    --font:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Segoe UI",system-ui,sans-serif;}
+.ri .app{display:flex;min-height:640px;background:var(--panel-2);}
+.ri .rail{width:208px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;}
+.ri .rail-brand{height:58px;display:flex;align-items:center;gap:9px;padding:0 18px;border-bottom:1px solid var(--line-2);font-weight:600;color:var(--ink);}
+.ri .rail-brand .logo{width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+.ri .rail-brand .logo.p{background:var(--purple);}
+.ri .rail-group{padding:12px 10px 0;color:var(--ink-4);font-size:11px;letter-spacing:.6px;}
+.ri .rail-item{display:flex;align-items:center;gap:10px;margin:3px 10px;padding:9px 12px;border-radius:7px;color:var(--ink-2);font-size:13.5px;cursor:default;}
+.ri .rail-item .ic{width:16px;text-align:center;color:var(--ink-3);font-size:14px;}
+.ri .rail-item.active{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.ri .rail-item.active .ic{color:var(--blue);}
+.ri .rail-item.act-p{background:var(--purple-soft);color:#5c37d6;font-weight:600;}
+.ri .rail-foot{margin-top:auto;padding:14px 18px;border-top:1px solid var(--line-2);color:var(--ink-4);font-size:11.5px;}
+.ri .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--panel-2);}
+.ri .topbar{height:58px;flex:none;display:flex;align-items:center;gap:14px;padding:0 22px;background:#fff;border-bottom:1px solid var(--line);}
+.ri .crumb{font-size:13.5px;color:var(--ink-3);}
+.ri .crumb b{color:var(--ink);font-weight:600;}
+.ri .topbar .spacer{flex:1;}
+.ri .bell{position:relative;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink-2);}
+.ri .bell i{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;font-style:normal;display:flex;align-items:center;justify-content:center;}
+.ri .avatar{display:flex;align-items:center;gap:8px;}
+.ri .avatar .ph{width:30px;height:30px;border-radius:50%;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
+.ri .avatar .ph.p{background:var(--purple-soft);color:#5c37d6;}
+.ri .body{padding:18px 22px 26px;overflow:hidden;}
+.ri .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;}
+.ri .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;}
+.ri .card.flat{background:var(--panel-2);}
+.ri .c3{grid-column:span 3;}
+.ri .c4{grid-column:span 4;}
+.ri .c5{grid-column:span 5;}
+.ri .c6{grid-column:span 6;}
+.ri .c7{grid-column:span 7;}
+.ri .c8{grid-column:span 8;}
+.ri .c12{grid-column:span 12;}
+.ri .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.ri .card-h h3{margin:0;font-size:14.5px;font-weight:600;color:var(--ink);}
+.ri .card-h .hint{font-size:11.5px;color:var(--ink-4);}
+.ri .idx{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;margin-right:8px;flex:none;}
+.ri .idx.g{background:var(--green-soft);color:#067647;}
+.ri .idx.o{background:var(--orange-soft);color:var(--orange-ink);}
+.ri .card-h .tt{display:flex;align-items:center;}
+.ri .note{font-size:11.5px;color:var(--ink-4);margin-top:10px;line-height:1.5;}
+.ri .ph-page-title{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;gap:14px;}
+.ri .ph-page-title h2{margin:0 0 2px;font-size:19px;}
+.ri .ph-page-title .d{color:var(--ink-3);font-size:12.5px;}
+.ri .btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--ink-2);font-size:13px;white-space:nowrap;}
+.ri .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.ri .btn.ghost{background:var(--blue-soft);border-color:transparent;color:var(--blue);}
+.ri .btn.dis{opacity:.45;}
+.ri .btn.sm{height:28px;font-size:12px;padding:0 11px;}
+.ri .btn-row{display:flex;gap:8px;}
+.ri .identity{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.ri .identity .big-ph{width:46px;height:46px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex:none;}
+.ri .identity .who b{font-size:15.5px;color:var(--ink);}
+.ri .identity .who p{margin:2px 0 0;color:var(--ink-3);font-size:12.5px;}
+.ri .identity .facts{margin-left:auto;display:flex;gap:26px;flex-wrap:wrap;}
+.ri .fact{min-width:78px;}
+.ri .fact span{display:block;color:var(--ink-4);font-size:11.5px;margin-bottom:3px;}
+.ri .fact b{font-size:13.5px;color:var(--ink);}
+.ri .fact b.ok{color:#067647;}
+.ri .fact b.warn{color:var(--orange-ink);}
+.ri .fact b.idle{color:var(--ink-4);}
+.ri .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+.ri .kpi .lb{display:flex;align-items:center;gap:6px;color:var(--ink-3);font-size:12px;margin-bottom:8px;}
+.ri .kpi .lb .d{width:6px;height:6px;border-radius:50%;background:var(--blue);}
+.ri .kpi .vl{font-size:24px;font-weight:700;letter-spacing:.4px;color:var(--ink);line-height:1.1;}
+.ri .kpi .vl small{font-size:12px;font-weight:500;color:var(--ink-4);margin-left:3px;}
+.ri .kpi .ft{font-size:11.5px;color:var(--ink-4);margin-top:7px;}
+.ri .kpi .ft.up{color:#067647;}
+.ri .kpi .ft.warn{color:var(--orange-ink);}
+.ri .kpi.hl{border-color:var(--blue-soft-2);}
+.ri .bar-mini{height:5px;border-radius:3px;background:var(--gray-soft);margin-top:9px;overflow:hidden;}
+.ri .bar-mini i{display:block;height:100%;border-radius:3px;background:var(--blue);}
+.ri .bar-mini i.g{background:var(--green);}
+.ri .bar-mini i.o{background:var(--orange);}
+.ri svg{display:block;width:100%;height:auto;}
+.ri .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--ink-3);}
+.ri .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+.ri .portrait{display:flex;gap:14px;align-items:center;}
+.ri .portrait .radar{flex:none;width:180px;}
+.ri .portrait .meta{flex:1;min-width:0;}
+.ri .dim-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:12px;}
+.ri .dim-row .nm{width:62px;color:var(--ink-2);flex:none;}
+.ri .dim-row .bar{flex:1;height:6px;border-radius:3px;background:var(--gray-soft);overflow:hidden;}
+.ri .dim-row .bar i{display:block;height:100%;border-radius:3px;}
+.ri .dim-row .vv{width:62px;text-align:right;color:var(--ink-3);flex:none;font-size:11.5px;}
+.ri .completeness{margin-top:4px;padding-top:12px;border-top:1px dashed var(--line);}
+.ri .completeness .t{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3);margin-bottom:6px;}
+.ri .completeness .t b{color:var(--ink);}
+.ri .hbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:12.5px;}
+.ri .hbar .nm{width:144px;color:var(--ink-2);flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ri .hbar .track{flex:1;height:9px;border-radius:5px;background:var(--gray-soft);overflow:hidden;}
+.ri .hbar .track i{display:block;height:100%;border-radius:5px;background:var(--blue);}
+.ri .hbar .pc{width:42px;text-align:right;color:var(--ink-2);font-weight:600;flex:none;font-size:12px;}
+.ri .hbar.low .track i{background:var(--orange);}
+.ri .hbar.done .track i{background:var(--green);}
+.ri .vchart{display:flex;align-items:flex-end;gap:14px;height:132px;padding:0 4px;}
+.ri .vcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+.ri .vcol .bar{width:100%;max-width:38px;border-radius:6px 6px 0 0;background:var(--blue-soft-2);border:1px solid var(--blue-soft-2);display:flex;align-items:flex-start;justify-content:center;padding-top:4px;font-size:10.5px;color:var(--blue);}
+.ri .vcol .bar.hi{background:var(--blue);border-color:var(--blue);color:#fff;}
+.ri .vcol .bar.g{background:var(--green);border-color:var(--green);color:#fff;}
+.ri .vcol .bar.o{background:var(--orange);border-color:var(--orange);color:#fff;}
+.ri .vcol .bar.none{background:var(--gray-soft);border-color:var(--gray-soft);color:var(--ink-4);}
+.ri .vcol .lb{font-size:11px;color:var(--ink-4);}
+.ri .steps{display:flex;flex-direction:column;gap:0;}
+.ri .step{display:flex;gap:12px;position:relative;padding-bottom:16px;}
+.ri .step:last-child{padding-bottom:0;}
+.ri .step .mark{width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;z-index:2;background:var(--gray-soft);color:var(--ink-4);}
+.ri .step.done .mark{background:var(--green);color:#fff;}
+.ri .step.now .mark{background:var(--blue);color:#fff;}
+.ri .step:not(:last-child)::before{content:"";position:absolute;left:10.5px;top:22px;bottom:0;width:2px;background:var(--line);}
+.ri .step.done:not(:last-child)::before{background:var(--green-soft);}
+.ri .step .txt b{font-size:13px;color:var(--ink);display:block;}
+.ri .step .txt span{font-size:11.5px;color:var(--ink-4);}
+.ri .todo{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line-2);border-radius:8px;margin-bottom:9px;background:#fff;}
+.ri .todo:last-child{margin-bottom:0;}
+.ri .todo .tdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--blue);}
+.ri .todo .tx{flex:1;min-width:0;}
+.ri .todo .tx b{font-size:13px;color:var(--ink);display:block;}
+.ri .todo .tx span{font-size:11.5px;color:var(--ink-3);}
+.ri .notice{padding:11px 0;border-bottom:1px dashed var(--line);}
+.ri .notice:last-child{border-bottom:0;padding-bottom:0;}
+.ri .notice b{font-size:13px;color:var(--ink);display:block;margin-bottom:2px;}
+.ri .notice span{font-size:11.5px;color:var(--ink-4);}
+.ri .record-band{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+.ri .record-band .lbl{color:var(--ink-2);font-size:13.5px;flex:none;}
+.ri .pill{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 16px;border:0;border-radius:8px;background:var(--blue-soft);color:var(--blue);font-size:13.5px;font-family:var(--font);}
+.ri .pill em{padding:1px 7px;border-radius:10px;background:rgba(23,100,245,.12);font-size:11px;font-style:normal;}
+.ri .pill.pending{background:var(--orange-soft);color:var(--orange-ink);}
+.ri .pill.pending em{background:rgba(181,71,8,.12);}
+.ri .pill.idle{background:var(--gray-soft);color:var(--ink-4);}
+.ri .pill.idle em{background:rgba(152,162,179,.18);}
+.ri .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 16px;overflow-x:auto;}
+.ri .tab{padding:10px 16px;font-size:13.5px;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+.ri .tab.active{color:var(--blue);font-weight:600;border-bottom-color:var(--blue);}
+.ri .tab .n{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--gray-soft);color:var(--ink-3);font-size:10.5px;}
+.ri .tab.active .n{background:var(--blue-soft);color:var(--blue);}
+.ri .overview{display:flex;align-items:center;gap:26px;}
+.ri .donut{flex:none;width:104px;height:104px;position:relative;}
+.ri .donut .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ri .donut .center b{font-size:21px;color:var(--ink);line-height:1;}
+.ri .donut .center span{font-size:11px;color:var(--ink-4);margin-top:3px;}
+.ri .ov-facts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex:1;}
+.ri .ov-fact{background:var(--panel-2);border-radius:8px;padding:11px 13px;}
+.ri .ov-fact span{display:block;font-size:11.5px;color:var(--ink-4);margin-bottom:3px;}
+.ri .ov-fact b{font-size:17px;color:var(--ink);}
+.ri .ov-fact b small{font-size:11.5px;color:var(--ink-4);font-weight:500;}
+.ri .filter{display:flex;align-items:center;gap:12px;margin:14px 0;flex-wrap:wrap;}
+.ri .seg{display:inline-flex;background:var(--gray-soft);border-radius:8px;padding:3px;}
+.ri .seg span{padding:5px 13px;border-radius:6px;font-size:12.5px;color:var(--ink-3);}
+.ri .seg span.on{background:#fff;color:var(--ink);font-weight:600;}
+.ri .sel{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;color:var(--ink-2);background:#fff;}
+.ri .filter .spacer{flex:1;}
+.ri .course{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line-2);border-radius:10px;margin-bottom:10px;background:#fff;}
+.ri .course:last-child{margin-bottom:0;}
+.ri .ctype{width:38px;height:38px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--blue-soft);color:var(--blue);}
+.ri .ctype.v{background:var(--purple-soft);color:#5c37d6;}
+.ri .ctype.p{background:var(--orange-soft);color:var(--orange-ink);}
+.ri .course .info{flex:1;min-width:0;}
+.ri .course .info .tt{display:flex;align-items:center;gap:8px;}
+.ri .course .info .tt b{font-size:13.5px;color:var(--ink);}
+.ri .badge{font-size:10.5px;padding:1px 7px;border-radius:5px;background:var(--red-soft);color:#b42318;font-weight:600;}
+.ri .badge.opt{background:var(--gray-soft);color:var(--ink-3);font-weight:500;}
+.ri .badge.done{background:var(--green-soft);color:#067647;}
+.ri .badge.blue{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.ri .badge.purple{background:var(--purple-soft);color:#5c37d6;font-weight:600;}
+.ri .badge.pub{background:var(--green-soft);color:#067647;font-weight:600;}
+.ri .course .info p{margin:4px 0 0;font-size:11.5px;color:var(--ink-4);}
+.ri .course .prog{width:150px;flex:none;}
+.ri .course .prog .top{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3);margin-bottom:5px;}
+.ri .course .prog .top b{color:var(--ink-2);}
+.ri .course .go{flex:none;}
+.ri .full-top{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:#fff;}
+.ri .full-top .bk{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-2);}
+.ri .full-top .tt{font-size:14.5px;font-weight:600;}
+.ri .full-top .spacer{flex:1;}
+.ri .full-body{display:flex;min-height:520px;}
+.ri .toc{width:250px;flex:none;border-right:1px solid var(--line);background:#fff;padding:14px 12px;}
+.ri .toc .ch{margin-bottom:10px;}
+.ri .toc .ch > b{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);padding:6px 8px;}
+.ri .toc .it{display:flex;align-items:center;gap:8px;padding:7px 8px 7px 18px;border-radius:6px;font-size:12.5px;color:var(--ink-3);position:relative;}
+.ri .toc .it::before{content:"";position:absolute;left:8px;top:50%;transform:translateY(-50%);width:5px;height:5px;border-radius:50%;background:var(--line);}
+.ri .toc .it.on{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.ri .toc .it.on::before{background:var(--blue);width:3px;height:16px;border-radius:2px;left:6px;}
+.ri .toc .it.done::before{background:var(--green);}
+.ri .toc .it .r{margin-left:auto;font-size:11px;color:var(--ink-4);}
+.ri .content{flex:1;padding:22px 26px;background:var(--panel-2);position:relative;}
+.ri .content .reader{background:#fff;border:1px solid var(--line);border-radius:10px;height:100%;min-height:420px;display:flex;align-items:center;justify-content:center;color:var(--ink-4);font-size:13px;}
+.ri .saveflag{position:absolute;top:30px;right:40px;font-size:11.5px;color:#067647;}
+.ri .full-foot{display:flex;align-items:center;gap:16px;padding:12px 20px;border-top:1px solid var(--line);background:#fff;}
+.ri .full-foot .mm{flex:none;padding:8px 16px;border:1px solid var(--line);border-radius:7px;font-size:13px;color:var(--ink-2);}
+.ri .full-foot .mid{flex:1;text-align:center;color:var(--ink-4);font-size:12px;}
+.ri .full-foot .ok{background:var(--blue);border-color:var(--blue);color:#fff;}
+.ri .ia{background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px 30px;}
+.ri .ia-row{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.ri .ia-node{border:1px solid var(--line);border-radius:9px;padding:12px 18px;font-size:13.5px;color:var(--ink-2);background:#fff;}
+.ri .ia-node.root{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;}
+.ri .ia-node.lv1{background:var(--blue-soft);border-color:var(--blue-soft-2);color:var(--blue);font-weight:600;}
+.ri .ia-node.lv2{background:var(--panel-2);font-size:12.5px;}
+.ri .ia-node.hid{background:var(--gray-soft);color:var(--ink-4);font-size:12.5px;border-style:dashed;}
+.ri .ia-node.adm{background:var(--purple-soft);border-color:#e2d9ff;color:#5c37d6;font-weight:600;}
+.ri .ia-line{width:34px;height:2px;background:var(--line);flex:none;}
+.ri .ia-col{display:flex;flex-direction:column;gap:8px;flex:1;}
+.ri .ia-note{font-size:11.5px;color:var(--ink-4);margin-left:4px;}
+.ri .tb{width:100%;border-collapse:collapse;font-size:12.5px;}
+.ri .tb th{text-align:left;font-weight:600;color:var(--ink-3);background:var(--panel-2);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+.ri .tb td{padding:11px 12px;border-bottom:1px solid var(--line-2);color:var(--ink-2);}
+.ri .tb tr:last-child td{border-bottom:0;}
+.ri .tb .op{display:flex;flex-direction:column;gap:3px;font-size:11px;text-align:center;}
+.ri .tb .op a{color:var(--blue);}
+.ri .tb .op a.del{color:var(--ink-4);}
+.ri .tb-scroll{overflow-x:auto;}
+.ri .st{display:inline-flex;padding:2px 8px;border-radius:5px;font-size:11px;}
+.ri .st.pass{background:var(--green-soft);color:#067647;}
+.ri .st.wait{background:var(--orange-soft);color:var(--orange-ink);}
+.ri .st.none{background:var(--gray-soft);color:var(--ink-4);}
+.ri .cert{display:flex;gap:18px;align-items:center;border:1px solid var(--blue-soft-2);border-radius:10px;background:var(--blue-soft);padding:16px 18px;}
+.ri .cert .seal{width:60px;height:60px;border-radius:50%;background:#fff;border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:11px;font-weight:700;flex:none;text-align:center;line-height:1.2;}
+.ri .cert .ct b{font-size:14.5px;color:var(--ink);}
+.ri .cert .ct p{margin:3px 0 0;font-size:12px;color:var(--ink-3);}
+.ri .cert.off{background:var(--panel-2);border-color:var(--line);}
+.ri .cert.off .seal{border-color:var(--ink-4);color:var(--ink-4);}
+.ri .lg{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-3);background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 9px;}
+.ri .lg i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+.ri .stat-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;}
+.ri .stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+.ri .stat span{font-size:11.5px;color:var(--ink-4);display:block;margin-bottom:5px;}
+.ri .stat b{font-size:21px;color:var(--ink);line-height:1.1;}
+.ri .stat b small{font-size:12px;color:var(--ink-4);font-weight:500;margin-left:2px;}
+.ri .stat .sub{font-size:11px;color:var(--ink-4);margin-top:5px;}
+.ri .kv{display:grid;grid-template-columns:repeat(2,1fr);gap:11px 28px;}
+.ri .kv .row{display:flex;align-items:center;gap:10px;font-size:12.5px;}
+.ri .kv .row > span{color:var(--ink-4);width:78px;flex:none;}
+.ri .kv .row > b{color:var(--ink);font-weight:600;}
+.ri .kv .row .inp{flex:1;height:30px;border:1px solid var(--line);border-radius:6px;background:#fff;display:flex;align-items:center;padding:0 10px;color:var(--ink-2);font-size:12.5px;}
+.ri .blk{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px;}
+.ri .blk:last-child{margin-bottom:0;}
+.ri .blk-h{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.ri .blk-h h3{margin:0;font-size:15px;}
+.ri .blk-h .d{font-size:11.5px;color:var(--ink-4);margin-top:2px;}
+.ri .blk-h .spacer{flex:1;}
+.ri .blk-grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start;}
+.ri .blk-sub{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:12px;}
+.ri .pub-bar{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid var(--line);background:#fff;font-size:12px;color:var(--ink-4);flex-wrap:wrap;}
+.ri .pub-bar .spacer{flex:1;}
+.ri .filecard{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line-2);border-radius:9px;background:var(--panel-2);flex-wrap:wrap;}
+.ri .filecard .fi{width:34px;height:34px;border-radius:8px;background:var(--red-soft);color:#b42318;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none;}
+.ri .filecard .fn b{font-size:13px;color:var(--ink);display:block;}
+.ri .filecard .fn span{font-size:11.5px;color:var(--ink-4);}
+.ri .filecard .spacer{flex:1;}
+.ri .chk-list{display:flex;flex-direction:column;gap:9px;}
+.ri .chk{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+.ri .chk .ok{width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;flex:none;}
+.ri .chk .no{width:16px;height:16px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;flex:none;}
+.ri .chk b{color:var(--ink);}
+.ri .chk .spacer{flex:1;}
+.ri .tile{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line-2);border-radius:9px;margin-bottom:9px;background:#fff;}
+.ri .tile:last-child{margin-bottom:0;}
+.ri .tile .no{width:44px;height:26px;border-radius:6px;background:var(--gray-soft);color:var(--ink-3);font-size:11px;display:flex;align-items:center;justify-content:center;flex:none;}
+.ri .tile .tx{flex:1;min-width:0;}
+.ri .tile .tx b{font-size:13px;color:var(--ink);}
+.ri .tile .tx p{margin:3px 0 0;font-size:11.5px;color:var(--ink-4);}
+.ri .hero{display:flex;align-items:center;gap:24px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 24px;}
+.ri .hero-l{flex:1;min-width:280px;}
+.ri .hero-l h3{margin:10px 0 6px;font-size:20px;}
+.ri .hero-l p{margin:0;font-size:12.5px;color:var(--ink-3);}
+.ri .hero-stats{display:flex;flex:none;}
+.ri .hero-stats > div{padding:0 26px;text-align:center;border-left:1px solid var(--line);}
+.ri .hero-stats > div:first-child{border-left:0;}
+.ri .hero-stats b{display:block;font-size:26px;color:var(--blue);line-height:1.1;}
+.ri .hero-stats b small{font-size:12px;color:var(--ink-4);font-weight:500;}
+.ri .hero-stats span{font-size:11.5px;color:var(--ink-4);}
+.ri .grp{margin-top:22px;}
+.ri .grp-h{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px;gap:12px;}
+.ri .grp-h h4{margin:0 0 2px;font-size:15px;}
+.ri .grp-h p{margin:0;font-size:11.5px;color:var(--ink-4);}
+.ri .grp-h .hint{font-size:12px;color:var(--ink-4);}
+.ri .qgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+.ri .qcard{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+.ri .thumb{height:104px;background:var(--panel-2);display:flex;align-items:flex-end;border-bottom:1px solid var(--line-2);}
+.ri .thumb svg{width:100%;height:100%;display:block;}
+.ri .qc-b{padding:10px 12px 11px;}
+.ri .qc-b > b{display:block;font-size:12.5px;color:var(--ink);margin-bottom:8px;line-height:1.4;}
+.ri .qc-f{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--ink-4);}
+.ri .qc-f b{color:var(--ink-2);font-size:11.5px;}
+.ri .bigimg{background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;height:340px;display:flex;align-items:flex-end;overflow:hidden;}
+.ri .bigimg svg{width:100%;height:100%;}
+.ri .tstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px;}
+.ri .tstrip .t{height:58px;border:1px solid var(--line-2);border-radius:7px;background:var(--panel-2);overflow:hidden;display:flex;align-items:flex-end;}
+.ri .tstrip .t.on{border:2px solid var(--blue);}
+.ri .info2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 4px;}
+.ri .info2 > div{border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;background:var(--panel-2);}
+.ri .info2 span{display:block;font-size:11px;color:var(--ink-4);margin-bottom:3px;}
+.ri .info2 b{font-size:13px;}
+.ri .grp-sub{font-size:12.5px;font-weight:600;color:var(--ink-2);margin:14px 0 7px;}
+.ri .ul{margin:0;padding-left:18px;}
+.ri .ul li{font-size:12.5px;color:var(--ink-2);margin-bottom:5px;line-height:1.5;}
+.ri .box{border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;margin-top:10px;background:var(--panel-2);}
+.ri .box span{display:block;font-size:11px;color:var(--ink-4);margin-bottom:3px;}
+.ri .box b{font-size:12.5px;color:var(--ink);font-family:ui-monospace,Consolas,monospace;word-break:break-all;}
+.ri .eyebrow{display:block;color:var(--blue);font-size:11px;letter-spacing:.08em;margin-bottom:6px;}
+.ri .ov-lead{display:flex;align-items:center;gap:13px;flex:1.15;min-width:0;}
+.ri .ov-lead .ic{width:50px;height:50px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--blue);color:#fff;font-size:22px;}
+.ri .ov-lead .lb{font-size:11.5px;color:var(--ink-4);}
+.ri .ov-lead h3{margin:4px 0 4px;font-size:16px;color:var(--ink);}
+.ri .ov-lead p{margin:0;font-size:11.5px;color:var(--ink-3);line-height:1.5;}
+.ri .cat-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--line);}
+.ri .cat-head .idx{color:var(--blue);font-size:11px;font-weight:700;flex:none;padding-top:3px;}
+.ri .cat-head h3{margin:0 0 4px;font-size:16px;color:var(--ink);}
+.ri .cat-head p{margin:0;font-size:11.5px;color:var(--ink-4);}
+.ri .cat-head .cnt{color:var(--ink-3);font-size:12px;flex:none;}
+.ri .course .kicker{display:block;font-size:10.5px;color:var(--blue);}
+.ri .course .meta{display:flex;flex-wrap:wrap;gap:13px;margin-top:6px;font-size:11px;color:var(--ink-4);}
+.ri .course .lastt{display:block;margin-top:6px;font-size:11px;color:var(--ink-4);}
+.ri .course .side{flex:none;width:98px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+.ri .rule-strip{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 15px;border:1px solid var(--blue-soft-2);border-radius:9px;background:var(--blue-soft);}
+.ri .rule-strip .rc{width:24px;height:24px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--blue);font-size:13px;font-weight:700;}
+.ri .rule-strip b{display:block;font-size:12.5px;color:var(--ink-2);}
+.ri .rule-strip p{margin:3px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.5;}
+.ri .crumbline{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;color:var(--ink-3);}
+.ri .crumbline .bk{color:var(--blue);}
+.ri .crumbline b{color:var(--ink-2);font-weight:500;}
+.ri .course-hero{display:flex;align-items:center;gap:16px;padding:16px 18px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:14px;}
+.ri .course-hero .mark{width:52px;height:52px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--green);color:#fff;font-size:23px;}
+.ri .course-hero .mark.v{background:var(--blue);}
+.ri .course-hero .cp{flex:1;min-width:0;}
+.ri .course-hero .cp .k{font-size:10.5px;color:var(--blue);}
+.ri .course-hero .cp h3{margin:3px 0 0;font-size:17px;color:var(--ink);display:inline-block;}
+.ri .course-hero .cp p{margin:6px 0 0;font-size:11.5px;color:var(--ink-3);}
+.ri .course-hero .cp .meta{display:flex;gap:14px;margin-top:7px;font-size:11px;color:var(--ink-4);}
+.ri .course-hero .hp{flex:none;width:128px;}
+.ri .course-hero .hp span{font-size:11px;color:var(--ink-4);}
+.ri .course-hero .hp b{display:block;font-size:20px;color:var(--ink);margin:3px 0 7px;}
+/* ---------- ③ 部门管理员端（.rd） ---------- */
+
+.rd .app{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+.rd .rail{width:212px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:14px 0 0;}
+.rd .rail-brand{display:flex;align-items:center;gap:9px;padding:0 16px 16px;}
+.rd .rail-brand i{width:28px;height:28px;border-radius:8px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-style:normal;font-weight:700;flex:none;}
+.rd .rail-brand b{display:block;font-size:13.5px;color:var(--ink);line-height:1.3;}
+.rd .rail-brand span{display:block;font-size:11px;color:var(--ink-4);}
+.rd .rail-item{display:flex;align-items:center;gap:9px;margin:2px 10px;padding:8px 11px;border-radius:7px;color:var(--ink-2);font-size:13px;}
+.rd .rail-item .ic{width:15px;text-align:center;color:var(--ink-4);font-size:12px;}
+.rd .rail-item .arw{margin-left:auto;color:var(--ink-4);font-size:12px;}
+.rd .rail-item.active{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.rd .rail-item.active .ic{color:var(--blue);}
+.rd .rail-item.lv2{margin:1px 10px 1px 24px;font-size:12.5px;padding:6px 10px;}
+.rd .rail-item.lv2.active{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.rd .rail-item.lv2 .dot{width:5px;height:5px;border-radius:50%;background:var(--line);flex:none;}
+.rd .rail-item.lv2.active .dot{background:var(--blue);}
+.rd .rail-foot{margin-top:auto;padding:12px 16px;border-top:1px solid var(--line-2);color:var(--ink-4);font-size:11px;}
+.rd .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--panel-2);}
+.rd .topbar{height:56px;flex:none;display:flex;align-items:center;gap:13px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line);}
+.rd .crumb{font-size:13px;color:var(--ink-3);}
+.rd .crumb b{color:var(--ink);font-weight:600;}
+.rd .topbar .spacer{flex:1;}
+.rd .bell{position:relative;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:14px;flex:none;}
+.rd .bell i{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;font-style:normal;display:flex;align-items:center;justify-content:center;}
+.rd .avatar{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);}
+.rd .avatar .ph{width:28px;height:28px;border-radius:50%;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
+.rd .body{padding:16px 20px 24px;}
+.rd .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:13px;}
+.rd .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:15px 16px;}
+.rd .card.flat{background:var(--panel-2);}
+.rd .c2{grid-column:span 2;}
+.rd .c3{grid-column:span 3;}
+.rd .c4{grid-column:span 4;}
+.rd .c5{grid-column:span 5;}
+.rd .c6{grid-column:span 6;}
+.rd .c7{grid-column:span 7;}
+.rd .c8{grid-column:span 8;}
+.rd .c9{grid-column:span 9;}
+.rd .c12{grid-column:span 12;}
+.rd .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;gap:10px;flex-wrap:wrap;}
+.rd .card-h h3{margin:0;font-size:14px;font-weight:600;color:var(--ink);}
+.rd .card-h .hint{font-size:11.5px;color:var(--ink-4);}
+.rd .idx{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;margin-right:7px;flex:none;}
+.rd .idx.g{background:var(--green-soft);color:#067647;}
+.rd .idx.o{background:var(--orange-soft);color:var(--orange-ink);}
+.rd .idx.p{background:var(--purple-soft);color:#5c37d6;}
+.rd .card-h .tt{display:flex;align-items:center;}
+.rd .note{font-size:11.5px;color:var(--ink-4);margin-top:10px;line-height:1.55;}
+.rd .note.warn{color:var(--orange-ink);}
+.rd .btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--ink-2);font-size:12.5px;white-space:nowrap;}
+.rd .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.rd .btn.ghost{background:var(--blue-soft);border-color:transparent;color:var(--blue);}
+.rd .btn.sm{height:26px;font-size:11.5px;padding:0 9px;}
+.rd .btn.dis{opacity:.45;}
+.rd .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+.rd .identity{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.rd .identity .big-ph{width:44px;height:44px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex:none;}
+.rd .identity .who b{font-size:15px;color:var(--ink);}
+.rd .identity .who p{margin:2px 0 0;color:var(--ink-3);font-size:12px;}
+.rd .identity .facts{margin-left:auto;display:flex;gap:24px;flex-wrap:wrap;}
+.rd .fact{min-width:74px;}
+.rd .fact span{display:block;color:var(--ink-4);font-size:11.5px;margin-bottom:3px;}
+.rd .fact b{font-size:13.5px;color:var(--ink);}
+.rd .fact b.ok{color:#067647;}
+.rd .fact b.warn{color:var(--orange-ink);}
+.rd .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+.rd .kpi .lb{display:flex;align-items:center;gap:6px;color:var(--ink-3);font-size:11.5px;margin-bottom:7px;}
+.rd .kpi .lb .d{width:6px;height:6px;border-radius:50%;background:var(--blue);}
+.rd .kpi .vl{font-size:23px;font-weight:700;color:var(--ink);line-height:1.1;}
+.rd .kpi .vl small{font-size:11.5px;font-weight:500;color:var(--ink-4);margin-left:3px;}
+.rd .kpi .ft{font-size:11px;color:var(--ink-4);margin-top:6px;}
+.rd .kpi .ft.up{color:#067647;}
+.rd .kpi .ft.warn{color:var(--orange-ink);}
+.rd .bar-mini{height:5px;border-radius:3px;background:var(--gray-soft);margin-top:8px;overflow:hidden;}
+.rd .bar-mini i{display:block;height:100%;border-radius:3px;background:var(--blue);}
+.rd .bar-mini i.g{background:var(--green);}
+.rd .todo{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--line-2);border-radius:8px;background:#fff;margin-bottom:9px;}
+.rd .todo:last-child{margin-bottom:0;}
+.rd .todo .tdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--blue);}
+.rd .todo .tx{flex:1;min-width:0;}
+.rd .todo .tx b{font-size:12.5px;color:var(--ink);display:block;}
+.rd .todo .tx span{font-size:11px;color:var(--ink-4);}
+.rd .hbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px;}
+.rd .hbar .nm{width:86px;color:var(--ink-2);flex:none;}
+.rd .hbar .track{flex:1;height:8px;border-radius:5px;background:var(--gray-soft);overflow:hidden;}
+.rd .hbar .track i{display:block;height:100%;border-radius:5px;background:var(--blue);}
+.rd .hbar .pc{width:56px;text-align:right;color:var(--ink-2);font-weight:600;flex:none;font-size:11.5px;}
+.rd .hbar.low .track i{background:var(--orange);}
+.rd .hbar.done .track i{background:var(--green);}
+.rd .vchart{display:flex;align-items:flex-end;gap:12px;height:120px;padding:0 4px;}
+.rd .vcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+.rd .vcol .bar{width:100%;max-width:34px;border-radius:6px 6px 0 0;background:var(--blue-soft-2);border:1px solid var(--blue-soft-2);display:flex;align-items:flex-start;justify-content:center;padding-top:3px;font-size:10px;color:var(--blue);}
+.rd .vcol .bar.hi{background:var(--blue);border-color:var(--blue);color:#fff;}
+.rd .vcol .bar.g{background:var(--green);border-color:var(--green);color:#fff;}
+.rd .vcol .bar.o{background:var(--orange);border-color:var(--orange);color:#fff;}
+.rd .vcol .lb{font-size:10.5px;color:var(--ink-4);text-align:center;line-height:1.3;}
+.rd .steps{display:flex;flex-direction:column;}
+.rd .step{display:flex;gap:11px;position:relative;padding-bottom:14px;}
+.rd .step:last-child{padding-bottom:0;}
+.rd .step .mark{width:21px;height:21px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;z-index:2;background:var(--gray-soft);color:var(--ink-4);}
+.rd .step.done .mark{background:var(--green);color:#fff;}
+.rd .step.now .mark{background:var(--blue);color:#fff;}
+.rd .step:not(:last-child)::before{content:"";position:absolute;left:10px;top:21px;bottom:0;width:2px;background:var(--line);}
+.rd .step .txt b{font-size:12.5px;color:var(--ink);display:block;}
+.rd .step .txt span{font-size:11px;color:var(--ink-4);}
+.rd .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 15px;overflow-x:auto;}
+.rd .tab{padding:9px 15px;font-size:13px;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+.rd .tab.active{color:var(--blue);font-weight:600;border-bottom-color:var(--blue);}
+.rd .tab .n{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--gray-soft);color:var(--ink-3);font-size:10.5px;}
+.rd .tab.active .n{background:var(--blue-soft);color:var(--blue);}
+.rd .tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.rd .tbl th{text-align:left;padding:9px 10px;background:var(--panel-2);color:var(--ink-3);font-weight:500;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11.5px;}
+.rd .tbl td{padding:9px 10px;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:middle;}
+.rd .tbl tr:last-child td{border-bottom:0;}
+.rd .tbl .nm{color:var(--ink);font-weight:600;}
+.rd .tbl .op{color:var(--blue);}
+.rd .tbl .op i{font-style:normal;color:var(--line);margin:0 6px;}
+.rd .badge{font-size:10.5px;padding:1px 7px;border-radius:5px;background:var(--gray-soft);color:var(--ink-3);font-weight:500;white-space:nowrap;}
+.rd .badge.done{background:var(--green-soft);color:#067647;}
+.rd .badge.blue{background:var(--blue-soft);color:var(--blue);font-weight:600;}
+.rd .badge.purple{background:var(--purple-soft);color:#5c37d6;font-weight:600;}
+.rd .badge.orange{background:var(--orange-soft);color:var(--orange-ink);font-weight:600;}
+.rd .badge.red{background:var(--red-soft);color:#b42318;font-weight:600;}
+.rd .filter{display:flex;align-items:center;gap:11px;margin:12px 0;flex-wrap:wrap;}
+.rd .seg{display:inline-flex;background:var(--gray-soft);border-radius:8px;padding:3px;}
+.rd .seg span{padding:5px 12px;border-radius:6px;font-size:12px;color:var(--ink-3);}
+.rd .seg span.on{background:#fff;color:var(--ink);font-weight:600;}
+.rd .sel{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border:1px solid var(--line);border-radius:7px;font-size:12px;color:var(--ink-2);background:#fff;}
+.rd .filter .spacer{flex:1;}
+.rd .field{display:flex;flex-direction:column;gap:6px;}
+.rd .field label{font-size:11.5px;color:var(--ink-3);}
+.rd .field label b{color:var(--red);font-weight:400;}
+.rd .inp{min-height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;display:flex;align-items:center;padding:0 11px;font-size:12.5px;color:var(--ink-3);}
+.rd .inp.ta{height:auto;min-height:62px;align-items:flex-start;padding:9px 11px;line-height:1.6;}
+.rd .fg2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.rd .fg3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.rd .drop{border:1.5px dashed var(--blue-soft-2);border-radius:10px;background:var(--blue-soft);padding:20px;text-align:center;color:var(--blue);font-size:12.5px;}
+.rd .drop b{display:block;font-size:13.5px;margin-bottom:3px;}
+.rd .drop span{color:var(--ink-3);font-size:11.5px;}
+.rd .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);padding:7px 0;}
+.rd .chk .box{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+.rd .chk .box.on{background:var(--blue);border-color:var(--blue);}
+.rd .chk .box.sw{background:var(--green);border-color:var(--green);}
+.rd .ia-node{position:relative;display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:#fff;margin:0 0 8px 20px;flex-wrap:wrap;}
+.rd .ia-node::before{content:"";position:absolute;left:-20px;top:50%;width:18px;height:2px;background:var(--line);}
+.rd .ia-node.lv2{margin-left:48px;}
+.rd .ia-node.lv3{margin-left:76px;}
+.rd .ia-node b{font-size:12.5px;color:var(--ink);}
+.rd .ia-node .r{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
+.rd .ia-node.dir{background:var(--panel-2);}
+.rd .ia-node.dir b{color:var(--ink-2);}
+.rd .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.rd .callout{border-left:3px solid var(--blue);background:var(--blue-soft);border-radius:0 8px 8px 0;padding:11px 14px;font-size:12.5px;color:var(--ink-2);line-height:1.65;}
+.rd .callout.warn{border-left-color:var(--orange);background:var(--orange-soft);}
+.rd .callout.ok{border-left-color:var(--green);background:var(--green-soft);}
+.rd .callout b{color:var(--ink);}
+.rd .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.rd .kv .it{background:var(--panel-2);border-radius:8px;padding:10px 12px;}
+.rd .kv .it span{display:block;font-size:11px;color:var(--ink-4);margin-bottom:3px;}
+.rd .kv .it b{font-size:15px;color:var(--ink);}
+.rd .kv .it b small{font-size:11px;color:var(--ink-4);font-weight:500;}
+.rd .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);}
+.rd .flow .nd{padding:6px 11px;border-radius:7px;background:var(--panel-2);border:1px solid var(--line);}
+.rd .flow .nd.on{background:var(--blue-soft);border-color:var(--blue-soft-2);color:var(--blue);font-weight:600;}
+.rd .flow .ar{color:var(--ink-4);}
+/* ---------- ④ 响应式（两端各一份） ---------- */
+@media (max-width:1080px){
+  .ri .app{flex-direction:column;}
+  .ri .rail{width:100%;border-right:0;border-bottom:1px solid var(--line);}
+  .ri .c2,.ri .c3,.ri .c4,.ri .c5,.ri .c6,.ri .c7,.ri .c8,.ri .c9{grid-column:span 12;}
+  .ri .fg3,.ri .kv,.ri .grid2{grid-template-columns:repeat(2,1fr);}
+  .rd .app{flex-direction:column;}
+  .rd .rail{width:100%;border-right:0;border-bottom:1px solid var(--line);}
+  .rd .c2,.rd .c3,.rd .c4,.rd .c5,.rd .c6,.rd .c7,.rd .c8,.rd .c9{grid-column:span 12;}
+  .rd .fg3,.rd .kv,.rd .grid2{grid-template-columns:repeat(2,1fr);}
+}
+
+
+/* ===== 超管端补充：.ri 作用域缺的 4 组组件规则（等价复制自 .rd 定义） ===== */
+.ri .tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.ri .tbl th{text-align:left;padding:9px 10px;background:var(--panel-2);color:var(--ink-3);font-weight:500;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11.5px;}
+.ri .tbl td{padding:9px 10px;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:middle;}
+.ri .tbl tr:last-child td{border-bottom:0;}
+.ri .tbl .nm{color:var(--ink);font-weight:600;}
+.ri .tbl .op{color:var(--blue);}
+.ri .tbl .op i{font-style:normal;color:var(--line);margin:0 6px;}
+.ri .callout{border-left:3px solid var(--blue);background:var(--blue-soft);border-radius:0 8px 8px 0;padding:11px 14px;font-size:12.5px;color:var(--ink-2);line-height:1.65;}
+.ri .callout.warn{border-left-color:var(--orange);background:var(--orange-soft);}
+.ri .callout.ok{border-left-color:var(--green);background:var(--green-soft);}
+.ri .callout b{color:var(--ink);}
+.ri .field{display:flex;flex-direction:column;gap:6px;}
+.ri .field label{font-size:11.5px;color:var(--ink-3);}
+.ri .field label b{color:var(--red);font-weight:400;}
+.ri .inp{min-height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;display:flex;align-items:center;padding:0 11px;font-size:12.5px;color:var(--ink-3);}
+.ri .inp.ta{height:auto;min-height:62px;align-items:flex-start;padding:9px 11px;line-height:1.6;}
+</style>
+</head>
+<body data-role="intern" data-page-node-id="XZdZ5qckUEgJb6lOkn4rBY">
+
+<!-- ============================================================
+     消息中心设计稿：覆盖三种角色。沿用统一设计稿的 .ri 令牌作用域
+     （与 超管端整体设计稿-v3 同一套 :root 变量与组件类，视觉连续）。
+     配套文本方案：任务通知与消息中心设计.md
+     ============================================================ -->
+<div class="ri" data-page-node-id="NmjCAdhoGRJehMJf4Da0bX">
+
+  <header class="doc-hero" data-page-node-id="feJC1AITppL5BMZmxcaR3B">
+    <div class="eyebrow" data-page-node-id="jt9ypznGyrcpDDi4EBjQDC">MESSAGE CENTER · DESIGN SPEC V1</div>
+    <h1 data-page-node-id="gMOI0y6xw6lz0qyUPsQXyd">消息中心 设计稿 <span class="v" data-page-node-id="JWazZpHM36hpb5MWqIAknC">V1</span></h1>
+    <p class="sub" data-page-node-id="S5B4yUavpwTAgXSpnFI30E">
+      三种角色（<b data-page-node-id="v4HdEvRpcX6tc8Yz4E97ZN">超级管理员 / 部门管理员 / 实习生</b>）共用<b data-page-node-id="TimPqQEZ4W0XLW90E4P2nQ">一个铃铛入口</b>与<b data-page-node-id="ZX7O6dedAek1wLOBvX4VVo">两根管道</b>：
+      <b data-page-node-id="S0jVK6wmjM2pEp6iN7Soin">通知</b>（广播语义，「我告诉你」）与 <b data-page-node-id="lUkFh6Og46cS3LGHt2iqBM">任务</b>（点对点待办语义，「你要做」）。
+      两者语义不同、数据不同，但在同一页用页签并置 —— 入口统一，心智不混。
+    </p>
+    <div class="stat-strip" style="margin-top:16px" data-page-node-id="Lidmb2qM3z9fEQpqEc4MDv">
+      <div class="fact" data-page-node-id="iXTe2hjUaKvAhVDOzN6A5S"><span data-page-node-id="nU8an6CaYPKsd6gpLjJNSY">覆盖角色</span><b data-page-node-id="Jo68q3RzOCNBiqpTZrYnU4">3 个</b></div>
+      <div class="fact" data-page-node-id="AEIRFKChFP4LZKMbdxEGyc"><span data-page-node-id="SbssYT6d4DIMHKBCChZM4e">页面</span><b data-page-node-id="IvBW1VbeZHsnLQHYUugQIa">4 个（2 建 2 改）</b></div>
+      <div class="fact" data-page-node-id="SeIqesdUivnzMOrX4dKc0D"><span data-page-node-id="YaztNmjh5jHLruMmGJutRB">新增接口</span><b data-page-node-id="Y7nKVijrZazv1s9kPRgfxf">15 个</b></div>
+      <div class="fact" data-page-node-id="C9msbUyDJ35LklB9RZ5RJ9"><span data-page-node-id="nivb0ALzsTLANZFaTrZc0N">新增表</span><b data-page-node-id="lSHB84zFJ8hw0qDXdXpgYL">2 张 + 扩列</b></div>
+    </div>
+  </header>
+
+  <nav class="doc-nav" data-page-node-id="U3Ew04028R6BZh14GZGv8X">
+    <a href="#s0" class="hot" data-page-node-id="t6I7he9wyzkU1HawG4IV6n">① 设计总览</a>
+    <a href="#s1" data-page-node-id="YfH8Un5Y72hXAJiGWcqPyH">② 顶栏铃铛</a>
+    <a href="#s2" data-page-node-id="l0xWBECiwLIAYEb77IL028">③ 实习生 · 通知</a>
+    <a href="#s3" data-page-node-id="1TCZH38ir2fhl6KsrdCX7b">④ 实习生 · 我的任务</a>
+    <a href="#s4" data-page-node-id="RKsgrJlFbF5apH3BM2hTNL">⑤ 部门端 · 通知管理</a>
+    <a href="#s5" data-page-node-id="yjqQ9AEldyjsmj3mUAYPqJ">⑥ 部门端 · 任务管理</a>
+    <a href="#s6" data-page-node-id="zF8yBuliVapZHyeMWzeuqo">⑦ 超管端 · 通知中心</a>
+    <a href="#s7" data-page-node-id="Qq2ytLHBGOMgNzfjzItkkL">⑧ 后端 · 数据模型</a>
+    <a href="#s8" data-page-node-id="BZFPsCb70zI8beADSnqiG1">⑨ 后端 · 链路与接口</a>
+    <a href="#s9" data-page-node-id="qMKsCD6XmCHcHpfVmIeMDB">⑩ 状态与分期</a>
+  </nav>
+
+  <!-- ============================================================ 设计总览 -->
+  <section class="sec" id="s0" data-page-node-id="N2wzSXee2EIUCqsgwMd5Os">
+    <div class="sec-head" data-page-node-id="hQKwsdTzvq0wuhQaTDKipj"><span class="sec-no" data-page-node-id="kp1rNSChMF4pKGVCEBl3OU">0</span><h2 data-page-node-id="EO1PI7OuLLKIjh9v8QX691">设计总览：一个入口，两根管道</h2><span class="tag purple" data-page-node-id="7tRwgHxYTcQpd4KvC4BC7A">★ 新设计</span></div>
+    <p class="sec-desc" data-page-node-id="tHzTf4JVHYpOSnW4r2Z2DE">
+      需求里同时存在两种东西：<b data-page-node-id="NMHe9CHsymzTsHrbIpT6Xl">通知</b>（「我告诉你」）与 <b data-page-node-id="Z9opgMgOIX0ziZOlBsb8M6">任务</b>（「你要做」）。
+      它们语义不同、数据来源不同、处理动作也不同 —— 所以 <b data-page-node-id="5Tf9jDqU2H6j73596vYQg3">同一页两个页签</b>，但<b data-page-node-id="z7PF4c07P5MLwLKWU41DRE">顶栏只给一个铃铛</b>，避免用户要在两个地方找消息。
+    </p>
+
+    <div class="grid" data-page-node-id="R4fv7Kq3NBVW2nRPAKy6xI">
+      <div class="card c6" data-page-node-id="yYDKIrqmhpMzP3YDDEEPLd">
+        <div class="card-h" data-page-node-id="yQRyc2i9HERKy5UJrHmZoh"><div class="tt" data-page-node-id="PsGz81wRN8OdO6o0eJGPrS"><span class="idx" data-page-node-id="Ci0WOnBO9PsFSUpjbJFxbU">管</span><h3 data-page-node-id="x5CHJsp6bNR0f3ncbRkcga">两根管道：通知 vs 任务</h3></div></div>
+        <table class="tbl" data-page-node-id="SOY0BcdACHjUVULZGsno1m">
+          <thead data-page-node-id="eYPiQLznrWpmXhy5G1rrcg"><tr data-page-node-id="GmV6Z4cWNSZWjm8F2sr8Jh"><th style="width:80px" data-page-node-id="TfWgdQe0VEBkUFhF58e2kT">维度</th><th data-page-node-id="gapDB2MuAYy5PpPBp06dVp">通知（广播）</th><th data-page-node-id="VUrdcXSFFpZFDnwft4pn47">任务（待办）</th></tr></thead>
+          <tbody data-page-node-id="3aJN4wjRkhYpFsFFF5Rnq4">
+            <tr data-page-node-id="PcqjSAP3xyy5Xz8Xa7hxnu"><td data-page-node-id="lz5HZzJ8GvnBQti2URwVKw">语义</td><td data-page-node-id="iFlvv1yX2ocuvQ802IBsix">我告诉你一件事</td><td data-page-node-id="CWlSLu8Q5Si8En1DZpk2yB">你要做一件事</td></tr>
+            <tr data-page-node-id="fDaXYOEewwFQYcZeuC9GQb"><td data-page-node-id="NFyHvaEAeaP7KrR8QDyIYv">数据源</td><td data-page-node-id="h40ByFmsTXEgBNJFYTQR8e"><code data-page-node-id="CPJGnAPRAhrgNXBHbswDnE">notice</code> + 送达谓词</td><td data-page-node-id="Piz3jZ7nl9otFaJTLA7kgv"><code data-page-node-id="ciVxcTgh2JaKIVTehUfWC6">task_assignment</code>（per-user）</td></tr>
+            <tr data-page-node-id="o9nqgsCTEHlofmPiaqFYXu"><td data-page-node-id="LxXeMOtLtfmQ5T7JR2VQr2">可见性</td><td data-page-node-id="MPJwMEJMSAHacKGDJ0FdYi">按范围 ALL/DEPT/POSITION/USER</td><td data-page-node-id="uxJV9vcZje3aOLYtMh4fPD">只有被分配的人</td></tr>
+            <tr data-page-node-id="WBV4QxGRfuvyON9yHxZ3OB"><td data-page-node-id="KHeqai7xuit0vlLivDWt2H">有无状态</td><td data-page-node-id="oKtRX7eh8tQWmPd0ZlHvSK">已读 / 未读</td><td data-page-node-id="SGpscrpTLO4AbZJZAgTnOr">未开始 / 进行中 / 已完成 / 逾期</td></tr>
+            <tr data-page-node-id="pSvCeP2eE01z1go8clNrLI"><td data-page-node-id="XSIwp49XWwnran1jEVEGlK">终点动作</td><td data-page-node-id="BCuMGjKAdk0ixFiL7TBPPw">阅读（读完即结束）</td><td data-page-node-id="EECyRL5d0Vr9TYkcc3dwgo">交作业 → 被批阅 → 闭环</td></tr>
+            <tr data-page-node-id="WKNoLFBfrdLBGh1LnOjFQW"><td data-page-node-id="J0A5ergf3ZSgrS8U29gcgF">页签</td><td colspan="2" data-page-node-id="VhBcraKIhUpSa3aONx5Bb8">两者并置在同一页：<b data-page-node-id="cYN7KqxlRGawSD5I3FYtzK">「通知」/「我的任务」</b></td></tr>
+          </tbody>
+        </table>
+        <div class="note" data-page-node-id="lsGdgXvXuShnJLTvHAvPCH">判别口诀：<b data-page-node-id="pjMI0e5bAbV2sDqAvVslnT">读完就结束的是通知，读完了还得做的是任务。</b></div>
+      </div>
+
+      <div class="card c6" data-page-node-id="xjzKL3IvlTBFrD7GNzPQ2d">
+        <div class="card-h" data-page-node-id="7FYMeffde5MnDGoga7nSCA"><div class="tt" data-page-node-id="sGI4jdV41xAV3QUn09xUlL"><span class="idx" data-page-node-id="UQp10nO9ffbKNwjJHVV6j1">件</span><h3 data-page-node-id="Cj0JjfPuMVhIWzPIXwsDQY">共享组件（三端复用）</h3></div><span class="badge blue" data-page-node-id="8WbjC43nzcWTB02Sze8GCD">6 个</span></div>
+        <table class="tbl" data-page-node-id="dVVB7K9RyFNDSA8X1Rmptl">
+          <thead data-page-node-id="mf7dXLOIp9r0wDIa6V1jiX"><tr data-page-node-id="WLw2tKbDYwaNMcJJUC1wWr"><th style="width:150px" data-page-node-id="Jb2WSjKAgrRezonRAb3Bdk">组件</th><th data-page-node-id="AoFztZrsnJPo2EA9Zfe7pQ">职责</th></tr></thead>
+          <tbody data-page-node-id="2qomZXqXarLWsdRqhBUwCV">
+            <tr data-page-node-id="GhFPt57lxbfy4ftS9ZOy1R"><td class="nm" data-page-node-id="9fmpXNTOCQgnWwu3b18NVd">BellBadge</td><td data-page-node-id="dBHdrfkEKVRl4pHuFWlQXH">铃铛 + 未读红点；路由切换刷新 + 60s 轮询</td></tr>
+            <tr data-page-node-id="5sij1p7rXenNuFva2pYheP"><td class="nm" data-page-node-id="109kMvZOJH221nmWPmEjh3">MessageList</td><td data-page-node-id="dNv12TYXqU0GYsuGADYGSF">列表：类型标签 · 未读圆点 · 来源人 · 相对时间</td></tr>
+            <tr data-page-node-id="AFFVzEQCghxwuuXVoZeHiO"><td class="nm" data-page-node-id="W34t10rRw56bmTKngJYKvw">MessageDetail</td><td data-page-node-id="zMEhiVNk1k9rDh7VAH4Xp2">详情抽屉：打开即写已读 + 「去处理」按 biz 跳转</td></tr>
+            <tr data-page-node-id="LADoOQUdHIG3NcKREKaVpJ"><td class="nm" data-page-node-id="5fglzdQmxbPpGkJNCezKtA">SendNoticeDialog</td><td data-page-node-id="XFD37MgLAYFXywHDwtkzHl">发送通知：四档范围选择器（超管/部门管理员共用）</td></tr>
+            <tr data-page-node-id="t3bCL1wSF0V3uagACEzuqT"><td class="nm" data-page-node-id="yz33hphQTFXPIMLBIQMpAV">TaskCard</td><td data-page-node-id="YdY6c1QnzHvbkr8DC64hAk">任务卡：名称 · 学时 · 截止倒计时 · 状态色</td></tr>
+            <tr data-page-node-id="5xqyw5Cp94SeD8wqCprO3q"><td class="nm" data-page-node-id="seyV2wDE30g3kQ8xU1M9dF">RecipientStat</td><td data-page-node-id="OWbR0l16YHIhzSt3O0jEOE">送达 N · 已读 M · 未读 K + 未读名单（一键再提醒）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card c12" data-page-node-id="A6UGlrDl0cr2PecVTTZ1x7">
+        <div class="card-h" data-page-node-id="LedCmsWx4TnQw4d6eDacy2"><div class="tt" data-page-node-id="qDtFc4K4V34Q111drvwzG9"><span class="idx" data-page-node-id="kFOxcyfduJQsdq2g8IfTMd">页</span><h3 data-page-node-id="ugCXDxzeYxH5xDAC02SwiG">四个页面：2 个新建、2 个改造</h3></div><span class="badge orange" data-page-node-id="VAtksR8fMlrGNGWt7PHDms">不动公共骨架页</span></div>
+        <table class="tbl" data-page-node-id="BnERtGzltZ9mNZEG2tj2Hf">
+          <thead data-page-node-id="hpSN8c8rXMyjBSd2ApzeVA"><tr data-page-node-id="p6DnmsxxxdlZnr8kDKAj6r"><th style="width:110px" data-page-node-id="9XkRKrI7FAI1LBu8Zektmv">角色</th><th style="width:280px" data-page-node-id="5tTwfEyKwcSm7Wdzx79dkH">路由</th><th style="width:96px" data-page-node-id="1dOhLYHxDT3i55FHLqYwkw">动作</th><th data-page-node-id="qoNpjvSMbXUnipCOefz6IY">说明</th></tr></thead>
+          <tbody data-page-node-id="2EgHiLnF2N8WFLu0QNRJVW">
+            <tr data-page-node-id="hyrC7h5LCgfdbu3foyaS10"><td data-page-node-id="ECr5iCxPEeb0s7haTRXqdB">实习生</td><td data-page-node-id="nGC0AeHmA3ZHQb1zoPadVX"><code data-page-node-id="EDE7S0LmzifTUgjIh3CQKf">/messages</code></td><td data-page-node-id="mCiUBhpl21tQ7679V42DJM"><span class="badge ok" data-page-node-id="jUNeGQwPQj7urZbmilL3Yl">新建文件</span></td><td data-page-node-id="HhMp8vFMPWHRpLGMBppyvP">现在指向<b data-page-node-id="Z8XIRzK1kNyxBEyKhmpHx9">公共骨架页</b> <code data-page-node-id="HzosVzVYXbDOrGzkfEEYNU">assessment/index.vue</code>（假数据）→ 新建独立页 + 追加路由，<b data-page-node-id="xBE3RDRzAmo4Zws5Zs7Ana">不改骨架页</b></td></tr>
+            <tr data-page-node-id="nzq4B8laFJdDFYMplvYgG3"><td data-page-node-id="ph0TDt7mLYdA7FLGwJAfQX">超管</td><td data-page-node-id="Fvhcz9OfjdLInhYdKdsX3X"><code data-page-node-id="7dF2msRRgaKDJB4XxGvHUT">/super/org/notify</code></td><td data-page-node-id="6IQBYYIA4AeY468yaXM4Ak"><span class="badge ok" data-page-node-id="7Amj6szECz3xn5S3gsAHop">新建</span></td><td data-page-node-id="rc4UlQMkT1YZeofQDG4Grn">通知中心：四档范围发送 + 已发列表 + 送达/已读统计；与督办看板打通</td></tr>
+            <tr data-page-node-id="37ahyhmWzNyzyjdfcF1D89"><td data-page-node-id="pq514YlUIbn2M7cBglhqVW">部门管理员</td><td data-page-node-id="kaAxw8FZA2G3gSoqEgpuh1"><code data-page-node-id="vEdjKkvV6BIyUnOC0XZmPr">/department/messages/notices</code></td><td data-page-node-id="zMtAbCX5SvQSh0DJQYpJBb"><span class="badge blue" data-page-node-id="sf2ZBhPH79gFybMc8RnbiD">改造</span></td><td data-page-node-id="G48d8euEFE8Utp7fqZ4rT5">已有 258 行排版，<b data-page-node-id="D1ZSdfno7TcoeNCOrr7IeE">接接口为主</b>，结构不大改</td></tr>
+            <tr data-page-node-id="O20ta7LFBkVzAqlrr9QYB0"><td data-page-node-id="pTKaviMEoXbY04lvELHGxM">部门管理员</td><td data-page-node-id="rmJvmHirMcdlGWfhEVoq8Y"><code data-page-node-id="5pL0ZzAdcpQe9lTbO2b6LD">/department/messages/tasks</code></td><td data-page-node-id="C01rGmGPjn25ovNWiHXDaH"><span class="badge blue" data-page-node-id="kFopaDzvA4aOfYoMGX55Ua">改造</span></td><td data-page-node-id="il8jyM38bp5PSRRz4KPE62">已有 359 行排版，接任务域接口</td></tr>
+            <tr data-page-node-id="NGKSHPpfxED04U0K3InXls"><td data-page-node-id="FcVHaNXZRWzgeV6jp7Cp3q">三端共用</td><td data-page-node-id="FrJhIYfIKqY4GsxU04OiZD">顶栏铃铛（<code data-page-node-id="NnprwpEyNPYpg0Pu5PYbmU">Navbar.vue</code>）</td><td data-page-node-id="QiZ3gzQvvGInQMDiYw76FN"><span class="badge blue" data-page-node-id="kxQgXkZ1uGhQBly4yHI1qe">改造</span></td><td data-page-node-id="gPL8yt3h4iexZ7uF5Y1oOA">从「仅实习生」放开到<b data-page-node-id="zTFzmB5jon8FtTGKehxhtO">全角色</b>，接未读接口</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="callout warn" style="margin-top:12px" data-page-node-id="8yoRDazLYP5LPhPXvpyGiK">
+      <span data-page-node-id="XG6ZHWr9SlovFnLf5ZBRHr">
+        <b data-page-node-id="cnD7SLl7OIt7WYAQ3B55Xq">⚠️ 后端现状（已核实，别按现在的页面对齐）：</b>
+        <code data-page-node-id="LXsA3MaRhb3CeQzuXXC45B">notice</code> / <code data-page-node-id="6AboEcI46h5FS7uVI0YCPu">learning_task</code> / <code data-page-node-id="CCr5fjQm9qyEaS9s6LAG3R">task_assignment</code> / <code data-page-node-id="9fvkS5h3okpsDo8R8aOoFA">task_submission</code> / <code data-page-node-id="6OeqqPLCUkvjAZIV4nUEY1">task_post</code>
+        <b data-page-node-id="cNEQyIHg4gTijPo8MXOKhR">五张表全是 0 行且零 Java 层</b>；<code data-page-node-id="RN3h213cdWiC2bKb4VtxFd">notice_read</code>（已读回执）与 <code data-page-node-id="xlIo8exDh60AETZENzEmvA">notice_target</code>（多选人员）<b data-page-node-id="r3OrCVNrhZinGPpMStYiCe">都不存在</b>；
+        部门端页面文案提到的 <code data-page-node-id="GmXwBlACzaObnHAxP726pb">notification</code> 表<b data-page-node-id="xMXGUgPszeM0MqfNnkXDmy">压根没有</b>。所以本稿所有卡片都标了来源。
+      </span>
+    </div>
+  </section>
+
+  <!-- ============================================================ 顶栏铃铛 -->
+  <section class="sec" id="s1" data-page-node-id="5lQHywE44LxuhchQiHNfql">
+    <div class="sec-head" data-page-node-id="sa6RF5wQ4Lyy9sBjCbNEPD"><span class="sec-no" data-page-node-id="wiLgEXVfe5oxLsoTipqDMK">1</span><h2 data-page-node-id="Km6aYmGs6mcPmN0EgPUPJ7">顶栏铃铛与未读：三端一致</h2><span class="tag blue" data-page-node-id="5P8sNTtikB8JnmxIEYfsQl">改 Navbar</span></div>
+    <p class="sec-desc" data-page-node-id="IoihTKt0hNgtluQyNcvgss">
+      三端<b data-page-node-id="sA8cdmVD4Z3O0YPQzQBVTB">同一个铃铛</b>、同一份未读数接口、同一套已读规则。上一轮刚做完的「用户胶囊」在右，铃铛在其左侧，视觉不冲突。
+    </p>
+
+    <div class="grid" data-page-node-id="2VWrs99RludvjSMyWspGhl">
+      <div class="card c4" data-page-node-id="YkVdap2F5PVB3ZVNatZMqC">
+        <div class="card-h" data-page-node-id="F4i86g321t5YLymKi5liaE"><div class="tt" data-page-node-id="6x5LWTMcSdjw7TLX6LnD1I"><span class="idx" data-page-node-id="ozFo9onEWbc1MFhgJ2ZJpo">态</span><h3 data-page-node-id="EHaLCHpFxdDh2LihQseFBN">三种状态</h3></div></div>
+        <div style="display:flex;align-items:center;gap:26px;padding:10px 4px 6px" data-page-node-id="7v2FcY0V3IYTxU9vnNUyln">
+          <div style="text-align:center" data-page-node-id="kddl66XvSMRdvva6C6xnxs">
+            <span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#f2f5f9;color:#5f6b7a;font-size:17px" data-page-node-id="bPTmHsYT254NCU8epgGTJ1">&#9788;</span>
+            <div class="mut" style="font-size:11px;margin-top:6px" data-page-node-id="BFBFHqhsALxmfC7VB5Pqxi">无未读</div>
+          </div>
+          <div style="text-align:center" data-page-node-id="7pBe6R5je9lpBqax68zWVj">
+            <span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#f2f5f9;color:#5f6b7a;font-size:17px" data-page-node-id="TnXXyYAmXzelxr1g5Gpy1v">&#9788;<i style="position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#f04438;color:#fff;font-size:10px;line-height:16px;font-style:normal;text-align:center" data-page-node-id="XbL3hyJJmJC1uxFQAwyz3F">3</i></span>
+            <div class="mut" style="font-size:11px;margin-top:6px" data-page-node-id="bxuRAXwMVjdURN9S0yrUmx">有未读（数字）</div>
+          </div>
+          <div style="text-align:center" data-page-node-id="8Az9718gcppkZY2Et6Ua06">
+            <span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#f2f5f9;color:#5f6b7a;font-size:17px" data-page-node-id="yd7oRvB0iK54Wtrg34M8QT">&#9788;<i style="position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#f04438;color:#fff;font-size:10px;line-height:16px;font-style:normal;text-align:center" data-page-node-id="aZfECoihwMztWkJIlQv2sC">99+</i></span>
+            <div class="mut" style="font-size:11px;margin-top:6px" data-page-node-id="pffcYtmpuJjxjvJD4AM7ju">超 99 折叠</div>
+          </div>
+        </div>
+        <div class="note" data-page-node-id="v3iv5B5xGPE57dso8gCDq9">未读为 0 时<b data-page-node-id="WlsjEeDmM8nx8bGAColY0c">不显示红点</b>；≥100 显示 <code data-page-node-id="47LMu7QXLYjNkOf5UzKUTh">99+</code>。点击直达本端消息中心。</div>
+      </div>
+
+      <div class="card c8" data-page-node-id="Pr9GxmMC1WK7iMztzFV4hJ">
+        <div class="card-h" data-page-node-id="MT30Hm5SDDgR8FZHdNE4cf"><div class="tt" data-page-node-id="eexMQCVPoUrPEfRCDEal9q"><span class="idx" data-page-node-id="UKO4l6P30gAFy9SWEIzvFs">规</span><h3 data-page-node-id="S3AqFaW8Vp73SQgIYrSC5q">刷新与已读规则</h3></div><span class="badge orange" data-page-node-id="7qCOIU9YqrbajbkuctFDBR">★ 新设计</span></div>
+        <table class="tbl" data-page-node-id="yRQI5YkKLuvW97LbZ8IoTR">
+          <thead data-page-node-id="tWa20sC1czu4D828IsOE8K"><tr data-page-node-id="kMhwla6Z8ucYBVyXajlCiD"><th style="width:150px" data-page-node-id="VRLTSjWvdp4mfbhwrbsCtt">时机</th><th data-page-node-id="kAZHxFDeUxrgFEDG4PrXnn">动作</th><th style="width:150px" data-page-node-id="hidXO15LGi4XYf3fIvykP4">理由</th></tr></thead>
+          <tbody data-page-node-id="OIqNCFxtXI0pVFrOvoiYKd">
+            <tr data-page-node-id="qipM6BjxMOOASJXGK5TPbp"><td data-page-node-id="YVGFs4ybriX8VqYftSERQW">进入/切换路由</td><td data-page-node-id="dCFfOkCDH6mrETFRpXvmHD">拉一次 <code data-page-node-id="6DWyCrneHrQZaOxsc9B5l5">GET /business/message/unread-count</code></td><td data-page-node-id="KgiY3tr08afdq3YZX173Fw">保证"刚处理完"立刻反映</td></tr>
+            <tr data-page-node-id="8Vud93UFOeNLD1zon9xZqb"><td data-page-node-id="qyaiHEKCX35g4HlxHDEDON">每 60 秒</td><td data-page-node-id="hxEk5eJrWGZwpJZcqS9kqi">轮询同一接口（页面隐藏时暂停）</td><td data-page-node-id="0rfJ4mJNXtImP7WiCtrgH0">不引入 WebSocket 的前提下够用</td></tr>
+            <tr data-page-node-id="g09kHg4EFOEGUYGbE6oHzo"><td data-page-node-id="J5o5wtM8DLwZ56HYUbaHwy">打开消息详情</td><td data-page-node-id="LkYKOqffbjHzkGvD3XyLET">写 <code data-page-node-id="l1fyBuXOcBQGNuGtlaX3s3">notice_read</code>（唯一键幂等）</td><td data-page-node-id="9si2tzGDYb2XVENc34wc7P">未读 → 已读的唯一入口</td></tr>
+            <tr data-page-node-id="spiG8vd1G2HOAeRoxrgkzX"><td data-page-node-id="BnBqdVN4JVQjPlrnbhO7cL">点「全部已读」</td><td data-page-node-id="OVCQqGo3kBwHUdrdsQutYU">批量写 <code data-page-node-id="yMZL8s2dqFreHYNRqRf7nD">notice_read</code>，红点清零</td><td data-page-node-id="DgrghiQiu3Q7dIlWQJNJVB">批量清理未读</td></tr>
+            <tr data-page-node-id="JFD4PMkq6PbvzH0YSR7brz"><td data-page-node-id="KXWlKZhXTs17P8g0E1lvgT">发送方视角</td><td data-page-node-id="TULH2v29JyglXqEEZ9joho">不产生未读（自己发的自己不算未读）</td><td data-page-node-id="iGHHAoY2qMww6aIhRcldCw">避免管理员被自己的通知刷屏</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn" style="margin-top:10px" data-page-node-id="BVKxvJOat4tH96CtoKuKdr">
+          <i class="el-icon-warning-outline" data-page-node-id="5sg4JqL5hAaJB0V6VkYOe1" />
+          <span data-page-node-id="JgzMba7hkybTjYNZ0bmkh5">
+            <b data-page-node-id="BmWdBNOSjXSzEbXgOXKRKf">⚠️ 现在铃铛只有实习生能看到</b>（<code data-page-node-id="QwartDyi01NfV6jlqApQA1">Navbar.vue</code> 里 <code data-page-node-id="cYHITYPSQp5GcwpjXmXjIg">v-if="isIntern"</code>）。本稿要求放开到全角色 —— 超管要看「督办回执」、部门管理员要看「催办 / 待批作业」。
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 实习生 · 通知 -->
+  <section class="sec" id="s2" data-page-node-id="PKJ3tsXf2R5MB0jDkVzhFl">
+    <div class="sec-head" data-page-node-id="OYnoIgVEBDp1rbX9l2PUAq"><span class="sec-no" data-page-node-id="jCq5JJmNQPl9sEb2Oas3It">2</span><h2 data-page-node-id="txbN43NsPtJkrASFrumKe8">实习生端 › 消息中心 · 通知页签</h2><span class="tag green" data-page-node-id="NLPx2Jg0sA6kV0dJOurDSL">新建页 + 追加路由</span></div>
+    <p class="sec-desc" data-page-node-id="nJTikIDa3uymUmQ7Qbfzi3">
+      左侧列表 + 右侧详情，<b data-page-node-id="IzYszOW3JDlAoB5RhCSOCB">不跳页</b>（列表与详情同屏，避免"点进去看完还要退回来"）。类型标签一眼区分公告 / 任务 / 考核 / 审核 / 催办。
+    </p>
+
+    <div class="app" data-page-node-id="tXuDBAmadljG0Gq5KdocIf">
+      <aside class="rail" data-page-node-id="xShF0XWHzw4KXLScvODJ7o">
+        <div class="rail-brand" data-page-node-id="Aws5DfgWSAjGouhC8ugrKi"><i data-page-node-id="b6qWJAibOLggMW4mo4XwfD">学</i><div data-page-node-id="hJtqokIjnIjq2tx9iYCn8h"><b data-page-node-id="mjFqY3Mnw9xuzMJFDd1NS5">学习与考核</b><span data-page-node-id="WYA7Xv2BvWaoCiHiutBgZt">实习生 · 开发 104</span></div></div>
+        <div class="rail-group" data-page-node-id="EISv5LrQMmS1D19WvQc5ZC">导航</div>
+        <div class="rail-item" data-page-node-id="PNmFHUQgltC5zTw9nAByDX"><span class="ic" data-page-node-id="p4hNBPBd3DnsX5HmkJwLU0">▦</span>工作台</div>
+        <div class="rail-item active" data-page-node-id="Ck0qBDJdh2qoiNfbE6311b"><span class="ic" data-page-node-id="JandtseCPEahCNOPmQYK91">✉</span>消息中心</div>
+        <div class="rail-item" data-page-node-id="WiaJNE5sX6mM4RvtVM7lkn"><span class="ic" data-page-node-id="PxYhdylBRfHvqzDvnoFsFX">▤</span>学习与考核<span class="arw" data-page-node-id="bdQRkABIexn75M8woNrra9">›</span></div>
+        <div class="rail-foot" data-page-node-id="WKAGpYgJCYDPin6fgE2oEd">实习生 · 仅两项一级目录</div>
+      </aside>
+      <div class="main" data-page-node-id="175w7V3M1JwmFizepQhzs5">
+        <div class="topbar" data-page-node-id="XPBoCdgPMazkd3IpzoCaEQ">
+          <span class="crumb" data-page-node-id="Vn6ZtAHmn3RfxsYs28cOCw">工作台 / <b data-page-node-id="ww8BniadfFsEcQ4JGW3H9Y">消息中心</b></span>
+          <span class="spacer" data-page-node-id="8JJF5DS5DdWG4LZhSBvXD9"></span>
+          <span class="badge" data-page-node-id="YMHqDLRD7OXVRpBLyriGjk">未读 3</span>
+          <span class="badge opt" data-page-node-id="RRfTS0oRxRY8HDcV0D5hwi">全部已读</span>
+        </div>
+        <div class="body" data-page-node-id="S96uJh4GwKxbebfqd3Ktto">
+          <div class="tabs" data-page-node-id="nbHHCWGjxykUdwh15JZoYO"><span class="on" data-page-node-id="sHTcAhDFbZCO7TaiKA53As">通知</span><span data-page-node-id="dkpv2n8aep1zgnnz3SXGvc">我的任务（2）</span></div>
+
+          <div class="grid" style="margin-top:12px" data-page-node-id="SGedDJBNxsV8X4wvVYzL66">
+            <div class="card c5" data-page-node-id="FWzqkh4F7OEcgGkh3K9ILL">
+              <div class="card-h" data-page-node-id="SaSEKsOMp0ygwPrdpYZ06d"><div class="tt" data-page-node-id="OXH7gKYXdJEHU2qt43POHE"><span class="idx" data-page-node-id="JR7lTDJsbajULT7yEJ9Xg8">列</span><h3 data-page-node-id="YRbjzNy2YeSpqaISXk3jky">消息列表</h3></div><span class="hint" data-page-node-id="d5ZRH3F0f0pkRPVANyRoxk">未读优先</span></div>
+              <div style="display:flex;flex-direction:column;gap:2px" data-page-node-id="vE13FyZ4uSI4sDoBQ055hl">
+                <div style="padding:10px;border-radius:8px;background:#e8f1fd;border-left:3px solid #1764f5" data-page-node-id="fGVRT69ZhADXDatc4gzxmX">
+                  <div style="display:flex;align-items:center;gap:6px" data-page-node-id="YUS2d5o98DfqZvbngV76WZ"><span class="badge blue" data-page-node-id="BhUYwEJCLXqe8eje4QjUL5">任务</span><b style="font-size:13px;color:#1d2939" data-page-node-id="cbUNYQlsMQz8nlYeIEaPIh">新任务：接口文档编写</b></div>
+                  <div class="mut" style="font-size:12px;margin-top:4px" data-page-node-id="HhFAJqwu9ZmmNiLpOttVqv">张导师 · 截止 09-22 18:00 · <b style="color:#f04438" data-page-node-id="5ipD4vi0iIaiPI54fQOUaq">剩 5 天</b></div>
+                </div>
+                <div style="padding:10px;border-radius:8px;border-left:3px solid #1764f5" data-page-node-id="iTDZFsZSuip4cJlFgwJWgH">
+                  <div style="display:flex;align-items:center;gap:6px" data-page-node-id="YuepJmgJAS5C6fkjEnPZ1z"><span class="badge purple" data-page-node-id="5LHSaguz2yNfMrUfxekYWU">考核</span><b style="font-size:13px;color:#1d2939" data-page-node-id="wqMP1iSqds1db5zYbgj3Vj">2026 Q3 第 2 场成绩已发布</b></div>
+                  <div class="mut" style="font-size:12px;margin-top:4px" data-page-node-id="uokJui8Mb9n8ErjXmLGyUz">系统 · 09-17 16:20</div>
+                </div>
+                <div style="padding:10px;border-radius:8px;border-left:3px solid #e4e9f0;opacity:.72" data-page-node-id="pfiNwFA8eDDXp4uAEdO2qD">
+                  <div style="display:flex;align-items:center;gap:6px" data-page-node-id="0f81cKoRd1QoGuerg9zPDz"><span class="badge" data-page-node-id="okVVNZtPHqYrewO9uRP9ei">公告</span><b style="font-size:13px;color:#344054" data-page-node-id="Jc5IB8567hgKOJZc27hPnW">关于保密协议签署的提醒</b></div>
+                  <div class="mut" style="font-size:12px;margin-top:4px" data-page-node-id="JDINWcpc3GAaD9AF5zCTb9">超管 · 王 XX · 09-16 09:00 · 已读</div>
+                </div>
+                <div style="padding:10px;border-radius:8px;border-left:3px solid #1764f5" data-page-node-id="F8zcgsHaZUuqyt8zd1Lgpo">
+                  <div style="display:flex;align-items:center;gap:6px" data-page-node-id="6DkaMTmXnUPMPhCFyYce8s"><span class="badge orange" data-page-node-id="Kf5ScViSAVPGgmqV1pxboC">审核</span><b style="font-size:13px;color:#1d2939" data-page-node-id="1eDBTD8KNLucqXuG5IBdin">你的注册申请已通过</b></div>
+                  <div class="mut" style="font-size:12px;margin-top:4px" data-page-node-id="wzAKQOiNm2OU3ZNjUJmNNA">交付部门管理员 · 09-15 10:12</div>
+                </div>
+              </div>
+              <div class="note" data-page-node-id="GpkHSZuawqI1Ok8loEvKFC">左侧蓝条 = 未读；已读整条降饱和。排序：<b data-page-node-id="AnKfEXMwpXSOFDSgZW6NBq">未读优先 + 时间倒序</b>，置顶通知恒在最前。</div>
+            </div>
+
+            <div class="card c7" data-page-node-id="9L35YDHLVnOEBCAl889eTu">
+              <div class="card-h" data-page-node-id="5pdY60ZNTh1KGErx2DWZUN"><div class="tt" data-page-node-id="Vor56er5IIrjKA4Bh46Kmq"><span class="idx" data-page-node-id="Dbm1HnDNs1d60fa3zO2RXu">详</span><h3 data-page-node-id="1D7yWNKy4Ve7YuqJMF5xw6">详情（同屏，不跳页）</h3></div><span class="badge opt" data-page-node-id="VpR0q4Dhtxc2ZtwQVfjGMS">打开即写已读</span></div>
+              <div style="display:flex;align-items:center;gap:8px" data-page-node-id="UXkbP8qYbHnVVpj3PDzRkw">
+                <span class="badge blue" data-page-node-id="vTycSF6EDadi6PxRkS5OOq">任务</span><span class="badge" data-page-node-id="rCOPRXJ0a6UuZVw96ZWoHG">来自：张导师（部门管理员）</span><span class="mut" style="font-size:12px" data-page-node-id="e980BmY5BfQjmm8DjZkCCE">2026-09-17 16:20</span>
+              </div>
+              <h3 style="margin:12px 0 8px;font-size:16px;color:#1d2939" data-page-node-id="4R252m49A5yDtCHhWLSVta">新任务：接口文档编写</h3>
+              <p style="margin:0;font-size:13px;line-height:1.9;color:#344054" data-page-node-id="3AQvRYOevcDPRks9SReVP5">
+                任务目标：按给定表结构完成课程管理模块的接口文档，含请求参数、返回示例与异常码。<br data-page-node-id="tTqSjcMRmxXHypnDszDQlo"/>
+                关联课程：<b data-page-node-id="l0v0xTV5KLaWJLTDT4vQ4W">后端接口规范</b> · 理论 2 学时 / 实践 4 学时<br data-page-node-id="DplOmR8dkNGBjmo1DLP4UD"/>
+                截止时间：<b data-page-node-id="Kyrq7YlwKtCGCFJiYWIAJc">2026-09-22 18:00</b>（剩 5 天）
+              </p>
+              <div style="display:flex;gap:10px;margin-top:14px" data-page-node-id="Tf2qEHtJb0F0QC5XfecvVX">
+                <span class="btn primary" data-page-node-id="5R7uvoXxIQhG29idDqPDrp">去处理（打开任务）</span>
+                <span class="btn" data-page-node-id="yGjtEggutRXiFYgo00OPlg">标记已读</span>
+              </div>
+              <div class="note" data-page-node-id="TuiqUhCiAaYjn4IiQZJv5O">「去处理」不是死链：由消息的 <code data-page-node-id="foLCfwdiKiGoBcICDW5xhS">biz_type + biz_id</code> 解析出真实路由（任务→任务详情、考核→成绩页、审核→注册状态）。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============================================================ 实习生 · 我的任务 -->
+  <section class="sec" id="s3" data-page-node-id="Algpf3LR5R6R4MNgFM6MpS">
+    <div class="sec-head" data-page-node-id="MEdDFhM0RmYwvQhJDnNrKK"><span class="sec-no" data-page-node-id="H6eivslQz17mvHI9IDaKag">3</span><h2 data-page-node-id="K3ZCRlAXX3tuIdmCEQJfo0">实习生端 › 消息中心 · 我的任务页签</h2><span class="tag green" data-page-node-id="6NJcHvQw0BDbHB0LAYAcZ0">同页第二页签</span></div>
+    <p class="sec-desc" data-page-node-id="5jnFHGCo5PkrCCbTYQVJog">
+      「通知」读完即结束，「任务」读完还得做 —— 所以任务不能只当消息展示，要能<b data-page-node-id="feDtXEb1TsHIBAzFBYeMrd">看进度、交作业、看批阅</b>。
+      卡片按<b data-page-node-id="dh7LvDuEkGBJ8KANojdSl4">截止时间</b>排序，逾期用红色压住视觉。
+    </p>
+
+    <div class="app" data-page-node-id="luLyLHsVNc0nvjRPpSzYVc">
+      <aside class="rail" data-page-node-id="EJ0kORU8JAny5Aul5JoySR">
+        <div class="rail-brand" data-page-node-id="N548H8Mxn3CLIzg2v3zHYd"><i data-page-node-id="QwnHMDzaQeCCfD1kdOHcAl">学</i><div data-page-node-id="R72qJqlSpBAZNiZr1B8NP7"><b data-page-node-id="0JCrPvfvZApuy7v0faiA3x">学习与考核</b><span data-page-node-id="DgaLDXjGn4YvsAG0IWUi0y">实习生 · 开发 104</span></div></div>
+        <div class="rail-group" data-page-node-id="3e5omV1TOgc6MUl05Gbk8C">导航</div>
+        <div class="rail-item" data-page-node-id="mjMVYfl6O7kIbMSaDB0rft"><span class="ic" data-page-node-id="UrbmbIMhaQg0jlfGUQO2lf">▦</span>工作台</div>
+        <div class="rail-item active" data-page-node-id="iq0lHDSGLlfxQHYXdDinJ7"><span class="ic" data-page-node-id="DrKqMNfilfKyaaMhO4ul3y">✉</span>消息中心</div>
+        <div class="rail-item" data-page-node-id="N6pZaOgGygjhTnPPadCYeD"><span class="ic" data-page-node-id="P80fvWCo5BQPYUUabLNDSx">▤</span>学习与考核<span class="arw" data-page-node-id="GtrMh5iK9dGvqXPE9uhkrq">›</span></div>
+        <div class="rail-foot" data-page-node-id="gYLw5BBxJrhKg2fnqLQVUi">实习生 · 仅两项一级目录</div>
+      </aside>
+      <div class="main" data-page-node-id="oRkXpQ9dfZxnnhmtSHN8gK">
+        <div class="topbar" data-page-node-id="hqJM0o4r6goX3lhEmjbrFr">
+          <span class="crumb" data-page-node-id="AHIQmKgDaSnXfaY6seMRDD">工作台 / 消息中心 / <b data-page-node-id="cFtByvt83Rhz4HMWcCTuRX">我的任务</b></span>
+          <span class="spacer" data-page-node-id="yvja0ePpfVJCRjO22CrbEr"></span>
+          <span class="badge" data-page-node-id="2aTDLBj4EPCNpCK0Kf8sr2">待办 2</span>
+        </div>
+        <div class="body" data-page-node-id="4VsA4vfSOF70qKzGiBexit">
+          <div class="tabs" data-page-node-id="VXEj5O0t6USQIGQdDdV1ij"><span data-page-node-id="mhETEcSd9cbtm8rr8zEBgS">通知（3）</span><span class="on" data-page-node-id="GU3BOTrNKsnV8htWK7aPR9">我的任务</span></div>
+
+          <div class="stat-strip" style="margin-top:12px" data-page-node-id="o7sEdngJxsyo3CWnLX0uyQ">
+            <div class="fact" data-page-node-id="xSDpvEVy1IFtHMv7reIvvM"><span data-page-node-id="DXwNrXJPTEaQotUX5nd4gE">进行中</span><b data-page-node-id="4GVwlHZfiWDBnXF0ICa9zG">1 项</b></div>
+            <div class="fact" data-page-node-id="4CCpbDcFhsun072KUbEL4G"><span data-page-node-id="fciv26nQswrCmasLbRHCqT">将到期</span><b data-page-node-id="Fa02crDUOvcXAQbHhOKPck">1 项</b></div>
+            <div class="fact" data-page-node-id="a2PXIlLYzZnYvB9aoDUXWK"><span data-page-node-id="XLEMidRiA5FTJ5JAJvOXGW">已逾期</span><b data-page-node-id="Da2nkJIrB3y34zreEDaUZE">1 项</b></div>
+            <div class="fact" data-page-node-id="K5mHAyOuwaJyF5iLESKArl"><span data-page-node-id="plHdy5jqCiM98hVTUf42a9">已完成</span><b data-page-node-id="4AmcaQqbJlZAGgtqlNn0wM">3 项</b></div>
+          </div>
+
+          <div class="grid" style="margin-top:12px" data-page-node-id="BBa9oADPZuaxeDLpsOxTBB">
+            <div class="card c6" data-page-node-id="I0geUOAt66gGh1ct9kpNph">
+              <div class="card-h" data-page-node-id="lHVnKwRzpTze73ygfMEvvp"><div class="tt" data-page-node-id="CxJKT2Tj98Dl2Oy5xOUTLp"><span class="idx" data-page-node-id="isYnqHlOEOFD4gwCiaADfW">任</span><h3 data-page-node-id="yLPpvDxEticjf7MzZcKr1z">任务卡（按截止排序）</h3></div><span class="tabs" style="font-size:12px" data-page-node-id="4DyoBTMmBXHK3qwzhsB1Cx"><span class="on" data-page-node-id="xaMZRgJNyjVjXSf4hzwGEH">待办</span><span data-page-node-id="HTxxu4PSnKjAdvv2x3Bdal">已完成</span></span></div>
+
+              <div style="border:1px solid #f09595;border-left:3px solid #f04438;border-radius:8px;padding:12px;margin-bottom:10px" data-page-node-id="yA1aDS0Fgmo5jP5LwTFe64">
+                <div style="display:flex;align-items:center;gap:8px" data-page-node-id="6oPdMHZm7ZBrkh0ukeVQB9">
+                  <b style="font-size:13.5px;color:#1d2939" data-page-node-id="VLIKLCQDyj6J0nE7eocrof">接口文档编写</b>
+                  <span class="badge red" style="background:#feecea;color:#b42318" data-page-node-id="SiRTTi84cIbJYQoY0XlPn3">已逾期 1 天</span>
+                </div>
+                <div class="mut" style="font-size:12px;margin:6px 0 8px" data-page-node-id="ecfhMiKTPtv5VWjZyi17uh">理论 2h · 实践 4h · 截止 2026-09-16 18:00</div>
+                <div class="hbar low" data-page-node-id="vliGWPPe0mcDljOedjFQiq"><span class="nm" data-page-node-id="Brje91RVgWXV8NyuSfS317">进度</span><span class="track" data-page-node-id="k7i5CXTW5IB1WwsjbKajIb"><i style="width:40%" data-page-node-id="F7oXFhzIn6rKFrRrGfCxuA"></i></span><span class="pc" data-page-node-id="LQWp5R11AFfFd3Kqcpuunw">40%</span></div>
+                <div style="display:flex;gap:8px;margin-top:8px" data-page-node-id="CtaGExJqGKA81h2OfcJqvZ"><span class="btn sm primary" data-page-node-id="IER2SrhPTL1q10WPWBr38F">交作业</span><span class="btn sm" data-page-node-id="1nfn8leUDAA5KgBDX1HZwE">讨论区<span class="mut" data-page-node-id="gsDBUDrMm3qQNhWboHBOJ8"> 3</span></span></div>
+              </div>
+
+              <div style="border:1px solid #e4e9f0;border-left:3px solid #f79009;border-radius:8px;padding:12px;margin-bottom:10px" data-page-node-id="4IsLvXtyJKVWCwDjHihghm">
+                <div style="display:flex;align-items:center;gap:8px" data-page-node-id="Myzfu1ZFSsGo4XEAjEo5EF">
+                  <b style="font-size:13.5px;color:#1d2939" data-page-node-id="6G3C0UWeA5zBgmRdc75f46">数据库索引优化实操</b>
+                  <span class="badge orange" data-page-node-id="eGL17xplmyXYDr0hFPQJm6">剩 2 天</span>
+                </div>
+                <div class="mut" style="font-size:12px;margin:6px 0 8px" data-page-node-id="K5ABpXUHLRCaq8Am6TR8Ua">理论 1h · 实践 3h · 截止 2026-09-19 18:00</div>
+                <div class="hbar" data-page-node-id="WwGPCsK0OGr1BVu7LBdKUU"><span class="nm" data-page-node-id="r2dnA1i0LLX1QHEZ4tiOqL">进度</span><span class="track" data-page-node-id="EuiU1PeaMsvElA0ErE6J96"><i style="width:20%" data-page-node-id="prfktJQ1hKRl1eJ2syApVj"></i></span><span class="pc" data-page-node-id="JzSTzGi02gkkZgP8bR1wzS">20%</span></div>
+                <div style="display:flex;gap:8px;margin-top:8px" data-page-node-id="icdKaEdGbhgXmMwgw1bMz3"><span class="btn sm" data-page-node-id="TrcifH6p4qbYFXFupU3ctQ">开始</span><span class="btn sm" data-page-node-id="jj6lhB7F6guztwkjkzdxF6">讨论区</span></div>
+              </div>
+
+              <div style="border:1px solid #e4e9f0;border-left:3px solid #12b76a;border-radius:8px;padding:12px;opacity:.82" data-page-node-id="OCjmQCCild1lHmZvZhHSb2">
+                <div style="display:flex;align-items:center;gap:8px" data-page-node-id="t3qLSQoTCvPjAKX4lsRqKY">
+                  <b style="font-size:13.5px;color:#344054" data-page-node-id="akP9G06ddVgSRsdc5wcUGq">Git 分支规范练习</b>
+                  <span class="badge done" style="background:#e7f7ef;color:#027a48" data-page-node-id="rIWZ1WPRXpyt1zkx1nR1tz">已批阅 92 分</span>
+                </div>
+                <div class="mut" style="font-size:12px;margin-top:6px" data-page-node-id="GMxDRNQMbv32fIIG5enaFO">批阅意见：分支命名规范，提交信息可更细 → 查看</div>
+              </div>
+
+              <div class="note" data-page-node-id="96mG5PknLTxVNwHctJm22U">状态色：<b data-page-node-id="cy9cCNKaHRxLI14c7hoUdz">绿=已完成</b> · <b data-page-node-id="VM79Ef2DRLZtGidJMWyAeQ">橙=将到期（≤3 天）</b> · <b data-page-node-id="iHORMSeAExGpbXRPQVSwhC">红=已逾期</b>。逾期不是终态，仍可补交（`task_submission.status='OVERDUE'` 也会被接收）。</div>
+            </div>
+
+            <div class="card c6" data-page-node-id="OkIfuMfI6YgppGJ1GvHXEE">
+              <div class="card-h" data-page-node-id="plGMnjsN40oBvjEk3DE3dX"><div class="tt" data-page-node-id="hFskiXnFdXwLUD4RGMiPP2"><span class="idx" data-page-node-id="ZlquLeOE6WZZGqwGC3G1nD">交</span><h3 data-page-node-id="9vOeJrJqJQGcTg59XHlonF">交作业（抽屉）</h3></div><span class="badge orange" data-page-node-id="rmmB0ZWZxsd26djRNoj3L2">★ 新设计</span></div>
+              <div class="field" data-page-node-id="IwqSCwThQl8Hxi0Uz76T4J"><label data-page-node-id="tZBiY6dITNwVPCuPJGB4kk">任务</label><span class="sel" data-page-node-id="ZGfDuGRYxINEsAdrhro0d9">接口文档编写 ▾</span></div>
+              <div class="field" data-page-node-id="N7j4ZhulxsDVHgcvsGguqx"><label data-page-node-id="zH27eePXc4xAWDV9B6LDus">作业内容</label><textarea class="ta" rows="5">已完成课程管理模块的接口文档，含 6 个接口……</textarea></div>
+              <div class="field" data-page-node-id="LdOX1DRAAgLdmoBjsgMHQ3"><label data-page-node-id="D5KLfizCHyA4FUFwC9dmXQ">附件</label><span class="sel" data-page-node-id="RunHxIqXeNSCSbZoSsoSBc">接口文档_v1.docx（1.2 MB） ▾</span></div>
+              <div style="display:flex;gap:10px" data-page-node-id="G7jM1omCaC9OwbIIAixzV8"><span class="btn primary" data-page-node-id="UFAobyCqbfVY9n6jIzluU2">提交</span><span class="btn" data-page-node-id="tnkSt2WLkB0u8Ot03Qk10d">存草稿</span></div>
+              <div class="note" data-page-node-id="xvO1QO6wLDAXjYlGiWilV8">提交后写 <code data-page-node-id="7AsCkjfOg0hsJV5uBVz7w6">task_submission(SUBMITTED)</code>，并<b data-page-node-id="gmXt8H5UXyTEUtUHPAeF06">定向通知批阅人</b>（<code data-page-node-id="SpUbQwaHnMm9TuFjM0xqU8">learning_task.reviewer_id</code>）；重复提交走 <code data-page-node-id="zLMSY5KpYD2QcUQKvQiOl9">version + 1</code>。</div>
+
+              <div class="card-h" style="margin-top:18px" data-page-node-id="LdVgame0ydGIH4Rbcq0HwE"><div class="tt" data-page-node-id="JHQxMRjEFWUoB9Vbl2idss"><span class="idx" data-page-node-id="OIXpKFgBloxwDwuXWXyeHg">论</span><h3 data-page-node-id="eJswJfWU2HLPatbGiEeEHE">讨论区</h3></div><span class="badge" data-page-node-id="PMIYxr4TjlQRxZ5dp4CbsZ">task_post</span></div>
+              <div style="display:flex;flex-direction:column;gap:8px" data-page-node-id="3IYJiCUFIuWoV4RGaCGnLy">
+                <div style="background:#f7f9fc;border-radius:8px;padding:10px" data-page-node-id="ZOVsjHCNIHItKTewzlqUYZ"><b style="font-size:12.5px;color:#1d2939" data-page-node-id="457R8u4iJZ1fzM0qDR2tfv">李 某</b><div class="mut" style="font-size:12.5px;margin-top:3px" data-page-node-id="3UHC5gzfWbmASH6Xon7HRm">老师，异常码是统一用 400 还是按业务分支？</div></div>
+                <div style="background:#f7f9fc;border-radius:8px;padding:10px;margin-left:22px" data-page-node-id="Yai3xPnyUfKDseL3e30WSk"><b style="font-size:12.5px;color:#1764f5" data-page-node-id="is8ZYirHuNyliXlAKsrbCY">张导师</b><div class="mut" style="font-size:12.5px;margin-top:3px" data-page-node-id="LNkKFVXfEE0dsE5Mz2yGv2">按业务分支，统一在文档末尾列码表。</div></div>
+              </div>
+              <div class="note" data-page-node-id="9nA1aJk2cQBVYBkYxc656Q">讨论区<b data-page-node-id="6WZR6CMhilFjdx3koI4dLo">只在 <code data-page-node-id="udNl2Md8OdRKzK2zI708fC">learning_task.discussion_enabled = 1</code> 时出现</b>（任务级开关，不是全局）。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 部门端 · 通知管理 -->
+  <section class="sec" id="s4" data-page-node-id="9JfbVh8SZoY7hx00G4UyFu">
+    <div class="sec-head" data-page-node-id="uJvEoncv3yG82xWg6HJkuF"><span class="sec-no" data-page-node-id="QVqdJ53q7qrv8y7HSuizk2">4</span><h2 data-page-node-id="MknTV0sr0QRVzCsjsaJ2Bw">部门管理员端 › 通知管理（改造现有页）</h2><span class="tag blue" data-page-node-id="lYcqE3ApDXD0yY4BxzURJU">现有 258 行 · 接接口为主</span></div>
+    <p class="sec-desc" data-page-node-id="GdpHpFrjHsCUHmzte64Dtz">
+      部门管理员只发<b data-page-node-id="rdvWPEnrbSs1KGblGGtBNz">本部门</b>（范围锁死，后端强制）。这页的价值不在"发出去了"，而在<b data-page-node-id="WTlphiutmTx8Ndaa8AV0mt">回执</b>：谁读了、谁没读、要不要再提醒一次。
+    </p>
+
+    <div class="app" data-page-node-id="Pq9Gb6n3BiAO20hKf7VU5X">
+      <aside class="rail" data-page-node-id="WkWt2bgb9vtj2DB1FnFs5V">
+        <div class="rail-brand" data-page-node-id="XKhEOgs4ZEQJcZRFfZMiKY"><i data-page-node-id="ItsTqXresOmSx9A0pGYk2G">管</i><div data-page-node-id="qhZdGP0wGQFqKJGIH337Cj"><b data-page-node-id="jCt0Y1uGel6t6HGaCKYkFi">部门管理台</b><span data-page-node-id="PfPdb2nxwTHATbswvEnBx1">部门管理员 · 开发 104</span></div></div>
+        <div class="rail-group" data-page-node-id="BTNgUVHwu6kfNWIRBW1dSE">业务</div>
+        <div class="rail-item" data-page-node-id="3gTfECkrsZ3rH3cAyizNXM"><span class="ic" data-page-node-id="yMSB6YrdTGtVwLD3SD4wGO">▦</span>部门工作台</div>
+        <div class="rail-item" data-page-node-id="alKcI3zM2DIp23j83ZymjD"><span class="ic" data-page-node-id="lBnh7TkwK9Dbi5tptIQweN">◍</span>人员管理<span class="arw" data-page-node-id="HhGoaDRrKVRnWs7jCU7qfX">›</span></div>
+        <div class="rail-item" data-page-node-id="aQFCHZiYH62mGgV3NRtqN9"><span class="ic" data-page-node-id="8ES3ZyDdHKGfOF0hUuwG3S">▤</span>学习与考核管理<span class="arw" data-page-node-id="BLSjf0chEgBAnEM8x9tTd1">›</span></div>
+        <div class="rail-item active" data-page-node-id="hk6FnNXsewO8hOGsum59h2"><span class="ic" data-page-node-id="ouvcoDZL4lJbolrmF1RYZa">✉</span>任务与通知<span class="arw" data-page-node-id="p1PB5drTQutvLoYjpuRm7m">›</span></div>
+        <div class="rail-item lv2" data-page-node-id="bYReHO2rqqNsAUEGB9YTpK"><span class="ic" data-page-node-id="Dl14PR6yYP3HH8p46E2ZCR">·</span>任务管理</div>
+        <div class="rail-item lv2 active" data-page-node-id="TCGpmPUZ7Cit4bbFG25Jnb"><span class="ic" data-page-node-id="h8QseUAjQyUXARedkAARBb">·</span>通知管理</div>
+        <div class="rail-foot" data-page-node-id="PZK3fEFWCpPII3CPjcScMT">部门管理员 · 仅本部门</div>
+      </aside>
+      <div class="main" data-page-node-id="uxOY7kvgGWfwkYIGmBLJeG">
+        <div class="topbar" data-page-node-id="vkhv6uBHTnAjd4mIUeHr7d">
+          <span class="crumb" data-page-node-id="UcKzK63GSGgfEeWk5UmpkK">任务与通知 / <b data-page-node-id="f3ZoZTWhK9aV3uBJYzNQq2">通知管理</b></span>
+          <span class="spacer" data-page-node-id="WYXtIRLsPRaiDHgX3mWagg"></span>
+          <span class="badge" data-page-node-id="aZBBzkIqNmYHHcxnm75xe6">未读 4</span>
+        </div>
+        <div class="body" data-page-node-id="Wyzbkiu3ClQyUJcksUbVbi">
+          <div class="grid" data-page-node-id="PkXLSfBxHe0RS34bAD8xzu">
+            <div class="card c5" data-page-node-id="kPyrL6E8Su8Uy5WWtwCV40">
+              <div class="card-h" data-page-node-id="UdX91xkLGNWUpuBzUguYtN"><div class="tt" data-page-node-id="TmFfZOcvHeW8JnqnxIlvwR"><span class="idx" data-page-node-id="vgHeAqIQUEMY3JANIRUkIq">发</span><h3 data-page-node-id="jVYDyn974AvbWZIfR9EB84">发送通知</h3></div><span class="badge blue" data-page-node-id="G9nCdn79EbdBamX2wbnz11">范围锁本部门</span></div>
+              <div class="field" data-page-node-id="HHO5WNdyteHxBqFy8fe7j2">
+                <label data-page-node-id="3NMFcMblNZeB2snAHLAHux">发布范围</label>
+                <span class="seg" style="margin-top:6px" data-page-node-id="mOowCK6MlQELWmTKVlSwrq"><span class="on" data-page-node-id="VCwUDl06FTprx8gN66NIyg">本部门</span><span data-page-node-id="MNnJFz2dyVhm8CRsLf7jqH">按岗位</span><span data-page-node-id="Cdt6vee2i5exsyazWlohzH">指定人员</span></span>
+              </div>
+              <div class="field" data-page-node-id="voJCu0z26Dwfeg4raY3cHt"><label data-page-node-id="qtjdDQuGIorR5dBErAx8P7">岗位（可选）</label><span class="sel" data-page-node-id="pg7QJr3f9yGOZVtrxCcacz">开发实习生 ▾</span></div>
+              <div class="field" data-page-node-id="ebO69MIfioV5wEfXJdRoD0"><label data-page-node-id="N5ZTi7CrWjbd9225xf7iwT">标题 <b data-page-node-id="H36nhF6TOOcwBNwXeLSV9G">*</b></label><input class="inp" value="本周任务提交提醒" data-page-node-id="Zw5IpnNQXVaqiTyZPMYZSF" /></div>
+              <div class="field" data-page-node-id="4LFOEQKgie6hniWtoUqfqx"><label data-page-node-id="ybHuNn202ZCOKQkHMpjprA">置顶</label><span class="chk-list" data-page-node-id="n3BGVEZqnTNxPTJXurZPPG"><span class="chk" data-page-node-id="YLBmDGGKZatVWRgbHpDMSk"><span class="ok" data-page-node-id="a2oSkZ2G6We5XWBA6HxvAi">✓</span>置顶显示</span></span></div>
+              <div class="field" data-page-node-id="NvjxRFCw2OoSNg8DdBrpDl"><label data-page-node-id="UHmN1xZEy8pSSxPso6GFyZ">有效期至</label><input class="inp" value="2026-09-24 18:00" data-page-node-id="kBMZueN90VRm1rtdjaiwed" /></div>
+              <div class="field" data-page-node-id="IzymlAL6G9ZwOS5JjoXOZV"><label data-page-node-id="wS4k3fUmjVhT46l5kniPWL">正文 <b data-page-node-id="HaHNQVXAtY2m3Zk6qncPx8">*</b></label><textarea class="ta" rows="4">请各位在 09-19 前完成「数据库索引优化实操」任务并提交作业，逾期将计入培养评价。</textarea></div>
+              <div style="display:flex;gap:10px" data-page-node-id="CVy54NDU9guP6sbsu45thP"><span class="btn primary" data-page-node-id="bCILzpsC4CGB9fPrOtnuf2">立即发送</span><span class="btn" data-page-node-id="H7GebxNOv7YF0b1VdKoYf7">存草稿</span></div>
+              <div class="callout warn" style="margin-top:10px" data-page-node-id="FQ6J2aA9R5hNfHK7voWBzU">
+                <i class="el-icon-warning-outline" data-page-node-id="NyLXhFmoCRue5DuSSv7vsw" />
+                <span data-page-node-id="Eln2O4D4uIvh3DfvQh8Gta"><b data-page-node-id="Pq0BgzfHX2jLuuZKHgSL1E">范围强校验在后端</b>：部门管理员提交 <code data-page-node-id="J2mNIAJzpgdCuBusccdSTw">scope_type='ALL'</code> 一律拒绝；<code data-page-node-id="ZnG6aJ3EUIoRVBxGHwDDAq">DEPT</code> 只允许自己的 <code data-page-node-id="mBXoIKUV1ipwBlGZ53Wfj7">dept_id</code>。前端锁死只是体验优化。</span>
+              </div>
+            </div>
+
+            <div class="card c7" data-page-node-id="X1mIIqmWZKwxBSXFXuOI33">
+              <div class="card-h" data-page-node-id="n1iNHTuXOjMPM4KuTdBwjD"><div class="tt" data-page-node-id="2xQCu7yN9mN64RQrmVLh0R"><span class="idx" data-page-node-id="ci28E1zqAuLzxw2lcLdMpx">回</span><h3 data-page-node-id="LBJNS5NMCREWCEGovT8kNV">已发送与回执</h3></div><span class="badge orange" data-page-node-id="NoPP117bCxFISauIS5a1GO">送达 / 已读 / 未读</span></div>
+              <table class="tbl" data-page-node-id="eVdXrRdjfMIoVXvwuD8wSU">
+                <thead data-page-node-id="fs7339Ar3ssWdAPRF0Oy5j"><tr data-page-node-id="otyNUnX8YoZr7qzi0rYHua"><th style="width:210px" data-page-node-id="o6rQuDEusd2sev3yyn0uaj">标题</th><th style="width:90px" data-page-node-id="xqJ2NuQ5EE2RQBLSTGpj0G">范围</th><th style="width:96px" data-page-node-id="F1QQduPXpaufkawQqC3rFd">送达</th><th style="width:96px" data-page-node-id="ExD5L2lBkAfxIxpdipG1Rm">已读</th><th style="width:96px" data-page-node-id="DDM1m6pKFeY2wloTOh4T1p">未读</th><th data-page-node-id="ZD2ZVVSooKHyQa8E8FNejK">操作</th></tr></thead>
+                <tbody data-page-node-id="ndva9gUv1je5gJ9nXvYhsF">
+                  <tr data-page-node-id="VcdvrqVTArGSBKoxTgiPR9">
+                    <td class="nm" data-page-node-id="eEtiXUJYA7rugTzl434yF1">本周任务提交提醒</td><td data-page-node-id="FXNcXx2L6vA9Te7ABS9lCC">开发岗位</td>
+                    <td data-page-node-id="pi2XDgOzRBEpnbYrNaf0MS">5</td><td data-page-node-id="19mL24GbNwlDKmmr38W3TQ"><b data-page-node-id="Wmlor3TwgxAW4fzNrgEiZQ">3</b></td>
+                    <td data-page-node-id="a4MAkiyxv3vtWathQZ05SU"><span class="badge orange" data-page-node-id="vlg8mEZUck6rIjUlOfKfPM">2</span></td>
+                    <td data-page-node-id="FqCsJLD3C9AKEOpAzocFtM"><span class="btn sm" data-page-node-id="bWyV86E5SXDXfqu4tIAy42">未读名单</span> <span class="btn sm" data-page-node-id="wtiAArF4BLaSGxNcVO26rk">再提醒</span></td>
+                  </tr>
+                  <tr data-page-node-id="zCDTZhg7MyiXf0eorwF9Oj">
+                    <td class="nm" data-page-node-id="xb2LHIKifaEksF3bXitpUq">关于季度考核的通知</td><td data-page-node-id="WMnoMvcHRHEm7U0Cf31GfK">本部门</td>
+                    <td data-page-node-id="E1DEGAkfFOKsIA24ZsyK5m">5</td><td data-page-node-id="wEAkj7A29Ubzpt9OnAgTpu">5</td><td data-page-node-id="0U6fZkdxgy3bokREpu9J5E">—</td>
+                    <td data-page-node-id="saP4KprkZCWfk1jHpEHVb2"><span class="btn sm" data-page-node-id="ccVRSxfiH9gwCS6xEOmO3a">详情</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="hbar low" style="margin-top:12px" data-page-node-id="MxrO2sZxxWwirakmzS7q4l"><span class="nm" data-page-node-id="FvXWaTUKhscGqvXGUTG2qR">整体已读率</span><span class="track" data-page-node-id="2BtTCV97kAhG2xn08p60Tr"><i style="width:80%" data-page-node-id="cgt7XvH0jkiDCPhNrXMrgN"></i></span><span class="pc" data-page-node-id="hkQyzi9nuEIaIMYHMiE1p4">80%</span></div>
+              <div class="note" data-page-node-id="uyrNfUjyNf6MCMT8OkLWSB">
+                「未读名单」点开即列出人名（<code data-page-node-id="sXH1CxtkNsFutSKsv79tBh">notice_read</code> 反查）；「再提醒」= 对未读者<b data-page-node-id="tL7JYauQxlYEBF1rLhtaBm">发一条定向通知</b>，与超管催办同一套机制。
+              </div>
+              <div class="callout ok" style="margin-top:8px" data-page-node-id="ogJGXplL3er3Pb8NyEid0O">
+                <i class="el-icon-success" data-page-node-id="BVvoBgIekpANNkMmJNE3us" />
+                <span data-page-node-id="4A8KSJ8XQdCDddm4bJ8qQt"><b data-page-node-id="mLDs2kkI35vq8JvyswKXPQ">与实习生端的联动：</b>这里的「已读 K / 未读 M」直接等于实习生端铃铛红点的反面 —— 两端共用 <code data-page-node-id="dLhhcav5VyaLMWorfARxvt">notice_read</code> 一张表，不会出现"这边显示已读、那边还红着"。</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 部门端 · 任务管理 -->
+  <section class="sec" id="s5" data-page-node-id="YBWRsTd0NyzYnyhatOmnRY">
+    <div class="sec-head" data-page-node-id="CYoCALZpjzv2VWSqs51H3I"><span class="sec-no" data-page-node-id="owBqK2aIuz5ctzQk5XkrKV">5</span><h2 data-page-node-id="y4luMQdzKpfmfEI4B0aVax">部门管理员端 › 任务管理（改造现有页）</h2><span class="tag blue" data-page-node-id="4JRoM58GmLxEIlNBvAKGdE">现有 359 行 · 接接口为主</span></div>
+    <p class="sec-desc" data-page-node-id="95hBjZNeYOTAktRrVSD4Ps">
+      任务的<b data-page-node-id="w5VYUeFotIy71K5ScSl5hP">生命周期在这里</b>：新建（按岗位）→ 发布（<b data-page-node-id="v2eDe1SS0Ns1zwJ1e8Rk3s">展开分配到每个实习生</b>）→ 收作业 → 批阅 → 结束。
+      发布那一刻同时落一条通知，实习生铃铛立刻 +1。
+    </p>
+
+    <div class="app" data-page-node-id="FEaWTK2kHrK8GZ8CQXT5Xx">
+      <aside class="rail" data-page-node-id="adnzr5jtChEaK5m1gf9wYu">
+        <div class="rail-brand" data-page-node-id="bgAWTFNJLMsHThkBvdS9tI"><i data-page-node-id="DsGIqeF4YWCLHKdn5CGtlT">管</i><div data-page-node-id="lDcawCjbRdTSY6lA3vVnZA"><b data-page-node-id="EX0gTgZpRjwYpHnOrr1DVg">部门管理台</b><span data-page-node-id="nB2olpwxZ2cqdTqWD0W0oC">部门管理员 · 开发 104</span></div></div>
+        <div class="rail-group" data-page-node-id="aiWDgMfZ3Vs6axeuaawFee">业务</div>
+        <div class="rail-item" data-page-node-id="TTvUIeksNgTAOpPvQ27Fql"><span class="ic" data-page-node-id="YhbLapzMAzsSIJ98La15Yn">▦</span>部门工作台</div>
+        <div class="rail-item" data-page-node-id="Db1OG0hFQsBwTTZ1a9f7PL"><span class="ic" data-page-node-id="JWwuNKVCW97Zaj6cFPTKsH">◍</span>人员管理<span class="arw" data-page-node-id="oM5J9GNbAS7cVv8Gca8NmS">›</span></div>
+        <div class="rail-item" data-page-node-id="eM9i8MX5X3PbmUEXG2PztB"><span class="ic" data-page-node-id="JtIOEjWDYKbeG22MNijHMx">▤</span>学习与考核管理<span class="arw" data-page-node-id="rPlntN4kF6gJMmMLVz0EDO">›</span></div>
+        <div class="rail-item active" data-page-node-id="wXZqdafJ0Hhn99GyL0kfk0"><span class="ic" data-page-node-id="CP52C1VJ40UJYzBbEm4uuP">✉</span>任务与通知<span class="arw" data-page-node-id="Xui3aon8WivbSCHud9CXkm">›</span></div>
+        <div class="rail-item lv2 active" data-page-node-id="rHchc9iN8hTpjxlxVNhfz8"><span class="ic" data-page-node-id="B913E1GWrkqKWBOHnIGNS4">·</span>任务管理</div>
+        <div class="rail-item lv2" data-page-node-id="cNNKo0agfVj2SlW4dnoaBV"><span class="ic" data-page-node-id="7HlCZjUbubJI4MX2QsJNBP">·</span>通知管理</div>
+        <div class="rail-foot" data-page-node-id="56J5n2SdSWAuNGzBkAbCBX">部门管理员 · 仅本部门</div>
+      </aside>
+      <div class="main" data-page-node-id="ynQHS0Y2Pw0AE5PmZPFMNc">
+        <div class="topbar" data-page-node-id="DFrCdsShwCaLj8Zhxjittp">
+          <span class="crumb" data-page-node-id="N2GNQDEZuFSrg5FkLLPQUx">任务与通知 / <b data-page-node-id="PIu8goHJDGpozE06FFTLiW">任务管理</b></span>
+          <span class="spacer" data-page-node-id="rBIEbSFFc69fKle1O9e4C2"></span>
+          <span class="btn sm primary" data-page-node-id="fgbLBFHmToOcGcBLnGL0Wo">+ 新建任务</span>
+        </div>
+        <div class="body" data-page-node-id="oTVIn6BQHxDOEfPDUV7ALk">
+          <div class="grid" data-page-node-id="0aoIdTK1qzgjfIABifKSDV">
+            <div class="card c12" data-page-node-id="ZEpPi9FchkFwc1pF55VQPB">
+              <div class="card-h" data-page-node-id="y5fUqBtctjfEqkB7xnuj6p"><div class="tt" data-page-node-id="7LcPVvtBjDThfs37XK9EHz"><span class="idx" data-page-node-id="k4ri6qzjC5nVBxmMnfYbOI">列</span><h3 data-page-node-id="lNQKGJdqKy00piDTZ4jdvT">任务列表</h3></div><span class="tabs" style="font-size:12px" data-page-node-id="N7LWppbkAZDzuKERabO5Wt"><span class="on" data-page-node-id="JP0Kd3ZrWMVgqgmufjBrhH">全部</span><span data-page-node-id="5ghbXUPoBOY7EKikhhnUrQ">进行中</span><span data-page-node-id="tu76hq3UxRL1QzWBHbpdpf">已结束</span><span data-page-node-id="oWvNeOWy6ujYoOHBQxlC38">草稿</span></span></div>
+              <table class="tbl" data-page-node-id="VLbiHxY10D1YSb8gf9AL5s">
+                <thead data-page-node-id="6grjLnN5VD4eYHtRYtORDC"><tr data-page-node-id="UL1PI8w5I3Bayz9HZYdl2U"><th style="width:210px" data-page-node-id="mfNr4VRTAKsHHuJX3gkXrF">任务名称</th><th style="width:110px" data-page-node-id="5XJXQXHb2r2tdRaBqf2Gb7">适用岗位</th><th style="width:110px" data-page-node-id="AYkgQukIAJPaj0ywGD7LcL">截止</th><th style="width:110px" data-page-node-id="rTxOEJ3aNpsgxlDgC7qtis">分配 / 提交</th><th style="width:110px" data-page-node-id="zPj10RfUx4K5NARxdOKvkE">待批阅</th><th style="width:96px" data-page-node-id="K49kfgocRrempdeHXsINkL">状态</th><th data-page-node-id="HbMRobdSdPWZD4lZeCE5BR">操作</th></tr></thead>
+                <tbody data-page-node-id="SinXFegxP7P0EcdExIWySi">
+                  <tr data-page-node-id="D3I399E0bTbfXzGHDHSKMF">
+                    <td class="nm" data-page-node-id="AQ4eSJspU3u7co5OuzsEL1">接口文档编写</td><td data-page-node-id="GGa1D91KJYOrdg7BRBNbHT">开发实习生</td><td data-page-node-id="7CRvmcuHMKr8Eeyb09e2tz">09-22 18:00</td>
+                    <td data-page-node-id="W4MRYYaSHzC3kpQs2ZK3p0">5 / <b data-page-node-id="vbD7S2U6ynGxtCvr4uGRVs">4</b></td><td data-page-node-id="kJztx0R7u7wO0tvJhsTFXM"><span class="badge orange" data-page-node-id="B6OnWqajxBfpUgkVDMUFEE">2</span></td>
+                    <td data-page-node-id="K5uxSwY6clayqqB4FMTLge"><span class="badge done" data-page-node-id="xK1En8kIQvS8jl0qn8hZsh">已发布</span></td>
+                    <td data-page-node-id="DaRtRaBTLQ5MzBlSEIEIBE"><span class="btn sm" data-page-node-id="JugSxXppHI6IwPAFrqJbgV">批阅</span> <span class="btn sm" data-page-node-id="R1REcyUtanWHbcU9BKfl0r">提交情况</span> <span class="btn sm" data-page-node-id="lZmpOy380liXWqyZXHx3l0">结束</span></td>
+                  </tr>
+                  <tr data-page-node-id="OAuP4ZmNF5ZPBfME3MBvMH">
+                    <td class="nm" data-page-node-id="T6HiEZGGR6bb4ZKzZn8tz3">数据库索引优化实操</td><td data-page-node-id="EUKElQj8EN375RaGAABWcJ">开发实习生</td><td data-page-node-id="rFe2Cftc8Yy2NMrNLbATIb">09-19 18:00</td>
+                    <td data-page-node-id="KSpwatfivvOUcnqGhAsjuI">5 / 1</td><td data-page-node-id="3VHboj6Z6FV8dw9cIZWPgJ">1</td>
+                    <td data-page-node-id="q1L4mO8tgZG9ID5f4rTVNc"><span class="badge done" data-page-node-id="tg6vcRD28Wu26vD7XPvdqj">已发布</span></td>
+                    <td data-page-node-id="qtskPKeQa9AVCHYzJPDtWc"><span class="btn sm" data-page-node-id="cCvbUZ8wBfEFy5xbGKoYv0">批阅</span> <span class="btn sm" data-page-node-id="DDTWpjmIDlkEJSYZsAaWA6">结束</span></td>
+                  </tr>
+                  <tr data-page-node-id="nYc6r3EsQMcb6faNpzCTiL">
+                    <td class="nm" data-page-node-id="M4IFtQ8yi48GWYdwZeo1wW">Git 分支规范练习</td><td data-page-node-id="M0jxPT3vLZhRGFtoxvA0cO">开发实习生</td><td data-page-node-id="4PKIvpZuE3r4pAimq7gZU3">09-10 18:00</td>
+                    <td data-page-node-id="5nQh2jKNrQUeyGi9H8gkPg">5 / 5</td><td data-page-node-id="uzpdCxEbA9WAI1qBtJ0sEE">—</td>
+                    <td data-page-node-id="bEtQlFLCYoG3iiR2pK2Q01"><span class="badge" data-page-node-id="KiZaEY0GfY9OuUa20hccmK">已结束</span></td>
+                    <td data-page-node-id="O1eXitGWVb6DBRZv8RqFTo"><span class="btn sm" data-page-node-id="hOTlZxnbrVas2A2KxFMWmo">看结果</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="note" data-page-node-id="zVBCGX4BJOChtY2ELQBLRM">「分配 / 提交」= <code data-page-node-id="U7CR6BlUotXR048ByGuaOg">task_assignment</code> 条数 / 其中 <code data-page-node-id="QsvpHJZbqrRiO2A25otpE1">task_submission</code> 非空条数。「待批阅」= <code data-page-node-id="71n6chtATiwtqZ3oPz4HTy">status='SUBMITTED'</code> 条数（有它就该去批阅，不用翻列表）。</div>
+            </div>
+
+            <div class="card c6" data-page-node-id="pUwAyrAuDkHjRD9ENYOMOQ">
+              <div class="card-h" data-page-node-id="2UAd6MVlugLqjQ7KtzCAOG"><div class="tt" data-page-node-id="Q5aTfwdtVTIxrkCKyAfZdR"><span class="idx" data-page-node-id="BR7wug8ZcFT9SeuSDfpNmt">建</span><h3 data-page-node-id="ypFt9TvLH1KtPfFgLVlLMC">新建任务</h3></div><span class="badge orange" data-page-node-id="2t3rwymbsKxtnZECgHtGz7">★ 新设计</span></div>
+              <div class="field" data-page-node-id="pnqkE22xKInUsZcEilBfjM"><label data-page-node-id="Cn50JKnLronKJ379ZjCX2N">任务名称 <b data-page-node-id="bEhpjK0k7RX5zeaBaBPVRg">*</b></label><input class="inp" value="接口文档编写" data-page-node-id="UCyxhHqIrdaeaCmOsxcnvA" /></div>
+              <div class="field" data-page-node-id="zfxqfHgNQf6Z1Ol2HXkYrw"><label data-page-node-id="zbaLHOfym0wB8MfLfGgxzG">适用岗位 <b data-page-node-id="83pvddP5P9zkDZ9xBMwVXJ">*</b></label><span class="sel" data-page-node-id="aFyFxshzydWDbidrsKYbBq">开发实习生（本部门）▾</span></div>
+              <div class="field" data-page-node-id="p2FS0ilOwH7eMWOGVt6hGZ"><label data-page-node-id="4Z0WxIe2jX4zwrpsCI26tl">关联课程</label><span class="sel" data-page-node-id="a2JHC8BM2lP8YPzWXN7KwI">后端接口规范 ▾</span></div>
+              <div class="fg3" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 12px" data-page-node-id="IzjqsXnxsn7sBJIUFWykkL">
+                <div class="field" data-page-node-id="DwEfUMWCxptUXgZoXRaZMl"><label data-page-node-id="HtPa4Pt36JOkYLQV6IzZIc">理论学时</label><input class="inp" value="2" data-page-node-id="lBCqR6el5yrQCCyP6wAESh" /></div>
+                <div class="field" data-page-node-id="GDY5CWHyw4yPW3P2r3L9n6"><label data-page-node-id="7Up9MNBtI7BH8TOJKkzT44">实践学时</label><input class="inp" value="4" data-page-node-id="mMr8kwqYGIITcKGpM02ea9" /></div>
+                <div class="field" data-page-node-id="u3fbvDrqFeWdTWD1ocbl43"><label data-page-node-id="1dtFexBVINSEu4vUepJCJ8">截止 <b data-page-node-id="liVDMRunVJGXjG0BbN7Eae">*</b></label><input class="inp" value="09-22 18:00" data-page-node-id="dCCSnHtMVzTuVHdgwvEFV5" /></div>
+              </div>
+              <div class="field" data-page-node-id="0YeY6kDRNgMEnODXBkqEcl"><label data-page-node-id="Dbm56jBe5mJkxmoJsY0WSy">任务目标</label><textarea class="ta" rows="3">按给定表结构完成课程管理模块的接口文档。</textarea></div>
+              <div class="field" data-page-node-id="HHFf7fHSL0gKedrtjWPrEZ"><label data-page-node-id="2b6T0WJi7epmAs9hTSWaIZ">需要交作业</label><span class="chk-list" data-page-node-id="rFIuFZdUby8pbdunGFAACL"><span class="chk" data-page-node-id="iFqffwq6HAZRUX22BfTqrJ"><span class="ok" data-page-node-id="iArSq1LeIxczYn0OxicLKc">✓</span>需要</span></span></div>
+              <div class="field" data-page-node-id="1pEU4oBeZIoGsh2lmq9DCY"><label data-page-node-id="E4ZF9MQHeA0zdET33AW68J">启用讨论区</label><span class="chk-list" data-page-node-id="9mRazAS07JoEuMaYIGqltQ"><span class="chk" data-page-node-id="ZyW8I9lmlYmuzG70eiE63a"><span class="ok" data-page-node-id="eiJz9A8IIDF1OTpoMq08db">✓</span>启用</span></span></div>
+              <div class="field" data-page-node-id="aiAyJcweZvjwkW1znKZTTV"><label data-page-node-id="kUIADV5qIbZD3pYcwsdK0n">批阅人</label><span class="sel" data-page-node-id="GdhYhSiaVnBtKP1GqgQGyk">我自己（部门管理员）▾</span></div>
+              <div style="display:flex;gap:10px" data-page-node-id="atiI8o1pHuu6TFVFPf7KkW"><span class="btn primary" data-page-node-id="93NZmbPbf5GO7nQ1VDMwb7">发布并通知</span><span class="btn" data-page-node-id="ZA1EgubxHGjzisECIBQi0i">存草稿</span></div>
+              <div class="callout ok" style="margin-top:10px" data-page-node-id="3BCQya98UBz7H0bgLcQPsl">
+                <i class="el-icon-success" data-page-node-id="RMABIqlTgqzZ2qgBpuxwsx" />
+                <span data-page-node-id="9Y2ZEcJUBOIt2LPvLOGQrg"><b data-page-node-id="Dfh1BaAyGbcrgjoBGNn8z5">「发布」是一个事务：</b>① <code data-page-node-id="EgW0JGIjzGPLZ4arBaQkC4">learning_task</code> DRAFT→PUBLISHED ② 按 <code data-page-node-id="KQyqCDghAL4lX8gAh3KMrf">position_id</code> 展开写 <code data-page-node-id="bqCdm76iZ2Af2xhqN43P7M">task_assignment</code>（每人一行 NOT_STARTED）③ 落一条 <code data-page-node-id="gE5qsEfHHCOiuQ19Hhcx72">notice</code> 通知。三者同事务，避免"通知发了但任务没分配"。</span>
+              </div>
+            </div>
+
+            <div class="card c6" data-page-node-id="eQcZZuux4fclVvtt5IwfmX">
+              <div class="card-h" data-page-node-id="rmWNiq7DEtVlFMLgdAxABj"><div class="tt" data-page-node-id="hleeeqs90dHEWzVmVVebuk"><span class="idx" data-page-node-id="onSD5SCPVFV2DC4iBW07vb">批</span><h3 data-page-node-id="eXq3HGcS6u231kAJHclwZT">批阅（抽屉）</h3></div><span class="badge blue" data-page-node-id="9mIbeG53Z2bx4fjW6pI9rJ">含讨论区</span></div>
+              <table class="tbl" data-page-node-id="FgwYrFg0rjmxfD0OcRUtKF">
+                <thead data-page-node-id="2i1tKqWsyLolEwRDmC2oSO"><tr data-page-node-id="Kotgo7sQoqNdBCoNC2ZuaA"><th style="width:110px" data-page-node-id="ZvwCUs7A2vU9zTjAT5XPEm">实习生</th><th style="width:96px" data-page-node-id="FMEInWJXjL0ISfAeyWVDOT">提交时间</th><th style="width:80px" data-page-node-id="UrHQq2XyWbZyvtRNyZkzkd">版本</th><th style="width:90px" data-page-node-id="MFbRKWTp3jsYy3dthFEy0U">状态</th></tr></thead>
+                <tbody data-page-node-id="5WI78N6HLV6nYnNGC8z2yF">
+                  <tr data-page-node-id="V40GG9YcVTjyuCvWXQpjvb"><td class="nm" data-page-node-id="H5vI3WsFCZoGAyzwDZb7aU">李 某</td><td data-page-node-id="4AEkY9JEw8oa5xagUmVHhs">09-17 10:20</td><td data-page-node-id="u2dtAfcPiSloyLcKWHsoJU">v1</td><td data-page-node-id="QKQ1Ec5WJztJmLjPOGoC6U"><span class="badge done" data-page-node-id="pQlhDMvQhSP4ShGvsIBN9A">已批阅</span></td></tr>
+                  <tr data-page-node-id="IqDhZP0uwjW8wCidIeUNar"><td class="nm" data-page-node-id="hzCoDPWEpqJ7TFCeO1FiaF">张 某</td><td data-page-node-id="8o8j5DupOfrz72PhcCH4BZ">09-17 14:05</td><td data-page-node-id="gppwFlteptAhMEYGvGmcH9">v2</td><td data-page-node-id="4zf1ukIQJHSsJ3Ozvr8cXn"><span class="badge orange" data-page-node-id="iGuJw8X5yDhY8eIkBBiuBu">待批阅</span></td></tr>
+                  <tr data-page-node-id="kibXLEmFu912pKXBxrOqhL"><td class="nm" data-page-node-id="drZFecvBVLkBA5dmPo2f2j">王 某</td><td data-page-node-id="Ane4PPEjEdpMS6MjiTr2Z6">—</td><td data-page-node-id="6I87QeNCQqiKgszC6FA31K">—</td><td data-page-node-id="393D5kSUsFdQJb4PZ7ersV"><span class="badge red" style="background:#feecea;color:#b42318" data-page-node-id="zFPosfppls61RIGf1ufqDK">逾期未交</span></td></tr>
+                </tbody>
+              </table>
+              <div class="field" style="margin-top:12px" data-page-node-id="aTEsgm4pksFbW7R014OMts"><label data-page-node-id="JUozCX9j5BhC2EaT52vKq6">评语</label><textarea class="ta" rows="3">结构清晰，异常码建议统一列表；分页参数说明可再展开。</textarea></div>
+              <div class="field" data-page-node-id="Ms9B5LnDpgKpOd8U0MDOWf"><label data-page-node-id="4lmXKmuzdsKFQV2WG0j8DS">通过</label><span class="seg" data-page-node-id="jHSOQQoth32Us9FsHs98a3"><span class="on" data-page-node-id="mUxfurD2TA87476PI2YxMk">通过</span><span data-page-node-id="8iyy9ig5oJCG6M8ftUH7IY">退回重做</span></span></div>
+              <div style="display:flex;gap:10px" data-page-node-id="cMYK50ka8csm8YYZYKqZyU"><span class="btn primary" data-page-node-id="aYxQDSgcPfSUkrzSCmTvAA">提交批阅</span><span class="btn sm" data-page-node-id="hK8uKisCRD6WdojPkokX0f">上一条</span><span class="btn sm" data-page-node-id="oWfQP57iseuQcTZ1c94T9I">下一条</span></div>
+              <div class="note" data-page-node-id="gB8GzFPnrKUwQAwZEAYyU2">批阅后：<code data-page-node-id="XKgwzUiVbG3js6Ui3rUbNR">task_submission.review_status</code> 更新 → <code data-page-node-id="FQEk54QQBEBxd4MoJxRFtH">task_assignment.status='DONE'</code> → <b data-page-node-id="TlUFcKaoxrn9w4RQwHAfBx">定向通知该实习生</b>（结果 + 评语）。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============================================================ 超管 · 通知中心 -->
+  <section class="sec" id="s6" data-page-node-id="cvuBBuoDnEBSMyDH71a8nk">
+    <div class="sec-head" data-page-node-id="0aY8LGQdPOGDyuSEBUe5m2"><span class="sec-no" data-page-node-id="jfEnCp6fFyfugEi3EXJpXi">6</span><h2 data-page-node-id="QXguJFTh6mP0W83gBcYDGD">超管端 › 通知中心（新建页）</h2><span class="tag purple" data-page-node-id="wJ4mwYoCgdHC8u68voWgZn">★ 新建</span></div>
+    <p class="sec-desc" data-page-node-id="q4EqWgwSS9C7ii4TpA5vVE">
+      超管是唯一能发<b data-page-node-id="V3ZtIdk8zqhELWFzf8bFpB">四档范围</b>的角色：全体 / 部门 / 岗位 / <b data-page-node-id="rgT47fAPD8M9FWwrlmOoL6">指定人员</b>。它同时是「督办」的出口 —— 催办本身就是一条定向通知。
+    </p>
+
+    <div class="app" data-page-node-id="BdqwLQb0KsI96E8mXCRuz6">
+      <aside class="rail" data-page-node-id="tbAlOJqJZRk5sQVlqZMov4">
+        <div class="rail-brand" data-page-node-id="EPvVTtHjM1oChohAkf5GIg"><i data-page-node-id="G7PSoxSWx6N7XZpj51Iiji">管</i><div data-page-node-id="7bS3mVGLgo9BAs1nRb0dq6"><b data-page-node-id="lpdlb7XzeXeTGMyt2AdTb7">全局管理台</b><span data-page-node-id="WtjrMug1CCqztIa5mZ827I">超级管理员 · 全组织</span></div></div>
+        <div class="rail-group" data-page-node-id="JoVUPQvbYqLLdFD2zwqCuq">业务</div>
+        <div class="rail-item" data-page-node-id="HNuECNbscnzrL6Gv3MeiYq"><span class="ic" data-page-node-id="LmHCuFaSiIvf8fuuhlMxh0">▦</span>全局工作台</div>
+        <div class="rail-item active" data-page-node-id="jIblKkF9PhgJyJAwZ8JN5F"><span class="ic" data-page-node-id="kd8TaxciBFcefrqD0Na5AY">◍</span>组织与人员<span class="arw" data-page-node-id="BaUYn29gox3ZlJzpYFbDHe">›</span></div>
+        <div class="rail-item lv2 active" data-page-node-id="206d134e0pnOiZn2ROMkbF"><span class="ic" data-page-node-id="admZe9zAgorCD7tdXKBn5S">·</span>通知中心</div>
+        <div class="rail-item lv2" data-page-node-id="2a5zTYCVapPcN317aXYrpd"><span class="ic" data-page-node-id="aZdeJW8bzG1zpHHT9UBaE4">·</span>部门管理员</div>
+        <div class="rail-item" data-page-node-id="Eo2G8U8ixNLRprLl78c2Ov"><span class="ic" data-page-node-id="ibCQJBdXmrjYUDDp7hpGro">▤</span>培养运营<span class="arw" data-page-node-id="Bdwb0tHHB8L79NJ0D0FSDf">›</span></div>
+        <div class="rail-item" data-page-node-id="RBgpGAMnDaM0RSyFbX5LMu"><span class="ic" data-page-node-id="zBLk8RD3yNTdNjd953PBbD">⚙</span>规则与配置</div>
+        <div class="rail-item" data-page-node-id="9A6aTXH1MInBqBiWnokLij"><span class="ic" data-page-node-id="gJ5VFovtspHS7pCxC6Mrd2">◔</span>审计与合规</div>
+        <div class="rail-foot" data-page-node-id="1LiDLxQB824NVqlfYlGMQv">超级管理员 · 业务只读 / 系统可写</div>
+      </aside>
+      <div class="main" data-page-node-id="BXrEQcc5hS4HXXgTzfTV4U">
+        <div class="topbar" data-page-node-id="yL4UAiSd9kPk4RAFYTuSLy">
+          <span class="crumb" data-page-node-id="9mbDFw3DGCyDyxxZYHE9RH">组织与人员 / <b data-page-node-id="pNbl7Msub52kdKnlGgQArT">通知中心</b></span>
+          <span class="spacer" data-page-node-id="eAASAHaPYJSM5FpSrkG6C6"></span>
+          <span class="badge" data-page-node-id="nPagEFed5W8qYBiSqOZ8Pv">未读 2</span>
+          <span class="badge opt" data-page-node-id="HE2MEr4XEkGUll1yHyj63G">发通知</span>
+        </div>
+        <div class="body" data-page-node-id="TtmfVGMoeDESaAQAxVNugB">
+          <div class="stat-strip" data-page-node-id="ofSEQyTjKEmAjy6ujwjD0K">
+            <div class="fact" data-page-node-id="Dxa1f5hLNVGq0FQR9rOMCY"><span data-page-node-id="x7rGPibFHJpnJ2NePp60Vo">本月已发</span><b data-page-node-id="vFIQnj5uJeQtHwFhlB1qy9">7 条</b></div>
+            <div class="fact" data-page-node-id="lcFIyQjMgm2gLKGIkyilBr"><span data-page-node-id="wa31laXDXgMXqYYTZly6kq">平均已读率</span><b data-page-node-id="AQYo0jx1CEJHjrMz7PbBaU">86%</b></div>
+            <div class="fact" data-page-node-id="glKXlDb0Ro4Gv7nbdUwNnt"><span data-page-node-id="okMoFP8PRGpNEWaE9HuBvq">催办发出</span><b data-page-node-id="6hWeavTstoSCiyAnNbZxeW">3 次</b></div>
+            <div class="fact" data-page-node-id="TRqtw3VUkzuy4dWKr0zqGy"><span data-page-node-id="Pbe7ccYVo7JLSx1z5wqZj3">督办回执</span><b data-page-node-id="i4Xm4om4wpcI3BNZvbDrHu">2 条</b></div>
+          </div>
+
+          <div class="grid" style="margin-top:12px" data-page-node-id="8a4FsKNMZjPjCS29yWmEGR">
+            <div class="card c7" data-page-node-id="SKzBvHOdo42pltXBepzMK3">
+              <div class="card-h" data-page-node-id="4eLjfsLoCHKotOCNzQxwbZ"><div class="tt" data-page-node-id="Gb7dtR3sORuFhizsDy576l"><span class="idx" data-page-node-id="HZdsuTxH18sgi2k0KYFiPB">发</span><h3 data-page-node-id="LrkShGo5PhzPprdw9zfIIC">发送 · 公告 / 通知</h3></div><span class="badge blue" data-page-node-id="gbmAvQ3sn6Nl7ldxpqPvWZ">超管独有</span></div>
+              <div class="field">
+                <label>载体类型 <b>*</b></label>
+                <span class="seg" style="margin-top:6px"><span class="on">公告</span><span>通知</span></span>
+                <div class="note" style="margin:6px 0 0">
+                  选<b>公告</b>：除消息中心外，还会出现在各端工作台的<b>公告位</b>（最多 3 条 · 可置顶 · 到期自动消失，<b>不计未读红点</b>）。<br/>
+                  选<b>通知</b>：只进消息中心 + 铃铛未读，强调收件人与点击去向。<b>部门管理员看不到「公告」选项</b>。
+                </div>
+              </div>
+              <div class="field" data-page-node-id="UuZEeJJn6CCYfzKlMkeFjM">
+                <label data-page-node-id="rZ7GTVJLQQkpRZp7ySrz7A">发布范围 <b data-page-node-id="epavQXumq3MOPiLlOdnrpT">*</b></label>
+                <span class="seg" style="margin-top:6px" data-page-node-id="pe9vkSMON07WYsi64DcAWa"><span data-page-node-id="DIcY5OV38D3r2TBTDhI05i">全体</span><span class="on" data-page-node-id="hDFhYRYwFOTgUHN1xRBhOm">按部门</span><span data-page-node-id="b977AxIPgEB0jZA0eLoDuG">按岗位</span><span data-page-node-id="LXmIOWxdc7K7GeOOZH6Vga">指定人员</span></span>
+              </div>
+              <div class="field" data-page-node-id="US0bvi7lYDpxXAnCtC2wQG"><label data-page-node-id="UVonU8pdPAEuYr272likBH">部门（已选 2）</label><span class="sel" data-page-node-id="95VYmbDeQUGeY76lVBNRTr">开发 104 · 设计 105 ▾</span></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px" data-page-node-id="pYlGC76OD08xuV9RBtGw49">
+                <div class="field" data-page-node-id="Tfm8wPt1jqCU02rjpERaYP"><label data-page-node-id="41Z14DMDxAWd8alJMAHowu">标题 <b data-page-node-id="E0hT4ljTGZuEUbxpHoof4F">*</b></label><input class="inp" value="关于 2026 Q3 正式考核安排的通知" data-page-node-id="027hHZIAONLlG6n61dTFk2" /></div>
+                <div class="field" data-page-node-id="NzNEPK8L6CVprtbMFqczjb"><label data-page-node-id="h9qjAUptDMpnuqWHLcqh4E">置顶</label><span class="chk-list" data-page-node-id="S1lxypaTWhspGBhfGQmSga"><span class="chk" data-page-node-id="D14g97VLL3u8SDkzjKjhq2"><span class="ok" data-page-node-id="iSP7cYK4WXvwQ5KVovHhND">✓</span>置顶显示</span></span></div>
+              </div>
+              <div class="field" data-page-node-id="z4NnDNhmq2euVYbLAMJran"><label data-page-node-id="q1jiylgmcTDIFTIuQ2oWYS">有效期至</label><input class="inp" value="2026-10-15 18:00" data-page-node-id="Js4Usy8oDoCywGO4CihUhI" /></div>
+              <div class="field" data-page-node-id="BdgllkSVNBf4XYlwDzGCJU"><label data-page-node-id="lmMUIHbU29IhFJ4GWRNjqm">正文 <b data-page-node-id="XH1QItsYlzE4waiEj9MroP">*</b></label><textarea class="ta" rows="4">各部门实习生：2026 Q3 正式考核将于 09-20 开始……请提前完成必修课程。</textarea></div>
+              <div class="field" data-page-node-id="BiWuVD0GjQKxxl8PKUHJ6p">
+                <label data-page-node-id="EhxhFJJi77nXAAQlaHIBso">预计送达</label>
+                <span class="badge blue" data-page-node-id="arIzP72zTkAUwD9PWiOSAc">按当前范围计算：<b data-page-node-id="BoQeiORnXG4lELXyHnwE2J">9 人</b></span>
+                <span class="mut" style="font-size:12px;margin-left:8px" data-page-node-id="zTLbDsfHXGhqIQ0CKDQM2b">（发送前实时预估，避免"发完才发现发错范围"）</span>
+              </div>
+              <div style="display:flex;gap:10px" data-page-node-id="Z32GPDZsmLSMGpIij8f3qj"><span class="btn primary" data-page-node-id="IBeNRsLKJh6GRduhARFTzv">立即发布</span><span class="btn" data-page-node-id="rKX4v2miYGHKwkBlOQmHGi">存草稿</span><span class="btn ghost" data-page-node-id="wj4JH5HBQvx5J2nSkjgHIo">预览</span></div>
+            </div>
+
+            <div class="card c5" data-page-node-id="6mAD6shnBQF1pQI5DLmOzo">
+              <div class="card-h" data-page-node-id="GzoslrevMYuHAlDZTSbDU6"><div class="tt" data-page-node-id="KE2QhsfmgzQGadN8AEtkXF"><span class="idx" data-page-node-id="PEC04eXWvHIRBd6NSQcGGA">范</span><h3 data-page-node-id="MGgGLkcHoHBNLCCLvvJuqC">四档范围的送达口径</h3></div></div>
+              <table class="tbl" data-page-node-id="WACus2dOIixTFcMylVgX3O">
+                <thead data-page-node-id="4Sii7hoeGNWNNGHlvGGcmU"><tr data-page-node-id="kIGOmDHK46kBm1VzJ4QyGc"><th style="width:90px" data-page-node-id="L8FVxjvXt7kO8jXsqe7NQa">范围</th><th data-page-node-id="A9EeNZKEDwBWsLdItlMMSU">送达对象</th><th style="width:96px" data-page-node-id="ERfdE4EDeHvJR5Ule6SGsl">落库</th></tr></thead>
+                <tbody data-page-node-id="z2i3qGytYQ5kObkkF4vHrL">
+                  <tr data-page-node-id="PueKzc0bE9BSvfBjjMV47U"><td data-page-node-id="tnjwkFEADjHaN8qYAjUlaD"><b data-page-node-id="Nv5AFp6d0WJlNADvZiA7w3">全体</b></td><td data-page-node-id="mIJYkTadkMlHR6zqJ5HR3r">所有非停用账号</td><td data-page-node-id="QiMqw9NX3XTAa5yqJ2pGDF"><code data-page-node-id="HuRwNxKBQZTR6nM5DMY0G2">scope_type=ALL</code></td></tr>
+                  <tr data-page-node-id="95wM4shC8nZ4cJunsGGUNZ"><td data-page-node-id="0RpurArPdyRpAf7HTRs4h2"><b data-page-node-id="o9FOMSrx8cP7DlS1ZtTDTQ">按部门</b></td><td data-page-node-id="3nprG6ygHgbMgkps48hsQk">该部门全部在册人员</td><td data-page-node-id="EhD1dRPhd7CeaQYosyJQrs"><code data-page-node-id="WTwtzxuUD72Nan14g7G7QT">=DEPT</code> + <code data-page-node-id="w3xZqxBd3cMwKImUG01p0B">scope_id</code></td></tr>
+                  <tr data-page-node-id="GUtXnnEKjfmyDlocGMjDCV"><td data-page-node-id="cgZKvk6VQrcTwhAAMdhPYg"><b data-page-node-id="49G3IKh4YsDCZYpEJyEWpD">按岗位</b></td><td data-page-node-id="3LT9LQT5SmY7m7wmcTB6Lt">该岗位全部实习生</td><td data-page-node-id="5cTffL0GjqSNY4wC8jwPbR"><code data-page-node-id="TDaCSXq9A6UchNHNhL4CB5">=POSITION</code> + <code data-page-node-id="SpeEhqzOjfYgG8Av3PI9uC">scope_id</code></td></tr>
+                  <tr data-page-node-id="HxrW02L1QFZePpChg6kDSw"><td data-page-node-id="1CEFrru687R5uhzA0xkrMt"><b data-page-node-id="nE3xUiZDvzuKT7QTuUhJnU">指定人员</b></td><td data-page-node-id="nJdHnx1epLGMHUj2qjqKio">勾选的 N 个人</td><td data-page-node-id="1ATHABhp5SMITC0woyfSiz"><code data-page-node-id="EPb8hVyNzHgiTyxyv6uDAV">=USER</code> + <code data-page-node-id="jbsNhNGBZ5ALVXJblii5X9">notice_target</code></td></tr>
+                </tbody>
+              </table>
+              <div class="callout warn" style="margin-top:10px" data-page-node-id="qFIdoZlsitA2uYFFwiITpf">
+                <i class="el-icon-warning-outline" data-page-node-id="akGzBSFDJYyVhiESKzLBxP" />
+                <span data-page-node-id="ppPjLBBrAupcgJ3E2L1D9D">
+                  <b data-page-node-id="MuAzNGowp4bmKtQuXnw5Xo">「指定人员」是必须补的一档：</b><code data-page-node-id="Rd84R92uk0v3nSHfP5NSGo">notice.scope_id</code> 是<b data-page-node-id="8FNJLQlTDxmtWm5JDtnwZU">单值</b>，存不下多人 →
+                  需新增 <code data-page-node-id="fONx7OaAGG93Tliohir0yR">scope_type='USER'</code> + 一张 <code data-page-node-id="JWd8IFkMC4MEHu6tiQ2qDj">notice_target(notice_id, user_id)</code>。
+                  催办、再提醒、批阅回执<b data-page-node-id="QzZEfTMaZ0pYxL8UCHTs1p">全都依赖这一档</b>。
+                </span>
+              </div>
+            </div>
+
+            <div class="card c12" data-page-node-id="1ph3RiUGDNHXMo8HNnttqj">
+              <div class="card-h" data-page-node-id="NPlpLJuqRQKF40dzns1Vhj"><div class="tt" data-page-node-id="vpL3Y4XsKrUdzz9lqaueUb"><span class="idx" data-page-node-id="5FvDqRz9LW2OCFbchSWOQC">史</span><h3 data-page-node-id="eh5d5XUQcgGxGGlGjjCvSo">已发送（含回执与撤回）</h3></div><span class="tabs" style="font-size:12px" data-page-node-id="YEW80ADr1RPKRm9Q6rSNUL"><span class="on" data-page-node-id="ZqVXD3PGYEQ7mzmTwkdTmZ">全部</span><span data-page-node-id="GbfDPSSTCudkxv1BwjByis">进行中</span><span data-page-node-id="xZHUty5TKjgEI8oZ88YBnM">已过期</span><span data-page-node-id="8MdpvMaK2BZXDK2NKZsy8A">草稿</span></span></div>
+              <table class="tbl" data-page-node-id="VF29B5UV0FCpAEtdD5369B">
+                <thead data-page-node-id="q2nhNOYmCMqt5zEOK8FfdB"><tr data-page-node-id="FNd0yTUpKf2Hrj2P5DIhvL"><th style="width:280px" data-page-node-id="kFZKTfvT0jKsv4RhPYdH3T">标题</th><th style="width:110px" data-page-node-id="Zz1x9mECkMDEosBZFyAMwF">范围</th><th style="width:80px" data-page-node-id="VH0B1rMLHStoAOZJ1u6HiC">送达</th><th style="width:80px" data-page-node-id="kg6CkvnGAoAEn4NvRkLH0A">已读</th><th style="width:110px" data-page-node-id="e7djeXc51mQviXeotMg5yU">发送人</th><th style="width:120px" data-page-node-id="E6hrQIAf7U7WwIYE9uIAWc">发布时间</th><th style="width:96px" data-page-node-id="CJTvftvWlEqCjDROvsWged">状态</th><th data-page-node-id="iZKs99RA2jF7ZYawziblHx">操作</th></tr></thead>
+                <tbody data-page-node-id="Ffv1D3pNnmzuFZudUCeiJS">
+                  <tr data-page-node-id="8xHH6DjQqkjLv7mg6duQGN"><td class="nm" data-page-node-id="l86wwpeqZ1Hw1SUp5wdvm1">关于 Q3 正式考核安排的通知</td><td data-page-node-id="RsEeR7Pk3rrCZoMJEhOtrt">部门 ×2</td><td data-page-node-id="QnEuT1H55H61ydN6LeesX8">9</td><td data-page-node-id="4E27PrtdlTJmxwFqirzNmZ">7</td><td data-page-node-id="sFu5BBmtmGSCmYeEfxDh48">超管 · 王 XX</td><td data-page-node-id="1GSdxCcnZYhjthDgxoZzkD">09-17 16:20</td><td data-page-node-id="qzo7kTc45zvUFJ4DBrUmuJ"><span class="badge done" data-page-node-id="xanXuJFYb85Y6TGoDnznPA">进行中</span></td><td data-page-node-id="tVILPZlJnqk1kBe1nAEPea"><span class="btn sm" data-page-node-id="ziG2q1oQhLi7dcausQgkFz">未读名单</span> <span class="btn sm" data-page-node-id="p2xEIJTHk8gjuqyGvwmDiy">撤回</span></td></tr>
+                  <tr data-page-node-id="jcSKTr7i2T1BfKFfl9KmoE"><td class="nm" data-page-node-id="je7CCG8oFFQACFCWzkZ8W3">【督办】有 2 项待处理报名申请</td><td data-page-node-id="wm3FsD80D2NyUEBbksJJRH">指定 1 人</td><td data-page-node-id="N0ghRUx4En8WTY8aMcDYe2">1</td><td data-page-node-id="G8gDeSEeRY6WoLCiiGawbo">0</td><td data-page-node-id="p1mehE8JQ6fakokhXdMAPf">超管 · 王 XX</td><td data-page-node-id="6fvELiC7fBEGAcVmB8JUHe">09-17 15:58</td><td data-page-node-id="rESAMC7nW07vsT6wFcGNir"><span class="badge done" data-page-node-id="kFEZ1Gn4loIGNZz8oeeVUX">进行中</span></td><td data-page-node-id="eVGZSj8gBBJFrwCAzmyAti"><span class="btn sm" data-page-node-id="hHJ1FGfMkkZhChZ1h9Gh9h">详情</span> <span class="btn sm" data-page-node-id="eijhK9taabOQqpv0ilwkBV">再催</span></td></tr>
+                  <tr data-page-node-id="fruTKpFAD5X38mvBWxFyZP"><td class="nm" data-page-node-id="ylV21IOMG54uEZ2oA6lWFD">保密协议签署提醒</td><td data-page-node-id="lbaumPcEYJNsgeC3zEnZ2W">全体</td><td data-page-node-id="GkDOArqBh40PFnrzAVdi3j">29</td><td data-page-node-id="PmmFrZ2jaLySz5lP56YMdU">26</td><td data-page-node-id="Eq1inbOj1fBWZkUKzga9qG">超管 · 王 XX</td><td data-page-node-id="pGgmWW870JBqahgNUTlHPG">09-16 09:00</td><td data-page-node-id="2tJKgMJJocKhxJkQetRXp5"><span class="badge" data-page-node-id="2lXA8BtWOPoPAbWkMyoZsL">已过期</span></td><td data-page-node-id="WUmRfmj9MNCTSMDEqsw0wK"><span class="btn sm" data-page-node-id="XyKwqmn1gAovTqdcGlX7NO">详情</span></td></tr>
+                </tbody>
+              </table>
+              <div class="note" data-page-node-id="2iRCOnJWnBHzBnG2CgcrDX">
+                「撤回」把 <code data-page-node-id="puo3iZUQButMWSjbXD0bq2">status</code> 置为 <code data-page-node-id="Wl4U9a8rM0oaCNIEAHup5w">REVOKED</code>，撤回后<b data-page-node-id="eDtatZBNvXIW25OsUOSsK5">立即从所有人列表消失</b>（已读记录保留，便于审计）；
+                「再催」对未读者再发一条定向通知。<b data-page-node-id="3svp58ZUpLERygiXNJlcW2">与平台原生「通知公告」并存</b>：系统级公告走 <code data-page-node-id="z7MJXcbjyHixpsEbXSWuSJ">sys_notice</code>，业务通知走 <code data-page-node-id="295IGSjGqunHkkx5QtE6Ow">notice</code>。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 后端 · 数据模型 -->
+  <section class="sec" id="s7" data-page-node-id="Gj1H0ZA4k1n9bhmzYd4M93">
+    <div class="sec-head" data-page-node-id="OeBdRna73XAf0LfsriNHEc"><span class="sec-no" data-page-node-id="YM488CZvE3IkhhoJjrv7qF">7</span><h2 data-page-node-id="kN0DT8Ar4wlujPEoZOZB1E">后端全链路（一）数据模型与送达谓词</h2><span class="tag orange" data-page-node-id="YVCZEW4RDRpJKETr0laC1r">★ 待落地</span></div>
+    <p class="sec-desc" data-page-node-id="naE3PwWZelAA17nbg7J2l8">
+      全链路的地基只有两件事：<b data-page-node-id="SJ03ghk5zDGkdBrH3A19oy">消息存哪</b>、<b data-page-node-id="w5Mmnqzrw1EJVy7ojG6O1T">谁该收到</b>。第二件如果不在 SQL 层收敛成一个谓词，未读数和列表条数<b data-page-node-id="iPBOY9KpPkVHcQtycHg4Ay">必然对不上</b>。
+    </p>
+
+    <div class="grid" data-page-node-id="VMiPJXhlcBl9IkBbnVYn6I">
+      <div class="card c12" data-page-node-id="8aei2A32ApKpLOidBu8vBz">
+        <div class="card-h" data-page-node-id="nc9Rw1V3DeEMXmxrCAlfmV"><div class="tt" data-page-node-id="5RFTEWvHfHwMgzkB4mGOBL"><span class="idx" data-page-node-id="nRtplnGyRVWlCEjzWYHE2B">表</span><h3 data-page-node-id="oP6bGioB0qjckGrQjfIE5j">三处改动：扩展 1 张 + 新增 2 张</h3></div><span class="badge orange" data-page-node-id="JlNo0791qQ7rKot6Ar0a2L">幂等迁移脚本</span></div>
+        <table class="tbl" data-page-node-id="Zv2a0QRgxi4D0SZtSdHGdS">
+          <thead data-page-node-id="GsLRnZueH05olVMrb4cFh9"><tr data-page-node-id="L3CHNMDx2qUJVF8kqzUbUJ"><th style="width:150px" data-page-node-id="1kBxgT7VCld5XhmbSaBCO9">对象</th><th style="width:90px" data-page-node-id="ASxFpu3Ttc7UsKEsyYfyvA">动作</th><th data-page-node-id="FkLlTFO14JR3ydJ33KxFZe">内容与理由</th></tr></thead>
+          <tbody data-page-node-id="5ZklBWL55CcFaYfpupaRpT">
+            <tr data-page-node-id="dS9nw9wvFRWniLVxkbgmv4">
+              <td class="nm" data-page-node-id="admrXOCL8jcJQM2WAAh6kP">notice</td><td data-page-node-id="3XZw7zSMi5qGOTTtpgGgB9"><span class="badge blue" data-page-node-id="PiwFZ9UFfBuivRxhFOITII">扩列</span></td>
+              <td data-page-node-id="IXWG5bRCRIZ5ClDoCP0nbm">补 <code data-page-node-id="Hm0HwawpVTcyorZc3AHb8J">msg_type</code>（ANNOUNCE/TASK/EXAM/AUDIT/URGE/SYSTEM，用于类型标签与筛选）、
+                  <code data-page-node-id="ydl47oa62D6iwURU4AFK67">biz_type + biz_id</code>（<b data-page-node-id="htDXH8FqHPJ1cXqhr6IgCE">点击去哪</b>的锚点）、<code data-page-node-id="MMM2Sb0XcvxuD5JNQZf97F">link_url</code>（可选显式路径）、
+                  <code data-page-node-id="e0CWCBuhPEIOlIQjC4QAL1">sender_id</code>、<code data-page-node-id="dWkfv834yqsdaZ0HnQaDBZ">status</code>（DRAFT/PUBLISHED/REVOKED）。<b data-page-node-id="MHHsXNuBNPPyqfgsT8iv3K">复用它的 scope 语义，不另立 message 表</b></td>
+            </tr>
+            <tr data-page-node-id="CFsCgsLHmIlFgIQGV9gyGj">
+              <td class="nm" data-page-node-id="njim9D16XkSY4wIg3ioUsA">notice_target</td><td data-page-node-id="NvMg3CZUZZWdHrdXF33nlp"><span class="badge ok" data-page-node-id="q1kzVOtIMCUSj2onP3qTow">新建</span></td>
+              <td data-page-node-id="N0IzDBtGOUxIhYuh77uAoU"><code data-page-node-id="3jt9iFTO3UI4e3YIzGGTnr">(notice_id, user_id)</code> + 唯一键。解决 <code data-page-node-id="Iw9aR0OaIiPFQQBPsCk9Ow">scope_id</code> 单值存不下多人 —— <b data-page-node-id="CRz7x5Sjq8ADfwS7NVKlry">催办/再提醒/批阅回执全靠它</b></td>
+            </tr>
+            <tr data-page-node-id="0B2bbYRztDBQwHKxHQIRKD">
+              <td class="nm" data-page-node-id="mLVWgXQc5PuQHsMap9vMRu">notice_read</td><td data-page-node-id="3OdsAizPNdtLLymB3S4iLJ"><span class="badge ok" data-page-node-id="vSWoEZLseIFqSzZ9LdpJRG">新建</span></td>
+              <td data-page-node-id="70lUKRYK8HgDwpGJamtaO2"><code data-page-node-id="sz0AQUHNyOsd9xgBCu5gau">(notice_id, user_id, read_time)</code> + 唯一键。<b data-page-node-id="oIQ2b0bDpcTw6vAXwF3vQT">唯一键即幂等</b>：重复打开详情不会写两行。没有它就没有未读红点与送达统计</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout warn" style="margin-top:10px" data-page-node-id="JamU0ABIMHQASBy0fyDPlv">
+          <i class="el-icon-warning-outline" data-page-node-id="MfS7xviV0yYuUaDdbAqGHo" />
+          <span data-page-node-id="QE5FSbfzNEvuG9cG4fTdN7">
+            <b data-page-node-id="xZXJDtqjTnDtAE8okk1UJ6">任务域不另建消息表：</b><code data-page-node-id="o2qXToNbRH19CV6nl8mmGf">task_assignment</code> 本身就是 per-user 的，「我的任务」直查即可，到期/逾期用 <code data-page-node-id="VPMC2bPkYJBk1Q26aGZuuE">deadline</code> 实时算。
+            但任务的<b data-page-node-id="q3sZBsEiLx8NKkJNkGt0jr">事件</b>（发布 / 批阅 / 逾期）必须落 <code data-page-node-id="7JlGtUmuFwsaTFNzN5HsxD">notice</code>，否则不会出现在「通知」页签里。
+          </span>
+        </div>
+      </div>
+
+      <div class="card c12" data-page-node-id="6NoVrhAqYapp06Ey3QfbG5">
+        <div class="card-h" data-page-node-id="RR08BFHBtHRk1PbCiMsjzX"><div class="tt" data-page-node-id="V08dcbqyVJ0dofRnDtwit3"><span class="idx" data-page-node-id="f7Hr1FoG1TtzU5EElHLIoN">谓</span><h3 data-page-node-id="5UOSfNYM4r9QMN9SKfG5QN">送达谓词（全链路的唯一口径，三端共用）</h3></div><span class="badge blue" data-page-node-id="DCaVyu5PDzQvcIobIgvIlI">建议抽成 Mapper 复用</span></div>
+        <pre style="margin:0;padding:14px;background:#f7f9fc;border:1px solid #e4e9f0;border-radius:8px;font-size:12px;line-height:1.8;color:#344054;overflow:auto" data-page-node-id="EDbV7K0CDap9soBNnNCB2T">-- 谁该收到（可复用于 列表 / 未读数 / 送达数，改一处全局生效）
+       n.status = 'PUBLISHED'
+  AND (n.effective_to IS NULL OR n.effective_to &gt; NOW())
+  AND (
+        (n.scope_type = 'ALL'      AND u.status = '0' AND u.del_flag = '0')
+     OR (n.scope_type = 'DEPT'     AND u.dept_id     = n.scope_id)
+     OR (n.scope_type = 'POSITION' AND u.position_id = n.scope_id)
+     OR (n.scope_type = 'USER'     AND EXISTS (SELECT 1 FROM notice_target t
+                                                WHERE t.notice_id = n.id AND t.user_id = u.user_id))
+      )
+
+-- 未读数：命中谓词 − 已读（一次查完，不做 N+1）
+SELECT COUNT(*) FROM notice n
+  LEFT JOIN notice_read r ON r.notice_id = n.id AND r.user_id = #{userId}
+ WHERE &lt;上面的谓词&gt; AND r.id IS NULL
+
+-- 发送方的送达/已读统计
+SELECT (SELECT COUNT(*) FROM 命中谓词集合) AS delivered,
+       (SELECT COUNT(*) FROM notice_read WHERE notice_id = #{id}) AS readCount</pre>
+        <div class="note" data-page-node-id="JXX85Wcg0xXM6LR8QYmXp9">
+          <b data-page-node-id="AHVpf21kiWuNojJHufxr6o">为什么必须收敛：</b>铃铛未读数、消息列表、发送方的送达统计、实习生工作台的「未读消息」KPI —— 这四处只要各写各的 SQL，迟早出现
+          「铃铛显示 3、列表只有 2」这类对不上的 bug。收发两端共用同一张 <code data-page-node-id="DDaOgwJ7MyU2UbhzrWPriy">notice_read</code>，也天然避免「这边已读、那边还红着」。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 后端 · 链路与接口 -->
+  <section class="sec" id="s8" data-page-node-id="delXun4yBwLFBG8FWcSGQ7">
+    <div class="sec-head" data-page-node-id="TbvTjvRMUmBoZqZVswyCf3"><span class="sec-no" data-page-node-id="qUh4o5jiQjvtY07rAAj1pv">8</span><h2 data-page-node-id="wzoQqJCFXKye3JpPfHypm7">后端全链路（二）分层、事务与接口清单</h2><span class="tag orange" data-page-node-id="tKzLJlEF9jWWv9eJVAChR3">★ 待落地</span></div>
+    <p class="sec-desc" data-page-node-id="ceWyKTTgtJLchWKiaC3QgM">
+      15 个接口全部<b data-page-node-id="GhSrLt0IyAp2p2wjldGaoy">新增</b>，不改任何既有接口签名与权限注解。新增代码放在 <code data-page-node-id="j8SBlG0xGEoGbKfDzzoDVS">ruoyi-business</code>，与既有模块同构。
+    </p>
+
+    <div class="grid" data-page-node-id="Nn719DLXd6tpUvOTJRou2X">
+      <div class="card c6" data-page-node-id="kgWTQtPBytpHvfWXJX4ji6">
+        <div class="card-h" data-page-node-id="W4uC1ikllw04D4l4wfB9KC"><div class="tt" data-page-node-id="Uh1LYMKffSKIujTIAyN3SE"><span class="idx" data-page-node-id="35Py2EwHNOvq3b610LH9K0">层</span><h3 data-page-node-id="5o90QfxTS8nhwDAhun5zXT">分层与职责</h3></div></div>
+        <table class="tbl" data-page-node-id="4QfkeQ3H8fOU60NfYGbvsN">
+          <thead data-page-node-id="nxzUtIfxglB8akSwUoAQvN"><tr data-page-node-id="Yooz8TwSWLvUFKUTGjjRNa"><th style="width:170px" data-page-node-id="7pxpIAIdWX8Dlpu5ftis3v">层</th><th data-page-node-id="dsUBBMszyazqoGa7zRXgOm">职责</th></tr></thead>
+          <tbody data-page-node-id="GemiuPvIm1FUNyzaFhj5Xl">
+            <tr data-page-node-id="4gbzjfjeLdecMpbX0uKvnW"><td class="nm" data-page-node-id="ravC5gd80Aj4QB6wRvtirE">MessageController</td><td data-page-node-id="GouQInnCJNGxfmfTBRMhql">参数校验 + 权限注解；<b data-page-node-id="QPuPG8L1JiSKCdALB5AFU1">不做业务判断</b></td></tr>
+            <tr data-page-node-id="TzWKlIoTCabCZXIsrT8JLT"><td class="nm" data-page-node-id="1GkaqH82dsRcGdTcdQIdDb">MessageService</td><td data-page-node-id="ZDtPn2syVUQrWZ9822zViZ">送达谓词拼装、发送范围校验（部门管理员锁本部门）、事务边界</td></tr>
+            <tr data-page-node-id="aqbgvs5QXi6xqwijDHmgS7"><td class="nm" data-page-node-id="6dTNTJrq7QmBz6rXc37cWg">NoticeMapper</td><td data-page-node-id="bMegMJ6KB9HG7IgeVyZCZ4">列表 / 未读数 / 送达数 / 已读写入（<b data-page-node-id="wMiYMMmuztPtLE0qs0pIHK">谓词只写一次</b>）</td></tr>
+            <tr data-page-node-id="4xMRLtGMy3QUDWLSlLdU3s"><td class="nm" data-page-node-id="iNeo10SsCIS2ht0TS818BN">TaskService</td><td data-page-node-id="RSM4vHoQL004slpBhFCnXA">任务 CRUD + <b data-page-node-id="LKM34cKlHxjyA6J2H97abR">发布时展开 assignment</b>（事务）+ 提交/批阅状态机</td></tr>
+            <tr data-page-node-id="r2FqLeDopznmFXeEMq6TFI"><td class="nm" data-page-node-id="ZCajZYGdHhgvnvHbTVQxGp">AuditRecordMapper</td><td data-page-node-id="AFiRl3kRi59uh171RV1hPQ">催办/发送留痕（<b data-page-node-id="anLPbS9ZMV3lilY4hNcT5T">复用已有 insertAuditRecord</b>）</td></tr>
+          </tbody>
+        </table>
+        <div class="note" data-page-node-id="DMifSjEMd45H75XQ8E6cDB">状态机只有两处：任务 <code data-page-node-id="0CZohYH7UC5LkOdB58xHjC">DRAFT→PUBLISHED→ENDED</code>；作业 <code data-page-node-id="wLLREFCwhBB3ErHS7dAVsO">SUBMITTED→REVIEWED</code>（逾期为 <code data-page-node-id="aywCc0xmQLi5NAffCh8sgy">OVERDUE</code>，可补交）。</div>
+      </div>
+
+      <div class="card c6" data-page-node-id="FhOmyE7DEhVOdxBnIkJBqc">
+        <div class="card-h" data-page-node-id="ej6KJG1uNirUm2Egb7v3K0"><div class="tt" data-page-node-id="BzJACXWkw9ovNbC7NuBqXS"><span class="idx" data-page-node-id="6ECLLEzEOXeEusgytNwe5O">锁</span><h3 data-page-node-id="52mMwnppJzG5Tr6Zc9Jh10">事务与幂等点（易错处）</h3></div><span class="badge red" style="background:#feecea;color:#b42318" data-page-node-id="mqraL8GdUQXnbO7D885feO">必须同事务</span></div>
+        <table class="tbl" data-page-node-id="zHGHnUo0ZJJKnbmG7qBOH5">
+          <thead data-page-node-id="6Sz7RkuQZgQ5D9cHMXv2TE"><tr data-page-node-id="RYD5dK6n5aOfnpV4wEKSau"><th style="width:150px" data-page-node-id="OYRk9Af0hqVR5PFUdM2dyL">操作</th><th data-page-node-id="fAQKc6YY1ZCq3Gdl6rbJXo">同事务内容</th></tr></thead>
+          <tbody data-page-node-id="cDhsJ2rzJ6BdAN2R4NuVze">
+            <tr data-page-node-id="Swd6LzSuj7N37eEJ8aUqAm"><td class="nm" data-page-node-id="V7hHAEuTbie4nTZBJKQdCr">发布任务</td><td data-page-node-id="aPfkB0bKK8y1KMGsJG3ylW"><code data-page-node-id="Flhhj4csrJqPZrcl50N9ka">learning_task</code> 改状态 + 批量写 <code data-page-node-id="tfrx8OQ7jdaRXGgXHC9CTA">task_assignment</code> + 写 <code data-page-node-id="7Ra3FyMgeOMvWLhntqS9kj">notice</code>（三者缺一即回滚）</td></tr>
+            <tr data-page-node-id="8CrtA9FgyuLlrUvnvrUlDs"><td class="nm" data-page-node-id="mrWVCzvcJvlDDPa88D4kAR">批阅</td><td data-page-node-id="C1Ca2wnUrbuk3LvEk26pyC"><code data-page-node-id="OHTZHs9bETy16wQso1rDSy">task_submission</code> 更新 + <code data-page-node-id="TSYRsmYdZ7VApN0aAkzofC">task_assignment</code> 置 DONE + 写回执 <code data-page-node-id="g44ZTuJFRDWw79a5AR4pye">notice</code></td></tr>
+            <tr data-page-node-id="osxQnCgKvlm7CCJmEsgC59"><td class="nm" data-page-node-id="TCFffOgB9JGC1xShH8kuBv">催办</td><td data-page-node-id="5dWTusZhWOSIN2uKNAAMLc">写 <code data-page-node-id="HRHbpTFbDhep9ei5t2reGM">notice</code>(USER) + 写 <code data-page-node-id="hvtpRA8sk0JGPPkfHChEB5">audit_record</code> 留痕</td></tr>
+            <tr data-page-node-id="CfYMtnU2A4IzswHnjsVGcm"><td class="nm" data-page-node-id="Bwgwp0w3ZMhWBZiEN8NB5f">标记已读</td><td data-page-node-id="zyn7ZmymolzalCSkwvTHPZ">仅 <code data-page-node-id="LZmrpZR2XGZ4keSmqvYzbe">notice_read</code> 插入；<b data-page-node-id="jp6CbQIef2MVMM3XHTo2mU">唯一键兜幂等</b>，重复调用不报错</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn" style="margin-top:10px" data-page-node-id="3Urq1NujfWOvfNbz7xV5rZ">
+          <i class="el-icon-warning-outline" data-page-node-id="ApfYvMBnlkktH9WtDnaIKs" />
+          <span data-page-node-id="72t4WsWlId0Rn8bHgEB5Fj"><b data-page-node-id="Tox0RK1q89baubYpNrdOHz">展开 assignment 的幂等</b>：同一任务重复发布不能重复分配 → <code data-page-node-id="6WMHojtlczpl7zP037SdVE">task_assignment</code> 需 <code data-page-node-id="vq8CBJVDkemXbvXuNMFRhH">UNIQUE(task_id, user_id)</code>，用 <code data-page-node-id="lQHX1fwmppyF1gPcdeoUAa">INSERT IGNORE</code> / <code data-page-node-id="gr96NA7QthI8biQg2eJ23h">ON DUPLICATE KEY</code>。</span>
+        </div>
+      </div>
+
+      <div class="card c12" data-page-node-id="uby83X5BCvkwhviGJxAdaZ">
+        <div class="card-h" data-page-node-id="uHTYkWyN1HylMduMLLj6e7"><div class="tt" data-page-node-id="uAQ56wyf8egN8uj2MmDmUT"><span class="idx" data-page-node-id="sWmS8YsDXRMZEPZMdkjSJ8">口</span><h3 data-page-node-id="FMpjU4prpF6FZ0WXbXtUGz">接口清单（15 个，全部新增）</h3></div><span class="badge blue" data-page-node-id="yAi3G6Pq8eP9Id38v236Wu">前缀 /business/message 与 /business/task</span></div>
+        <table class="tbl" data-page-node-id="nLvVXMBwf81VsIQQdADFDF">
+          <thead data-page-node-id="Z3knPdZstTkOqO6MTT2sGq"><tr data-page-node-id="oB3LGsjOEAF4WWECHYlm03"><th style="width:60px" data-page-node-id="TZnnQXYBsmMjlkZsxrk9wn">阶段</th><th style="width:300px" data-page-node-id="zzM6sENVZqH4Wb41DPwRNE">接口</th><th data-page-node-id="oIEKaaRWrMnVZCc0cEsRw1">用途</th><th style="width:150px" data-page-node-id="N2GrRP0gdeA7BnzF89xN4C">可见角色</th></tr></thead>
+          <tbody data-page-node-id="kBAvxTjH4e30TXpEeb6IG2">
+            <tr data-page-node-id="aoPoeJ9ynC0PdpzH4Hft8Y"><td data-page-node-id="qcnkrjiFAKfeCIo9OFRrDC">P0</td><td data-page-node-id="8gPllH3EyYBEVlUmvmLcaw"><code data-page-node-id="74kEZKNOA5DpeG1hiVMEEj">GET /business/message/unread-count</code></td><td data-page-node-id="f3Ie6KPVJeFgEZZmZbIjbC">铃铛未读数（可按类型分组）</td><td data-page-node-id="JNfomlMJSPuVA15NksQMWz">全部登录用户</td></tr>
+            <tr data-page-node-id="5xXXzs9hDeaiPANqdzuqsY"><td data-page-node-id="Wfk1xRNlm4wwyF1aXFpFlC">P0</td><td data-page-node-id="lFNEOL8N3YP4hBciLtnoul"><code data-page-node-id="dvferBfCLioVYFT9Q12XBm">GET /business/message/list</code></td><td data-page-node-id="nCi9GRDXHL2WCOxPRHUN3p">我的消息（分页 + 类型/已读筛选）</td><td data-page-node-id="KW8geD2kBY86skczJpnPWZ">全部</td></tr>
+            <tr data-page-node-id="GRRzL4e0AFiiAvkBi8n6wx"><td data-page-node-id="R3fTglz7EUXJUBxf4uigcj">P0</td><td data-page-node-id="iS799rk7qXlgTkWjt4rLDT"><code data-page-node-id="JjjEwsJZLSdmMndjT55r7i">GET /business/message/{id}</code></td><td data-page-node-id="sJ15URWmxISi2tv4IMbS50">详情，<b data-page-node-id="bvkrxHNpBvetW1Nkpj9AIy">顺带写已读</b></td><td data-page-node-id="SrX2ZWOTQd4yu92nAfbG1I">接收人</td></tr>
+            <tr data-page-node-id="4r48Cp6Kzwe1Hez7y7lqyh"><td data-page-node-id="NSLSggXF3EGXuyOswdb8wI">P0</td><td data-page-node-id="Bun00Fy2AuBt0NDF9VT4gQ"><code data-page-node-id="X6DLf3iyG7LboiCsvFfEPY">POST /business/message/{id}/read</code></td><td data-page-node-id="uipGa1YGLmdhMVAbLaNa6y">标记已读</td><td data-page-node-id="XRp0g7Fmzd29hVKlkXknRB">接收人</td></tr>
+            <tr data-page-node-id="jFrQXgEYRcjPEsxFH6JgQB"><td data-page-node-id="jIsRo9gKt2u40OHEI0NH6n">P0</td><td data-page-node-id="SK2s6VrVVZ21taY6T1YnnB"><code data-page-node-id="clSZCQDAQrFsBxyCzlRvSy">POST /business/message/read-all</code></td><td data-page-node-id="fTY7EnLIfL8k3EF5Jh56Pq">全部已读</td><td data-page-node-id="uv0JBDtsCOFuVvKaVddY1a">接收人</td></tr>
+            <tr data-page-node-id="4oIzvaCFoQiShtv18wVvAM"><td data-page-node-id="EYRSNPdEGtjqCbQaJb6KgY">P1</td><td data-page-node-id="ElpNvfzMoqTRPVPmD2XZTC"><code data-page-node-id="g3UDllapall0M7UnbNDemi">POST /business/message</code></td><td data-page-node-id="s0DE6dANhEW8upnb52UgDP">发送通知（四档范围）</td><td data-page-node-id="6FHnkjAncPqSp8fAXcdTdX">超管全范围 / 部门管理员<b data-page-node-id="yi9HUCCJTCuW3KIfcxpvv1">限本部门</b></td></tr>
+            <tr data-page-node-id="JWqS0XqgLG3WVlI85lS5Fx"><td data-page-node-id="DUYs3g31yC9fIDArOhsO71">P1</td><td data-page-node-id="Ck7Ma5HBzSdQZsNe7Uo3V2"><code data-page-node-id="TYPVXlVmwjJazRH1Z1tyGm">GET /business/message/sent</code></td><td data-page-node-id="Lz6riNNs0PxgPJGB7pFiiM">我发过的 + 送达/已读/未读名单</td><td data-page-node-id="j4gQlgDN74DaRexbfsqMlN">超管 / 部门管理员</td></tr>
+            <tr data-page-node-id="0mH65EeMNbXhy8hvQ5n2G7"><td data-page-node-id="jSkVP1WBl80FECP3J2cpmH">P1</td><td data-page-node-id="LBwIGBrNoQQO1ZIDPQNWtz"><code data-page-node-id="oRmXZGRQ5G5KN3CXyEE2xY">POST /business/message/{id}/revoke</code></td><td data-page-node-id="ShFX2qUSgaSwd4q9QIc9Rs">撤回</td><td data-page-node-id="HnDK6TW1a5cTV5KM6wk0Of">发送人 / 超管</td></tr>
+            <tr data-page-node-id="TCcVk2oYBKkIG5OlS1o0A4"><td data-page-node-id="2Ju15CQO1kFxgDC5jchaws">P2</td><td data-page-node-id="WhCzGBMDrD1GsLhy88HP5s"><code data-page-node-id="KjxJkaFnrZZCmiXrgPssEe">GET | POST | PUT /business/task/list|add|edit</code></td><td data-page-node-id="3IkBOE53uIbdkYu05nSQPl">任务 CRUD</td><td data-page-node-id="FgHGXM6orOqdutLGw4rhe0">部门管理员</td></tr>
+            <tr data-page-node-id="iBLrSInZEjbgpeLmJZ8OK8"><td data-page-node-id="OO6QdMhaxctrYEzEw48YRx">P2</td><td data-page-node-id="7QrvVwDWhfWCZ3tjiCJYEj"><code data-page-node-id="pIotJazbT3D1FgKCAr5ssH">POST /business/task/{id}/publish|end</code></td><td data-page-node-id="OFNCHTbqezDTPyBgjnOS7d">发布（<b data-page-node-id="1ZPMbAbCvVLhQzT75IaTdj">展开分配</b>）/ 结束</td><td data-page-node-id="7EWAzNFjHT4bFxJ3bc1QJk">部门管理员</td></tr>
+            <tr data-page-node-id="1ATLtxLwn7ChoflvZKJ3sj"><td data-page-node-id="6G3tD3q8lwJXyxBOIEqL2O">P2</td><td data-page-node-id="ysdubhBwimubQwYNIhagOi"><code data-page-node-id="RCgeyNTjmFfa4SPPFBHoln">GET /business/task/my</code></td><td data-page-node-id="hfKEpf7LovFXdccaNroW7t">我的任务（含状态与剩余天数）</td><td data-page-node-id="ojANN6Z4Xnq70F3joAHj98">实习生</td></tr>
+            <tr data-page-node-id="8ksyEFh4W5nnQnbLRx5fRg"><td data-page-node-id="4jdG2ybp5ZFcV0q4acgUNp">P2</td><td data-page-node-id="RvkeuJHqAhZrZvS7zhAGOl"><code data-page-node-id="xOsrcJQlVeZFDqtB93rqJh">GET /business/task/{id}</code></td><td data-page-node-id="8LYY12NMSOpREjCSCi2EhD">任务详情</td><td data-page-node-id="EZsKd8zNFt2AcbSAXYytKp">三端（超管只读）</td></tr>
+            <tr data-page-node-id="sy6d0aW5NVYdpNBZlldjyj"><td data-page-node-id="EkZPoZ1C5pGhrEvlvddFEC">P2</td><td data-page-node-id="UKbSSAe9hvk1aN2yBdFDQJ"><code data-page-node-id="BPatDADoUHt2JU5kodxgWo">POST /business/task/{id}/submit</code></td><td data-page-node-id="tJFnpOEiGj1DvW9GpUgvPL">提交作业</td><td data-page-node-id="saX7lOYWVlISQGxsCTdJez">实习生</td></tr>
+            <tr data-page-node-id="aMdnoL1BLhVUxXIGOKnAv4"><td data-page-node-id="bhBWSpq6A80vRRgBw2vsKO">P2</td><td data-page-node-id="7IHIVE58X1q1JFO9aLtaTJ"><code data-page-node-id="vxCqX2NGIt1RavzJ3lz7ZV">GET /business/task/{id}/submissions</code> + <code data-page-node-id="NGWsJUHqc46JpjgYqVgwXG">POST /review</code></td><td data-page-node-id="xsx2SIR4b8Ytvu3vzbbfk4">提交列表 + 批阅</td><td data-page-node-id="XUajtq1H7qyam8TLOVW1Cw">部门管理员</td></tr>
+            <tr data-page-node-id="2V6BTlhQB8ehjvmpjbUOny"><td data-page-node-id="20MgqWELZ3TYtmedLwiEo9">P3</td><td data-page-node-id="KSef2bTnCHcWZfUepSXnxQ"><code data-page-node-id="odSz1QhQGidkehSqSAJMgD">GET | POST /business/task/{id}/posts</code></td><td data-page-node-id="gfRdypiTEzxhw8aEtGEuK7">讨论区</td><td data-page-node-id="AAUgKBVgYoEEBKCM1b1ArW">实习生 / 部门管理员</td></tr>
+          </tbody>
+        </table>
+        <div class="note" data-page-node-id="b2f3xY21QCFdGuWGaecwmT">
+          <b data-page-node-id="VC687v1M6jrdZaoz0or8RX">权限总口径：</b>超管业务实例<b data-page-node-id="KnuhVSPUfew7iumm4j6eWZ">仍只读</b>（<code data-page-node-id="eD7YrjKiG3gl0Zw8WQNSWl">isGlobalReadOnly()</code> 不变），仅「催办 + 发通知」可写；部门管理员限本部门；实习生仅本人。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 状态与分期 -->
+  <section class="sec" id="s9" data-page-node-id="SDwntVSUEmLMSCxU16LjzG">
+    <div class="sec-head" data-page-node-id="C5boMcZGFR8n1nd3t8QOFu"><span class="sec-no" data-page-node-id="wUga82qJz25C6x0YFUr2R8">9</span><h2 data-page-node-id="qXycz1oE68cNbFnpvGJrgR">落地状态、边界与分期</h2><span class="tag purple" data-page-node-id="2rBkBJDE0voTGK0Be5DlNo">看完这页再开工</span></div>
+    <p class="sec-desc" data-page-node-id="HZB1UEl3zkEQwlgUbE5m2k">诚实标注：本稿所有卡片都是<b data-page-node-id="32tyxaIQxMb86t7saH8QuI">设计</b>，后端<b data-page-node-id="9T1ilwErtpPXJOjTxXZ0ky">一行都还没写</b>。下面写清哪些能直接复用、哪些必须新建。</p>
+
+    <div class="grid" data-page-node-id="splCReY96BpFN2cAqNHbjE">
+      <div class="card c6" data-page-node-id="TVyiaGkhsdCxiq0mVZKlBR">
+        <div class="card-h" data-page-node-id="a2zeJTyDHhXA36gS1KsbnX"><div class="tt" data-page-node-id="QLcZkGf4EFCJg3chIU1vDY"><span class="idx" data-page-node-id="dlVaGOhb6W1SRucdtw1lfd">用</span><h3 data-page-node-id="8hCgsOqgFUKAXeoCQQiaQO">可直接复用（零改动）</h3></div><span class="badge done" data-page-node-id="mu7WBNq2rIz7nE4kryzSRe">✅ 已通</span></div>
+        <table class="tbl" data-page-node-id="YWF6byC97ZjcEghny6tmBB">
+          <thead data-page-node-id="ONW7rCiZlzaFFG3bNEci6J"><tr data-page-node-id="y8TKllLQ7DBM4pwMiqxHsD"><th style="width:200px" data-page-node-id="gFQMJAvEhvI8A8dW1JdXIi">已有</th><th data-page-node-id="dBldToVPANKTZmosCMA1aS">本次怎么用</th></tr></thead>
+          <tbody data-page-node-id="LUi47Is9AH3Ho8fxssvs6V">
+            <tr data-page-node-id="F3oGCuMBz2AHthw4D9B9Pg"><td class="nm" data-page-node-id="Vzm86htV3YV6tCPL7TJsAG"><code data-page-node-id="bC7ZwL84chFWhbDTTYDhVr">sys_notice</code> + 原生通知公告</td><td data-page-node-id="gc2b03mEfJ5TIm6qs2anVW">保持原样做系统级公告（超管已授权 5 条菜单），业务通知走 <code data-page-node-id="dOaArHnD1jJN2RH7zsTP2r">notice</code></td></tr>
+            <tr data-page-node-id="nV02NBsy1JBHA5ZrmXH9t5"><td class="nm" data-page-node-id="l00L1DdhRZiklwQwBkj49Z">部门端两个消息页</td><td data-page-node-id="sgAkuD5E7KmHiNGAPefs52">排版已按最终形态做过（359 + 258 行），<b data-page-node-id="vDvq6amAq7vg0bOJYm1dOo">接接口为主</b></td></tr>
+            <tr data-page-node-id="OdT8xRvRb14bzu6XRyWRBr"><td class="nm" data-page-node-id="f0Y9BTIo59L3485pkaxjIz"><code data-page-node-id="fYPMz7wKupuvud8sZCpT5v">audit_record</code> 写入</td><td data-page-node-id="Jo3S1KWb3AKtcrOtPGp7rc">催办/发送留痕直接复用 <code data-page-node-id="P55IqDX741EW2xLb5S1tos">insertAuditRecord</code></td></tr>
+            <tr data-page-node-id="TgxBipBOEtqVQGrHUckFzi"><td class="nm" data-page-node-id="UdcQuw78BggRxYBxkyqVnp"><code data-page-node-id="TSuAHZi62qaFbZnPJUccG8">assessment_config</code></td><td data-page-node-id="6u2bYp0ygmK7GfuyTAuODw">预警阈值驱动 SYSTEM 类消息</td></tr>
+            <tr data-page-node-id="UNWCxBlDrfFkELpAWYWVny"><td class="nm" data-page-node-id="MRTBHYLkDrzAZXZFwubaWl">顶栏用户胶囊</td><td data-page-node-id="pJlGHO0RBaRuAzfByeY88F">上一轮刚做，铃铛放它左侧，视觉不冲突</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card c6" data-page-node-id="5ZABMM6vBP0HKmNvOyxWD9">
+        <div class="card-h" data-page-node-id="2nvg1WzbXUCp2VyVqP44KP"><div class="tt" data-page-node-id="eXaMYQWdQrcWQVO5IkfKFj"><span class="idx" data-page-node-id="EmHwAYAAZzT1IetIYbubxR">建</span><h3 data-page-node-id="ugfIyuknxoF1Dvh4idkNkI">必须新建 / 改造</h3></div><span class="badge orange" data-page-node-id="wsCYF5aFxqiALhVG4lZm6k">⚠️ 待做</span></div>
+        <table class="tbl" data-page-node-id="tiVnomgmyL5RDjzsG1jqxz">
+          <thead data-page-node-id="xJR8mL76P7ehYn1IAwNM6s"><tr data-page-node-id="CuOLUcNfaTkaydBjczl6OS"><th style="width:200px" data-page-node-id="RV89giYSc4zBPtEZ2tMzLu">对象</th><th data-page-node-id="yvKdvHQr4c3PLlFgfBT5cY">内容</th></tr></thead>
+          <tbody data-page-node-id="gtdDEyVZoPNfdhrdQFLIsa">
+            <tr data-page-node-id="5ABiMpXftu9t7cpPpNYMek"><td class="nm" data-page-node-id="BWD7GECd3P5rhFZg7r52rW">notice 扩列 + 2 张新表</td><td data-page-node-id="RxyTa04NulPe5u9nsdu4GH"><code data-page-node-id="HcAp9Gj8cetoXZBvtDFTZl">notice_target</code> / <code data-page-node-id="Dm27SpmMBurimw8FG0SpqL">notice_read</code>（<b data-page-node-id="nqNSgeCs1lsCAuJLHBBipt">当前完全不存在</b>）</td></tr>
+            <tr data-page-node-id="4Cd3Vfgb2yBIjsY9fLqTF2"><td class="nm" data-page-node-id="cxwjuHvosbvtdgqBTLKUjI">5 张表零 Java 层</td><td data-page-node-id="KgC1RMJcjrO3B4EfAuA98A"><code data-page-node-id="6XDzLChVsi8fozAsp1V0YW">notice</code> / <code data-page-node-id="5EHpg1h8Ghqyl4BJI9FNHt">learning_task</code> / <code data-page-node-id="cmUFcECU6mIDpTlkAygjZK">task_assignment</code> / <code data-page-node-id="TNALh3WtaQNdI0vDufFYJf">task_submission</code> / <code data-page-node-id="qNUz8Q76SOHJz5gNqmbDHf">task_post</code> 全要新建 Controller/Service/Mapper</td></tr>
+            <tr data-page-node-id="BTe6SKM3ab3LCl9lws8Dhr"><td class="nm" data-page-node-id="oBa6tiIY9NmUGUqiq7KcIw">实习生 <code data-page-node-id="oIOrucfxF0dEcFtSehxFTx">/messages</code></td><td data-page-node-id="TcNMslH5YDYEVEvAm4frdD">新建独立页 + 追加路由；<b data-page-node-id="BvDlQPSqGIHRHV4t7TQEWL">不改公共骨架页</b> <code data-page-node-id="VacC9GcKFantrci2cVZwGG">assessment/index.vue</code></td></tr>
+            <tr data-page-node-id="Djt4V5ljaY2hWGh1Etd0f5"><td class="nm" data-page-node-id="wtVYwL1DzbrXbMJvmGQ3vZ">超管通知中心</td><td data-page-node-id="PPinkytQXqAxwsQn1YhMAi">新建 <code data-page-node-id="MK46LV0l4vSrlog1O1Jla3">/super/org/notify</code></td></tr>
+            <tr data-page-node-id="q8njCEwtHX13USjqr9tUCo"><td class="nm" data-page-node-id="qMBH9tRw3DVrNJBLizmSCG">顶栏铃铛</td><td data-page-node-id="CPNGcvtnXUH6VBSjRV2R5o">从「仅实习生」放开到全角色</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card c12" data-page-node-id="RqV4isl6qnmF7lNpkrcmuY">
+        <div class="card-h" data-page-node-id="Bb55G6HgqLMShvIlamvUEj"><div class="tt" data-page-node-id="kPVnzF8BOUktTYPjvG7Hml"><span class="idx" data-page-node-id="AsLnNnxHDINcDiXfgCIIKN">期</span><h3 data-page-node-id="soVaUFMc0oOtddsKRdjFjb">分期落地（建议）</h3></div><span class="badge blue" data-page-node-id="nfz5ICy6vYhtJ3DpbHV0Me">P0 最快见效</span></div>
+        <table class="tbl" data-page-node-id="E3sTDQKuc2AAeQyppUd667">
+          <thead data-page-node-id="AYaO3pFO24JL5cxyylZaIP"><tr data-page-node-id="Ow2PGDFSSFivECD2ZCp67v"><th style="width:70px" data-page-node-id="XwRM0iJ0dCSRcRWwAZLjT2">阶段</th><th style="width:250px" data-page-node-id="FHMqGMGiLEeDqXhyR9pAdd">内容</th><th style="width:230px" data-page-node-id="fzf96cqqr8pycRWEYusC7R">后端</th><th data-page-node-id="ObBlrE0fTnGkOERea8oRYq">前端</th></tr></thead>
+          <tbody data-page-node-id="UIHDNWaFCfbmvFDKhEXjQl">
+            <tr data-page-node-id="B99Z4gAIML4bEUMMQfpqzj"><td data-page-node-id="eaRgbyihWFD8EVswCMcAXS"><b data-page-node-id="5DyeVK342hsH16NUg29VAt">P0</b></td><td data-page-node-id="hKarIglt8WekvKsznbCWdj">先把「看得到」做通</td><td data-page-node-id="lQUeW2BX75RXNg2iglVKAz"><code data-page-node-id="rqytHhdi7028M51We1nP3B">notice</code> 扩列 + 2 新表；接口 1~5</td><td data-page-node-id="XalNXtFGkwWoG8KVyefwaC">铃铛全角色 + 实习生端消息中心（新建文件）</td></tr>
+            <tr data-page-node-id="1BcTKXmGnYzOCcxTfB7uXM"><td data-page-node-id="dYhvR2twRIgpw5tshjsUim"><b data-page-node-id="mbS8Lj2EhhMEjGJKPFN6hE">P1</b></td><td data-page-node-id="Vhu4SDFg95zYar60g46k8p">管理端能发、能看回执</td><td data-page-node-id="tqxkUbRvVEjJ3QVDEcRiDi">接口 6~8 + 范围强校验</td><td data-page-node-id="w8ZvHj1DRC99AGnNtst7kP">超管通知中心；部门端「通知管理」接接口</td></tr>
+            <tr data-page-node-id="ICouPAEu1bz5wejSN4F6ow"><td data-page-node-id="LPMtBaySj85ZbJn6yPisjs"><b data-page-node-id="dHdDnvrSxGdWiP6Ok57Ijw">P2</b></td><td data-page-node-id="F5EXChW5mL2HUB0MwGEPk7">任务域闭环</td><td data-page-node-id="xhDiaEiIwDhgFIp8MDdSCH">接口 9~14（含发布展开 assignment）</td><td data-page-node-id="qBauv6Ytf9tuPiLzuta47L">部门端「任务管理」；实习生「我的任务」</td></tr>
+            <tr data-page-node-id="G7w7V0rBy9qYuw6syODOwG"><td data-page-node-id="GIiQypP5Z2TfFutYdq3BA9"><b data-page-node-id="C8oS6lwluqt13CVn7AtVbj">P3</b></td><td data-page-node-id="eCJOuamO5ZuNvLcNxoP6rt">增强</td><td data-page-node-id="uOSU7uKX8Pf2fHFtn3ss8E">讨论区、逾期自动标记（定时任务）、督办与通知打通</td><td data-page-node-id="Cy6gBHYrICmVhVF6LH2TB1">讨论区 UI、订阅偏好</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card c12" data-page-node-id="QXn1GZCqwelQHf5qRGozdR">
+        <div class="card-h" data-page-node-id="4vBIyRAGmmuG0krUra8dDa"><div class="tt" data-page-node-id="R7ocieEQtqNWhKgU6TR6ay"><span class="idx" data-page-node-id="yErC9CqHh1EYWNblcVyRhT">定</span><h3 data-page-node-id="ZlvFplbwBBOPEpN5zyvAxG">待你拍板的 5 点（确认后从 P0 开工）</h3></div></div>
+        <table class="tbl" data-page-node-id="Sec5JDEAUgVBqEHzcxX1hO">
+          <thead data-page-node-id="Ut8XcuYOWti9uXcWKC38C3"><tr data-page-node-id="8hUMf0JYWcXRnvcUWXADxF"><th style="width:44px" data-page-node-id="vLkyCIhOaTBhwDmacLfOoJ">#</th><th style="width:150px" data-page-node-id="6FBe9fCIy3puJGQh5zMNNt">决策点</th><th style="width:250px" data-page-node-id="FCDVTvOPhZzJFo9g9Ajqjf">选项 A（推荐）</th><th data-page-node-id="JjjbmlwGlp7bHkmQs8WWmG">选项 B</th></tr></thead>
+          <tbody data-page-node-id="cZJdNgGX6GyKoq7Le8SZTk">
+            <tr data-page-node-id="xvC8mLsX762VMfZAiLuJOC"><td data-page-node-id="1GkXQPedMBgOVLN0FCe8f5">1</td><td data-page-node-id="CUtbQ82wNxqC8odtztOQ0X">消息主表</td><td data-page-node-id="VoU75vJ9UjVfBEd4PSYDl9"><b data-page-node-id="gDTrVegVTDQswmJqM89GEI">扩展 <code data-page-node-id="QO56W3Qi6kwVpitsKuzAz9">notice</code></b>（少一张表，scope 语义已有）</td><td data-page-node-id="W7mYcFc3iM1QE2pZuiolWO">新建 <code data-page-node-id="BPSh4rkpicNSUEbIckptsl">message</code> 表（与 notice / sys_notice 三表并存）</td></tr>
+            <tr data-page-node-id="2VIaAOBBwoDm0VXkCiFJoz"><td data-page-node-id="t0EKVJ6nb0EGB8hBoguyLk">2</td><td data-page-node-id="pHTq8SZBDnoFo7GHsFPco2">消息中心结构</td><td data-page-node-id="rh6i1WTLD2CO3TqW4VngO6"><b data-page-node-id="ykI5pHvAGBBMD4hOBpUWQ8">分「通知 / 任务」两页签</b></td><td data-page-node-id="EgQrmVXVojRNXgqJm2YX9c">混在一个流里按类型标签区分</td></tr>
+            <tr data-page-node-id="u1hcDzaVRH7hgWbFaEtHj9"><td data-page-node-id="HzyhUV3ytaIjR3pMGVvU8Q">3</td><td data-page-node-id="LRZJnHgKRmqx6xrZOCyKZM">铃铛范围</td><td data-page-node-id="LEVrjbxHZ0cmQG7Eitm8rC"><b data-page-node-id="7TE7y2WB3IRbBbLksFYZPD">全角色</b></td><td data-page-node-id="UsdQDM2AcBBMa1PlrRYPgq">维持仅实习生</td></tr>
+            <tr data-page-node-id="EkyRygzHMoULdMuIPibSch"><td data-page-node-id="CFoOUPPQAv5XynyUS7axdQ">4</td><td data-page-node-id="t5wJG75Ww4EzGOcOTBKsG1">已读口径</td><td data-page-node-id="W2CpSaWaVlBm8IV8ZvoDrT"><b data-page-node-id="9q4zc0CuFV6Fyq16O7yEmW">打开详情即已读</b> + 支持全部已读</td><td data-page-node-id="LwFsl5IKZn0DWK93orKonI">手动点「标记已读」</td></tr>
+            <tr data-page-node-id="wFvTq7EA4QgsmIRPazZBNQ"><td data-page-node-id="FnDyVlluqIhWSGnOuk6ked">5</td><td data-page-node-id="KYv0TvkxUT2SGe8nRkBHv0">任务域节奏</td><td data-page-node-id="2nx3rJoe37KRn8mgjoiT5W"><b data-page-node-id="83naALRsblHEKPOORVwIQC">P2 一并做</b>（表已齐、属部门端范围）</td><td data-page-node-id="xEUMj8LQptVVEXVDCNRvmW">先只做通知，任务下期</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok" style="margin-top:10px" data-page-node-id="K4pAgOCiuPDjbaU9FnRuOW">
+          <i class="el-icon-success" data-page-node-id="U6yfiQ9xXFx1m0lZFdXo7A" />
+          <span data-page-node-id="cq8alQm8H9OiDDU9V92Y6k">
+            <b data-page-node-id="uTksfqc3L7rgLYm998Z2DC">P0 不动任何既有接口</b>：只在 <code data-page-node-id="oamy4TkoOQ5FlxHSKiqA66">notice</code> 上补列 + 加两张新表 + 新增 5 个读接口；
+            前端只新建 <code data-page-node-id="zpaqvQIGlfIde2hJru68Si">/messages</code> 一个页面文件 + 改一行铃铛可见性。<b data-page-node-id="Kp9IUTn7uUU9nDqKXW3x2D">风险最低、见效最快。</b>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>
