@@ -180,7 +180,35 @@
               </div>
             </div>
 
-            <el-table :data="exams" size="mini" border v-loading="examLoading" empty-text="暂无模拟理论考核套卷，点右上角「新建套卷」">
+            <!-- 总览（全部由已加载的套卷列表计算，不额外请求接口） -->
+            <div class="prep-kpi-row">
+              <div v-for="k in examKpis()" :key="k.label" class="prep-kpi-card" :class="k.tone">
+                <span class="prep-kpi-icon"><i :class="k.icon" /></span>
+                <span class="prep-kpi-body">
+                  <span class="prep-kpi-value">{{ k.value }}<small>{{ k.unit }}</small></span>
+                  <span class="prep-kpi-label">{{ k.label }}</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- 筛选 / 搜索（纯前台过滤） -->
+            <div class="prep-filter">
+              <el-input v-model="examFilter.keyword" size="mini" clearable prefix-icon="el-icon-search" placeholder="搜索套卷名称 / 描述 / 内容偏向" style="width:260px" />
+              <el-select v-model="examFilter.status" size="mini" clearable placeholder="全部状态" style="width:124px">
+                <el-option label="已发布" value="PUBLISHED" />
+                <el-option label="草稿" value="DRAFT" />
+                <el-option label="已停用" value="DISABLED" />
+              </el-select>
+              <el-select v-model="examFilter.difficulty" size="mini" clearable placeholder="全部难度" style="width:124px">
+                <el-option label="简单" value="EASY" />
+                <el-option label="中等" value="MEDIUM" />
+                <el-option label="困难" value="HARD" />
+              </el-select>
+              <span class="prep-filter-sum">显示 {{ filteredExams().length }} / {{ exams.length }} 套</span>
+              <el-button size="mini" type="text" icon="el-icon-refresh-left" @click="resetExamFilter">重置</el-button>
+            </div>
+
+            <el-table :data="filteredExams()" size="mini" border v-loading="examLoading" empty-text="暂无模拟理论考核套卷，点右上角「新建套卷」">
               <el-table-column label="套卷名称" min-width="200">
                 <template slot-scope="scope">
                   <span class="strong">{{ scope.row.examName }}</span>
@@ -222,7 +250,7 @@
               </el-table-column>
               <el-table-column label="操作" width="236" align="center">
                 <template slot-scope="scope">
-                  <el-button type="text" size="mini" @click="openExamEditor(scope.row)">配置</el-button>
+                  <el-button type="text" size="mini" @click="goPaperConfig(scope.row)">配置</el-button>
                   <span class="sep">|</span>
                   <el-button type="text" size="mini" @click="openPaperDialog(scope.row)">编辑信息</el-button>
                   <span class="sep">|</span>
@@ -233,125 +261,6 @@
                 </template>
               </el-table-column>
             </el-table>
-
-            <!-- 套卷详细配置（组卷规则 + 每题分值 + 时长 + 通过线 + 试抽 → 保存并发布） -->
-            <div v-if="examForm.id" class="exam-editor">
-              <div class="dcard-h" style="padding:12px 0 10px">
-                <div class="tt">
-                  <span class="idx o">配</span>
-                  <h3>套卷配置 · {{ examForm.examName }}</h3>
-                </div>
-                <div class="dbtn-row">
-                  <el-button size="mini" @click="closeExamEditor">取消</el-button>
-                  <el-button size="mini" type="primary" :loading="saving" @click="saveExam">保存并生效</el-button>
-                </div>
-              </div>
-
-              <el-form :inline="true" size="small" style="margin-bottom:12px">
-                <el-form-item label="考试时长">
-                  <el-select v-model="durationPreset" size="small" style="width:160px" @change="onDurationPresetChange">
-                    <el-option v-for="d in durationOptions" :key="d" :label="d > 0 ? d + ' 分钟' : '不限时（自测）'" :value="d" />
-                    <el-option label="自定义…" :value="-1" />
-                  </el-select>
-                  <el-input-number v-if="durationPreset === -1" v-model="examForm.duration" :min="1" :max="600" size="small" style="width:120px;margin-left:8px" />
-                </el-form-item>
-                <el-form-item label="通过分数 / 总分">
-                  <el-input-number v-model="examForm.passLine" :min="0" :max="500" :precision="1" size="small" />
-                  <span style="margin-left:6px;color:#98a2b3">{{ examForm.passLine }} / {{ totalScore }} 分</span>
-                </el-form-item>
-              </el-form>
-
-              <el-form :inline="true" size="small" style="margin-bottom:12px">
-                <el-form-item label="每题分值">
-                  <span>单选</span><el-input-number v-model="examForm.singleScore" :min="0" :max="100" :precision="1" size="small" style="width:110px" />
-                  <span style="margin:0 6px">多选</span><el-input-number v-model="examForm.multiScore" :min="0" :max="100" :precision="1" size="small" style="width:110px" />
-                  <span style="margin:0 6px">判断</span><el-input-number v-model="examForm.judgeScore" :min="0" :max="100" :precision="1" size="small" style="width:110px" />
-                </el-form-item>
-                <el-form-item>
-                  <span class="dinp">题目数量 {{ questionTotal }} 题 · 满分 {{ totalScore }} 分</span>
-                </el-form-item>
-              </el-form>
-
-              <div class="dcallout" :class="checkOk ? 'ok' : 'warn'" style="margin:0 0 12px">
-                <i :class="checkOk ? 'el-icon-success' : 'el-icon-warning-outline'" />
-                <span>
-                  <template v-if="checkOk">校验通过：共 {{ bankRules.length }} 个题库 · 合计 {{ questionTotal }} 题（单选 {{ countOf('singleCount') }} + 多选 {{ countOf('multiCount') }} + 判断 {{ countOf('judgeCount') }}）· 满分 {{ totalScore }} 分 ✓</template>
-                  <template v-else>{{ checkMessage }}</template>
-                </span>
-              </div>
-
-              <div class="dgrid">
-                <div class="c8">
-                  <div class="dcard-h" style="padding:0 0 10px">
-                    <div class="tt"><span class="idx">分</span><h3>组卷题库（每个题库分别设置抽题量）</h3></div>
-                    <div class="dbtn-row">
-                      <el-select v-model="addBankId" size="mini" placeholder="＋ 添加题库" style="width:200px" @change="addBankRule">
-                        <el-option
-                          v-for="b in bankMeta"
-                          :key="b.bankId"
-                          :label="b.bankName + '（可用 ' + b.totalCount + ' 题）'"
-                          :value="b.bankId"
-                          :disabled="bankChosen(b.bankId)"
-                        />
-                      </el-select>
-                    </div>
-                  </div>
-                  <el-table :data="bankRules" size="mini" border empty-text="点右上角「＋ 添加题库」选择参与组卷的题库">
-                    <el-table-column label="题库" min-width="160">
-                      <template slot-scope="scope">
-                        <el-select v-model="scope.row.bankId" size="mini" filterable style="width:100%">
-                          <el-option v-for="b in bankMeta" :key="b.bankId" :label="b.bankName" :value="b.bankId" />
-                        </el-select>
-                      </template>
-                    </el-table-column>
-                    <el-table-column label="可用" width="76" align="center">
-                      <template slot-scope="scope"><span class="muted">{{ bankAvailable(scope.row.bankId) }} 题</span></template>
-                    </el-table-column>
-                    <el-table-column label="单选" width="108" align="center">
-                      <template slot-scope="scope">
-                        <el-input-number v-model="scope.row.singleCount" :min="0" :max="bankAvailOf(scope.row.bankId, 'singleCount')" size="mini" style="width:92px" />
-                      </template>
-                    </el-table-column>
-                    <el-table-column label="多选" width="108" align="center">
-                      <template slot-scope="scope">
-                        <el-input-number v-model="scope.row.multiCount" :min="0" :max="bankAvailOf(scope.row.bankId, 'multiCount')" size="mini" style="width:92px" />
-                      </template>
-                    </el-table-column>
-                    <el-table-column label="判断" width="108" align="center">
-                      <template slot-scope="scope">
-                        <el-input-number v-model="scope.row.judgeCount" :min="0" :max="bankAvailOf(scope.row.bankId, 'judgeCount')" size="mini" style="width:92px" />
-                      </template>
-                    </el-table-column>
-                    <el-table-column label="小计" width="70" align="center">
-                      <template slot-scope="scope"><b>{{ ruleRowTotal(scope.row) }}</b></template>
-                    </el-table-column>
-                    <el-table-column label="操作" width="70" align="center">
-                      <template slot-scope="scope">
-                        <el-button type="text" size="mini" class="danger-text" @click="bankRules.splice(scope.$index, 1)">删除</el-button>
-                      </template>
-                    </el-table-column>
-                  </el-table>
-                  <p class="dsec-note">抽题时在<b>每个题库内按题型随机取题</b>，再组合成卷。「抽题量 ≤ 题库可用」超了会抽不满卷，保存时后端会拦截。</p>
-                </div>
-
-                <div class="c4">
-                  <div class="dcard-h" style="padding:0 0 10px">
-                    <div class="tt"><span class="idx o">抽</span><h3>试抽一套（校验用）</h3></div>
-                  </div>
-                  <div class="dinp ta preview-box">
-                    <div v-if="drawing" class="drawing"><i class="el-icon-loading" /> 正在抽题…</div>
-                    <div v-else-if="previewQuestions.length">
-                      <div v-for="q in previewQuestions" :key="q.seq" class="pq">{{ q.seq }} · {{ typeText(q.qtype) }} · {{ q.bankName }} · {{ q.stem }}</div>
-                    </div>
-                    <div v-else style="color:#98a2b3">点下方按钮，按当前组卷配置真实抽一套卷看看效果。</div>
-                  </div>
-                  <div class="dbtn-row" style="margin-top:12px">
-                    <el-button size="small" :loading="drawing" @click="drawOnce">试抽一套</el-button>
-                  </div>
-                  <p class="dsec-note">保存后实习生即可看到本套卷并「开始练习」；模拟成绩仅本人可见、不计入正式成绩。</p>
-                </div>
-              </div>
-            </div>
 
           </div>
       </div>
@@ -423,8 +332,7 @@
 
 <script>
 import {
-  listExam, getExam, addExam, updateExam, delExam, publishExam, changeExamStatus,
-  listExamBankOptions, tryDrawByBanks, saveExamConfig, getExamConfig
+  listExam, addExam, updateExam, delExam, publishExam, changeExamStatus
 } from '@/api/business/exam'
 import {
   previewKindOf, extLabel, fileUrlOf as resolveFileUrl, PREVIEW_SUPPORT_TEXT, triggerDownload
@@ -433,18 +341,6 @@ import {
   listMaterial, addMaterial, updateMaterial, changeMaterialStatus, delMaterial, listApplicablePositions, uploadFile
 } from '@/api/business/material'
 import { mapGetters } from 'vuex'
-
-function emptyExamForm() {
-  return {
-    id: null,
-    examName: '',
-    singleScore: 1,
-    multiScore: 1,
-    judgeScore: 1,
-    duration: 0,
-    passLine: 6
-  }
-}
 
 function emptyPaperForm() {
   return { id: null, examName: '', description: '', difficulty: '', contentBias: '' }
@@ -458,7 +354,7 @@ export default {
     PracticeBankPicker },
   data() {
     return {
-      activeTab: 'material',
+      activeTab: (this.$route.query && this.$route.query.tab === 'module') ? 'module' : 'material',
       // === 2026-09-21 改版新增：列表筛选（纯前台过滤，不改接口）===
       materialFilter: { keyword: '', type: '', status: '' },
       // ---- 备考资料（真实后端） ----
@@ -474,24 +370,17 @@ export default {
       form: {
         name: '', type: 'DOCUMENT', position: '', version: 'v1.0', intro: '', fileName: '', fileUrl: ''
       },
+      examFilter: { keyword: '', status: '', difficulty: '' },
       // ---- 模拟理论考核（套卷，无阶段层级） ----
       exams: [],
       examLoading: false,
-      examForm: emptyExamForm(),
       paperDialogVisible: false,
       paperDialogTitle: '',
       paperForm: emptyPaperForm(),
       paperRules: {
         examName: [{ required: true, message: '请输入套卷名称', trigger: 'blur' }]
       },
-      bankMeta: [],
-      bankRules: [],
-      addBankId: null,
-      drawing: false,
-      saving: false,
-      previewQuestions: [],
-      durationOptions: [0, 30, 45, 60, 90, 120, 180, 240],
-      durationPreset: 0
+      saving: false
     }
   },
   computed: {
@@ -520,39 +409,6 @@ export default {
     previewSupportText() {
       return PREVIEW_SUPPORT_TEXT
     },
-    /** 组卷抽题合计（各题库单选 + 多选 + 判断） */
-    questionTotal() {
-      return this.bankRules.reduce((sum, r) => sum + this.ruleRowTotal(r), 0)
-    },
-    totalScore() {
-      return this.countOf('singleCount') * (Number(this.examForm.singleScore) || 0) +
-        this.countOf('multiCount') * (Number(this.examForm.multiScore) || 0) +
-        this.countOf('judgeCount') * (Number(this.examForm.judgeScore) || 0)
-    },
-    /** 超出题库可用题量的行 */
-    overRows() {
-      return this.bankRules.filter(r => {
-        const avail = this.bankMetaOf(r.bankId)
-        return (Number(r.singleCount) || 0) > avail.singleCount ||
-          (Number(r.multiCount) || 0) > avail.multiCount ||
-          (Number(r.judgeCount) || 0) > avail.judgeCount
-      })
-    },
-    checkOk() {
-      if (!this.bankRules.length) return false
-      if (this.bankRules.some(r => !r.bankId)) return false
-      if (this.questionTotal <= 0) return false
-      return this.overRows.length === 0
-    },
-    checkMessage() {
-      if (!this.bankRules.length) return '尚未配置组卷题库：点右上角「＋ 添加题库」选择参与组卷的题库，再分别设置每个题库的抽题数量。'
-      if (this.bankRules.some(r => !r.bankId)) return '存在未选择题库的行，请选择对应题库或删除该行。'
-      if (this.questionTotal <= 0) return '抽题数量合计为 0，请至少为一个题库设置抽题数量。'
-      if (this.overRows.length) {
-        return '「' + this.overRows.map(r => this.bankNameOf(r.bankId)).join('、') + '」的抽题数量超过该题库可用题量，会抽不满卷。'
-      }
-      return ''
-    }
   },
   created() {
     if (this.isSuperAdmin) this.loadDepartments()
@@ -731,10 +587,9 @@ export default {
 
 
     // ================= 模拟理论考核（套卷，无阶段层级） =================
-    /** 套卷列表 + 可选题库一起刷新（进页签 / 点刷新都用它） */
+    /** 套卷列表刷新（进页签 / 点刷新都用它） */
     loadExamTab() {
       this.loadModuleExams()
-      this.loadBankMeta()
     },
     loadModuleExams() {
       this.examLoading = true
@@ -746,50 +601,40 @@ export default {
         this.examLoading = false
       })
     },
-    /** 本部门可选题库（含各库按题型的可用题量） */
-    loadBankMeta() {
-      // 候选库 = 形态 × 用途：模拟理论卷只取「理论库 × 模拟/通用」（防抽到正式题库）
-      listExamBankOptions(null, 'PRACTICE', 'THEORY').then(res => {
-        this.bankMeta = (res.data || []).map(b => ({
-          bankId: b.bankId,
-          bankName: b.bankName,
-          totalCount: Number(b.totalCount) || 0,
-          singleCount: Number(b.singleCount) || 0,
-          multiCount: Number(b.multiCount) || 0,
-          judgeCount: Number(b.judgeCount) || 0
-        }))
-      }).catch(() => { this.bankMeta = [] })
+    /** 套卷筛选（纯前台：名称/描述/内容偏向 关键词 + 状态 + 难度） */
+    filteredExams() {
+      const f = this.examFilter
+      const kw = (f.keyword || '').trim().toLowerCase()
+      return (this.exams || []).filter(e => {
+        if (kw) {
+          const hay = (String(e.examName || '') + ' ' + String(e.description || '') + ' ' + String(e.contentBias || '')).toLowerCase()
+          if (hay.indexOf(kw) === -1) return false
+        }
+        if (f.status && e.status !== f.status) return false
+        if (f.difficulty && (e.difficulty || '') !== f.difficulty) return false
+        return true
+      })
     },
-    /** 打开套卷详细配置（仅编辑态；新建请走 openPaperDialog 先建基础信息） */
-    openExamEditor(row) {
-      this.previewQuestions = []
-      if (!row) return
-      this.examForm = {
-        id: row.id,
-        examName: row.examName || '',
-        singleScore: Number(row.singleScore) || 0,
-        multiScore: Number(row.multiScore) || 0,
-        judgeScore: Number(row.judgeScore) || 0,
-        duration: Number(row.duration) || 0,
-        passLine: Number(row.passLine) || 0
-      }
-      this.durationPreset = this.durationOptions.indexOf(this.examForm.duration) > -1 ? this.examForm.duration : -1
-      getExamConfig(row.id).then(res => {
-        const data = res.data || {}
-        this.bankRules = (data.bankRules || []).map((r, i) => ({
-          bankId: r.bankId,
-          bankName: r.bankName,
-          singleCount: Number(r.singleCount) || 0,
-          multiCount: Number(r.multiCount) || 0,
-          judgeCount: Number(r.judgeCount) || 0,
-          sortNo: r.sortNo || i + 1
-        }))
-      }).catch(() => { this.bankRules = [] })
+    resetExamFilter() {
+      this.examFilter = { keyword: '', status: '', difficulty: '' }
     },
-    closeExamEditor() {
-      this.examForm = emptyExamForm()
-      this.bankRules = []
-      this.previewQuestions = []
+    /** 套卷总览（全部由已加载列表计算） */
+    examKpis() {
+      const list = this.exams || []
+      const published = list.filter(e => e.status === 'PUBLISHED').length
+      const draft = list.filter(e => e.status === 'DRAFT').length
+      const disabled = list.filter(e => e.status === 'DISABLED').length
+      return [
+        { label: '套卷总数', value: list.length, unit: '套', icon: 'el-icon-document', tone: '' },
+        { label: '已发布', value: published, unit: '套', icon: 'el-icon-circle-check', tone: 'tone-green' },
+        { label: '草稿待配置', value: draft, unit: '套', icon: 'el-icon-edit-outline', tone: 'tone-orange' },
+        { label: '已停用', value: disabled, unit: '套', icon: 'el-icon-circle-close', tone: '' }
+      ]
+    },
+    /** 进套卷配置独立页（组卷规则 / 分值 / 试抽 / 发布都在那一页） */
+    goPaperConfig(row) {
+      if (!row || !row.id) return
+      this.$router.push('/department/study/paper-config/' + row.id)
     },
     /** 打开套卷基础信息弹窗（新建 / 编辑信息） */
     openPaperDialog(row) {
@@ -819,7 +664,6 @@ export default {
         }
         if (this.paperForm.id) {
           updateExam(Object.assign({ id: this.paperForm.id }, base)).then(() => {
-            if (this.examForm.id === this.paperForm.id) this.examForm.examName = base.examName
             this.saving = false
             this.paperDialogVisible = false
             this.loadModuleExams()
@@ -834,115 +678,6 @@ export default {
           }).catch(() => { this.saving = false })
         }
       })
-    },
-    bankMetaOf(bankId) {
-      return this.bankMeta.find(b => b.bankId === bankId) ||
-        { bankName: '未选择题库', totalCount: 0, singleCount: 0, multiCount: 0, judgeCount: 0 }
-    },
-    bankNameOf(bankId) {
-      return this.bankMetaOf(bankId).bankName || '未选择题库'
-    },
-    bankAvailable(bankId) {
-      return this.bankMetaOf(bankId).totalCount
-    },
-    bankAvailOf(bankId, key) {
-      const v = this.bankMetaOf(bankId)[key]
-      return v === undefined ? 0 : v
-    },
-    bankChosen(bankId) {
-      return this.bankRules.some(r => r.bankId === bankId)
-    },
-    ruleRowTotal(row) {
-      return (Number(row.singleCount) || 0) + (Number(row.multiCount) || 0) + (Number(row.judgeCount) || 0)
-    },
-    /** 按题型汇总各库抽题量 */
-    countOf(key) {
-      return this.bankRules.reduce((sum, r) => sum + (Number(r[key]) || 0), 0)
-    },
-    addBankRule(bankId) {
-      if (!bankId) return
-      this.bankRules.push({
-        bankId,
-        bankName: this.bankNameOf(bankId),
-        singleCount: 0,
-        multiCount: 0,
-        judgeCount: 0
-      })
-      this.addBankId = null
-    },
-    rulePayload() {
-      return this.bankRules.map((r, i) => ({
-        bankId: r.bankId,
-        singleCount: r.singleCount,
-        multiCount: r.multiCount,
-        judgeCount: r.judgeCount,
-        sortNo: i + 1
-      }))
-    },
-    onDurationPresetChange(v) {
-      if (v !== -1) {
-        this.examForm.duration = v
-      } else if (!this.examForm.duration) {
-        this.examForm.duration = 60
-      }
-    },
-    /** 试抽一套（真实调后端按多题库组卷配置抽题） */
-    drawOnce() {
-      if (!this.checkOk) {
-        this.$modal.msgWarning(this.checkMessage || '请先完成组卷配置')
-        return
-      }
-      this.drawing = true
-      tryDrawByBanks({ bankRules: this.rulePayload() }).then(res => {
-        this.previewQuestions = res.data || []
-        this.drawing = false
-        if (!this.previewQuestions.length) {
-          this.$modal.msgWarning('按当前配置抽不到题，请检查各题库题目是否充足')
-        }
-      }).catch(() => { this.drawing = false })
-    },
-    /** 保存并生效：保存组卷配置 → 发布（套卷本身已在基础信息弹窗创建） */
-    saveExam() {
-      if (!this.examForm.id) {
-        this.$modal.msgWarning('请先用「新建套卷」创建套卷，再进入配置')
-        return
-      }
-      if (!this.checkOk) {
-        this.$modal.msgWarning(this.checkMessage || '配置校验未通过')
-        return
-      }
-      this.saving = true
-      const configPayload = {
-        singleScore: this.examForm.singleScore,
-        multiScore: this.examForm.multiScore,
-        judgeScore: this.examForm.judgeScore,
-        duration: this.examForm.duration,
-        passLine: this.examForm.passLine,
-        bankRules: this.rulePayload(),
-        assignMode: 'ALL'
-      }
-      updateExam(Object.assign({ id: this.examForm.id }, configPayload)).then(() => {
-        this.afterConfigSaved(this.examForm.id)
-      }).catch(() => { this.saving = false })
-    },
-    /** 保存组卷配置后再决定是否发布 */
-    afterConfigSaved(examId) {
-      saveExamConfig(examId, {
-        singleScore: this.examForm.singleScore,
-        multiScore: this.examForm.multiScore,
-        judgeScore: this.examForm.judgeScore,
-        duration: this.examForm.duration,
-        passLine: this.examForm.passLine,
-        bankRules: this.rulePayload(),
-        assignMode: 'ALL'
-      }).then(() => {
-        publishExam(examId).then(() => {
-          this.saving = false
-          this.$modal.msgSuccess('套卷已保存并生效，实习生即可开始练习')
-          this.closeExamEditor()
-          this.loadModuleExams()
-        }).catch(() => { this.saving = false })
-      }).catch(() => { this.saving = false })
     },
     publishExamRow(row) {
       publishExam(row.id).then(() => {
@@ -963,7 +698,6 @@ export default {
         return delExam(row.id)
       }).then(() => {
         this.$modal.msgSuccess('删除成功')
-        this.closeExamEditor()
         this.loadModuleExams()
       }).catch(() => {})
     },
@@ -991,10 +725,8 @@ export default {
 .d-hidden-input { display: none; }
 .preview-box { min-height: 132px; }
 .pq { color: #344054; font-size: 11.5px; line-height: 2; }
-.drawing { color: #98a2b3; font-size: 12px; line-height: 2; }
 code { padding: 1px 5px; color: #344054; font-size: 11.5px; background: #f2f4f7; border-radius: 4px; }
 .embed-wrap { margin-top: 4px; }
-.exam-editor { margin-top: 8px; padding: 0 14px 6px; background: #fbfcfe; border: 1px dashed #dfe5ee; border-radius: 8px; }
 .file-preview { display: flex; align-items: center; justify-content: center; min-height: 160px; }
 .file-preview-frame { width: 100%; height: 70vh; border: none; }
 .file-preview-video { width: 100%; max-height: 70vh; background: #000; }

@@ -331,6 +331,14 @@ export const dynamicRoutes = [
         meta: { title: '模拟备考管理', icon: 'documentation', activeMenu: '/department/study/prep' }
       },
       {
+        // 套卷配置（独立页）：从「模拟理论考核」列表点「配置」进来，不进侧栏。
+        path: 'study/paper-config/:examId',
+        component: () => import('@/views/department/study/prep/paperConfig'),
+        name: 'DeptPaperConfig',
+        hidden: true,
+        meta: { title: '套卷配置', activeMenu: '/department/study/prep' }
+      },
+      {
         path: 'study/exam',
         component: () => import('@/views/business/exam/index'),
         name: 'DeptExam',
