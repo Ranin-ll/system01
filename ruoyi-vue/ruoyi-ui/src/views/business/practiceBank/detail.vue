@@ -83,35 +83,59 @@
       </el-table>
     </section>
 
-    <el-dialog :title="form.id ? '编辑实操题' : '新增实操题'" :visible.sync="visible" width="880px" top="5vh" append-to-body>
+    <el-dialog
+      :title="(form.id ? '编辑实操题' : '新增实操题') + (bankName ? ' · ' + bankName : '')"
+      :visible.sync="visible"
+      width="960px"
+      top="4vh"
+      append-to-body
+      :close-on-click-modal="false"
+      class="pbank-dialog"
+    >
       <el-form ref="form" :model="form" :rules="rules" label-width="98px" size="small">
-        <div class="sec">基本信息</div>
-        <div class="fg2">
-          <el-form-item label="题名" prop="title"><el-input v-model="form.title" maxlength="200" placeholder="例如：用户登录接口开发" /></el-form-item>
-          <el-form-item label="技能方向"><el-input v-model="form.direction" maxlength="64" placeholder="例如：后端接口开发" /></el-form-item>
-          <el-form-item label="方向说明"><el-input v-model="form.directionDesc" maxlength="255" placeholder="一句话说明该方向的考察点" /></el-form-item>
-          <el-form-item label="章节"><el-input v-model="form.chapter" maxlength="64" placeholder="与理论题库口径统一，可选" /></el-form-item>
-        </div>
-        <div class="fg3">
+        <div class="sec"><span class="sec-no">1</span>题目信息<i class="sec-tip">实习生会看到题名；技能方向用于分组与筛选</i></div>
+        <el-form-item label="题名" prop="title">
+          <el-input v-model="form.title" maxlength="200" placeholder="例如：用户登录接口开发（会展示给实习生）" />
+        </el-form-item>
+        <div class="fg4">
+          <el-form-item label="技能方向"><el-input v-model="form.direction" maxlength="64" placeholder="如：后端接口开发" /></el-form-item>
           <el-form-item label="难度">
-            <el-select v-model="form.difficulty" style="width:100%">
-              <el-option label="简单" value="EASY" /><el-option label="中等" value="MEDIUM" /><el-option label="困难" value="HARD" />
-            </el-select>
+            <el-radio-group v-model="form.difficulty" size="mini" class="diff-seg">
+              <el-radio-button label="EASY">简单</el-radio-button>
+              <el-radio-button label="MEDIUM">中等</el-radio-button>
+              <el-radio-button label="HARD">困难</el-radio-button>
+            </el-radio-group>
           </el-form-item>
-          <el-form-item label="建议用时"><el-input-number v-model="form.estimatedMinutes" :min="0" :max="600" controls-position="right" style="width:100%" /></el-form-item>
-          <el-form-item label="建议满分"><el-input-number v-model="form.suggestScore" :min="0" :max="999" :precision="1" controls-position="right" style="width:100%" /></el-form-item>
+          <el-form-item label="建议用时"><el-input-number v-model="form.estimatedMinutes" :min="0" :max="600" controls-position="right" style="width:100%" /><span class="unit">分钟</span></el-form-item>
+          <el-form-item label="建议满分"><el-input-number v-model="form.suggestScore" :min="0" :max="999" :precision="1" controls-position="right" placeholder="未填" style="width:100%" /><span class="unit">分</span></el-form-item>
         </div>
-
-        <div class="sec">题目与要求</div>
-        <el-form-item label="题干"><el-input v-model="form.content" type="textarea" :rows="4" placeholder="作业背景与要求（会展示给实习生）" /></el-form-item>
         <div class="fg2">
-          <el-form-item label="交付要求"><el-input v-model="form.deliverables" type="textarea" :rows="3" placeholder="一行一条，例如：接口代码 / 接口文档" /></el-form-item>
-          <el-form-item label="开发约束"><el-input v-model="form.devConstraints" type="textarea" :rows="3" placeholder="一行一条，例如：使用 SpringBoot / 不得引入新依赖" /></el-form-item>
-          <el-form-item label="提交格式"><el-input v-model="form.submitFormat" maxlength="255" placeholder="例如：zip 压缩包" /></el-form-item>
-          <el-form-item label="命名规则"><el-input v-model="form.namingRule" maxlength="255" placeholder="例如：姓名_学号_题名.zip" /></el-form-item>
+          <el-form-item label="章节">
+            <el-input v-model="form.chapter" maxlength="64" placeholder="与理论题库口径统一（可选）" />
+          </el-form-item>
+          <el-form-item label="方向说明">
+            <el-input v-model="form.directionDesc" maxlength="255" placeholder="一句话说明该方向的考察点（可选）" />
+          </el-form-item>
         </div>
 
-        <div class="sec">素材</div>
+        <div class="sec"><span class="sec-no">2</span>题目与要求<i class="sec-tip">交付要求 / 开发约束按「一行一条」写，展示时自动成列表</i></div>
+        <el-form-item label="题干">
+          <el-input v-model="form.content" type="textarea" :rows="4" placeholder="作业背景与要求：要做成什么、验收标准是什么" />
+        </el-form-item>
+        <div class="fg2">
+          <el-form-item label="交付要求">
+            <el-input v-model="form.deliverables" type="textarea" :rows="4" placeholder="一行一条&#10;接口代码&#10;接口文档（含入参出参）" />
+          </el-form-item>
+          <el-form-item label="开发约束">
+            <el-input v-model="form.devConstraints" type="textarea" :rows="4" placeholder="一行一条&#10;使用 SpringBoot&#10;不得引入新依赖" />
+          </el-form-item>
+        </div>
+        <div class="fg2">
+          <el-form-item label="提交格式"><el-input v-model="form.submitFormat" maxlength="255" placeholder="如：zip 压缩包" /></el-form-item>
+          <el-form-item label="命名规则"><el-input v-model="form.namingRule" maxlength="255" placeholder="如：姓名_学号_题名.zip" /></el-form-item>
+        </div>
+
+        <div class="sec"><span class="sec-no">3</span>素材<i class="sec-tip">参考图给实习生看效果；附件为起始素材</i></div>
         <el-form-item label="参考图">
           <el-upload :show-file-list="false" :http-request="uploadRefImage" accept="image/*" class="inline-up">
             <el-button size="mini" icon="el-icon-picture-outline">上传参考图</el-button>
@@ -137,8 +161,12 @@
           </div>
         </el-form-item>
 
+        <div class="sec"><span class="sec-no">4</span>其它</div>
         <div class="fg2">
-          <el-form-item label="排序号"><el-input-number v-model="form.sortNo" :min="0" :max="9999" controls-position="right" /></el-form-item>
+          <el-form-item label="排序号">
+            <el-input-number v-model="form.sortNo" :min="0" :max="9999" controls-position="right" style="width:130px" />
+            <span class="unit">越小越靠前</span>
+          </el-form-item>
           <el-form-item label="状态">
             <el-radio-group v-model="form.status"><el-radio :label="1">启用</el-radio><el-radio :label="0">停用</el-radio></el-radio-group>
           </el-form-item>
@@ -332,7 +360,12 @@ export default {
 .empty-block { padding: 26px 0; text-align: center; }
 .empty-block i { color: #d0d5dd; font-size: 32px; }
 .empty-block p { margin: 10px 0 0; color: #8490a0; font-size: 13px; }
-.sec { padding: 4px 0 10px; margin: 4px 0 14px; color: #344054; font-size: 13px; font-weight: 600; border-bottom: 1px solid #eef1f6; }
+.sec { display: flex; align-items: center; gap: 8px; padding: 4px 0 10px; margin: 4px 0 14px; color: #344054; font-size: 13px; font-weight: 600; border-bottom: 1px solid #eef1f6; }
+.sec-no { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; color: #fff; background: #1764f5; font-size: 11px; border-radius: 50%; }
+.sec-tip { margin-left: auto; color: #98a2b3; font-size: 11.5px; font-style: normal; font-weight: 400; }
+.fg4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 14px; }
+.unit { margin-left: 6px; color: #98a2b3; font-size: 12px; }
+.diff-seg ::v-deep .el-radio-button__inner { padding: 6px 10px; }
 .fg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .fg3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 16px; }
 .inline-up { display: inline-block; }
