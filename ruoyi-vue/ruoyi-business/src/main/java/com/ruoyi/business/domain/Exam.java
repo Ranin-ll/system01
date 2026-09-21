@@ -133,7 +133,8 @@ public class Exam implements Serializable {
 
     /**
      * 多题库组卷配置（当前主用，落 exam_bank_rule）
-     * 语义：题库即知识模块；每个题库分别配置 单选/多选/判断 的抽题数量。
+     * 语义：按题库分配抽题量；每个题库分别配置 单选/多选/判断 的抽题数量。
+     * 注：题库 = 一个部门的一门科目（**不是"知识模块"**，一个题库内含多个知识点）。
      * 配置非空时优先按它抽题；为空时回退到 bankId 单库 + knowledgeRules 老逻辑。
      */
     @TableField(exist = false)

@@ -517,7 +517,7 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
      *         非 null（可能为空列表）表示要以它为准覆写。
      */
     private java.util.List<com.ruoyi.business.domain.ExamBankRule> collectBankRules(Exam exam, Exam params) {
-        // 只有理论考核从题库组卷（题库即知识模块，多题库 × 题型配额）。
+        // 只有理论考核从题库组卷（多题库 × 题型配额；题库 = 部门的一门科目）。
         // 实操考核已改为「管理员逐条填写题目清单」，不再接受任何题库组卷配置。
         if (!"THEORY".equals(exam.getExamType())) {
             return null;

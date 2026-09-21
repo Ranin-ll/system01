@@ -11,6 +11,7 @@
         <result property="description"   column="description"    />
         <result property="status"        column="status"         />
         <result property="questionCount" column="question_count" />
+        <result property="knowledgePointCount" column="knowledge_point_count" />
         <result property="createBy"      column="create_by"      />
         <result property="createTime"    column="create_time"    />
         <result property="updateTime"    column="update_time"    />
@@ -21,6 +22,9 @@
     <sql id="bankColumns">
         b.id, b.bank_name, b.bank_type, b.dept_id, b.description, b.status,
         (SELECT COUNT(1) FROM question q WHERE q.bank_id = b.id AND q.deleted = 0) AS question_count,
+        (SELECT COUNT(DISTINCT q.knowledge_point) FROM question q
+          WHERE q.bank_id = b.id AND q.deleted = 0
+            AND q.knowledge_point IS NOT NULL AND q.knowledge_point != '') AS knowledge_point_count,
         b.create_by, b.create_time, b.update_time, b.deleted,
         d.dept_name
     </sql>

@@ -40,7 +40,7 @@
           <small>{{ t.pct }}</small>
         </div>
         <div class="stat-card">
-          <span class="lb">知识点</span>
+          <span class="lb">知识点（题目标签）</span>
           <strong>{{ stats.kpCount }}</strong>
           <small>{{ stats.kpTop.length ? ('最多：' + stats.kpTop[0].name) : '未标注知识点' }}</small>
         </div>
@@ -77,8 +77,8 @@
       <!-- 知识点分布 -->
       <section class="panel">
         <div class="panel-heading">
-          <h3>知识点分布 Top 10</h3>
-          <span class="hint">题量越多的知识点，越适合作为组卷的抽题范围</span>
+          <h3>知识点分布 Top 10（参考）</h3>
+          <span class="hint">知识点只是题目标签，用于统计与画像；<b>组卷抽题只按「题库 × 题型」配额</b></span>
         </div>
         <div v-if="stats.kpTop.length" class="kp-wrap">
           <span v-for="k in stats.kpTop" :key="k.name" class="kp-chip">
@@ -131,7 +131,7 @@
           <el-table-column label="难度" width="80" align="center">
             <template slot-scope="s"><span class="diff-text" :class="'d-' + String(s.row.difficulty || '').toLowerCase()">{{ diffText(s.row.difficulty) }}</span></template>
           </el-table-column>
-          <el-table-column label="知识点" width="130">
+          <el-table-column label="知识点（标签）" width="140">
             <template slot-scope="s"><span v-if="s.row.knowledgePoint" class="kp-text">{{ s.row.knowledgePoint }}</span><span v-else class="muted">—</span></template>
           </el-table-column>
           <el-table-column label="状态" width="76" align="center">
@@ -208,7 +208,7 @@
             <el-option label="简单" value="EASY" /><el-option label="中等" value="MEDIUM" /><el-option label="困难" value="HARD" />
           </el-select>
         </el-form-item>
-        <el-form-item label="知识点"><el-input v-model="form.knowledgePoint" placeholder="知识点（可选）" maxlength="64" /></el-form-item>
+        <el-form-item label="知识点（标签）"><el-input v-model="form.knowledgePoint" placeholder="可选；用于统计与画像，不参与组卷抽题" maxlength="64" /></el-form-item>
       </el-form>
       <span slot="footer">
         <el-button @click="dialogVisible = false">取消</el-button>

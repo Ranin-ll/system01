@@ -8,7 +8,7 @@
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>模拟备考管理</h1>
-        <p>备考资料 / 模拟模块（模块内挂理论模拟考核与实操题）—— 先建模块，再在模块内上传考核内容。</p>
+        <p>备考资料 / 备考模块（模块内挂理论模拟考核与实操题）—— <b>模块只是分组容器</b>；抽题仍按各考核的组卷规则（题库 × 题型）。</p>
       </div>
       <div class="dept-heading-actions">
         <el-button size="small" icon="el-icon-refresh" @click="reloadAll">刷新</el-button>
@@ -30,6 +30,17 @@
 
     <!-- ============ 页签 1 · 备考资料 ============ -->
     <template v-if="activeTab === 'material'">
+      <!-- 总览（真实数据：来自已加载的资料列表） -->
+      <div class="prep-kpi-row">
+        <div v-for="k in materialKpis()" :key="k.label" class="prep-kpi-card" :class="k.tone">
+          <span class="prep-kpi-icon"><i :class="k.icon" /></span>
+          <span class="prep-kpi-body">
+            <span class="prep-kpi-value">{{ k.value }}<small>{{ k.unit }}</small></span>
+            <span class="prep-kpi-label">{{ k.label }}</span>
+          </span>
+        </div>
+      </div>
+
       <div class="dgrid">
         <div class="dcard c5">
           <div class="dcard-h">
@@ -81,6 +92,21 @@
             <div class="tt"><span class="idx">列</span><h3>已上传资料</h3></div>
             <span class="hint-text">发布后本部门对应岗位实习生在「备考资料」页可见</span>
           </div>
+          <div class="prep-filter">
+            <el-input v-model="materialFilter.keyword" size="mini" clearable prefix-icon="el-icon-search" placeholder="搜索资料名称" style="width:190px" />
+            <el-select v-model="materialFilter.type" size="mini" clearable placeholder="全部类型" style="width:136px">
+              <el-option label="文档" value="DOCUMENT" />
+              <el-option label="视频" value="VIDEO" />
+              <el-option label="模拟题入口" value="MOCK_ENTRY" />
+            </el-select>
+            <el-select v-model="materialFilter.status" size="mini" clearable placeholder="全部状态" style="width:124px">
+              <el-option label="已发布" value="PUBLISHED" />
+              <el-option label="草稿" value="DRAFT" />
+              <el-option label="已停用" value="DISABLED" />
+            </el-select>
+            <span class="prep-filter-sum">显示 {{ filteredMaterials().length }} / {{ materials.length }} 份</span>
+            <el-button size="mini" type="text" icon="el-icon-refresh-left" @click="resetMaterialFilter">重置</el-button>
+          </div>
           <table class="dtbl" v-loading="materialLoading">
             <thead>
               <tr>
@@ -93,7 +119,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in materials" :key="row.id">
+              <tr v-for="row in filteredMaterials()" :key="row.id">
                 <td><span class="strong">{{ row.materialName }}</span></td>
                 <td><span class="dbadge" :class="typeTone(row.materialType)">{{ typeText(row.materialType) }}</span></td>
                 <td>{{ row.positionName || '-' }}</td>
@@ -114,8 +140,8 @@
                   </div>
                 </td>
               </tr>
-              <tr v-if="!materials.length && !materialLoading">
-                <td colspan="6" class="d-empty">暂无备考资料，请在左侧填写并上传。</td>
+              <tr v-if="!filteredMaterials().length && !materialLoading">
+                <td colspan="6" class="d-empty">{{ materials.length ? '当前筛选条件下没有匹配的资料' : '暂无备考资料，请在左侧填写并上传。' }}</td>
               </tr>
             </tbody>
           </table>
@@ -123,7 +149,7 @@
       </div>
     </template>
 
-    <!-- ============ 页签 2 · 模拟模块 ============ -->
+    <!-- ============ 页签 2 · 备考模块 ============ -->
     <template v-if="activeTab === 'module'">
       <!-- 2.1 模块列表 -->
       <template v-if="!activeModule">
@@ -132,7 +158,7 @@
             <div>
               <span class="dsec-no p">模</span>
               <div>
-                <h2>模拟模块</h2>
+                <h2>备考模块</h2>
                 <p>模块是模拟考核的顶层分组：先建模块，再在模块内发布理论模拟考核与实操题。模块名可直接改，不用逐个调整题目。</p>
               </div>
             </div>
@@ -144,6 +170,25 @@
             </div>
           </div>
           <div class="dsec-body">
+            <!-- 总览（真实数据：来自已加载的模块列表） -->
+            <div class="prep-kpi-row">
+              <div v-for="k in moduleKpis()" :key="k.label" class="prep-kpi-card" :class="k.tone">
+                <span class="prep-kpi-icon"><i :class="k.icon" /></span>
+                <span class="prep-kpi-body">
+                  <span class="prep-kpi-value">{{ k.value }}<small>{{ k.unit }}</small></span>
+                  <span class="prep-kpi-label">{{ k.label }}</span>
+                </span>
+              </div>
+            </div>
+            <div class="prep-filter" style="margin-bottom:10px">
+              <el-input v-model="moduleFilter.keyword" size="mini" clearable prefix-icon="el-icon-search" placeholder="搜索模块名称" style="width:190px" />
+              <el-select v-model="moduleFilter.status" size="mini" clearable placeholder="全部状态" style="width:124px">
+                <el-option label="启用" :value="1" />
+                <el-option label="停用" :value="0" />
+              </el-select>
+              <span class="prep-filter-sum">显示 {{ filteredModules().length }} / {{ modules.length }} 个</span>
+              <el-button size="mini" type="text" icon="el-icon-refresh-left" @click="resetModuleFilter">重置</el-button>
+            </div>
             <div v-loading="moduleLoading">
               <table class="dtbl">
                 <thead>
@@ -159,7 +204,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(m, i) in modules" :key="m.id">
+                  <tr v-for="(m, i) in filteredModules()" :key="m.id">
                     <td>{{ i + 1 }}</td>
                     <td>
                       <span class="strong">{{ m.name }}</span>
@@ -182,8 +227,8 @@
                       </div>
                     </td>
                   </tr>
-                  <tr v-if="!modules.length && !moduleLoading">
-                    <td colspan="8" class="d-empty">暂无模块，点右上角「新建模块」开始配置。</td>
+                  <tr v-if="!filteredModules().length && !moduleLoading">
+                    <td colspan="8" class="d-empty">{{ modules.length ? '当前筛选条件下没有匹配的模块' : '暂无模块，点右上角「新建模块」开始配置。' }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -495,6 +540,9 @@ export default {
   data() {
     return {
       activeTab: 'material',
+      // === 2026-09-21 改版新增：列表筛选（纯前台过滤，不改接口）===
+      materialFilter: { keyword: '', type: '', status: '' },
+      moduleFilter: { keyword: '', status: '' },
       // ---- 备考资料（真实后端） ----
       materials: [],
       materialLoading: false,
@@ -544,7 +592,7 @@ export default {
     tabs() {
       return [
         { key: 'material', label: '备考资料', count: this.materials.length },
-        { key: 'module', label: '模拟模块', count: this.modules.length || '' }
+        { key: 'module', label: '备考模块', count: this.modules.length || '' }
       ]
     },
     baseApi() {
@@ -600,6 +648,54 @@ export default {
     this.reloadAll()
   },
   methods: {
+    // === 2026-09-21 改版新增：筛选 + 总览（全部由已加载列表计算）===
+    filteredMaterials() {
+      const f = this.materialFilter
+      const kw = (f.keyword || '').trim().toLowerCase()
+      return (this.materials || []).filter(r => {
+        if (kw && String(r.materialName || '').toLowerCase().indexOf(kw) === -1) return false
+        if (f.type && r.materialType !== f.type) return false
+        if (f.status && r.status !== f.status) return false
+        return true
+      })
+    },
+    resetMaterialFilter() {
+      this.materialFilter = { keyword: '', type: '', status: '' }
+    },
+    materialKpis() {
+      const list = this.materials || []
+      const published = list.filter(m => m.status === 'PUBLISHED').length
+      const positions = new Set(list.map(m => m.positionName || '未设置岗位'))
+      return [
+        { label: '资料总数', value: list.length, unit: '份', icon: 'el-icon-folder-opened', tone: '' },
+        { label: '已发布', value: published, unit: '份', icon: 'el-icon-circle-check', tone: 'tone-green' },
+        { label: '待发布 / 已停用', value: list.length - published, unit: '份', icon: 'el-icon-edit-outline', tone: 'tone-orange' },
+        { label: '覆盖岗位', value: positions.size, unit: '个', icon: 'el-icon-office-building', tone: 'tone-purple' }
+      ]
+    },
+    filteredModules() {
+      const f = this.moduleFilter
+      const kw = (f.keyword || '').trim().toLowerCase()
+      return (this.modules || []).filter(m => {
+        if (kw && String(m.name || '').toLowerCase().indexOf(kw) === -1) return false
+        if (f.status !== '' && f.status !== null && Number(m.status) !== Number(f.status)) return false
+        return true
+      })
+    },
+    resetModuleFilter() {
+      this.moduleFilter = { keyword: '', status: '' }
+    },
+    moduleKpis() {
+      const list = this.modules || []
+      const sum = (key) => list.reduce((acc, m) => acc + (Number(m[key]) || 0), 0)
+      return [
+        { label: '模块总数', value: list.length, unit: '个', icon: 'el-icon-folder', tone: '' },
+        { label: '启用模块', value: list.filter(m => Number(m.status) === 1).length, unit: '个', icon: 'el-icon-circle-check', tone: 'tone-green' },
+        { label: '理论模拟考核', value: sum('examCount'), unit: '个', icon: 'el-icon-document-checked', tone: 'tone-purple' },
+        { label: '实操模拟题', value: sum('subjectCount'), unit: '道', icon: 'el-icon-upload2', tone: 'tone-orange' }
+      ]
+    },
+
     switchTab(key) {
       this.activeTab = key
       if (key === 'module' && !this.modules.length) this.loadModules()
@@ -1083,4 +1179,22 @@ code { padding: 1px 5px; color: #344054; font-size: 11.5px; background: #f2f4f7;
 /* 复用组件自带页头与内边距，嵌入时收掉一层 */
 .embed-wrap ::v-deep .psubject-page { padding: 0; background: transparent; }
 .embed-wrap ::v-deep .psubject-page.app-container { padding: 0; }
+
+/* ===== 2026-09-21 改版新增：总览条 + 筛选条（本页私有，不复用其它页类名） ===== */
+.prep-kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.prep-kpi-card { display: flex; align-items: center; gap: 12px; padding: 13px 16px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; }
+.prep-kpi-icon { display: flex; width: 38px; height: 38px; flex: none; align-items: center; justify-content: center; color: #1764f5; background: #edf4ff; font-size: 19px; border-radius: 8px; }
+.prep-kpi-body { display: flex; min-width: 0; flex-direction: column; }
+.prep-kpi-value { color: #1d2939; font-size: 21px; font-weight: 600; line-height: 1.2; }
+.prep-kpi-value small { margin-left: 3px; color: #667085; font-size: 12px; font-weight: 400; }
+.prep-kpi-label { margin-top: 2px; color: #667085; font-size: 12px; }
+.prep-kpi-card.tone-green .prep-kpi-icon { color: #23966f; background: #eaf7f1; }
+.prep-kpi-card.tone-orange .prep-kpi-icon { color: #e6a23c; background: #fdf6ec; }
+.prep-kpi-card.tone-purple .prep-kpi-icon { color: #7b5cf0; background: #f2eeff; }
+.prep-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 0 10px; }
+.prep-filter-sum { margin-left: auto; color: #667085; font-size: 12px; }
+@media (max-width: 1100px) {
+  .prep-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .prep-filter-sum { margin-left: 0; }
+}
 </style>

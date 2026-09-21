@@ -58,6 +58,10 @@ public class QuestionBank implements Serializable {
     @TableField(exist = false)
     private String deptName;
 
+    /** 知识点数：本题库内题目标签（question.knowledge_point）去重计数，仅列表展示用，非表字段 */
+    @TableField(exist = false)
+    private Integer knowledgePointCount;
+
     /** 当前登录账号的数据范围（仅供查询使用，不落库） */
     @TableField(exist = false)
     private Long scopeDeptId;

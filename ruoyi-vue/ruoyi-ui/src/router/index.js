@@ -627,6 +627,23 @@ export const dynamicRoutes = [
         component: () => import('@/views/business/exam/index'),
         meta: { title: '考核管理', icon: 'list' },
         permissions: ['business:bank:list']
+      },
+    ]
+  },
+  {
+    // 考核配置（独立页）：与列表分离；部门端/超管端两处列表都跳这里
+    // 说明：不按路径前缀猜地址 —— 超管的列表在 DB 菜单树的 /assessment/department/exam，
+    //       部门端在 dynamicRoutes 的 /department/study/exam，故统一用顶层路由 + ?from= 回跳。
+    path: '/exam-config',
+    component: Layout,
+    hidden: true,
+    permissions: ['business:bank:list'],
+    children: [
+      {
+        path: ':examId(\\d+)',
+        component: () => import('@/views/business/exam/config'),
+        name: 'ExamConfig',
+        meta: { title: '考核配置', activeMenu: '/assessment/department/exam' }
       }
     ]
   },

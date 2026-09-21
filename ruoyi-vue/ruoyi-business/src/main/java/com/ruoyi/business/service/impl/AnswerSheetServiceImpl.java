@@ -214,7 +214,7 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
     /**
      * 理论考核组卷抽题。
      *
-     * 优先多题库配置（exam_bank_rule）：「题库即知识模块」，每个题库分别按
+     * 优先多题库配置（exam_bank_rule）：按「题库 × 题型」配额，每个题库分别按
      * 单选/多选/判断 的配置数量在该库内随机抽取，各库互不干扰、跨库去重。
      * 未配置时回退历史单库逻辑（exam.bank_id + 题型数量）。
      */
