@@ -520,6 +520,24 @@ export const dynamicRoutes = [
         meta: { title: '考核与成绩', icon: 'date', activeMenu: '/super/ops/exams' }
       },
       {
+        // 模拟备考管理：**复用部门端同一页面**（该页已有超管适配 —— isSuperAdmin 会加载部门列表，
+        // 且 listExam 不传 deptId ⇒ 超管天然拿全量），所以无需另写一套。
+        // 补这个入口的原因：超管访问部门端 /department/study/prep 会 404（超管只有 DB 菜单树里的路径）。
+        path: 'ops/prep',
+        component: () => import('@/views/department/study/prep/index'),
+        name: 'SuperOpsPrep',
+        meta: { title: '模拟备考管理', icon: 'education', activeMenu: '/super/ops/prep' }
+      },
+      {
+        // 套卷配置（独立页，不进侧栏）：超管走 /super 前缀，
+        // 与部门端的 /department/study/paper-config 各自独立，避免互相跳成 404
+        path: 'ops/paper-config/:examId',
+        component: () => import('@/views/department/study/prep/paperConfig'),
+        name: 'SuperPaperConfig',
+        hidden: true,
+        meta: { title: '套卷配置', activeMenu: '/super/ops/prep' }
+      },
+      {
         // 已下线（2026-09-22）：成绩与统计分析并入「考核与成绩」（ops/exams），侧栏不再单列。
         // 保留路由做 redirect 兜底，避免旧书签 / 收藏 404（与 org/dept-admins 同一做法）。
         path: 'ops/scores',

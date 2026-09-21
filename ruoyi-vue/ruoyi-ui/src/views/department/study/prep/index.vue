@@ -634,7 +634,12 @@ export default {
     /** 进套卷配置独立页（组卷规则 / 分值 / 试抽 / 发布都在那一页） */
     goPaperConfig(row) {
       if (!row || !row.id) return
-      this.$router.push('/department/study/paper-config/' + row.id)
+      // 套卷配置页有两套前缀（部门端 /department/study/paper-config、超管端 /super/ops/paper-config），
+      // 按角色分流 —— 否则超管会被跳到部门端路由而 404
+      const base = (this.$store.getters.roles || []).indexOf('SUPER_ADMIN') > -1
+        ? '/super/ops/paper-config/'
+        : '/department/study/paper-config/'
+      this.$router.push(base + row.id)
     },
     /** 打开套卷基础信息弹窗（新建 / 编辑信息） */
     openPaperDialog(row) {

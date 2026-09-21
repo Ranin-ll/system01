@@ -299,7 +299,9 @@ export default {
   },
   methods: {
     goBack() {
-      this.$router.push('/department/study/prep?tab=module')
+      // 返回套卷列表：按角色回到各自前缀（部门端 /department/study/prep、超管端 /super/ops/prep）
+      const isSuper = (this.$store.getters.roles || []).indexOf('SUPER_ADMIN') > -1
+      this.$router.push((isSuper ? '/super/ops/prep' : '/department/study/prep') + '?tab=module')
     },
     /** 套卷本体 + 组卷配置 */
     loadExam() {
