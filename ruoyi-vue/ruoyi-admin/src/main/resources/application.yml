@@ -94,9 +94,9 @@ spring:
         # #连接池最大阻塞等待时间（使用负值表示没有限制）
         max-wait: -1ms
 
-# 课程视频允许大文件；其他 multipart 接口保持原有 20MB 请求上限。
+# 上传上限统一 500MB（实操题参考视频等素材需要）；课程视频走 course 档 510MB。
 upload:
-  default-max-request-size: ${DEFAULT_UPLOAD_MAX_REQUEST_SIZE:20MB}
+  default-max-request-size: ${DEFAULT_UPLOAD_MAX_REQUEST_SIZE:500MB}
   course-max-request-size: ${COURSE_UPLOAD_MAX_REQUEST_SIZE:510MB}
 
 # token配置
