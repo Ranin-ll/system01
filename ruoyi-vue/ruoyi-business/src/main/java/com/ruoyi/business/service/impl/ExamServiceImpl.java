@@ -338,6 +338,13 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
             if (params.getPassLine() != null) {
                 update.setPassLine(params.getPassLine());
             }
+            // 套卷元信息：「难易程度」与「题目内容偏向」（模拟理论考核配置页维护；不传即不更新）
+            if (params.getDifficulty() != null) {
+                update.setDifficulty(params.getDifficulty());
+            }
+            if (params.getContentBias() != null) {
+                update.setContentBias(params.getContentBias());
+            }
             if ("THEORY".equals(exam.getExamType())) {
                 if (params.getSingleScore() != null) {
                     update.setSingleScore(params.getSingleScore());

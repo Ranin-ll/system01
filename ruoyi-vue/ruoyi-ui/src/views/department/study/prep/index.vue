@@ -8,7 +8,7 @@
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>模拟备考管理</h1>
-        <p>备考资料 / <b>模拟理论考试</b>（按<b>阶段</b>分组套卷，套卷从<b>理论题库的模拟库与通用库</b>抽题，可重复练习）/ <b>模拟实操题库</b>（勾选后实习生可浏览题目）。</p>
+        <p>备考资料 / <b>模拟理论考核</b>（按<b>阶段</b>分组套卷 —— <b>一个阶段下可建多套题型配比不同的试卷</b>，每套可标注<b>难易程度</b>与<b>题目内容偏向</b>，从<b>理论题库的模拟库与通用库</b>抽题，发布后实习生可重复练习）/ <b>模拟实操题库</b>（勾选后实习生可浏览题目）。</p>
       </div>
       <div class="dept-heading-actions">
         <el-button size="small" icon="el-icon-refresh" @click="reloadAll">刷新</el-button>
@@ -154,9 +154,9 @@
       <practice-bank-picker />
     </template>
 
-    <!-- ============ 页签 2 · 备考模块 ============ -->
+    <!-- ============ 页签 2 · 模拟理论考核（阶段 + 套卷） ============ -->
     <template v-if="activeTab === 'module'">
-      <!-- 2.1 模块列表 -->
+      <!-- 2.1 阶段列表 -->
       <template v-if="!activeModule">
         <div class="dsec">
           <div class="dsec-head">
@@ -171,11 +171,11 @@
               <el-select v-if="isSuperAdmin" v-model="moduleDeptId" size="mini" clearable filterable placeholder="全部部门" style="width:170px" @change="loadModules">
                 <el-option v-for="d in deptOptions" :key="d.deptId" :label="d.deptName" :value="d.deptId" />
               </el-select>
-              <el-button size="mini" type="primary" icon="el-icon-plus" @click="openModuleDialog(null)">新建模块</el-button>
+              <el-button size="mini" type="primary" icon="el-icon-plus" @click="openModuleDialog(null)">新建阶段</el-button>
             </div>
           </div>
           <div class="dsec-body">
-            <!-- 总览（真实数据：来自已加载的模块列表） -->
+            <!-- 总览（真实数据：来自已加载的阶段列表） -->
             <div class="prep-kpi-row">
               <div v-for="k in moduleKpis()" :key="k.label" class="prep-kpi-card" :class="k.tone">
                 <span class="prep-kpi-icon"><i :class="k.icon" /></span>
@@ -186,7 +186,7 @@
               </div>
             </div>
             <div class="prep-filter" style="margin-bottom:10px">
-              <el-input v-model="moduleFilter.keyword" size="mini" clearable prefix-icon="el-icon-search" placeholder="搜索模块名称" style="width:190px" />
+              <el-input v-model="moduleFilter.keyword" size="mini" clearable prefix-icon="el-icon-search" placeholder="搜索阶段名称" style="width:190px" />
               <el-select v-model="moduleFilter.status" size="mini" clearable placeholder="全部状态" style="width:124px">
                 <el-option label="启用" :value="1" />
                 <el-option label="停用" :value="0" />
@@ -199,7 +199,7 @@
                 <thead>
                   <tr>
                     <th style="width:56px">序号</th>
-                    <th>模块名称</th>
+                    <th>阶段名称</th>
                     <th style="width:110px">理论考核</th>
                     <th style="width:110px">实操题</th>
                     <th v-if="isSuperAdmin" style="width:110px">所属部门</th>
@@ -213,7 +213,7 @@
                     <td>{{ i + 1 }}</td>
                     <td>
                       <span class="strong">{{ m.name }}</span>
-                      <div class="hint-text">{{ m.description || '未填写模块说明' }}</div>
+                      <div class="hint-text">{{ m.description || '未填写阶段说明' }}</div>
                     </td>
                     <td>{{ m.examCount || 0 }} 个</td>
                     <td>{{ m.subjectCount || 0 }} 道</td>
@@ -224,7 +224,7 @@
                       <div class="acts">
                         <el-button type="text" @click="enterModule(m)">管理内容</el-button>
                         <span class="sep">|</span>
-                        <el-button type="text" @click="openModuleDialog(m)">改模块名</el-button>
+                        <el-button type="text" @click="openModuleDialog(m)">改阶段名</el-button>
                         <span class="sep">|</span>
                         <el-button type="text" @click="toggleModule(m)">{{ m.status === 1 ? '停用' : '启用' }}</el-button>
                         <span class="sep">|</span>
@@ -233,7 +233,7 @@
                     </td>
                   </tr>
                   <tr v-if="!filteredModules().length && !moduleLoading">
-                    <td colspan="8" class="d-empty">{{ modules.length ? '当前筛选条件下没有匹配的模块' : '暂无模块，点右上角「新建模块」开始配置。' }}</td>
+                    <td colspan="8" class="d-empty">{{ modules.length ? '当前筛选条件下没有匹配的阶段' : '暂无阶段，点右上角「新建阶段」开始配置。' }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -242,7 +242,7 @@
         </div>
       </template>
 
-      <!-- 2.2 模块内容（理论考核 + 实操题） -->
+      <!-- 2.2 阶段内容（多套模拟理论考核卷） -->
       <template v-else>
         <div class="dsec">
           <div class="dsec-head">
@@ -250,17 +250,17 @@
               <span class="dsec-no">返</span>
               <div>
                 <h2>{{ activeModule.name }}</h2>
-                <p>{{ activeModule.description || '模块下的理论模拟考核与实操模拟题。' }}</p>
+                <p>{{ activeModule.description || '本阶段下的模拟理论考核套卷。' }}</p>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
-              <el-button size="mini" @click="openModuleDialog(activeModule)">改模块名</el-button>
-              <el-button size="mini" @click="backToModules">返回模块列表</el-button>
+              <el-button size="mini" @click="openModuleDialog(activeModule)">改阶段名</el-button>
+              <el-button size="mini" @click="backToModules">返回阶段列表</el-button>
             </div>
           </div>
 
           <div class="dsec-body">
-            <!-- 理论模拟考核：一个模块下可以有多个考核 -->
+            <!-- 模拟理论考核：一个阶段下可建多套试卷（题型配比 / 难度 / 内容偏向各异） -->
             <div class="dcard-h" style="padding:0 0 10px">
               <div class="tt"><span class="idx">理</span><h3>套卷（本阶段下 {{ exams.length }} 套）</h3></div>
               <div class="dbtn-row">
@@ -268,7 +268,7 @@
               </div>
             </div>
 
-            <el-table :data="exams" size="mini" border v-loading="examLoading" empty-text="本模块暂无理论模拟考核，点右上角「新增考核」">
+            <el-table :data="exams" size="mini" border v-loading="examLoading" empty-text="本阶段暂无模拟理论考核套卷，点右上角「新建套卷」">
               <el-table-column label="考核名称" min-width="180">
                 <template slot-scope="scope"><span class="strong">{{ scope.row.examName }}</span></template>
               </el-table-column>
@@ -287,6 +287,18 @@
               </el-table-column>
               <el-table-column label="通过线" width="86" align="center">
                 <template slot-scope="scope">{{ scope.row.passLine || 0 }}</template>
+              </el-table-column>
+              <el-table-column label="难易程度" width="96" align="center">
+                <template slot-scope="scope">
+                  <span v-if="scope.row.difficulty" class="dbadge" :class="difficultyTone(scope.row.difficulty)">{{ difficultyText(scope.row.difficulty) }}</span>
+                  <span v-else class="muted">未设置</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="题目内容偏向" min-width="180" show-overflow-tooltip>
+                <template slot-scope="scope">
+                  <span v-if="scope.row.contentBias">{{ scope.row.contentBias }}</span>
+                  <span v-else class="muted">—</span>
+                </template>
               </el-table-column>
               <el-table-column label="状态" width="86" align="center">
                 <template slot-scope="scope">
@@ -332,6 +344,19 @@
                 <el-form-item label="通过分数 / 总分">
                   <el-input-number v-model="examForm.passLine" :min="0" :max="500" :precision="1" size="small" />
                   <span style="margin-left:6px;color:#98a2b3">{{ examForm.passLine }} / {{ totalScore }} 分</span>
+                </el-form-item>
+              </el-form>
+
+              <el-form :inline="true" size="small" style="margin-bottom:12px">
+                <el-form-item label="难易程度">
+                  <el-select v-model="examForm.difficulty" size="small" style="width:120px" placeholder="选择难度" clearable>
+                    <el-option label="简单" value="EASY" />
+                    <el-option label="中等" value="MEDIUM" />
+                    <el-option label="困难" value="HARD" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="题目内容偏向">
+                  <el-input v-model="examForm.contentBias" size="small" style="width:480px" maxlength="200" show-word-limit placeholder="给实习生看的侧重说明，例如：偏 Java 集合与并发，重点考多线程与锁" />
                 </el-form-item>
               </el-form>
 
@@ -422,7 +447,7 @@
                   <div class="dbtn-row" style="margin-top:12px">
                     <el-button size="small" :loading="drawing" @click="drawOnce">试抽一套</el-button>
                   </div>
-                  <p class="dsec-note">保存后实习生在该模块下即可看到本考核并「开始自测」；模拟成绩仅本人可见、不计入正式成绩。</p>
+                  <p class="dsec-note">保存后实习生在该阶段下即可看到本套卷并「开始练习」；模拟成绩仅本人可见、不计入正式成绩。</p>
                 </div>
               </div>
             </div>
@@ -432,7 +457,7 @@
       </template>
     </template>
 
-    <!-- 模块新建/编辑弹窗 -->
+    <!-- 阶段新建/编辑弹窗 -->
     <el-dialog :title="moduleDialogTitle" :visible.sync="moduleDialogVisible" width="520px" append-to-body>
       <el-form ref="moduleForm" :model="moduleForm" :rules="moduleRules" label-width="90px" size="small">
         <el-form-item v-if="isSuperAdmin && !moduleForm.id" label="所属部门" prop="deptId">
@@ -440,11 +465,11 @@
             <el-option v-for="d in deptOptions" :key="d.deptId" :label="d.deptName" :value="d.deptId" />
           </el-select>
         </el-form-item>
-        <el-form-item label="模块名称" prop="name">
+        <el-form-item label="阶段名称" prop="name">
           <el-input v-model="moduleForm.name" placeholder="例如：后端开发基础" maxlength="60" show-word-limit />
         </el-form-item>
-        <el-form-item label="模块说明">
-          <el-input v-model="moduleForm.description" type="textarea" :rows="3" placeholder="一句话说明本模块覆盖的知识范围" maxlength="200" show-word-limit />
+        <el-form-item label="阶段说明">
+          <el-input v-model="moduleForm.description" type="textarea" :rows="3" placeholder="一句话说明本阶段覆盖的知识范围" maxlength="200" show-word-limit />
         </el-form-item>
         <el-form-item label="排序号">
           <el-input-number v-model="moduleForm.sortNo" :min="0" :max="9999" controls-position="right" />
@@ -531,7 +556,9 @@ function emptyExamForm() {
     multiScore: 1,
     judgeScore: 1,
     duration: 0,
-    passLine: 6
+    passLine: 6,
+    difficulty: '',
+    contentBias: ''
   }
 }
 
@@ -560,7 +587,7 @@ export default {
       form: {
         name: '', type: 'DOCUMENT', position: '', version: 'v1.0', intro: '', fileName: '', fileUrl: ''
       },
-      // ---- 模拟模块 ----
+      // ---- 阶段 ----
       modules: [],
       moduleLoading: false,
       moduleDeptId: null,
@@ -571,9 +598,9 @@ export default {
       moduleForm: emptyModuleForm(),
       moduleRules: {
         deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }],
-        name: [{ required: true, message: '请输入模块名称', trigger: 'blur' }]
+        name: [{ required: true, message: '请输入阶段名称', trigger: 'blur' }]
       },
-      // ---- 模块下的理论模拟考核 ----
+      // ---- 阶段下的模拟理论考核 ----
       exams: [],
       examLoading: false,
       examForm: emptyExamForm(),
@@ -596,7 +623,7 @@ export default {
     tabs() {
       return [
         { key: 'material', label: '备考资料', count: this.materials.length },
-        { key: 'module', label: '模拟理论考试', count: this.modules.length || '' },
+        { key: 'module', label: '模拟理论考核', count: this.modules.length || '' },
         { key: 'pbank', label: '模拟实操题库' }
       ]
     },
@@ -694,9 +721,9 @@ export default {
       const list = this.modules || []
       const sum = (key) => list.reduce((acc, m) => acc + (Number(m[key]) || 0), 0)
       return [
-        { label: '模块总数', value: list.length, unit: '个', icon: 'el-icon-folder', tone: '' },
-        { label: '启用模块', value: list.filter(m => Number(m.status) === 1).length, unit: '个', icon: 'el-icon-circle-check', tone: 'tone-green' },
-        { label: '理论模拟考核', value: sum('examCount'), unit: '个', icon: 'el-icon-document-checked', tone: 'tone-purple' },
+        { label: '阶段总数', value: list.length, unit: '个', icon: 'el-icon-folder', tone: '' },
+        { label: '启用阶段', value: list.filter(m => Number(m.status) === 1).length, unit: '个', icon: 'el-icon-circle-check', tone: 'tone-green' },
+        { label: '模拟理论考核', value: sum('examCount'), unit: '个', icon: 'el-icon-document-checked', tone: 'tone-purple' },
         { label: '实操模拟题', value: sum('subjectCount'), unit: '道', icon: 'el-icon-upload2', tone: 'tone-orange' }
       ]
     },
@@ -845,7 +872,7 @@ export default {
       return { SINGLE: '单选', MULTI: '多选', JUDGE: '判断', DOCUMENT: '文档', VIDEO: '视频', MOCK_ENTRY: '模拟题入口' }[t] || t
     },
 
-    // ================= 模拟模块 =================
+    // ================= 阶段（practice_module） =================
     loadDepartments() {
       listDept({ status: '0' }).then(res => {
         this.deptOptions = (res.data || []).filter(dept => dept.parentId !== 0)
@@ -865,7 +892,7 @@ export default {
       this.moduleForm = row
         ? { id: row.id, deptId: row.deptId, name: row.name, description: row.description || '', sortNo: Number(row.sortNo) || 0, status: row.status }
         : emptyModuleForm()
-      this.moduleDialogTitle = row ? '编辑模块' : '新建模块'
+      this.moduleDialogTitle = row ? '编辑阶段' : '新建阶段'
       this.moduleDialogVisible = true
       this.$nextTick(() => this.$refs.moduleForm && this.$refs.moduleForm.clearValidate())
     },
@@ -884,7 +911,7 @@ export default {
         const fn = payload.id ? updatePracticeModule : addPracticeModule
         fn(payload).then(() => {
           this.saving = false
-          this.$modal.msgSuccess(payload.id ? '模块已更新' : '模块已创建')
+          this.$modal.msgSuccess(payload.id ? '阶段已更新' : '阶段已创建')
           // 改名后同步头部展示
           if (this.activeModule && payload.id === this.activeModule.id) {
             this.activeModule.name = payload.name
@@ -898,7 +925,7 @@ export default {
     toggleModule(row) {
       const next = row.status === 1 ? 0 : 1
       const label = next === 1 ? '启用' : '停用'
-      this.$modal.confirm(`确认${label}模块「${row.name}」吗？停用后实习生端不再显示该模块。`).then(() => {
+      this.$modal.confirm(`确认${label}阶段「${row.name}」吗？停用后实习生端不再显示该阶段。`).then(() => {
         changePracticeModuleStatus(row.id, next).then(() => {
           this.$modal.msgSuccess(label + '成功')
           this.loadModules()
@@ -906,14 +933,14 @@ export default {
       }).catch(() => {})
     },
     removeModule(row) {
-      this.$modal.confirm(`确认删除模块「${row.name}」吗？模块下仍有考核/题目时无法删除。`).then(() => {
+      this.$modal.confirm(`确认删除阶段「${row.name}」吗？阶段下仍有套卷/题目时无法删除。`).then(() => {
         return delPracticeModule(row.id)
       }).then(() => {
         this.$modal.msgSuccess('删除成功')
         this.loadModules()
       }).catch(() => {})
     },
-    /** 进入模块：加载模块内的理论考核列表 */
+    /** 进入阶段：加载该阶段下的模拟理论考核套卷列表 */
     enterModule(row) {
       this.activeModule = row
       this.closeExamEditor()
@@ -927,7 +954,7 @@ export default {
       this.loadModules()
     },
 
-    // ================= 模块下的理论模拟考核 =================
+    // ================= 阶段下的模拟理论考核 =================
     loadModuleExams() {
       if (!this.activeModule) return
       this.examLoading = true
@@ -941,7 +968,8 @@ export default {
     },
     /** 本部门可选题库（含各库按题型的可用题量） */
     loadBankMeta() {
-      listExamBankOptions().then(res => {
+      // 候选库 = 形态 × 用途：模拟理论卷只取「理论库 × 模拟/通用」（防抽到正式题库）
+      listExamBankOptions(null, 'PRACTICE', 'THEORY').then(res => {
         this.bankMeta = (res.data || []).map(b => ({
           bankId: b.bankId,
           bankName: b.bankName,
@@ -970,7 +998,9 @@ export default {
         multiScore: Number(row.multiScore) || 0,
         judgeScore: Number(row.judgeScore) || 0,
         duration: Number(row.duration) || 0,
-        passLine: Number(row.passLine) || 0
+        passLine: Number(row.passLine) || 0,
+        difficulty: row.difficulty || '',
+        contentBias: row.contentBias || ''
       }
       this.durationPreset = this.durationOptions.indexOf(this.examForm.duration) > -1 ? this.examForm.duration : -1
       getExamConfig(row.id).then(res => {
@@ -1068,7 +1098,7 @@ export default {
         return
       }
       if (!this.activeModule) {
-        this.$modal.msgWarning('请先选择模块')
+        this.$modal.msgWarning('请先选择阶段')
         return
       }
       this.saving = true
@@ -1079,6 +1109,8 @@ export default {
         judgeScore: this.examForm.judgeScore,
         duration: this.examForm.duration,
         passLine: this.examForm.passLine,
+        difficulty: this.examForm.difficulty || null,
+        contentBias: this.examForm.contentBias || null,
         bankRules: this.rulePayload(),
         assignMode: 'ALL'
       }
@@ -1117,12 +1149,14 @@ export default {
         judgeScore: this.examForm.judgeScore,
         duration: this.examForm.duration,
         passLine: this.examForm.passLine,
+        difficulty: this.examForm.difficulty || null,
+        contentBias: this.examForm.contentBias || null,
         bankRules: this.rulePayload(),
         assignMode: 'ALL'
       }).then(() => {
         publishExam(examId).then(() => {
           this.saving = false
-          this.$modal.msgSuccess('考核已保存并生效，实习生在该模块下即可开始自测')
+          this.$modal.msgSuccess('套卷已保存并生效，实习生在该阶段下即可开始练习')
           this.closeExamEditor()
           this.loadModuleExams()
         }).catch(() => { this.saving = false })
@@ -1153,6 +1187,12 @@ export default {
     },
     examStatusText(s) {
       return { DRAFT: '草稿', PUBLISHED: '已发布', DISABLED: '已停用', GRADING: '批改中' }[s] || s
+    },
+    difficultyText(d) {
+      return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[d] || '未设置'
+    },
+    difficultyTone(d) {
+      return { EASY: 'green', MEDIUM: 'orange', HARD: 'red' }[d] || 'gray'
     }
   }
 }

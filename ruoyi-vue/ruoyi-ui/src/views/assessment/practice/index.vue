@@ -149,13 +149,14 @@
         <div v-else class="pm-exams">
           <div v-for="e in exams" :key="e.id" class="pm-exam">
             <div class="pm-exam-l">
-              <b>{{ e.examName || '理论模拟自测' }}</b>
+              <b>{{ e.examName || '模拟理论考核卷' }}<span v-if="e.difficulty" class="pm-diff" :class="diffTone(e.difficulty)">{{ diffText(e.difficulty) }}</span></b>
               <span class="pm-exam-meta">
                 共 {{ e.questionCount || 0 }} 题（单选 {{ e.singleCount || 0 }} · 多选 {{ e.multiCount || 0 }} · 判断 {{ e.judgeCount || 0 }}）
                 · 满分 {{ e.fullScore != null ? e.fullScore : '--' }} 分
                 · 通过线 {{ e.passLine != null ? e.passLine : 0 }} 分
                 <template v-if="Number(e.duration) > 0"> · 限时 {{ e.duration }} 分钟</template>
               </span>
+              <span v-if="e.contentBias" class="pm-exam-bias"><i class="el-icon-info" />内容偏向：{{ e.contentBias }}</span>
             </div>
             <el-button v-if="!isFormal" type="primary" size="small" icon="el-icon-caret-right" :loading="starting" @click="startPractice(e)">开始练习</el-button>
             <span v-else class="pm-hint">转正后仅可查看记录</span>
@@ -535,6 +536,13 @@ export default {
       if (rate >= 60) return 'mid'
       return 'poor'
     },
+    /** 套卷难易程度 */
+    diffText(d) {
+      return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[d] || ''
+    },
+    diffTone(d) {
+      return { EASY: 'easy', MEDIUM: 'mid', HARD: 'hard' }[d] || 'mid'
+    },
     /** 实操题参考（referenceImages 存 JSON 数组） */
     firstImage(subject) {
       const list = this.parseAttachments(subject.referenceImages)
@@ -791,6 +799,12 @@ export default {
 .pm-exam-l { min-width: 0; }
 .pm-exam-l > b { display: block; margin-bottom: 6px; color: #1d2939; font-size: 14.5px; font-weight: 600; }
 .pm-exam-meta { color: #8490a0; font-size: 12px; }
+.pm-diff { display: inline-block; padding: 1px 8px; margin-left: 8px; font-size: 11.5px; font-weight: 500; border-radius: 10px; vertical-align: 1px; }
+.pm-diff.easy { color: #067647; background: #ecfdf3; }
+.pm-diff.mid { color: #b54708; background: #fffaeb; }
+.pm-diff.hard { color: #b42318; background: #fef3f2; }
+.pm-exam-bias { display: block; margin-top: 6px; color: #475467; font-size: 12px; line-height: 1.6; }
+.pm-exam-bias i { margin-right: 4px; color: #1764f5; }
 
 /* ③ 实操题库卡片 */
 .pm-qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }

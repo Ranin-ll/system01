@@ -92,6 +92,12 @@ public class Exam implements Serializable {
     /** 通过线 */
     private BigDecimal passLine;
 
+    /** 难易程度：EASY 简单 / MEDIUM 中等 / HARD 困难（空=未设置） */
+    private String difficulty;
+
+    /** 题目内容偏向（给实习生看的侧重备注，如「偏 Java 集合与并发」） */
+    private String contentBias;
+
     private Date publishedAt;
     private Long publisherId;
 
