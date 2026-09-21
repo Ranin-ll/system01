@@ -111,7 +111,7 @@ export const dynamicRoutes = [
     roles: ['PRE_TRAINEE', 'FORMAL_TRAINEE'],
     children: [
       {
-        // 「学习与考核」页签壳：承载 6 个页签子路由（在线学习 / 备考资料 / 模拟理论考核 / 模拟实操题库 / 正式考核 / 考核成绩与转正）
+        // 「学习与考核」页签壳：承载 6 个页签子路由（在线学习 / 备考资料 / 模拟理论考核 / 模拟实操题 / 正式考核 / 考核成绩与转正）
         path: 'learning',
         component: () => import('@/views/assessment/learning/shell'),
         name: 'InternLearningShell',
@@ -136,6 +136,25 @@ export const dynamicRoutes = [
             name: 'InternMockExam',
             meta: { title: '模拟理论考核', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
           },
+          // ★ 子项顺序 = 侧栏「学习与考核」的子项顺序（store/modules/permission.js 的
+          //   buildInternSidebar 只按 INTERN_TABS 过滤、不排序）⇒ 这里必须与
+          //   utils/internTabs.js 的数组顺序保持一致，否则侧栏与页签栏顺序会走偏。
+          {
+            path: 'practice-bank',
+            component: () => import('@/views/assessment/practiceBank/index'),
+            name: 'InternPracticeBank',
+            meta: { title: '模拟实操题', activeMenu: '/assessment/intern/learning', tab: 'InternPracticeBank' }
+          },
+          {
+            // 模拟实操题详情（下钻页，不占页签）：从列表点「查看详情」进入。
+            // 放在页签壳的 children 下 ⇒ 保留页签条；meta.tab 指回「模拟实操题」保证高亮不丢。
+            // 路由自带 bankId/subjectId ⇒ 刷新 / 直达 / 回退都可用（不靠组件间传对象）。
+            // name 不在 INTERN_TABS 里 ⇒ 不会出现在侧栏。
+            path: 'practice-bank/:bankId/subject/:subjectId',
+            component: () => import('@/views/assessment/practiceBank/detail'),
+            name: 'InternPracticeSubject',
+            meta: { title: '模拟实操题详情', activeMenu: '/assessment/intern/learning', tab: 'InternPracticeBank' }
+          },
           {
             path: 'exam',
             component: () => import('@/views/assessment/exam/index'),
@@ -148,12 +167,6 @@ export const dynamicRoutes = [
             component: () => import('@/views/assessment/exam/result'),
             name: 'InternExamResult',
             meta: { title: '单场考核结果', activeMenu: '/assessment/intern/learning', tab: 'InternLearningExam' }
-          },
-          {
-            path: 'practice-bank',
-            component: () => import('@/views/assessment/practiceBank/index'),
-            name: 'InternPracticeBank',
-            meta: { title: '模拟实操题库', activeMenu: '/assessment/intern/learning', tab: 'InternPracticeBank' }
           },
           {
             path: 'result',

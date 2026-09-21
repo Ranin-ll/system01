@@ -12,7 +12,7 @@ export const INTERN_TABS = [
   { name: 'InternLearning', label: '在线学习', path: '/assessment/intern/learning/courses' },
   { name: 'InternGuide', label: '备考资料', path: '/assessment/intern/learning/guide' },
   { name: 'InternMockExam', label: '模拟理论考核', path: '/assessment/intern/learning/mock' },
-  { name: 'InternPracticeBank', label: '模拟实操题库', path: '/assessment/intern/learning/practice-bank' },
+  { name: 'InternPracticeBank', label: '模拟实操题', path: '/assessment/intern/learning/practice-bank' },
   { name: 'InternLearningExam', label: '正式考核', path: '/assessment/intern/learning/exam' },
   { name: 'InternResult', label: '考核成绩与转正', path: '/assessment/intern/learning/result' }
 ]
