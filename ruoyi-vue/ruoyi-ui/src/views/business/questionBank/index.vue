@@ -8,7 +8,7 @@
           <el-tag size="mini" effect="plain" :type="isSuperAdmin ? 'warning' : 'success'">{{ isSuperAdmin ? '全局管理' : '本部门范围' }}</el-tag>
         </div>
         <p>{{ isSuperAdmin ? '查看全组织题库与题目，可按部门筛选并维护任一部门数据。' : '维护本部门题库与题目，题目支持 Excel 批量导入；发布后实习生可在考试中心参与考核。' }}</p>
-        <p class="page-note"><b>题库</b> = 本部门的一门科目（按「适用范围」区分正式 / 模拟）；题目可用「<b>知识点</b>」打标，<b>仅用于统计与画像，不参与组卷抽题</b>。</p>
+        <p class="page-note"><b>题库</b> 按<b>科目 / 课程</b>划分，可自由新建、上传题目、编辑与删除；题目按「<b>知识点（章节）</b>」归类；「<b>使用范围</b>」只是可选标签（正式考核用 / 模拟考核用），不影响题库本身。</p>
       </div>
       <div class="heading-actions">
         <el-button icon="el-icon-refresh" size="small" @click="loadBanks">刷新数据</el-button>
@@ -34,7 +34,7 @@
       <el-select v-if="isSuperAdmin" v-model="filters.deptId" size="small" clearable placeholder="全部部门" class="filter-select">
         <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
       </el-select>
-      <el-select v-model="filters.bankType" size="small" clearable placeholder="全部适用范围" class="filter-select">
+      <el-select v-model="filters.bankType" size="small" clearable placeholder="全部使用范围" class="filter-select">
         <el-option label="正式考核用" value="FORMAL" />
         <el-option label="模拟考核用" value="PRACTICE" />
       </el-select>
@@ -70,7 +70,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="适用范围" min-width="120" align="center">
+        <el-table-column label="使用范围" min-width="120" align="center">
           <template slot-scope="scope">
             <el-tag size="mini" effect="plain" :type="bankTypeTag(scope.row.bankType)">{{ bankTypeLabel(scope.row.bankType) }}</el-tag>
           </template>
@@ -84,7 +84,7 @@
             <small class="table-sub">{{ (scope.row.questionCount || 0) > 0 ? '题' : '未导入' }}</small>
           </template>
         </el-table-column>
-        <el-table-column label="知识点" min-width="100" align="center">
+        <el-table-column label="知识点(章节)" min-width="118" align="center">
           <template slot-scope="scope">
             <strong class="table-number">{{ scope.row.knowledgePointCount || 0 }}</strong>
             <small class="table-sub">{{ (scope.row.knowledgePointCount || 0) > 0 ? '个标签' : '未标注' }}</small>
@@ -220,7 +220,7 @@ export default {
         { key: 'all', label: '题库总数', value: list.length, unit: '个', hint: '点此清空筛选', icon: 'el-icon-collection', tone: '' },
         { key: 'questions', label: '题目总数', value: sum, unit: '题', hint: '点此按题量排序', icon: 'el-icon-tickets', tone: 'tone-purple' },
         { key: 'enabled', label: '启用中', value: list.filter(b => b.status === 'ENABLED').length, unit: '个', hint: '点此只看启用', icon: 'el-icon-circle-check', tone: 'tone-green' },
-        { key: 'practice', label: '模拟考核库', value: list.filter(b => b.bankType === 'PRACTICE').length, unit: '个', hint: '点此只看模拟', icon: 'el-icon-edit-outline', tone: 'tone-orange' }
+        { key: 'practice', label: '模拟考核用', value: list.filter(b => b.bankType === 'PRACTICE').length, unit: '个', hint: '点此只看模拟考核用', icon: 'el-icon-edit-outline', tone: 'tone-orange' }
       ]
     }
   },

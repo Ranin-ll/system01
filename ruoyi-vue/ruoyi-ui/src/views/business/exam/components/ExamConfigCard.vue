@@ -120,7 +120,7 @@
           </div>
 
           <p class="draw-basis">
-            抽题只按「题库 × 题型」配额；<b>知识点仅用于统计，不参与抽题</b>。
+            当前主链路按「<b>题库 × 题型</b>」配额抽题；未配组卷时回退历史链路（模拟考核按<b>知识点/章节</b>配比）。
             <el-tag size="mini" effect="plain" :type="drawBasisTag">{{ drawBasisText }}</el-tag>
           </p>
 
@@ -446,7 +446,7 @@ export default {
     drawBasisText() {
       if (this.bankRules && this.bankRules.length) return '当前生效：题库 × 题型'
       const mode = this.exam && this.exam.examMode
-      return mode === 'PRACTICE' ? '当前生效：知识点配比（历史兜底）' : '当前生效：单库兜底（未配组卷）'
+      return mode === 'PRACTICE' ? '当前生效：按章节(知识点)配比（历史链路）' : '当前生效：单库兜底（未配组卷）'
     },
     drawBasisTag() {
       return this.bankRules && this.bankRules.length ? 'success' : 'warning'
