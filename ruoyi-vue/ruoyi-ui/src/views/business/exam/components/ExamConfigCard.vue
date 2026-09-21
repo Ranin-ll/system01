@@ -649,7 +649,7 @@ export default {
         this.bankMeta = []
         return Promise.resolve()
       }
-      return listExamBankOptions(this.isSuperAdmin ? this.deptId : undefined).then(res => {
+      return listExamBankOptions(this.isSuperAdmin ? this.deptId : undefined, this.exam && this.exam.examMode).then(res => {
         this.bankMeta = (res.data || []).map(b => ({
           bankId: b.bankId,
           bankName: b.bankName,

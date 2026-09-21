@@ -388,7 +388,7 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
     }
 
     @Override
-    public java.util.List<java.util.Map<String, Object>> bankOptions(Long deptId) {
+    public java.util.List<java.util.Map<String, Object>> bankOptions(Long deptId, String examMode) {
         Long scope = managerScopeDeptId();
         Long target = scope != null ? scope : deptId;
         if (target == null) {
@@ -401,6 +401,20 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
         java.util.List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
         if (banks == null) {
             return result;
+        }
+        // 按考核性质过滤候选题库：正式考核 → 正式题库 + 通用题库；模拟考核 → 模拟题库 + 通用题库。
+        // examMode 为空（老前端不传）时不过滤，保持向后兼容。
+        if (examMode != null && !examMode.trim().isEmpty()) {
+            String mode = examMode.trim().toUpperCase();
+            java.util.List<QuestionBank> filtered = new java.util.ArrayList<>();
+            for (QuestionBank bank : banks) {
+                String bt = bank.getBankType() == null ? "COMMON" : bank.getBankType().toUpperCase();
+                boolean usable = "COMMON".equals(bt) || ("PRACTICE".equals(mode) ? "PRACTICE".equals(bt) : "FORMAL".equals(bt));
+                if (usable) {
+                    filtered.add(bank);
+                }
+            }
+            banks = filtered;
         }
         for (QuestionBank bank : banks) {
             java.util.Map<String, Object> avail = examRuleMapper.selectBankAvailable(bank.getId());

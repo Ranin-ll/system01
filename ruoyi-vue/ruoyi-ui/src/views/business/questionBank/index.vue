@@ -34,9 +34,10 @@
       <el-select v-if="isSuperAdmin" v-model="filters.deptId" size="small" clearable placeholder="全部部门" class="filter-select">
         <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
       </el-select>
-      <el-select v-model="filters.bankType" size="small" clearable placeholder="全部使用范围" class="filter-select">
-        <el-option label="正式考核用" value="FORMAL" />
-        <el-option label="模拟考核用" value="PRACTICE" />
+      <el-select v-model="filters.bankType" size="small" clearable placeholder="全部用途" class="filter-select">
+        <el-option label="正式考核题库" value="FORMAL" />
+        <el-option label="模拟考核题库" value="PRACTICE" />
+        <el-option label="通用题库" value="COMMON" />
       </el-select>
       <el-select v-model="filters.status" size="small" clearable placeholder="全部状态" class="filter-select">
         <el-option label="启用" value="ENABLED" />
@@ -70,7 +71,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="使用范围" min-width="120" align="center">
+        <el-table-column label="用途标签" min-width="120" align="center">
           <template slot-scope="scope">
             <el-tag size="mini" effect="plain" :type="bankTypeTag(scope.row.bankType)">{{ bankTypeLabel(scope.row.bankType) }}</el-tag>
           </template>
@@ -97,7 +98,7 @@
           <template slot-scope="scope">
             <el-button type="text" size="mini" icon="el-icon-s-management" @click.stop="goDetail(scope.row)">管理题目</el-button>
             <el-button v-hasPermi="['business:bank:edit']" type="text" size="mini" icon="el-icon-edit" @click.stop="handleEditBank(scope.row)">编辑</el-button>
-            <el-button v-if="scope.row.bankType !== 'PRACTICE'" v-hasPermi="['business:bank:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click.stop="handleDeleteBank(scope.row)">删除</el-button>
+            <el-button v-hasPermi="['business:bank:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click.stop="handleDeleteBank(scope.row)">删除</el-button>
           </template>
         </el-table-column>
 
@@ -120,7 +121,15 @@
             <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
           </el-select>
         </el-form-item>
-        <el-form-item label="题库名称" prop="bankName"><el-input v-model="bankForm.bankName" placeholder="请输入题库名称" maxlength="128" /></el-form-item>
+        <el-form-item label="题库名称" prop="bankName"><el-input v-model="bankForm.bankName" placeholder="按科目 / 课程命名，例如：Java 后端基础" maxlength="128" /></el-form-item>
+        <el-form-item label="用途标签" prop="bankType">
+          <el-radio-group v-model="bankForm.bankType">
+            <el-radio label="FORMAL">正式考核题库</el-radio>
+            <el-radio label="PRACTICE">模拟考核题库</el-radio>
+            <el-radio label="COMMON">通用题库</el-radio>
+          </el-radio-group>
+          <div class="form-tip">通用题库在正式考核与模拟考核中都可被选用；正式 / 模拟题库只在对应考核里可选。</div>
+        </el-form-item>
         <el-form-item label="题库说明"><el-input v-model="bankForm.description" type="textarea" :rows="3" placeholder="填写题库说明（可选）" maxlength="500" /></el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="bankForm.status"><el-radio label="ENABLED">启用</el-radio><el-radio label="DISABLED">停用</el-radio></el-radio-group></el-form-item>
       </el-form>
@@ -154,7 +163,8 @@ export default {
       bankForm: { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED' },
       bankRules: {
         deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }],
-        bankName: [{ required: true, message: '请输入题库名称', trigger: 'blur' }]
+        bankName: [{ required: true, message: '请输入题库名称', trigger: 'blur' }],
+        bankType: [{ required: true, message: '请选择用途标签', trigger: 'change' }]
       },
       bankSubmitting: false,
 
@@ -275,11 +285,11 @@ export default {
       this.loadQuestions()
     },
     handleAddBank() {
-      this.bankForm = { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED' }
+      this.bankForm = { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED', bankType: 'COMMON' }
       this.bankDialogVisible = true
     },
     handleEditBank(row) {
-      this.bankForm = { id: row.id, deptId: row.deptId, bankName: row.bankName, description: row.description, status: row.status }
+      this.bankForm = { id: row.id, deptId: row.deptId, bankName: row.bankName, description: row.description, status: row.status, bankType: row.bankType || 'COMMON' }
       this.bankDialogVisible = true
     },
     submitBank() {
@@ -296,7 +306,10 @@ export default {
       })
     },
     handleDeleteBank(row) {
-      this.$modal.confirm(`确认删除题库「${row.bankName}」吗？题库下的题目将一并处理。`).then(() => {
+      const tagTip = row.bankType === 'FORMAL' ? '该题库为「正式考核题库」，删除后引用它的正式考核将无题可抽。'
+        : row.bankType === 'PRACTICE' ? '该题库为「模拟考核题库」，删除后未配组卷的模拟考核将无题可抽（会回退到本部门其它模拟/通用题库）。'
+          : row.bankType === 'COMMON' ? '该题库为「通用题库」，正式与模拟考核都可能引用它。' : '该题库未设置用途标签。'
+      this.$modal.confirm(`确认删除题库「${row.bankName}」吗？${tagTip}题库下的题目将一并删除。`).then(() => {
         delBank(row.id).then(() => {
           this.$modal.msgSuccess('删除成功')
           if (this.currentBank && this.currentBank.id === row.id) this.currentBank = null
@@ -435,8 +448,8 @@ export default {
       this.sortByCount = !this.sortByCount
       this.activeKpi = this.sortByCount ? 'questions' : ''
     },
-    bankTypeLabel(t) { return { FORMAL: '正式考核用', PRACTICE: '模拟考核用' }[t] || '未设置' },
-    bankTypeTag(t) { return t === 'PRACTICE' ? 'warning' : 'primary' }
+    bankTypeLabel(t) { return { FORMAL: '正式考核题库', PRACTICE: '模拟考核题库', COMMON: '通用题库' }[t] || '未设置' },
+    bankTypeTag(t) { return t === 'PRACTICE' ? 'warning' : (t === 'COMMON' ? 'success' : 'primary') },
   }
 }
 </script>
@@ -447,6 +460,7 @@ export default {
 .eyebrow { color: #1764f5; font-size: 12px; letter-spacing: .05em; }
 .page-note { margin: 6px 0 0; color: #8490a0; font-size: 12px; }
 .page-note b { color: #475467; }
+.form-tip { margin-top: 4px; color: #98a2b3; font-size: 12px; line-height: 1.6; }
 .title-line { display: flex; align-items: center; gap: 10px; }
 .page-heading h2 { margin: 6px 0 8px; font-size: 22px; font-weight: 600; color: #1d2939; }
 .page-heading p { margin: 0; color: #667085; font-size: 13px; }

@@ -53,9 +53,8 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
             throw new ServiceException("请选择所属部门");
         }
         bank.setDeptId(deptId);
-        if (bank.getBankType() == null || bank.getBankType().isEmpty()) {
-            bank.setBankType("FORMAL");
-        }
+        // 用途标签（三值）：未选时默认「通用」——通用库正式/模拟考核都可用，语义最安全
+        bank.setBankType(normalizeBankType(bank.getBankType()));
         bank.setCreateBy(SecurityUtils.getUsername());
         bank.setStatus("ENABLED");
         bank.setQuestionCount(0);
@@ -68,6 +67,12 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
     public int updateBank(QuestionBank bank) {
         managerScopeDeptId();
         getAccessibleBank(bank.getId());
+        // 用途标签：传了就校验（正式考核题库 / 模拟考核题库 / 通用题库）
+        if (bank.getBankType() != null && !bank.getBankType().isEmpty()) {
+            bank.setBankType(normalizeBankType(bank.getBankType()));
+        } else {
+            bank.setBankType(null);
+        }
         // 不允许通过通用编辑接口篡改部门归属、删除标志或创建信息。
         bank.setDeptId(null);
         bank.setDeleted(null);
@@ -85,14 +90,37 @@ public class QuestionBankServiceImpl extends ServiceImpl<QuestionBankMapper, Que
         }
         int count = 0;
         for (Long id : ids) {
-            QuestionBank bank = getAccessibleBank(id);
-            if ("PRACTICE".equals(bank.getBankType())) {
-                throw new ServiceException("模拟题库为部门自带题库，不可删除");
-            }
+            getAccessibleBank(id);
+            // 题库均可删除（用途标签只表达"参与哪种考核"，不是删除限制）；
+            // 若该库被考核引用，前端会在确认框里提示影响。
             questionBankMapper.deleteBankById(id);
             count++;
         }
         return count;
+    }
+
+    /**
+     * 用途标签归一化：正式考核题库 FORMAL / 模拟考核题库 PRACTICE / 通用题库 COMMON。
+     * 空值或非法值一律按「通用」处理，避免题库因标签缺失而两种考核都用不了。
+     */
+    private String normalizeBankType(String bankType) {
+        if (bankType == null) {
+            return "COMMON";
+        }
+        String t = bankType.trim().toUpperCase();
+        if ("FORMAL".equals(t) || "PRACTICE".equals(t) || "COMMON".equals(t)) {
+            return t;
+        }
+        if ("正式".equals(bankType.trim()) || "正式考核题库".equals(bankType.trim())) {
+            return "FORMAL";
+        }
+        if ("模拟".equals(bankType.trim()) || "模拟考核题库".equals(bankType.trim())) {
+            return "PRACTICE";
+        }
+        if ("通用".equals(bankType.trim()) || "通用题库".equals(bankType.trim())) {
+            return "COMMON";
+        }
+        return "COMMON";
     }
 
     /** 超级管理员返回 null（看全部），部门管理员/实习生返回本部门ID。 */

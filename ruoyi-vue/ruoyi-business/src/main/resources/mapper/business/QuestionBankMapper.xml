@@ -93,8 +93,9 @@
         FROM question_bank b
         LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
         WHERE b.deleted = 0
-          AND b.bank_type = 'PRACTICE'
+          AND b.bank_type IN ('PRACTICE', 'COMMON')
           AND b.dept_id = #{deptId}
+        ORDER BY CASE WHEN b.bank_type = 'PRACTICE' THEN 0 ELSE 1 END, b.id
         LIMIT 1
     </select>
 
