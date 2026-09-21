@@ -93,7 +93,7 @@
       class="pbank-dialog"
     >
       <el-form ref="form" :model="form" :rules="rules" label-width="98px" size="small">
-        <div class="sec"><span class="sec-no">1</span>题目信息<i class="sec-tip">实习生会看到题名；技能方向用于分组与筛选</i></div>
+        <div class="sec"><span class="sec-no">1</span>题目信息<i class="sec-tip">题名与技能方向对实习生可见</i></div>
         <el-form-item label="题名" prop="title">
           <el-input v-model="form.title" maxlength="200" placeholder="例如：用户登录接口开发（会展示给实习生）" />
         </el-form-item>
@@ -107,6 +107,7 @@
             </el-radio-group>
           </el-form-item>
           <el-form-item label="建议用时"><el-input-number v-model="form.estimatedMinutes" :min="0" :max="600" controls-position="right" style="width:100%" /><span class="unit">分钟</span></el-form-item>
+
           <el-form-item label="建议满分"><el-input-number v-model="form.suggestScore" :min="0" :max="999" :precision="1" controls-position="right" placeholder="未填" style="width:100%" /><span class="unit">分</span></el-form-item>
         </div>
         <div class="fg2">
@@ -118,7 +119,7 @@
           </el-form-item>
         </div>
 
-        <div class="sec"><span class="sec-no">2</span>题目与要求<i class="sec-tip">交付要求 / 开发约束按「一行一条」写，展示时自动成列表</i></div>
+        <div class="sec"><span class="sec-no">2</span>题目与要求<i class="sec-tip">交付要求 / 开发约束：一行一条</i></div>
         <el-form-item label="题干">
           <el-input v-model="form.content" type="textarea" :rows="4" placeholder="作业背景与要求：要做成什么、验收标准是什么" />
         </el-form-item>
@@ -135,12 +136,12 @@
           <el-form-item label="命名规则"><el-input v-model="form.namingRule" maxlength="255" placeholder="如：姓名_学号_题名.zip" /></el-form-item>
         </div>
 
-        <div class="sec"><span class="sec-no">3</span>素材<i class="sec-tip">参考图/视频给实习生看效果；附件为起始素材</i></div>
+        <div class="sec"><span class="sec-no">3</span>素材<i class="sec-tip">参考图 / 视频给实习生看效果</i></div>
         <el-form-item label="参考图/视频">
           <el-upload :show-file-list="false" :http-request="uploadRefImage" accept="image/*,video/*" class="inline-up">
             <el-button size="mini" icon="el-icon-picture-outline">上传图片 / 视频</el-button>
           </el-upload>
-          <span class="unit">支持图片与视频（mp4/webm 等）；给实习生看效果或示范</span>
+          <span class="unit block">支持图片与视频（mp4 / webm 等），单文件最大 500MB</span>
           <div class="files">
             <span v-for="(f, i) in form.images" :key="'img' + i" class="filechip" :class="{ video: isVideo(f.url) }">
               <i :class="isVideo(f.url) ? 'el-icon-video-camera' : 'el-icon-picture-outline'" />
@@ -154,7 +155,7 @@
           <el-upload :show-file-list="false" :http-request="uploadAttachment" class="inline-up">
             <el-button size="mini" icon="el-icon-upload2">上传附件</el-button>
           </el-upload>
-          <span class="unit">起始素材 / 说明文档、数据包等（图片与视频请放上面的参考图区）</span>
+          <span class="unit block">起始素材 / 说明文档、数据包等（图片与视频请放上面的参考图区）</span>
           <div class="files">
             <span v-for="(f, i) in form.attachments" :key="'att' + i" class="filechip">
               <a :href="baseApi + f.url" target="_blank">{{ f.name || '附件' }}</a>
@@ -367,9 +368,14 @@ export default {
 .empty-block p { margin: 10px 0 0; color: #8490a0; font-size: 13px; }
 .sec { display: flex; align-items: center; gap: 8px; padding: 4px 0 10px; margin: 4px 0 14px; color: #344054; font-size: 13px; font-weight: 600; border-bottom: 1px solid #eef1f6; }
 .sec-no { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; color: #fff; background: #1764f5; font-size: 11px; border-radius: 50%; }
-.sec-tip { margin-left: auto; color: #98a2b3; font-size: 11.5px; font-style: normal; font-weight: 400; }
+/* 分区提示：只允许单行，过长省略号，避免撑成两行 */
+.sec-tip { flex: 1; min-width: 0; margin-left: 12px; overflow: hidden; color: #98a2b3; font-size: 11.5px; font-style: normal; font-weight: 400; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .fg4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 14px; }
 .unit { margin-left: 6px; color: #98a2b3; font-size: 12px; }
+/* 素材区的说明单独占一行，不与按钮挤 */
+.unit.block { display: block; margin: 6px 0 0; }
+/* 素材 chip 行独占一行 */
+.files { display: flex; width: 100%; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 0; }
 .diff-seg ::v-deep .el-radio-button__inner { padding: 6px 10px; }
 .fg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .fg3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 16px; }
