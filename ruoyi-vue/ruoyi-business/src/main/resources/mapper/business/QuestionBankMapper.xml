@@ -7,6 +7,7 @@
         <id     property="id"            column="id"             />
         <result property="bankName"      column="bank_name"      />
         <result property="bankType"      column="bank_type"      />
+        <result property="bankKind"      column="bank_kind"      />
         <result property="deptId"        column="dept_id"        />
         <result property="description"   column="description"    />
         <result property="status"        column="status"         />
@@ -20,7 +21,7 @@
     </resultMap>
 
     <sql id="bankColumns">
-        b.id, b.bank_name, b.bank_type, b.dept_id, b.description, b.status,
+        b.id, b.bank_name, b.bank_type, b.bank_kind, b.dept_id, b.description, b.status,
         (SELECT COUNT(1) FROM question q WHERE q.bank_id = b.id AND q.deleted = 0) AS question_count,
         (SELECT COUNT(DISTINCT q.knowledge_point) FROM question q
           WHERE q.bank_id = b.id AND q.deleted = 0
@@ -51,6 +52,9 @@
             <if test="status != null and status != ''">
                 AND b.status = #{status}
             </if>
+            <if test="bankKind != null and bankKind != ''">
+                AND b.bank_kind = #{bankKind}
+            </if>
         </where>
         ORDER BY b.create_time DESC
     </select>
@@ -68,8 +72,8 @@
     </select>
 
     <insert id="insertBank" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO question_bank (bank_name, bank_type, dept_id, description, status, question_count, create_by, create_time, update_time, deleted)
-        VALUES (#{bankName}, #{bankType}, #{deptId}, #{description}, #{status}, #{questionCount}, #{createBy}, #{createTime}, #{createTime}, #{deleted})
+        INSERT INTO question_bank (bank_name, bank_type, bank_kind, dept_id, description, status, question_count, create_by, create_time, update_time, deleted)
+        VALUES (#{bankName}, #{bankType}, #{bankKind}, #{deptId}, #{description}, #{status}, #{questionCount}, #{createBy}, #{createTime}, #{createTime}, #{deleted})
     </insert>
 
     <update id="updateBank">

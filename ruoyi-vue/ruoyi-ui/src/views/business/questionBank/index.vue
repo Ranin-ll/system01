@@ -28,7 +28,23 @@
       </button>
     </section>
 
-    <!-- ② 筛选条：关键字 / 部门 / 类型 / 状态 -->
+    <!-- ①.5 形态切换：理论题库 / 实操题库 -->
+    <section class="kind-bar">
+      <button
+        v-for="k in kindTabs"
+        :key="k.value"
+        type="button"
+        class="kind-tab"
+        :class="{ on: filters.bankKind === k.value }"
+        @click="switchKind(k.value)"
+      >
+        {{ k.label }}
+        <span class="kind-n">{{ k.count }}</span>
+      </button>
+      <span class="kind-hint">理论题库按题型组卷抽题；实操题库供考核挑选实操题目（逐题作业）</span>
+    </section>
+
+    <!-- ② 筛选条：关键字 / 部门 / 用途 / 状态 -->
     <section class="filter-bar">
       <el-input v-model="filters.keyword" size="small" clearable prefix-icon="el-icon-search" placeholder="搜索题库名称或说明" class="filter-keyword" />
       <el-select v-if="isSuperAdmin" v-model="filters.deptId" size="small" clearable placeholder="全部部门" class="filter-select">
@@ -69,6 +85,11 @@
                 <small>{{ scope.row.description || '暂无说明' }}</small>
               </div>
             </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="形态" width="96" align="center">
+          <template slot-scope="scope">
+            <el-tag size="mini" effect="plain" :type="scope.row.bankKind === 'PRACTICAL' ? 'warning' : ''">{{ bankKindLabel(scope.row.bankKind) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="用途标签" min-width="120" align="center">
@@ -122,6 +143,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="题库名称" prop="bankName"><el-input v-model="bankForm.bankName" placeholder="按科目 / 课程命名，例如：Java 后端基础" maxlength="128" /></el-form-item>
+        <el-form-item label="题库形态" prop="bankKind">
+          <el-radio-group v-model="bankForm.bankKind">
+            <el-radio label="THEORY">理论题库</el-radio>
+            <el-radio label="PRACTICAL">实操题库</el-radio>
+          </el-radio-group>
+          <div class="form-tip">理论题库按题型组卷抽题；实操题库存放「逐题作业」型题目（题干 / 方向 / 交付要求 / 附件 / 建议满分）。</div>
+        </el-form-item>
         <el-form-item label="用途标签" prop="bankType">
           <el-radio-group v-model="bankForm.bankType">
             <el-radio label="FORMAL">正式考核题库</el-radio>
@@ -164,7 +192,8 @@ export default {
       bankRules: {
         deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }],
         bankName: [{ required: true, message: '请输入题库名称', trigger: 'blur' }],
-        bankType: [{ required: true, message: '请选择用途标签', trigger: 'change' }]
+        bankType: [{ required: true, message: '请选择用途标签', trigger: 'change' }],
+        bankKind: [{ required: true, message: '请选择题库形态', trigger: 'change' }]
       },
       bankSubmitting: false,
 
@@ -182,7 +211,7 @@ export default {
       importResult: null,
 
       // === 2026-09-21 改版新增（纯追加，不影响既有逻辑）===
-      filters: { keyword: '', deptId: null, bankType: '', status: '' },
+      filters: { keyword: '', deptId: null, bankType: '', status: '', bankKind: 'THEORY' },
       activeKpi: '',
       sortByCount: false
     }
@@ -211,6 +240,7 @@ export default {
         if (f.deptId && bank.deptId !== f.deptId) return false
         if (f.bankType && bank.bankType !== f.bankType) return false
         if (f.status && bank.status !== f.status) return false
+        if (f.bankKind && (bank.bankKind || 'THEORY') !== f.bankKind) return false
         return true
       })
       if (this.sortByCount) {
@@ -285,11 +315,11 @@ export default {
       this.loadQuestions()
     },
     handleAddBank() {
-      this.bankForm = { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED', bankType: 'COMMON' }
+      this.bankForm = { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED', bankType: 'COMMON', bankKind: this.filters.bankKind || 'THEORY' }
       this.bankDialogVisible = true
     },
     handleEditBank(row) {
-      this.bankForm = { id: row.id, deptId: row.deptId, bankName: row.bankName, description: row.description, status: row.status, bankType: row.bankType || 'COMMON' }
+      this.bankForm = { id: row.id, deptId: row.deptId, bankName: row.bankName, description: row.description, status: row.status, bankType: row.bankType || 'COMMON', bankKind: row.bankKind || 'THEORY' }
       this.bankDialogVisible = true
     },
     submitBank() {
@@ -440,7 +470,7 @@ export default {
       if (key === 'all') { this.filters.status = ''; this.filters.bankType = ''; this.sortByCount = false }
     },
     resetFilters() {
-      this.filters = { keyword: '', deptId: null, bankType: '', status: '' }
+      this.filters = { keyword: '', deptId: null, bankType: '', status: '', bankKind: this.filters.bankKind || 'THEORY' }
       this.activeKpi = ''
       this.sortByCount = false
     },
@@ -448,6 +478,19 @@ export default {
       this.sortByCount = !this.sortByCount
       this.activeKpi = this.sortByCount ? 'questions' : ''
     },
+    /** 形态切换条（数量按当前筛选结果算，不含形态条件本身） */
+    kindTabs() {
+      const list = this.bankList || []
+      const cnt = k => list.filter(b => (b.bankKind || 'THEORY') === k).length
+      return [
+        { value: 'THEORY', label: '理论题库', count: cnt('THEORY') },
+        { value: 'PRACTICAL', label: '实操题库', count: cnt('PRACTICAL') }
+      ]
+    },
+    switchKind(k) {
+      this.filters.bankKind = k
+    },
+    bankKindLabel(k) { return { THEORY: '理论', PRACTICAL: '实操' }[k] || '理论' },
     bankTypeLabel(t) { return { FORMAL: '正式考核题库', PRACTICE: '模拟考核题库', COMMON: '通用题库' }[t] || '未设置' },
     bankTypeTag(t) { return t === 'PRACTICE' ? 'warning' : (t === 'COMMON' ? 'success' : 'primary') },
   }
@@ -461,6 +504,17 @@ export default {
 .page-note { margin: 6px 0 0; color: #8490a0; font-size: 12px; }
 .page-note b { color: #475467; }
 .form-tip { margin-top: 4px; color: #98a2b3; font-size: 12px; line-height: 1.6; }
+.kind-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.kind-tab {
+  padding: 7px 16px; color: #475467; background: #fff; border: 1px solid #e7ecf3;
+  border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 13px; transition: all .15s;
+}
+.kind-tab:hover { border-color: #b9d2ff; color: #1764f5; }
+.kind-tab.on { color: #1764f5; background: #f6faff; border-color: #1764f5; font-weight: 500; }
+.kind-n { margin-left: 6px; padding: 0 6px; color: #667085; background: #eef1f6; border-radius: 9px; font-size: 11px; }
+.kind-tab.on .kind-n { color: #1764f5; background: #e8f1fd; }
+.kind-hint { margin-left: auto; color: #98a2b3; font-size: 12px; }
+@media (max-width: 900px) { .kind-hint { margin-left: 0; } }
 .title-line { display: flex; align-items: center; gap: 10px; }
 .page-heading h2 { margin: 6px 0 8px; font-size: 22px; font-weight: 600; color: #1d2939; }
 .page-heading p { margin: 0; color: #667085; font-size: 13px; }
