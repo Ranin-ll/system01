@@ -67,6 +67,11 @@ public class LearningServiceImpl implements ILearningService {
     }
 
     @Override
+    public List<Map<String, Object>> dailyDuration(Long userId, Integer days) {
+        return recordMapper.selectDailyDuration(userId, days == null ? 14 : days);
+    }
+
+    @Override
     @Transactional
     public StudyRecord saveProgress(Long itemId, LearningProgressBody body) {
         ensureIntern();
