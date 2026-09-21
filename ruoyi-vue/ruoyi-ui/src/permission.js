@@ -18,7 +18,7 @@ const formalInternBlockedPaths = [
   // 实操题详情页（/assessment/intern/practice-subject/:id）已被上面的
   // /assessment/intern/practice 前缀覆盖，无需重复声明；
   // 原独立「实操题库」列表页（/assessment/intern/practice-subject）已删除。
-  // 「学习与考核」页签化后，备考资料 / 模拟考核的新地址挪到了 /learning 之下，
+  // 「学习与考核」页签化后，备考资料 / 模拟理论考核的新地址挪到了 /learning 之下，
   // 上面几条旧前缀已拦不到，必须单独列出（见 utils/internTabs.js）。
   ...FORMAL_INTERN_BLOCKED_PATHS
 ]
@@ -65,7 +65,7 @@ function protectedTarget(to) {
     return '/index'
   }
   if (store.getters.roles.indexOf('FORMAL_TRAINEE') > -1 && formalInternBlockedPaths.some(path => to.path.indexOf(path) === 0)) {
-    Message.warning('你已转为正式实习生，备考、模拟考核和正式考核入口已关闭，历史记录仍可查看')
+    Message.warning('你已转为正式实习生，备考、模拟理论考核和正式考核入口已关闭，历史记录仍可查看')
     return '/index'
   }
   return ''

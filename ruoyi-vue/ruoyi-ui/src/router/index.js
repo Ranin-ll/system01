@@ -111,7 +111,7 @@ export const dynamicRoutes = [
     roles: ['PRE_TRAINEE', 'FORMAL_TRAINEE'],
     children: [
       {
-        // 「学习与考核」页签壳：承载 5 个页签子路由（在线学习 / 备考资料 / 模拟考核 / 正式考核 / 考核成绩与转正）
+        // 「学习与考核」页签壳：承载 6 个页签子路由（在线学习 / 备考资料 / 模拟理论考核 / 模拟实操题库 / 正式考核 / 考核成绩与转正）
         path: 'learning',
         component: () => import('@/views/assessment/learning/shell'),
         name: 'InternLearningShell',
@@ -134,7 +134,7 @@ export const dynamicRoutes = [
             path: 'mock',
             component: () => import('@/views/assessment/practice/index'),
             name: 'InternMockExam',
-            meta: { title: '模拟考核', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+            meta: { title: '模拟理论考核', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
           },
           {
             path: 'exam',
@@ -148,6 +148,12 @@ export const dynamicRoutes = [
             component: () => import('@/views/assessment/exam/result'),
             name: 'InternExamResult',
             meta: { title: '单场考核结果', activeMenu: '/assessment/intern/learning', tab: 'InternLearningExam' }
+          },
+          {
+            path: 'practice-bank',
+            component: () => import('@/views/assessment/practiceBank/index'),
+            name: 'InternPracticeBank',
+            meta: { title: '模拟实操题库', activeMenu: '/assessment/intern/learning', tab: 'InternPracticeBank' }
           },
           {
             path: 'result',
@@ -184,7 +190,7 @@ export const dynamicRoutes = [
         path: 'mock-exam/record/:recordId(\\d+)',
         component: () => import('@/views/assessment/practice/record'),
         name: 'InternMockExamRecord',
-        meta: { title: '模拟考核回顾', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+        meta: { title: '模拟理论考核回顾', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
       },
       {
         path: 'practice-subject/:id(\\d+)',
