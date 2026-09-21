@@ -32,6 +32,9 @@ public class QuestionBank implements Serializable {
     /** 题库形态：THEORY 理论题库 / PRACTICAL 实操题库（与 bankType「用途标签」正交） */
     private String bankKind;
 
+    /** 是否对实习生开放浏览（仅实操题库有效）：1 开放 / 0 不开放 */
+    private Integer practiceEnabled;
+
     /** 所属部门ID（关联sys_dept） */
     private Long deptId;
 

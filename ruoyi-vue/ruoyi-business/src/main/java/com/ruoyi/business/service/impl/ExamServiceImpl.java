@@ -388,7 +388,7 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
     }
 
     @Override
-    public java.util.List<java.util.Map<String, Object>> bankOptions(Long deptId, String examMode) {
+    public java.util.List<java.util.Map<String, Object>> bankOptions(Long deptId, String examMode, String bankKind) {
         Long scope = managerScopeDeptId();
         Long target = scope != null ? scope : deptId;
         if (target == null) {
@@ -397,6 +397,10 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
         QuestionBank query = new QuestionBank();
         query.setDeptId(target);
         query.setScopeDeptId(scope);
+        // 形态过滤（理论套卷只能选理论库；实操考核只能选实操库）；为空则不过滤（向后兼容）
+        if (bankKind != null && !bankKind.trim().isEmpty()) {
+            query.setBankKind(bankKind.trim().toUpperCase());
+        }
         java.util.List<QuestionBank> banks = questionBankMapper.selectBankList(query);
         java.util.List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
         if (banks == null) {

@@ -69,8 +69,9 @@ public class ExamController extends BaseController {
     @PreAuthorize("@ss.hasPermi('business:bank:list')")
     @GetMapping("/bank-options")
     public AjaxResult bankOptions(@RequestParam(value = "deptId", required = false) Long deptId,
-                                  @RequestParam(value = "examMode", required = false) String examMode) {
-        return AjaxResult.success(examService.bankOptions(deptId, examMode));
+                                  @RequestParam(value = "examMode", required = false) String examMode,
+                                  @RequestParam(value = "bankKind", required = false) String bankKind) {
+        return AjaxResult.success(examService.bankOptions(deptId, examMode, bankKind));
     }
 
     /**
