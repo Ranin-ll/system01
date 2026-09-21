@@ -649,7 +649,9 @@ export default {
         this.bankMeta = []
         return Promise.resolve()
       }
-      return listExamBankOptions(this.isSuperAdmin ? this.deptId : undefined, this.exam && this.exam.examMode).then(res => {
+      // 候选库 = 形态 × 用途：理论套卷只选理论库（防止抽到正式题库），实操考核才取实操库
+      const kind = this.isPractice ? 'PRACTICAL' : 'THEORY'
+      return listExamBankOptions(this.isSuperAdmin ? this.deptId : undefined, this.exam && this.exam.examMode, kind).then(res => {
         this.bankMeta = (res.data || []).map(b => ({
           bankId: b.bankId,
           bankName: b.bankName,

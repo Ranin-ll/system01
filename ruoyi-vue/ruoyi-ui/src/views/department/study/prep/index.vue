@@ -8,7 +8,7 @@
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>模拟备考管理</h1>
-        <p>备考资料 / 备考模块（模块内挂理论模拟考核与实操题）—— <b>模块只是分组容器</b>；抽题仍按各考核的组卷规则（题库 × 题型）。</p>
+        <p>备考资料 / <b>模拟理论考试</b>（按<b>阶段</b>分组套卷，套卷从<b>理论题库的模拟库与通用库</b>抽题，可重复练习）/ <b>模拟实操题库</b>（勾选后实习生可浏览题目）。</p>
       </div>
       <div class="dept-heading-actions">
         <el-button size="small" icon="el-icon-refresh" @click="reloadAll">刷新</el-button>
@@ -163,8 +163,8 @@
             <div>
               <span class="dsec-no p">模</span>
               <div>
-                <h2>备考模块</h2>
-                <p>模块是模拟考核的顶层分组：先建模块，再在模块内发布理论模拟考核与实操题。模块名可直接改，不用逐个调整题目。</p>
+                <h2>阶段与套卷</h2>
+                <p>「阶段」用于分组套卷（如第一阶段 / 第二阶段 / 第三阶段）；每个阶段下可建多套模拟理论套卷，配置方式与正式理论考核一致（组卷规则 + 试抽 + 发布）。实习生可任选阶段下的套卷重复练习。</p>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
@@ -262,9 +262,9 @@
           <div class="dsec-body">
             <!-- 理论模拟考核：一个模块下可以有多个考核 -->
             <div class="dcard-h" style="padding:0 0 10px">
-              <div class="tt"><span class="idx">理</span><h3>理论模拟考核（本模块下 {{ exams.length }} 个）</h3></div>
+              <div class="tt"><span class="idx">理</span><h3>套卷（本阶段下 {{ exams.length }} 套）</h3></div>
               <div class="dbtn-row">
-                <el-button size="mini" type="primary" icon="el-icon-plus" :disabled="!!examForm.id" @click="openExamEditor(null)">新增考核</el-button>
+                <el-button size="mini" type="primary" icon="el-icon-plus" :disabled="!!examForm.id" @click="openExamEditor(null)">新建套卷</el-button>
               </div>
             </div>
 
@@ -427,10 +427,6 @@
               </div>
             </div>
 
-            <!-- 实操题（内嵌复用已闭环模块，锁定当前模块；:key 保证切模块时重建实例） -->
-            <div class="embed-wrap" style="margin-top:22px">
-              <practice-subject :key="activeModule.id" :module-id="activeModule.id" />
-            </div>
           </div>
         </div>
       </template>
@@ -600,7 +596,7 @@ export default {
     tabs() {
       return [
         { key: 'material', label: '备考资料', count: this.materials.length },
-        { key: 'module', label: '备考模块', count: this.modules.length || '' },
+        { key: 'module', label: '模拟理论考试', count: this.modules.length || '' },
         { key: 'pbank', label: '模拟实操题库' }
       ]
     },
