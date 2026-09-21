@@ -108,7 +108,21 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
             row.setTaskOverdue(r.getTaskOverdue());
             row.setTaskNotStarted(r.getTaskNotStarted());
         }
-        // ④ 模拟 / 正式 / 知识点：🟠 本期不查（见类注释），字段保持 null
+        // ④ 考核类（2026-09-22 起为真数据；原先「本期不查、前端 _mock.js 填充」的前提已失效）
+        for (DeptMatrixRow r : analysisMapper.selectPracticeByDept(scope)) {
+            DeptMatrixRow row = ensure(byDept, r);
+            row.setPracticeCount(r.getPracticeCount());
+            row.setPracticeAvg(r.getPracticeAvg());
+        }
+        for (DeptMatrixRow r : analysisMapper.selectFormalByDept(scope)) {
+            DeptMatrixRow row = ensure(byDept, r);
+            row.setFormalPublished(r.getFormalPublished());
+        }
+        for (DeptMatrixRow r : analysisMapper.selectKnowledgeByDept(scope)) {
+            DeptMatrixRow row = ensure(byDept, r);
+            row.setKnowledgeItems(r.getKnowledgeItems());
+            row.setKnowledgeCorrect(r.getKnowledgeCorrect());
+        }
 
         return new ArrayList<>(byDept.values());
     }
@@ -149,11 +163,22 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
 
     /** 给逐人明细补上阶段中文名（列表页与详情页共用同一份映射） */
     private List<InternStageRow> label(List<InternStageRow> rows) {
+        // 正式考试是否通过（2026-09-22 起为真数据）：一次批量查，避免逐人 N+1
+        Map<Long, Integer> passedMap = new LinkedHashMap<>();
+        for (Map<String, Object> m : analysisMapper.selectFormalPassedByUser(scopeDeptId())) {
+            Object uid = m.get("userId");
+            if (uid == null) {
+                continue;
+            }
+            Object p = m.get("passed");
+            passedMap.put(Long.valueOf(String.valueOf(uid)),
+                    p == null ? 0 : Integer.valueOf(String.valueOf(p)));
+        }
         for (InternStageRow r : rows) {
             String label = STAGE_LABELS.get(r.getStage());
             r.setStageLabel(label == null ? r.getStage() : label);
-            // 🟠 正式考试通过与否属考核模块，本期不查 → 保持 null（前端示例填充）
-            r.setFormalPassed(null);
+            // 无正式答卷的人保持 null（前端显示「未参加」）—— 不伪装成「未通过」
+            r.setFormalPassed(r.getUserId() == null ? null : passedMap.get(r.getUserId()));
         }
         return rows;
     }
@@ -391,6 +416,8 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
         DeptMatrixRow row = findRow(ov, deptId);
 
         vo.setLearnThreshold(th);
+        // 本部门 × 知识点明细（2026-09-22 起为真数据，原先前端用 _mock.js 填充）
+        vo.setKnowledge(analysisMapper.selectKnowledgeDetailByDept(deptId));
         vo.setGlobalLearnAvgProgress((BigDecimal) ov.get("learnAvgProgress"));
         vo.setGlobalTaskDoneRate((Integer) ov.get("taskDoneRate"));
         vo.setGlobalInternCount((Integer) ov.get("internTotal"));
@@ -498,10 +525,10 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
         data.put("user", target);
         data.put("study", analysisMapper.selectInternStudy(userId));
         data.put("tasks", analysisMapper.selectInternTasks(userId));
-        // 🟠 考核类（模拟 / 正式 / 知识点）：题库与考核模块待同事分支合并，本期后端不查
-        data.put("practice", null);
-        data.put("formal", null);
-        data.put("knowledge", null);
+        // 考核类（2026-09-22 接真数据）：模拟逐场 / 正式逐场 / 本人知识点掌握
+        data.put("practice", analysisMapper.selectInternPractice(userId));
+        data.put("formal", analysisMapper.selectInternFormal(userId));
+        data.put("knowledge", analysisMapper.selectInternKnowledge(userId));
         // ⚪ 阶段评价：stage_evaluation 全表 0 行；且 visible_scope='ADMIN_ONLY' 的评语不进实习生端画像
         data.put("evaluation", null);
         return data;
