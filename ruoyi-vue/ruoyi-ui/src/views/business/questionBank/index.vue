@@ -31,7 +31,7 @@
     <!-- ①.5 形态切换：理论题库 / 实操题库 -->
     <section class="kind-bar">
       <button
-        v-for="k in kindTabs"
+        v-for="k in kindTabs()"
         :key="k.value"
         type="button"
         class="kind-tab"
