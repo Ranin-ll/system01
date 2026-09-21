@@ -519,10 +519,10 @@ export const dynamicRoutes = [
         meta: { title: '考核运营总览', icon: 'date', activeMenu: '/super/ops/exams' }
       },
       {
+        // 已下线（2026-09-22）：成绩与统计分析并入「考核与成绩」（ops/exams），侧栏不再单列。
+        // 保留路由做 redirect 兜底，避免旧书签 / 收藏 404（与 org/dept-admins 同一做法）。
         path: 'ops/scores',
-        component: () => import('@/views/super/ops/scores/index'),
-        name: 'SuperOpsScores',
-        meta: { title: '成绩与统计分析', icon: 'chart', activeMenu: '/super/ops/scores' }
+        redirect: () => ({ path: '/super/ops/exams' })
       },
       // ④ 任务与通知（单项目录；三端命名统一 —— 决策 6）
       {
