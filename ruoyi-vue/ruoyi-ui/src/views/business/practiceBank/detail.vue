@@ -100,7 +100,7 @@
         <div class="fg4 stack">
           <el-form-item label="技能方向"><el-input v-model="form.direction" maxlength="64" placeholder="如：后端接口开发" /></el-form-item>
           <el-form-item label="难度">
-            <el-radio-group v-model="form.difficulty" size="mini" class="diff-seg">
+            <el-radio-group v-model="form.difficulty" class="diff-seg">
               <el-radio-button label="EASY">简单</el-radio-button>
               <el-radio-button label="MEDIUM">中等</el-radio-button>
               <el-radio-button label="HARD">困难</el-radio-button>
@@ -380,8 +380,15 @@ export default {
 }
 .fg4.stack ::v-deep .el-form-item__content,
 .fg2.stack2 ::v-deep .el-form-item__content { margin-left: 0 !important; line-height: normal; }
-/* 难度分段按钮：一列内不再折行 */
-.diff-seg ::v-deep .el-radio-button__inner { padding: 7px 12px; white-space: nowrap; }
+/* 难度分段按钮：三等分铺满整列，且与同行的输入框等高（原来 mini 只有 ~24px，看着缩在上边贴着标签） */
+.diff-seg { display: flex; width: 100%; }
+.diff-seg ::v-deep .el-radio-button { flex: 1; }
+.diff-seg ::v-deep .el-radio-button__inner {
+  width: 100%; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;
+  white-space: nowrap; line-height: 1;
+}
+.diff-seg ::v-deep .el-radio-button:first-child .el-radio-button__inner { border-radius: 4px 0 0 4px; }
+.diff-seg ::v-deep .el-radio-button:last-child .el-radio-button__inner { border-radius: 0 4px 4px 0; }
 .unit { margin-left: 6px; color: #98a2b3; font-size: 12px; }
 /* 数字框与单位永远同一行（兜底） */
 ::v-deep .el-input-number { display: inline-block; }
