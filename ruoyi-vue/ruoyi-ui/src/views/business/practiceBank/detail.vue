@@ -97,7 +97,7 @@
         <el-form-item label="题名" prop="title">
           <el-input v-model="form.title" maxlength="200" placeholder="例如：用户登录接口开发（会展示给实习生）" />
         </el-form-item>
-        <div class="fg4">
+        <div class="fg4 stack">
           <el-form-item label="技能方向"><el-input v-model="form.direction" maxlength="64" placeholder="如：后端接口开发" /></el-form-item>
           <el-form-item label="难度">
             <el-radio-group v-model="form.difficulty" size="mini" class="diff-seg">
@@ -110,7 +110,7 @@
 
           <el-form-item label="建议满分"><el-input-number v-model="form.suggestScore" :min="0" :max="999" :precision="1" controls-position="right" placeholder="未填" style="width:100%" /><span class="unit">分</span></el-form-item>
         </div>
-        <div class="fg2">
+        <div class="fg2 stack2">
           <el-form-item label="章节">
             <el-input v-model="form.chapter" maxlength="64" placeholder="与理论题库口径统一（可选）" />
           </el-form-item>
@@ -370,13 +370,24 @@ export default {
 .sec-no { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; color: #fff; background: #1764f5; font-size: 11px; border-radius: 50%; }
 /* 分区提示：只允许单行，过长省略号，避免撑成两行 */
 .sec-tip { flex: 1; min-width: 0; margin-left: 12px; overflow: hidden; color: #98a2b3; font-size: 11.5px; font-style: normal; font-weight: 400; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.fg4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 14px; }
+/* 指标行：标签置顶，四个字段各占满一列（原来左标签只剩 ~107px，难度分段/数字框会被挤换行） */
+.fg4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; }
+.fg4.stack ::v-deep .el-form-item,
+.fg2.stack2 ::v-deep .el-form-item { display: block; margin-bottom: 14px; }
+.fg4.stack ::v-deep .el-form-item__label,
+.fg2.stack2 ::v-deep .el-form-item__label {
+  display: block; width: auto !important; padding: 0 0 5px; color: #667085; font-size: 12px; line-height: 1.4; text-align: left;
+}
+.fg4.stack ::v-deep .el-form-item__content,
+.fg2.stack2 ::v-deep .el-form-item__content { margin-left: 0 !important; line-height: normal; }
+/* 难度分段按钮：一列内不再折行 */
+.diff-seg ::v-deep .el-radio-button__inner { padding: 7px 12px; white-space: nowrap; }
 .unit { margin-left: 6px; color: #98a2b3; font-size: 12px; }
 /* 素材区的说明单独占一行，不与按钮挤 */
 .unit.block { display: block; margin: 6px 0 0; }
 /* 素材 chip 行独占一行 */
 .files { display: flex; width: 100%; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 0; }
-.diff-seg ::v-deep .el-radio-button__inner { padding: 6px 10px; }
+
 .fg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .fg3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 16px; }
 .inline-up { display: inline-block; }
