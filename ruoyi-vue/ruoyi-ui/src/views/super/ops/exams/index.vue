@@ -4,7 +4,7 @@
       <div>
         <span class="eyebrow">SUPER ADMIN · OPERATION</span>
         <h1>考核运营总览</h1>
-        <p>跨部门看「批次 × 环节」的发布状态与时间窗：哪些部门该开考却没开、哪些批次还停在草稿。<b>超管只读，不代部门发布</b>。</p>
+        <p>跨部门看「批次 × 环节」的发布状态与时间窗：哪些部门该开考却没开、哪些批次还停在草稿。本页<b>只读概览</b>；考核的配置与发布在<b>权限层对超管开放</b>（接口复用 <code>business:bank:*</code>，不限部门），当前未设独立写入口。</p>
       </div>
       <div class="s-head-actions">
         <span class="s-ro"><i class="el-icon-view" /> 全局只读</span>

@@ -4,7 +4,7 @@
       <div>
         <span class="eyebrow">SUPER ADMIN · AUDIT &amp; COMPLIANCE</span>
         <h1>审计日志</h1>
-        <p>谁在何时做了什么：全局操作留痕（含部门管理员的业务写操作）。超管权限最大，因此本页同时呈现「超管可写动作」与「只读越权尝试」的边界。</p>
+        <p>谁在何时做了什么：全局操作留痕（含部门管理员的业务写操作）。超管权限最大，因此本页同时呈现「超管可写动作」与「仍会被拦截的写入」的边界。</p>
       </div>
       <div class="s-head-actions">
         <span class="s-ro"><i class="el-icon-view" /> 只读</span>
@@ -52,7 +52,7 @@
       </section>
 
       <section class="s-card s-c6">
-        <div class="s-card-h"><div class="tt"><span class="s-idx o">挡</span><h3>只读越权尝试（后端已强制）</h3></div><span class="s-badge ok">拦截生效</span></div>
+        <div class="s-card-h"><div class="tt"><span class="s-idx o">挡</span><h3>仍会被后端拦截的写入</h3></div><span class="s-badge ok">拦截生效</span></div>
         <div class="s-steps">
           <div v-for="c in guards" :key="c.name" class="s-step done">
             <span class="mark">✓</span>
@@ -62,7 +62,7 @@
         <div class="s-callout warn">
           <i class="el-icon-warning-outline" />
           <span>
-            <b>建议补充：</b>命中只读拦截时<b>同时写一条尝试记录</b>（当前仅返回错误、不留痕）。
+            <b>建议补充：</b>命中写入拦截时<b>同时写一条尝试记录</b>（当前仅返回错误、不留痕）。
             超管账号一旦被盗用，这份记录是发现异常写入尝试的第一手线索。
           </span>
         </div>
@@ -101,7 +101,7 @@ import { list } from '@/api/monitor/operlog'
 /**
  * 超管「审计日志」页
  * 真实数据：/monitor/operlog/list（平台原生操作日志，@Log 注解自动记录）
- * 静态内容：只读越权说明、转正纠错流程（待补实现）
+ * 静态内容：仍会被拦截的写入说明、转正纠错流程（待补实现）
  */
 export default {
   name: 'SuperAudit',
@@ -114,11 +114,8 @@ export default {
       detailVisible: false,
       current: null,
       guards: [
-        { name: '课程与课程内容写入', desc: 'CourseServiceImpl / CourseContentServiceImpl 抛「超级管理员仅可查看…」' },
-        { name: '题库与题目写入', desc: 'QuestionBankServiceImpl / QuestionServiceImpl' },
-        { name: '考核配置与发布', desc: 'ExamServiceImpl 拦截写入' },
-        { name: '实操题库写入', desc: 'PracticeSubjectServiceImpl' },
-        { name: '注册审核 / 批阅 / 转正审批', desc: '页面只读 + 后端角色校验双重限制' }
+        { name: '任务：发布 / 结束 / 批阅', desc: 'TaskServiceImpl.requireDeptAdmin() 抛「超级管理员仅可查看任务，不能发布或批阅」（任务列表本身可读）' },
+        { name: '非超管且未配置部门时访问业务数据', desc: '各 Service 的 currentScopeDeptId / managerScopeDeptId 对该类账号直接抛「当前账号未配置部门」' }
       ]
     }
   },

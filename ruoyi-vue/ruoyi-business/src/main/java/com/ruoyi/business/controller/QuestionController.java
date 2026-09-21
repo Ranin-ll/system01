@@ -100,6 +100,25 @@ public class QuestionController extends BaseController {
         return AjaxResult.success(result);
     }
 
+    /**
+     * 导出题库题目为 Excel。
+     *
+     * <p>表头与导入模板一致（复用 {@code QuestionImportRow}）→ 导出的文件<b>可以直接再导入</b>，
+     * 便于跨题库复制题目、或线下批量改完再导入。</p>
+     */
+    @PreAuthorize("@ss.hasPermi('business:question:list')")
+    @GetMapping("/export/{bankId}")
+    public void export(@PathVariable Long bankId, HttpServletResponse response) throws IOException {
+        List<QuestionImportRow> rows = questionService.exportRows(bankId);
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        String fileName = URLEncoder.encode("题目导出", "UTF-8").replaceAll("\\+", "%20");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+        EasyExcel.write(response.getOutputStream(), QuestionImportRow.class)
+                .sheet("题目")
+                .doWrite(rows);
+    }
+
     /** 实习生抽题（不含答案和解析） */
     @PreAuthorize("@ss.hasPermi('business:bank:list')")
     @GetMapping("/preview/{bankId}")

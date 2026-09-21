@@ -2,7 +2,10 @@ package com.ruoyi.business.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.ruoyi.business.domain.Position;
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -34,7 +37,7 @@ public interface PositionMapper extends BaseMapper<Position> {
      * </ul>
      * 本方法只读，供管理端核对使用。
      */
-    @Select("SELECT dp.dept_id AS deptId, d.dept_name AS deptName, "
+    @Select("SELECT dp.id AS id, dp.dept_id AS deptId, d.dept_name AS deptName, "
             + "dp.position_id AS positionId, p.position_code AS positionCode, p.position_name AS positionName, "
             + "(SELECT COUNT(*) FROM sys_user u WHERE u.dept_id = dp.dept_id AND u.del_flag = '0' "
             + "   AND u.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE', 'PENDING_PROMOTE') "
@@ -48,4 +51,33 @@ public interface PositionMapper extends BaseMapper<Position> {
             + "WHERE dp.status = 1 "
             + "ORDER BY dp.dept_id ASC")
     List<Map<String, Object>> selectDeptBindings();
+
+    // ------------------------------------------------------------------
+    // 部门 ↔ 岗位「绑定关系」的维护（2026-09-20 新增，支持一部门多岗位）
+    //
+    // dept_position 本就是多对多关联表（UNIQUE KEY uk_dept_pos(dept_id, position_id)），
+    // 此前只是数据恰好一一对应、且没有写接口。这里补上最小的增删查。
+    // ------------------------------------------------------------------
+
+    /** 绑定是否存在（幂等判重） */
+    @Select("SELECT COUNT(*) FROM dept_position WHERE dept_id = #{deptId} AND position_id = #{positionId}")
+    int countBinding(@Param("deptId") Long deptId, @Param("positionId") Long positionId);
+
+    /** 该岗位是否已绑到**其它**部门 —— 用于提示「注册时无法自动判断部门」的口径风险 */
+    @Select("SELECT COUNT(*) FROM dept_position WHERE position_id = #{positionId} AND dept_id <> #{deptId} AND status = 1")
+    int countBindingInOtherDept(@Param("positionId") Long positionId, @Param("deptId") Long deptId);
+
+    @Select("SELECT id, dept_id AS deptId, position_id AS positionId, status FROM dept_position WHERE id = #{id}")
+    Map<String, Object> selectBindingById(@Param("id") Long id);
+
+    @Insert("INSERT INTO dept_position (dept_id, position_id, status, create_time) "
+            + "VALUES (#{deptId}, #{positionId}, 1, NOW())")
+    int insertBinding(@Param("deptId") Long deptId, @Param("positionId") Long positionId);
+
+    @Delete("DELETE FROM dept_position WHERE id = #{id}")
+    int deleteBinding(@Param("id") Long id);
+
+    /** 某部门当前绑定的岗位数（解绑前提示用） */
+    @Select("SELECT COUNT(*) FROM dept_position WHERE dept_id = #{deptId} AND status = 1")
+    int countBindingsOfDept(@Param("deptId") Long deptId);
 }

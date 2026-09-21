@@ -144,6 +144,91 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     }
 
     @Override
+    public List<QuestionImportRow> exportRows(Long bankId) {
+        checkBankAccessible(bankId);
+        Question query = new Question();
+        query.setBankId(bankId);
+        List<Question> list = selectQuestionList(query);
+        List<QuestionImportRow> rows = new ArrayList<>();
+        for (Question q : list) {
+            rows.add(toImportRow(q));
+        }
+        return rows;
+    }
+
+    /**
+     * 题目 → 导入行。
+     *
+     * <p>与 {@link #convertRow} 互为反向，<b>字面值必须严格对齐</b>，否则导出的文件不能再导入：
+     * 题型输出「单选 / 多选 / 判断」（{@code mapQtype} 认这几种），
+     * 难度输出「简单 / 中等 / 困难」（{@code mapDifficulty} 认这几种）。</p>
+     */
+    private QuestionImportRow toImportRow(Question q) {
+        QuestionImportRow row = new QuestionImportRow();
+        row.setQtypeText(qtypeText(q.getQtype()));
+        row.setStem(q.getStem());
+        List<Map<String, String>> opts = parseOptionsJson(q.getOptionsJson());
+        row.setOptionA(optionContent(opts, "A"));
+        row.setOptionB(optionContent(opts, "B"));
+        row.setOptionC(optionContent(opts, "C"));
+        row.setOptionD(optionContent(opts, "D"));
+        row.setAnswer(q.getAnswer());
+        row.setAnalysis(q.getAnalysis());
+        row.setDifficultyText(difficultyText(q.getDifficulty()));
+        row.setKnowledgePoint(q.getKnowledgePoint());
+        return row;
+    }
+
+    private String qtypeText(String qtype) {
+        if ("SINGLE".equals(qtype)) {
+            return "单选";
+        }
+        if ("MULTI".equals(qtype)) {
+            return "多选";
+        }
+        if ("JUDGE".equals(qtype)) {
+            return "判断";
+        }
+        return qtype == null ? "" : qtype;
+    }
+
+    private String difficultyText(String difficulty) {
+        if (difficulty == null) {
+            return "";
+        }
+        String d = difficulty.trim().toUpperCase();
+        if ("EASY".equals(d) || "SIMPLE".equals(d)) {
+            return "简单";
+        }
+        if ("HARD".equals(d)) {
+            return "困难";
+        }
+        return "中等";
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, String>> parseOptionsJson(String json) {
+        if (json == null || json.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        try {
+            return objectMapper.readValue(json, List.class);
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
+
+    private String optionContent(List<Map<String, String>> opts, String key) {
+        for (Map<String, String> o : opts) {
+            if (o != null && key.equals(o.get("key"))) {
+                String c = o.get("content");
+                return c == null ? "" : c;
+            }
+        }
+        return "";
+    }
+
+    @Override
     public List<Question> previewQuestions(Long bankId, Integer limit) {
         Long scopeDeptId = currentScopeDeptId();
         checkBankAccessibleForScope(bankId, scopeDeptId);

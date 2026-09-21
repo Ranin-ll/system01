@@ -27,8 +27,14 @@ public interface TaskAssignmentMapper extends BaseMapper<TaskAssignment> {
     TaskAssignment selectMine(@Param("taskId") Long taskId, @Param("userId") Long userId);
 
     /**
-     * 逾期标记（定时任务）：已完成的不会被改回来
+     * 逾期标记（定时任务）：已完成的不动；**已是 OVERDUE 的也不再匹配**。
+     *
+     * <p>★ 2026-09-20 修正：原条件是 {@code status <> 'DONE'}，而 {@code 'OVERDUE' <> 'DONE'} 恒为真
+     * → 每天都能"重新标记成功" → 逾期通知被**每天重发**一次（部门管理员与实习生都被刷屏）。
+     * 改成 {@code status NOT IN ('DONE','OVERDUE')} 后，只有「首次从非逾期变成逾期」才返回 1，
+     * 通知也就只在首次逾期时发一次。</p>
      */
-    @Update("UPDATE task_assignment SET status = 'OVERDUE' WHERE id = #{id} AND status <> 'DONE'")
+    @Update("UPDATE task_assignment SET status = 'OVERDUE' "
+            + "WHERE id = #{id} AND status NOT IN ('DONE', 'OVERDUE')")
     int markOverdue(@Param("id") Long id);
 }

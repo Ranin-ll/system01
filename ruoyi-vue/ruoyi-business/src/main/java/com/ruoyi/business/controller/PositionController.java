@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 岗位类型Controller
@@ -48,6 +49,43 @@ public class PositionController extends BaseController {
     @GetMapping("/dept-bindings")
     public AjaxResult deptBindings() {
         return AjaxResult.success(positionService.selectDeptBindings());
+    }
+
+    /**
+     * 新增「部门 ↔ 岗位」绑定（**超管专属**，2026-09-20）
+     *
+     * <p>支持一部门多岗位。权限串复用部门管理员也持有的 {@code business:position:list}，
+     * 所以「仅超管」的强校验放在 Service（{@code requireSuperAdmin()}）。</p>
+     *
+     * @param body {@code {deptId, positionId}}
+     */
+    @PreAuthorize("@ss.hasPermi('business:position:list')")
+    @PostMapping("/bindings")
+    public AjaxResult addBinding(@RequestBody Map<String, Object> body) {
+        Long deptId = toLong(body == null ? null : body.get("deptId"));
+        Long positionId = toLong(body == null ? null : body.get("positionId"));
+        return AjaxResult.success(positionService.addDeptBinding(deptId, positionId));
+    }
+
+    /**
+     * 解绑（**超管专属**）。部门解绑到没有岗位时会被拒。
+     */
+    @PreAuthorize("@ss.hasPermi('business:position:list')")
+    @DeleteMapping("/bindings/{id}")
+    public AjaxResult removeBinding(@PathVariable Long id) {
+        return toAjax(positionService.removeDeptBinding(id));
+    }
+
+    /** 前端 JSON 里数字可能是 Integer/Long/String，统一转 Long */
+    private Long toLong(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof Number) {
+            return ((Number) o).longValue();
+        }
+        String s = String.valueOf(o).trim();
+        return s.isEmpty() ? null : Long.valueOf(s);
     }
 
     /**

@@ -328,7 +328,7 @@ export default {
     },
     metrics() {
       if (this.isFormal) return [
-        { label: '培养状态', value: '已转正', hint: '正式实习生', tone: 'green', icon: 'el-icon-circle-check' }, { label: '课程完成率', value: this.learningProgress + '%', hint: '历史学习记录已保留', tone: 'blue', icon: 'el-icon-reading' }, { label: '综合成绩', value: '88 分', hint: '历史考核已通过', tone: 'violet', icon: 'el-icon-data-analysis' }, { label: '未读消息', value: '2 条', hint: '近期业务通知', tone: 'orange', icon: 'el-icon-message' }
+        { label: '培养状态', value: '已转正', hint: '正式实习生', tone: 'green', icon: 'el-icon-circle-check' }, { label: '课程完成率', value: this.learningProgress + '%', hint: '已发布课程仍可学习', tone: 'blue', icon: 'el-icon-reading' }, { label: '综合成绩', value: '88 分', hint: '历史考核已通过', tone: 'violet', icon: 'el-icon-data-analysis' }, { label: '未读消息', value: '2 条', hint: '近期业务通知', tone: 'orange', icon: 'el-icon-message' }
       ]
       if (this.isPre) return [
         { label: '待学课程', value: this.previewCourses.filter(course => course.progress < 100).length + ' 门', hint: `共 ${this.learningOverview.courseCount} 门已发布课程`, tone: 'orange', icon: 'el-icon-time' }, { label: '课程完成率', value: this.learningProgress + '%', hint: this.learningGap ? `距考核资格还差 ${this.learningGap}%` : '已满足考核资格', tone: 'blue', icon: 'el-icon-reading' }, { label: '理论考试', value: '未开始', hint: this.learningGap ? '等待满足学习资格' : '已达到学习门槛', tone: 'violet', icon: 'el-icon-edit-outline' }, { label: '能力画像', value: '72', hint: '当前阶段综合值', tone: 'green', icon: 'el-icon-data-line' }

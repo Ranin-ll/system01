@@ -241,6 +241,7 @@
     <select id="selectOverdueAssignments" resultType="java.util.Map">
         SELECT a.id        AS assignmentId,
                a.user_id   AS userId,
+               u.nick_name AS userName,
                t.id        AS taskId,
                t.task_name AS taskName,
                t.deadline  AS deadline,

@@ -17,6 +17,23 @@ export function getDeptBindings() {
   })
 }
 
+// 新增「部门 ↔ 岗位」绑定（超管专属；支持一个部门绑多个岗位）
+export function addDeptBinding(data) {
+  return request({
+    url: '/business/position/bindings',
+    method: 'post',
+    data: data
+  })
+}
+
+// 解绑（超管专属）。部门解绑到没有岗位时会被后端拒绝。
+export function removeDeptBinding(id) {
+  return request({
+    url: '/business/position/bindings/' + id,
+    method: 'delete'
+  })
+}
+
 // 查询岗位详细
 export function getPosition(id) {
   return request({
