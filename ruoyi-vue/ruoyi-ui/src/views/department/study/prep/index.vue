@@ -149,6 +149,11 @@
       </div>
     </template>
 
+    <!-- ============ 页签 3 · 模拟实操题库（管理员勾选开放 + 题目预览）============ -->
+    <template v-if="activeTab === 'pbank'">
+      <practice-bank-picker />
+    </template>
+
     <!-- ============ 页签 2 · 备考模块 ============ -->
     <template v-if="activeTab === 'module'">
       <!-- 2.1 模块列表 -->
@@ -534,9 +539,12 @@ function emptyExamForm() {
   }
 }
 
+import PracticeBankPicker from '@/views/business/practiceBank/PracticeBankPicker'
+
 export default {
   name: 'DeptPrep',
-  components: { PracticeSubject },
+  components: {
+    PracticeBankPicker, PracticeSubject },
   data() {
     return {
       activeTab: 'material',
@@ -592,7 +600,8 @@ export default {
     tabs() {
       return [
         { key: 'material', label: '备考资料', count: this.materials.length },
-        { key: 'module', label: '备考模块', count: this.modules.length || '' }
+        { key: 'module', label: '备考模块', count: this.modules.length || '' },
+        { key: 'pbank', label: '模拟实操题库' }
       ]
     },
     baseApi() {
