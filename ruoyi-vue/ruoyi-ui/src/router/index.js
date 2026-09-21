@@ -513,10 +513,11 @@ export const dynamicRoutes = [
         meta: { title: '实操题库', icon: 'form', activeMenu: '/super/ops/psubject-admin' }
       },
       {
+        // 「考核与成绩」L0：总览（两个视角）+ KPI，下钻到 /exam-config/{id}
         path: 'ops/exams',
         component: () => import('@/views/super/ops/exams/index'),
         name: 'SuperOpsExams',
-        meta: { title: '考核运营总览', icon: 'date', activeMenu: '/super/ops/exams' }
+        meta: { title: '考核与成绩', icon: 'date', activeMenu: '/super/ops/exams' }
       },
       {
         // 已下线（2026-09-22）：成绩与统计分析并入「考核与成绩」（ops/exams），侧栏不再单列。
