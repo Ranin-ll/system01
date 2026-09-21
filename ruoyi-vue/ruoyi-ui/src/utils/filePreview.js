@@ -149,7 +149,3 @@ export function triggerDownload(baseApi, url, filename) {
   document.body.removeChild(a)
   return true
 }
-Ln 3, Col 1
-行 151
-JavaScript
-只读
