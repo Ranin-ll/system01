@@ -119,24 +119,26 @@
           </el-form-item>
         </div>
 
-        <div class="sec"><span class="sec-no">2</span>题目与要求<i class="sec-tip">交付要求 / 开发约束：一行一条</i></div>
-        <el-form-item label="题干">
-          <el-input v-model="form.content" type="textarea" :rows="4" placeholder="作业背景与要求：要做成什么、验收标准是什么" />
+        <div class="sec"><span class="sec-no">2</span>题目描述<i class="sec-tip">要做成什么、什么标准算通过</i></div>
+        <el-form-item label="题目描述">
+          <el-input v-model="form.content" type="textarea" :rows="4" placeholder="作业背景与目标：要做成什么、达到什么程度算通过" />
         </el-form-item>
-        <div class="fg2">
-          <el-form-item label="交付要求">
-            <el-input v-model="form.deliverables" type="textarea" :rows="4" placeholder="一行一条，如：接口代码 / 接口文档（含入参出参）" />
-          </el-form-item>
-          <el-form-item label="开发约束">
-            <el-input v-model="form.devConstraints" type="textarea" :rows="4" placeholder="一行一条，如：使用 SpringBoot / 不得引入新依赖" />
-          </el-form-item>
-        </div>
-        <div class="fg2">
+
+        <div class="sec"><span class="sec-no">3</span>考核要点<i class="sec-tip">考什么、必须满足什么（一行一条）</i></div>
+        <el-form-item label="考核要点">
+          <el-input v-model="form.devConstraints" type="textarea" :rows="3" placeholder="一行一条，如：使用 SpringBoot 实现 / 不得引入新依赖 / 需处理异常分支" />
+        </el-form-item>
+
+        <div class="sec"><span class="sec-no">4</span>提交要求<i class="sec-tip">交什么 · 什么格式 · 怎么命名</i></div>
+        <el-form-item label="描述提交什么">
+          <el-input v-model="form.deliverables" type="textarea" :rows="3" placeholder="一行一条，如：接口代码 / 接口文档（含入参出参）/ 测试截图" />
+        </el-form-item>
+        <div class="fg2 stack2">
           <el-form-item label="提交格式"><el-input v-model="form.submitFormat" maxlength="255" placeholder="如：zip 压缩包" /></el-form-item>
           <el-form-item label="命名规则"><el-input v-model="form.namingRule" maxlength="255" placeholder="如：姓名_学号_题名.zip" /></el-form-item>
         </div>
 
-        <div class="sec"><span class="sec-no">3</span>素材<i class="sec-tip">参考图 / 视频给实习生看效果</i></div>
+        <div class="sec"><span class="sec-no">5</span>素材<i class="sec-tip">参考图 / 视频给实习生看效果</i></div>
         <el-form-item label="参考图/视频">
           <el-upload :show-file-list="false" :http-request="uploadRefImage" accept="image/*,video/*" class="inline-up">
             <el-button size="mini" icon="el-icon-picture-outline">上传图片 / 视频</el-button>
@@ -165,7 +167,7 @@
           </div>
         </el-form-item>
 
-        <div class="sec"><span class="sec-no">4</span>其它</div>
+        <div class="sec"><span class="sec-no">6</span>其它</div>
         <div class="fg2">
           <el-form-item label="排序号">
             <el-input-number v-model="form.sortNo" :min="0" :max="9999" controls-position="right" style="width:130px" />
