@@ -97,11 +97,9 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
             exam.setSubjectCount(0);
         } else if ("PRACTICAL".equals(type)) {
             // 实操不抽题：题目由管理员逐条填写（题干 / 描述 / 参考图 / 附件 / 本题满分）。
-            // 至少要有 1 道题，否则实习生进去无事可做。
+            // ★ 允许 0 道题：建卷走两步式（先建草稿 → 到配置页从「实操题库」带入或逐题填写），
+            //   「至少一道题」的守卫统一放在 publish() 里（发布前必然检查）。
             java.util.List<com.ruoyi.business.domain.ExamSubjectItem> items = normalizeSubjectItems(exam.getSubjectItems());
-            if (items.isEmpty()) {
-                throw new ServiceException("实操考核至少需要一道题目，请填写题干后保存");
-            }
             exam.setSubjectItems(items);
             exam.setSubjectCount(items.size());
             exam.setBankId(null);
@@ -187,11 +185,9 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
         } else {
             // 实操：题目清单为准。只有显式传了 subjectItems 才覆写，
             // 避免「只改名称 / 时长」的保存把已配好的题目清空。
+            // ★ 允许传空数组（= 清空题目）：草稿阶段随便改，「至少一道题」的守卫在 publish()。
             if (exam.getSubjectItems() != null) {
                 subjectItems = normalizeSubjectItems(exam.getSubjectItems());
-                if (subjectItems.isEmpty()) {
-                    throw new ServiceException("实操考核至少需要一道题目，请填写题干后保存");
-                }
                 exam.setSubjectCount(subjectItems.size());
                 exam.setQuestionCount(subjectItems.size());
             }
@@ -257,6 +253,16 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
                 throw new ServiceException("发布前请先配置实操题目：至少填写一道题的题干");
             }
             saveSubjectItems(id, items);
+        }
+        // ★ 发布是「至少一道实操题」的唯一守卫点：即使本次没带题目清单
+        //   （例如在列表页直接点「发布」），也要确保库里确实有题，避免发出空卷。
+        //   新建 / 编辑 / 保存配置阶段都允许 0 道题（草稿态随便改）。
+        if ("PRACTICAL".equals(exam.getExamType())) {
+            java.util.List<com.ruoyi.business.domain.ExamSubjectItem> existingItems =
+                    examRuleMapper.selectSubjectItems(id);
+            if (existingItems == null || existingItems.isEmpty()) {
+                throw new ServiceException("发布前请先配置实操题目：至少填写一道题的题干");
+            }
         }
         assertDrawConfigReady(exam, effective);
         // 发布校验：通过线不能超过卷面满分（防管理员误设，从后端兜底拦截）
