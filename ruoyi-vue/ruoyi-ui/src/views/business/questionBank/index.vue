@@ -100,16 +100,28 @@
         <el-table-column label="所属部门" min-width="120">
           <template slot-scope="scope"><span class="dept-text"><i class="el-icon-office-building" />{{ scope.row.deptName || '未设置' }}</span></template>
         </el-table-column>
-        <el-table-column label="题目数" min-width="110" align="center">
+        <el-table-column :label="(filters.bankKind === 'PRACTICAL') ? '实操题' : '题目数'" min-width="110" align="center">
           <template slot-scope="scope">
-            <strong class="table-number">{{ scope.row.questionCount || 0 }}</strong>
-            <small class="table-sub">{{ (scope.row.questionCount || 0) > 0 ? '题' : '未导入' }}</small>
+            <template v-if="(scope.row.bankKind || 'THEORY') === 'PRACTICAL'">
+              <strong class="table-number">—</strong>
+              <small class="table-sub">进入实操题库维护</small>
+            </template>
+            <template v-else>
+              <strong class="table-number">{{ scope.row.questionCount || 0 }}</strong>
+              <small class="table-sub">{{ (scope.row.questionCount || 0) > 0 ? '题' : '未导入' }}</small>
+            </template>
           </template>
         </el-table-column>
-        <el-table-column label="知识点(章节)" min-width="118" align="center">
+        <el-table-column :label="(filters.bankKind === 'PRACTICAL') ? '技能方向' : '知识点(章节)'" min-width="118" align="center">
           <template slot-scope="scope">
-            <strong class="table-number">{{ scope.row.knowledgePointCount || 0 }}</strong>
-            <small class="table-sub">{{ (scope.row.knowledgePointCount || 0) > 0 ? '个标签' : '未标注' }}</small>
+            <template v-if="(scope.row.bankKind || 'THEORY') === 'PRACTICAL'">
+              <strong class="table-number">—</strong>
+              <small class="table-sub">按方向在实操题库内查看</small>
+            </template>
+            <template v-else>
+              <strong class="table-number">{{ scope.row.knowledgePointCount || 0 }}</strong>
+              <small class="table-sub">{{ (scope.row.knowledgePointCount || 0) > 0 ? '个标签' : '未标注' }}</small>
+            </template>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
@@ -290,6 +302,14 @@ export default {
      * <p>详情页挂在 `/super` 与 `/department` 两处，按当前路径前缀拼目标路由。</p>
      */
     goDetail(row) {
+      // 实操题库 → 独立的实操题管理页；理论题库 → 题目管理页
+      if ((row.bankKind || 'THEORY') === 'PRACTICAL') {
+        this.$router.push({
+          path: '/department/study/practice-bank-detail/' + row.id,
+          query: { bankName: row.bankName, bankType: row.bankType }
+        }).catch(() => {})
+        return
+      }
       const base = this.$route.path.indexOf('/super') === 0
         ? '/super/ops/bank-detail/'
         : '/department/study/bank-detail/'

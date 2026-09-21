@@ -305,6 +305,13 @@ export const dynamicRoutes = [
       },
       {
         // 题库详情（独立页）：与超管端共用同一组件（统计 + 题目管理）
+        path: 'study/practice-bank-detail/:bankId',
+        component: () => import('@/views/business/practiceBank/detail'),
+        name: 'DeptPracticeBankDetail',
+        hidden: true,
+        meta: { title: '实操题库', activeMenu: '/department/study/banks' }
+      },
+      {
         path: 'study/bank-detail/:bankId',
         component: () => import('@/views/business/questionBank/detail'),
         name: 'DeptBankDetail',
