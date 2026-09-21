@@ -218,6 +218,7 @@ public class PracticeServiceImpl implements IPracticeService {
             m.put("duration", e.getDuration());
             m.put("passLine", e.getPassLine());
             // 套卷元信息：难易程度 + 题目内容偏向（扩展字段，实习生端列表展示用）
+            m.put("description", e.getDescription());
             m.put("difficulty", e.getDifficulty());
             m.put("contentBias", e.getContentBias());
             out.add(m);

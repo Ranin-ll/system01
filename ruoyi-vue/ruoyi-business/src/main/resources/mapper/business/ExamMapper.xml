@@ -6,6 +6,7 @@
     <resultMap type="Exam" id="ExamResult">
         <id     property="id"            column="id"             />
         <result property="examName"      column="exam_name"      />
+        <result property="description"   column="description"    />
         <result property="examType"      column="exam_type"      />
         <result property="examMode"      column="exam_mode"      />
         <result property="bankId"        column="bank_id"        />
@@ -43,7 +44,7 @@
     </resultMap>
 
     <sql id="examColumns">
-        e.id, e.exam_name, e.exam_type, e.exam_mode, e.bank_id, e.question_count, e.single_count, e.multi_count, e.judge_count, e.single_score, e.multi_score, e.judge_score, e.subject_count, e.subject_content, e.subject_attachment, e.position_id, e.dept_id, e.module_id,
+        e.id, e.exam_name, e.description, e.exam_type, e.exam_mode, e.bank_id, e.question_count, e.single_count, e.multi_count, e.judge_count, e.single_score, e.multi_score, e.judge_score, e.subject_count, e.subject_content, e.subject_attachment, e.position_id, e.dept_id, e.module_id,
         e.status, e.start_time, e.end_time, e.duration, e.pass_line, e.difficulty, e.content_bias, e.published_at, e.publisher_id,
         e.create_time, e.update_time, e.deleted,
         b.bank_name,
@@ -128,9 +129,9 @@
     </select>
 
     <insert id="insertExam" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO exam (exam_name, exam_type, exam_mode, bank_id, question_count, single_count, multi_count, judge_count, single_score, multi_score, judge_score, subject_count, subject_content, subject_attachment, position_id, dept_id, module_id, status,
+        INSERT INTO exam (exam_name, description, exam_type, exam_mode, bank_id, question_count, single_count, multi_count, judge_count, single_score, multi_score, judge_score, subject_count, subject_content, subject_attachment, position_id, dept_id, module_id, status,
                           start_time, end_time, duration, pass_line, difficulty, content_bias, published_at, publisher_id, create_time, update_time, deleted)
-        VALUES (#{examName}, #{examType}, #{examMode}, #{bankId}, #{questionCount}, #{singleCount}, #{multiCount}, #{judgeCount}, #{singleScore}, #{multiScore}, #{judgeScore}, #{subjectCount}, #{subjectContent}, #{subjectAttachment}, #{positionId}, #{deptId}, #{moduleId}, #{status},
+        VALUES (#{examName}, #{description}, #{examType}, #{examMode}, #{bankId}, #{questionCount}, #{singleCount}, #{multiCount}, #{judgeCount}, #{singleScore}, #{multiScore}, #{judgeScore}, #{subjectCount}, #{subjectContent}, #{subjectAttachment}, #{positionId}, #{deptId}, #{moduleId}, #{status},
                 #{startTime}, #{endTime}, #{duration}, #{passLine}, #{difficulty}, #{contentBias}, #{publishedAt}, #{publisherId}, #{createTime}, #{createTime}, #{deleted})
     </insert>
 
@@ -138,6 +139,7 @@
         UPDATE exam
         <set>
             <if test="examName != null">exam_name = #{examName},</if>
+            <if test="description != null">description = #{description},</if>
             <if test="moduleId != null">module_id = #{moduleId},</if>
             <if test="bankId != null">bank_id = #{bankId},</if>
             <if test="questionCount != null">question_count = #{questionCount},</if>

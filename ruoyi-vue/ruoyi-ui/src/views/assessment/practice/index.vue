@@ -60,6 +60,7 @@
           <div v-for="e in exams" :key="e.id" class="pm-exam">
             <div class="pm-exam-l">
               <b>{{ e.examName || '模拟理论考核卷' }}<span v-if="e.difficulty" class="pm-diff" :class="diffTone(e.difficulty)">{{ diffText(e.difficulty) }}</span></b>
+              <span v-if="e.description" class="pm-exam-desc">{{ e.description }}</span>
               <span class="pm-exam-meta">
                 共 {{ e.questionCount || 0 }} 题（单选 {{ e.singleCount || 0 }} · 多选 {{ e.multiCount || 0 }} · 判断 {{ e.judgeCount || 0 }}）
                 · 满分 {{ e.fullScore != null ? e.fullScore : '--' }} 分
@@ -582,6 +583,7 @@ export default {
 .pm-exam-l { min-width: 0; }
 .pm-exam-l > b { display: block; margin-bottom: 6px; color: #1d2939; font-size: 14.5px; font-weight: 600; }
 .pm-exam-meta { color: #8490a0; font-size: 12px; }
+.pm-exam-desc { display: block; margin-bottom: 6px; color: #667085; font-size: 12.5px; line-height: 1.6; }
 .pm-diff { display: inline-block; padding: 1px 8px; margin-left: 8px; font-size: 11.5px; font-weight: 500; border-radius: 10px; vertical-align: 1px; }
 .pm-diff.easy { color: #067647; background: #ecfdf3; }
 .pm-diff.mid { color: #b54708; background: #fffaeb; }

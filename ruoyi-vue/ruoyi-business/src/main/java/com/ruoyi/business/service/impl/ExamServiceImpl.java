@@ -339,6 +339,9 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
                 update.setPassLine(params.getPassLine());
             }
             // 套卷元信息：「难易程度」与「题目内容偏向」（模拟理论考核配置页维护；不传即不更新）
+            if (params.getDescription() != null) {
+                update.setDescription(params.getDescription());
+            }
             if (params.getDifficulty() != null) {
                 update.setDifficulty(params.getDifficulty());
             }

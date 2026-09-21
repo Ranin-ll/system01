@@ -27,6 +27,9 @@ public class Exam implements Serializable {
     /** 考核名称 */
     private String examName;
 
+    /** 套卷描述/说明（基础信息，与「题目内容偏向」的区别：这是整体说明） */
+    private String description;
+
     /** 类型：THEORY理论 / PRACTICAL实操 */
     private String examType;
 

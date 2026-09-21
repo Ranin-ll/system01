@@ -176,13 +176,16 @@
             <div class="dcard-h" style="padding:0 0 10px">
               <div class="tt"><span class="idx">卷</span><h3>套卷列表（共 {{ exams.length }} 套）</h3></div>
               <div class="dbtn-row">
-                <el-button size="mini" type="primary" icon="el-icon-plus" :disabled="!!examForm.id" @click="openExamEditor(null)">新建套卷</el-button>
+                <el-button size="mini" type="primary" icon="el-icon-plus" @click="openPaperDialog(null)">新建套卷</el-button>
               </div>
             </div>
 
             <el-table :data="exams" size="mini" border v-loading="examLoading" empty-text="暂无模拟理论考核套卷，点右上角「新建套卷」">
-              <el-table-column label="考核名称" min-width="180">
-                <template slot-scope="scope"><span class="strong">{{ scope.row.examName }}</span></template>
+              <el-table-column label="套卷名称" min-width="200">
+                <template slot-scope="scope">
+                  <span class="strong">{{ scope.row.examName }}</span>
+                  <div class="hint-text">{{ scope.row.description || '未填写套卷描述' }}</div>
+                </template>
               </el-table-column>
               <el-table-column label="题量" width="150" align="center">
                 <template slot-scope="scope">
@@ -217,9 +220,11 @@
                   <span class="dbadge" :class="scope.row.status === 'PUBLISHED' ? 'green' : 'gray'">{{ examStatusText(scope.row.status) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="170" align="center">
+              <el-table-column label="操作" width="236" align="center">
                 <template slot-scope="scope">
                   <el-button type="text" size="mini" @click="openExamEditor(scope.row)">配置</el-button>
+                  <span class="sep">|</span>
+                  <el-button type="text" size="mini" @click="openPaperDialog(scope.row)">编辑信息</el-button>
                   <span class="sep">|</span>
                   <el-button v-if="scope.row.status !== 'PUBLISHED'" type="text" size="mini" @click="publishExamRow(scope.row)">发布</el-button>
                   <el-button v-else type="text" size="mini" @click="disableExamRow(scope.row)">停用</el-button>
@@ -229,12 +234,12 @@
               </el-table-column>
             </el-table>
 
-            <!-- 考核配置编辑区 -->
-            <div v-if="examForm.id || examFormCreating" class="exam-editor">
+            <!-- 套卷详细配置（组卷规则 + 每题分值 + 时长 + 通过线 + 试抽 → 保存并发布） -->
+            <div v-if="examForm.id" class="exam-editor">
               <div class="dcard-h" style="padding:12px 0 10px">
                 <div class="tt">
                   <span class="idx o">配</span>
-                  <h3>{{ examForm.id ? '编辑套卷配置' : '新增套卷配置' }}</h3>
+                  <h3>套卷配置 · {{ examForm.examName }}</h3>
                 </div>
                 <div class="dbtn-row">
                   <el-button size="mini" @click="closeExamEditor">取消</el-button>
@@ -243,9 +248,6 @@
               </div>
 
               <el-form :inline="true" size="small" style="margin-bottom:12px">
-                <el-form-item label="考核名称">
-                  <el-input v-model="examForm.examName" size="small" style="width:220px" placeholder="例如：Java 基础自测" maxlength="60" />
-                </el-form-item>
                 <el-form-item label="考试时长">
                   <el-select v-model="durationPreset" size="small" style="width:160px" @change="onDurationPresetChange">
                     <el-option v-for="d in durationOptions" :key="d" :label="d > 0 ? d + ' 分钟' : '不限时（自测）'" :value="d" />
@@ -256,19 +258,6 @@
                 <el-form-item label="通过分数 / 总分">
                   <el-input-number v-model="examForm.passLine" :min="0" :max="500" :precision="1" size="small" />
                   <span style="margin-left:6px;color:#98a2b3">{{ examForm.passLine }} / {{ totalScore }} 分</span>
-                </el-form-item>
-              </el-form>
-
-              <el-form :inline="true" size="small" style="margin-bottom:12px">
-                <el-form-item label="难易程度">
-                  <el-select v-model="examForm.difficulty" size="small" style="width:120px" placeholder="选择难度" clearable>
-                    <el-option label="简单" value="EASY" />
-                    <el-option label="中等" value="MEDIUM" />
-                    <el-option label="困难" value="HARD" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="题目内容偏向">
-                  <el-input v-model="examForm.contentBias" size="small" style="width:480px" maxlength="200" show-word-limit placeholder="给实习生看的侧重说明，例如：偏 Java 集合与并发，重点考多线程与锁" />
                 </el-form-item>
               </el-form>
 
@@ -368,6 +357,33 @@
       </div>
     </template>
 
+    <!-- 套卷基础信息弹窗（新建 / 编辑信息） -->
+    <el-dialog :title="paperDialogTitle" :visible.sync="paperDialogVisible" width="560px" append-to-body>
+      <el-form ref="paperForm" :model="paperForm" :rules="paperRules" label-width="104px" size="small">
+        <el-form-item label="套卷名称" prop="examName">
+          <el-input v-model="paperForm.examName" placeholder="例如：基础卷 · 集合与并发" maxlength="60" show-word-limit />
+        </el-form-item>
+        <el-form-item label="套卷描述">
+          <el-input v-model="paperForm.description" type="textarea" :rows="3" maxlength="300" show-word-limit placeholder="一句话说明这套卷考什么、适合什么阶段练（实习生可见）" />
+        </el-form-item>
+        <el-form-item label="难易程度">
+          <el-radio-group v-model="paperForm.difficulty">
+            <el-radio-button label="EASY">简单</el-radio-button>
+            <el-radio-button label="MEDIUM">中等</el-radio-button>
+            <el-radio-button label="HARD">困难</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="题目内容偏向">
+          <el-input v-model="paperForm.contentBias" maxlength="200" show-word-limit placeholder="给实习生选卷参考，例如：偏 Java 集合与并发，重点考多线程与锁" />
+        </el-form-item>
+      </el-form>
+      <p class="dsec-note" style="margin:0">保存后请在列表中点「<b>配置</b>」进入详细页：设置每题分值 / 时长 / 通过线，配置组卷题库后发布。</p>
+      <span slot="footer">
+        <el-button @click="paperDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitPaper">{{ paperForm.id ? '保存修改' : '创建套卷' }}</el-button>
+      </span>
+    </el-dialog>
+
     <!-- 备考资料附件预览弹窗 -->
     <el-dialog
       :title="previewFile && previewFile.name ? previewFile.name : '附件预览'"
@@ -426,10 +442,12 @@ function emptyExamForm() {
     multiScore: 1,
     judgeScore: 1,
     duration: 0,
-    passLine: 6,
-    difficulty: '',
-    contentBias: ''
+    passLine: 6
   }
+}
+
+function emptyPaperForm() {
+  return { id: null, examName: '', description: '', difficulty: '', contentBias: '' }
 }
 
 import PracticeBankPicker from '@/views/business/practiceBank/PracticeBankPicker'
@@ -460,7 +478,12 @@ export default {
       exams: [],
       examLoading: false,
       examForm: emptyExamForm(),
-      examFormCreating: false,
+      paperDialogVisible: false,
+      paperDialogTitle: '',
+      paperForm: emptyPaperForm(),
+      paperRules: {
+        examName: [{ required: true, message: '请输入套卷名称', trigger: 'blur' }]
+      },
       bankMeta: [],
       bankRules: [],
       addBankId: null,
@@ -737,17 +760,10 @@ export default {
         }))
       }).catch(() => { this.bankMeta = [] })
     },
+    /** 打开套卷详细配置（仅编辑态；新建请走 openPaperDialog 先建基础信息） */
     openExamEditor(row) {
       this.previewQuestions = []
-      if (!row) {
-        this.examForm = emptyExamForm()
-        this.examForm.examName = '模拟理论考核卷'
-        this.examFormCreating = true
-        this.bankRules = []
-        this.durationPreset = 0
-        return
-      }
-      this.examFormCreating = false
+      if (!row) return
       this.examForm = {
         id: row.id,
         examName: row.examName || '',
@@ -755,9 +771,7 @@ export default {
         multiScore: Number(row.multiScore) || 0,
         judgeScore: Number(row.judgeScore) || 0,
         duration: Number(row.duration) || 0,
-        passLine: Number(row.passLine) || 0,
-        difficulty: row.difficulty || '',
-        contentBias: row.contentBias || ''
+        passLine: Number(row.passLine) || 0
       }
       this.durationPreset = this.durationOptions.indexOf(this.examForm.duration) > -1 ? this.examForm.duration : -1
       getExamConfig(row.id).then(res => {
@@ -774,9 +788,52 @@ export default {
     },
     closeExamEditor() {
       this.examForm = emptyExamForm()
-      this.examFormCreating = false
       this.bankRules = []
       this.previewQuestions = []
+    },
+    /** 打开套卷基础信息弹窗（新建 / 编辑信息） */
+    openPaperDialog(row) {
+      this.paperForm = row
+        ? {
+          id: row.id,
+          examName: row.examName || '',
+          description: row.description || '',
+          difficulty: row.difficulty || '',
+          contentBias: row.contentBias || ''
+        }
+        : emptyPaperForm()
+      this.paperDialogTitle = row ? '编辑套卷基础信息' : '新建套卷'
+      this.paperDialogVisible = true
+      this.$nextTick(() => this.$refs.paperForm && this.$refs.paperForm.clearValidate())
+    },
+    /** 创建 / 保存套卷基础信息（不动组卷配置，也不改发布状态） */
+    submitPaper() {
+      this.$refs.paperForm.validate(valid => {
+        if (!valid) return
+        this.saving = true
+        const base = {
+          examName: (this.paperForm.examName || '').trim(),
+          description: this.paperForm.description || null,
+          difficulty: this.paperForm.difficulty || null,
+          contentBias: this.paperForm.contentBias || null
+        }
+        if (this.paperForm.id) {
+          updateExam(Object.assign({ id: this.paperForm.id }, base)).then(() => {
+            if (this.examForm.id === this.paperForm.id) this.examForm.examName = base.examName
+            this.saving = false
+            this.paperDialogVisible = false
+            this.loadModuleExams()
+            this.$modal.msgSuccess('套卷基础信息已更新')
+          }).catch(() => { this.saving = false })
+        } else {
+          addExam(Object.assign({ examMode: 'PRACTICE', examType: 'THEORY' }, base)).then(() => {
+            this.saving = false
+            this.paperDialogVisible = false
+            this.loadModuleExams()
+            this.$modal.msgSuccess('套卷已创建，请在列表中点「配置」完成组卷与发布')
+          }).catch(() => { this.saving = false })
+        }
+      })
     },
     bankMetaOf(bankId) {
       return this.bankMeta.find(b => b.bankId === bankId) ||
@@ -844,53 +901,29 @@ export default {
         }
       }).catch(() => { this.drawing = false })
     },
-    /** 保存并生效：新建考核 → 保存组卷配置 → 发布；编辑则保存配置后按原状态决定是否发布 */
+    /** 保存并生效：保存组卷配置 → 发布（套卷本身已在基础信息弹窗创建） */
     saveExam() {
+      if (!this.examForm.id) {
+        this.$modal.msgWarning('请先用「新建套卷」创建套卷，再进入配置')
+        return
+      }
       if (!this.checkOk) {
         this.$modal.msgWarning(this.checkMessage || '配置校验未通过')
         return
       }
-      if (!this.examForm.examName || !this.examForm.examName.trim()) {
-        this.$modal.msgWarning('请填写考核名称')
-        return
-      }
       this.saving = true
       const configPayload = {
-        examName: this.examForm.examName.trim(),
         singleScore: this.examForm.singleScore,
         multiScore: this.examForm.multiScore,
         judgeScore: this.examForm.judgeScore,
         duration: this.examForm.duration,
         passLine: this.examForm.passLine,
-        difficulty: this.examForm.difficulty || null,
-        contentBias: this.examForm.contentBias || null,
         bankRules: this.rulePayload(),
         assignMode: 'ALL'
       }
-      if (this.examForm.id) {
-        // 编辑：先改基本信息，再存配置；已发布的保持发布，草稿则发布
-        updateExam(Object.assign({ id: this.examForm.id }, configPayload)).then(() => {
-          this.afterConfigSaved(this.examForm.id)
-        }).catch(() => { this.saving = false })
-      } else {
-        addExam(Object.assign({
-          examMode: 'PRACTICE',
-          examType: 'THEORY'
-        }, configPayload)).then(res => {
-          // addExam 走 toAjax，返回 AjaxResult；用列表回查拿到新考核ID
-          listExam({ pageNum: 1, pageSize: 100, examMode: 'PRACTICE', examType: 'THEORY' }).then(r2 => {
-            const rows = (r2 && r2.rows) || []
-            const created = rows.slice().sort((a, b) => b.id - a.id)[0]
-            if (!created) {
-              this.saving = false
-              this.$modal.msgWarning('创建考核失败，请重试')
-              return
-            }
-            this.examForm.id = created.id
-            this.afterConfigSaved(created.id)
-          }).catch(() => { this.saving = false })
-        }).catch(() => { this.saving = false })
-      }
+      updateExam(Object.assign({ id: this.examForm.id }, configPayload)).then(() => {
+        this.afterConfigSaved(this.examForm.id)
+      }).catch(() => { this.saving = false })
     },
     /** 保存组卷配置后再决定是否发布 */
     afterConfigSaved(examId) {
@@ -900,8 +933,6 @@ export default {
         judgeScore: this.examForm.judgeScore,
         duration: this.examForm.duration,
         passLine: this.examForm.passLine,
-        difficulty: this.examForm.difficulty || null,
-        contentBias: this.examForm.contentBias || null,
         bankRules: this.rulePayload(),
         assignMode: 'ALL'
       }).then(() => {
