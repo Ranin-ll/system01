@@ -44,13 +44,8 @@
           <div class="sub">单次自测峰值</div>
         </div>
         <div class="stat">
-          <span>实操题量</span>
-          <b>{{ subjectTotal }}<small>题</small></b>
-          <div class="sub">{{ modules.length }} 个阶段</div>
-        </div>
-        <div class="stat">
-          <span>理论考核</span>
-          <b>{{ examTotal }}<small> 个</small></b>
+          <span>模拟理论考核</span>
+          <b>{{ examTotal }}<small> 套</small></b>
           <div class="sub">{{ modules.length ? '分布在 ' + modules.length + ' 个阶段' : '尚未发布' }}</div>
         </div>
         <div class="stat">
@@ -81,8 +76,7 @@
             </span>
             <span class="pm-mod-desc">{{ m.description || '（未填写阶段说明）' }}</span>
             <span class="pm-mod-foot">
-              <span>理论考核 <b>{{ m.examCount || 0 }}</b></span>
-              <span>实操题 <b>{{ m.subjectCount || 0 }}</b></span>
+              <span>模拟套卷 <b>{{ m.examCount || 0 }}</b></span>
               <span class="pm-mod-go">进入 <i class="el-icon-arrow-right" /></span>
             </span>
           </button>
@@ -161,18 +155,6 @@
             <el-button v-if="!isFormal" type="primary" size="small" icon="el-icon-caret-right" :loading="starting" @click="startPractice(e)">开始练习</el-button>
             <span v-else class="pm-hint">转正后仅可查看记录</span>
           </div>
-        </div>
-      </section>
-
-      <!-- 实操练习：已迁至「模拟实操题库」页签（口径统一为「按题库开放」，不再按阶段挂题） -->
-      <section class="pm-card">
-        <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">实</span><h3>实操练习</h3></div>
-          <el-button type="text" icon="el-icon-arrow-right" @click="goPracticeBank">前往模拟实操题库</el-button>
-        </div>
-        <div class="pm-empty small">
-          <i class="el-icon-folder-opened" />
-          <span>实操练习已迁移到「模拟实操题库」页签：管理员开放题库后，可按题库浏览全部实操题（含题目描述、考核要点与提交要求）。</span>
         </div>
       </section>
 
@@ -310,7 +292,7 @@
 <script>
 import {
   startPractice, submitPractice, myPracticeRecords,
-  listPracticeSubjects, listPracticeExams
+  listPracticeExams
 } from '@/api/business/practice'
 import { listPublishedModules } from '@/api/business/practiceModule'
 import practiceMixin from './practice-mixin'
@@ -326,17 +308,16 @@ export default {
       loading: false,
       contentLoading: false,
       records: [],
-      /** 模块列表（先选模块） */
+      /** 阶段列表（先选阶段） */
       modules: [],
       activeModule: null,
-      /** 从实操题详情「返回」带回来的模块ID，等模块列表加载完再展开 */
+      /** 从「实操题详情」页返回时带回的阶段ID（历史入口），等阶段列表加载完再展开 */
       pendingModuleId: null,
-      /** 当前模块下的理论考核与实操题 */
+      /** 当前阶段下的模拟套卷 */
       exams: [],
-      subjects: [],
-      /** 当前模块下的自测记录（按模块过滤，带考核名称） */
+      /** 当前阶段下的练习记录（按阶段过滤，带套卷名称） */
       moduleRecords: [],
-      /** 记录列表分页（顶层「理论自测记录」与模块内「本模块自测记录」各一套页码，共用页长） */
+      /** 记录列表分页（顶层「模拟练习记录」与阶段内「本阶段练习记录」各一套页码，共用页长） */
       recordPage: 1,
       recordPageSize: 8,
       moduleRecordPage: 1,
@@ -400,10 +381,6 @@ export default {
       if (!this.records.length) return null
       return this.records.slice().sort((a, b) => new Date(b.createTime || 0) - new Date(a.createTime || 0))[0]
     },
-    /** 模块汇总计数（模块接口已带 subjectCount / examCount） */
-    subjectTotal() {
-      return this.modules.reduce((n, m) => n + (Number(m.subjectCount) || 0), 0)
-    },
     examTotal() {
       return this.modules.reduce((n, m) => n + (Number(m.examCount) || 0), 0)
     },
@@ -432,7 +409,7 @@ export default {
     if (wantModuleId || autoStart) {
       this.$router.replace({ path: this.$route.path })
     }
-    // 从实操题详情「返回」回来：等模块列表到位后直接展开该模块，恢复模块内内容
+    // 从「实操题详情」页返回回来（历史入口）：等阶段列表到位后直接展开该阶段
     if (wantModuleId) {
       this.pendingModuleId = wantModuleId
     }
@@ -484,7 +461,7 @@ export default {
         this.recordPage = 1
       }).catch(() => { this.loading = false })
     },
-    /** 模块列表（含各模块下实操题/理论考核数量） */
+    /** 阶段列表（含各阶段下模拟套卷数量） */
     loadModules() {
       this.loading = true
       listPublishedModules().then(res => {
@@ -493,7 +470,7 @@ export default {
         this.openPendingModule()
       }).catch(() => { this.loading = false; this.modules = [] })
     },
-    /** 从实操题详情返回时，展开来源模块，恢复「模块内内容」 */
+    /** 从「实操题详情」页返回时，展开来源阶段 */
     openPendingModule() {
       const mid = this.pendingModuleId
       if (!mid) return
@@ -501,7 +478,7 @@ export default {
       const target = this.modules.filter(m => Number(m.id) === Number(mid))[0]
       if (target) this.openModule(target)
     },
-    /** 进入模块：拉该模块下的理论考核与实操题 */
+    /** 进入阶段：拉该阶段下的模拟套卷与练习记录 */
     openModule(m) {
       this.activeModule = m
       this.stage = 'module'
@@ -513,7 +490,6 @@ export default {
       this.contentLoading = true
       Promise.all([
         listPracticeExams(mid).then(res => { this.exams = res.data || [] }).catch(() => { this.exams = [] }),
-        listPracticeSubjects(mid).then(res => { this.subjects = res.data || [] }).catch(() => { this.subjects = [] }),
         myPracticeRecords(mid).then(res => { this.moduleRecords = res.data || [] }).catch(() => { this.moduleRecords = [] })
       ]).then(() => { this.contentLoading = false; this.moduleRecordPage = 1 }).catch(() => { this.contentLoading = false })
     },
@@ -521,7 +497,6 @@ export default {
       this.stage = 'list'
       this.activeModule = null
       this.exams = []
-      this.subjects = []
       this.moduleRecords = []
       this.loadRecords()
     },
@@ -543,23 +518,7 @@ export default {
     diffTone(d) {
       return { EASY: 'easy', MEDIUM: 'mid', HARD: 'hard' }[d] || 'mid'
     },
-    /** 实操题参考（referenceImages 存 JSON 数组） */
-    firstImage(subject) {
-      const list = this.parseAttachments(subject.referenceImages)
-      const first = list.length ? list[0] : null
-      if (!first) return ''
-      return typeof first === 'string' ? first : (first.url || '')
-    },
-    /** 无参考时用内联 SVG 占位（与设计稿缩略图一致） */
-    thumbSvg(i) {
-      const layouts = [
-        '<svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="15" rx="8" fill="#d7e7fc"/><rect x="26" y="42" width="46" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="54" width="70" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="66" width="34" height="6" rx="3" fill="#cfe0fb"/></svg>',
-        '<svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="26" y="30" width="108" height="16" rx="8" fill="#d7e7fc"/><rect x="26" y="48" width="108" height="16" rx="8" fill="#cfe0fb"/><rect x="26" y="66" width="108" height="16" rx="8" fill="#e0ebfd"/></svg>',
-        '<svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="16" rx="8" fill="#e0ebfd"/><rect x="24" y="46" width="112" height="10" rx="4" fill="#cfe0fb"/><rect x="24" y="62" width="52" height="18" rx="4" fill="#dbe8fc"/><rect x="84" y="62" width="52" height="18" rx="4" fill="#e0ebfd"/></svg>'
-      ]
-      return layouts[i % layouts.length]
-    },
-    /** 模块内某考核「开始自测」 */
+    /** 阶段内某套卷「开始练习」 */
     startPractice(exam) {
       this.startPracticeById(exam ? exam.id : null)
     },
@@ -666,7 +625,7 @@ export default {
         }
       })
     },
-    /** 回到考核列表：模块内则回到「模块内容（本模块自测记录 + 理论模拟考核 + 实操题）」，否则回模块列表 */
+    /** 回到套卷列表：阶段内则回到「本阶段练习记录 + 模拟套卷」，否则回阶段列表 */
     backToExamList() {
       this.stage = this.activeModule ? 'module' : 'list'
       this.loadRecords()
@@ -676,19 +635,6 @@ export default {
     /** 进入独立的回顾页查看当次题目与作答 */
     goRecordDetail(row) {
       this.$router.push('/assessment/intern/mock-exam/record/' + row.id)
-    },
-    /** 打开实操题详情页（带上来源模块，详情页「返回」才能回到模块内内容） */
-    /** 跳转到「模拟实操题库」页签（实操练习已从本页迁出，改为按题库浏览） */
-    goPracticeBank() {
-      this.$router.push('/assessment/intern/learning/practice-bank')
-    },
-    goSubjectDetail(subject) {
-      const path = '/assessment/intern/practice-subject/' + subject.id
-      if (this.activeModule) {
-        this.$router.push({ path, query: { moduleId: String(this.activeModule.id) } })
-      } else {
-        this.$router.push(path)
-      }
     },
     backToList() {
       this.$modal.confirm('退出后本次作答进度不会保存，确定退出吗？').then(() => {
@@ -703,7 +649,6 @@ export default {
       this.stage = 'list'
       this.activeModule = null
       this.exams = []
-      this.subjects = []
       this.reload()
     },
     goBack() {
@@ -737,7 +682,7 @@ export default {
 @keyframes cd-blink { 50% { opacity: .55; } }
 
 /* ① 统计条 */
-.stat-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.stat-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .stat { min-width: 0; padding: 14px 15px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; }
 .stat > span { color: #8490a0; font-size: 12px; }
 .stat > b { display: block; margin: 9px 0 6px; color: #1d2939; font-size: 22px; font-weight: 600; }
@@ -806,19 +751,6 @@ export default {
 .pm-exam-bias { display: block; margin-top: 6px; color: #475467; font-size: 12px; line-height: 1.6; }
 .pm-exam-bias i { margin-right: 4px; color: #1764f5; }
 
-/* ③ 实操题库卡片 */
-.pm-qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-.pm-qcard { padding: 0; overflow: hidden; text-align: left; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-.pm-qcard:hover { border-color: #a9c8f7; box-shadow: 0 6px 16px rgba(23, 100, 245, .08); }
-.pm-thumb { display: block; height: 104px; background: #f4f7fc; }
-.pm-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.pm-thumb video { width: 100%; height: 100%; object-fit: cover; background: #000; }
-.pm-thumb-ph { display: block; height: 100%; }
-.pm-thumb-ph ::v-deep svg { width: 100%; height: 100%; }
-.pm-qc-b { display: block; padding: 11px 13px 13px; }
-.pm-qc-b > b { display: block; color: #1d2939; font-size: 13px; font-weight: 600; line-height: 1.5; }
-.pm-qc-f { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; color: #98a2b3; font-size: 11.5px; }
-.pm-qc-f b { color: #1764f5; font-weight: 600; }
 
 /* 作答 / 结果（沿用既有实现） */
 .question-card { margin-bottom: 16px; padding: 20px 22px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; }
@@ -877,6 +809,5 @@ export default {
 @media (max-width: 640px) {
   .practice-page { padding: 16px 12px 40px; }
   .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pm-qgrid { grid-template-columns: 1fr; }
 }
 </style>
