@@ -40,6 +40,20 @@ export function importQuestions(bankId, formData) {
   })
 }
 
+// 导出题库题目（Excel；表头与导入模板一致，导出的文件可直接再导入）
+export function exportQuestions(bankId) {
+  return request({
+    url: '/business/question/export/' + bankId,
+    method: 'get',
+    responseType: 'blob'
+  })
+}
+
+// 下载题目导入模板
+export function downloadQuestionTemplate() {
+  return request({ url: '/business/question/template', method: 'get', responseType: 'blob' })
+}
+
 // 实习生抽题（不含答案）
 export function previewQuestions(bankId, limit) {
   return request({ url: '/business/question/preview/' + bankId, method: 'get', params: { limit } })

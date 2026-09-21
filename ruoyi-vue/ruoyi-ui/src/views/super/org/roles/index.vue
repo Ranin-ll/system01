@@ -19,7 +19,7 @@
           <thead><tr><th>角色</th><th style="width:110px">标识</th><th style="width:80px">成员</th></tr></thead>
           <tbody>
             <tr v-for="r in roles" :key="r.roleId">
-              <td class="nm">{{ r.roleName }}</td>
+              <td class="nm">{{ r.roleName }}<span v-if="r.status === '1'" class="role-off">停用</span></td>
               <td><code>{{ r.roleKey }}</code></td>
               <td class="num">{{ r.userCount != null ? r.userCount : '—' }}</td>
             </tr>
@@ -32,7 +32,7 @@
       <section class="s-card s-c8">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx p">矩</span><h3>能力 × 角色 矩阵</h3></div>
-          <span class="s-badge purple">★ = 超管独有</span>
+          <span class="s-badge purple">★ = 超管独有 · （全局）= 不限部门</span>
         </div>
         <table class="s-tbl">
           <thead>
@@ -62,17 +62,18 @@
       </section>
 
       <section class="s-card s-c6">
-        <div class="s-card-h"><div class="tt"><span class="s-idx o">界</span><h3>超管只读范围（业务实例）</h3></div><span class="s-badge ok">后端已强制</span></div>
+        <div class="s-card-h"><div class="tt"><span class="s-idx o">界</span><h3>超管写权限边界（业务实例）</h3></div><span class="s-badge ok">后端已强制</span></div>
         <div class="s-steps">
-          <div class="s-step now"><span class="mark">✕</span><div class="txt"><b>课程与课程内容</b><span><code>CourseServiceImpl</code> / <code>CourseContentServiceImpl</code> 命中即抛「仅可查看」</span></div></div>
-          <div class="s-step now"><span class="mark">✕</span><div class="txt"><b>题库与题目</b><span><code>QuestionBankServiceImpl</code> / <code>QuestionServiceImpl</code></span></div></div>
-          <div class="s-step now"><span class="mark">✕</span><div class="txt"><b>考核配置与发布</b><span><code>ExamServiceImpl</code> 拦截写入</span></div></div>
-          <div class="s-step now"><span class="mark">✕</span><div class="txt"><b>实操题库</b><span><code>PracticeSubjectServiceImpl</code></span></div></div>
-          <div class="s-step now"><span class="mark">✕</span><div class="txt"><b>注册审核 / 批阅 / 转正审批</b><span>页面只读，动作按钮不渲染</span></div></div>
+          <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>课程与课程内容</b><span><code>CourseServiceImpl</code> / <code>CourseContentServiceImpl</code> —— 超管可写且<b>不限部门</b>（2026-09-20 由「业务实例一律只读」放开）</span></div></div>
+          <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>题库与题目</b><span><code>QuestionBankServiceImpl</code> / <code>QuestionServiceImpl</code> —— 与课程同一口径（超管不限部门）</span></div></div>
+          <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>考核配置与发布</b><span><code>ExamServiceImpl</code> 超管放行；接口复用 <code>business:bank:*</code> 权限串</span></div></div>
+          <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>实操题库</b><span><code>PracticeSubjectServiceImpl</code> 超管放行（<code>business:psubject:*</code>）</span></div></div>
+          <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>注册审核 · 考试成绩批阅与发布</b><span>超管可写且<b>不受部门限制</b>（<code>register:audit</code> / <code>bank:edit</code>）</span></div></div>
+          <div class="s-step now"><span class="mark">✕</span><div class="txt"><b>任务：发布 / 结束 / 批阅</b><span>仍只读 —— <code>TaskServiceImpl.requireDeptAdmin()</code> 直接抛「超级管理员仅可查看任务，不能发布或批阅」（任务列表可读）</span></div></div>
         </div>
         <div class="s-callout" style="margin-top:12px">
           <i class="el-icon-info" />
-          <span>刻意如此设计：<b>业务数据的唯一生产者是部门管理员</b>。超管若代写，会与该部门的培养记录互相覆盖，破坏「谁培养、谁负责」的追溯链。</span>
+          <span>只读边界已收窄到只剩<b>「任务」一条</b>：课程 / 题库 / 考核属于<b>全局可维护的配置类数据</b>，放开给超管不破坏追溯链；而<b>任务的发布与批阅绑定「谁培养、谁负责」</b>，仍由部门管理员独占。转正审批目前是页面前端只读（后端该流程未实现）。</span>
         </div>
       </section>
     </div>
@@ -94,12 +95,16 @@ export default {
       loading: false,
       roles: [],
       matrix: [
-        { name: '注册审核', super: '只读（全局）', dept: '可写（本部门）', pre: '—', formal: '—' },
-        { name: '课程与课程内容', super: '只读（全局）', dept: '可写（本部门）', pre: '只读（已发布）', formal: '只读（历史）' },
-        { name: '题库与题目', super: '只读（全局）', dept: '可写（本部门）', pre: '—', formal: '—' },
-        { name: '模拟考核配置', super: '只读', dept: '可写', pre: '只做题', formal: '—' },
-        { name: '正式考核（发布 / 时间窗 / 指定人员）', super: '只读', dept: '可写', pre: '参考', formal: '只读历史' },
-        { name: '批阅与发布成绩', super: '只读', dept: '可写', pre: '—', formal: '查看' },
+        { name: '注册审核', super: '可写（全局）', dept: '可写（本部门）', pre: '—', formal: '—' },
+        // 课程与课程内容：正式实习生与预备实习生**同款**（后端 selectLearningCourses 的可见性条件就是
+        // user_status IN ('PRE_TRAINEE','FORMAL_TRAINEE') 且 course.status='PUBLISHED'），
+        // 都按岗位看「管理员已发布」的课程；转正后只是不再出现备考资料与考核入口，课程本身照常可学。
+        { name: '课程与课程内容', super: '可写（全局）', dept: '可写（本部门）', pre: '只读（已发布）', formal: '只读（已发布）' },
+        { name: '题库与题目', super: '可写（全局）', dept: '可写（本部门）', pre: '—', formal: '—' },
+        { name: '模拟考核配置', super: '可写（全局）', dept: '可写', pre: '只做题', formal: '—' },
+        { name: '正式考核（发布 / 时间窗 / 指定人员）', super: '可写（全局）', dept: '可写', pre: '参考', formal: '只读历史' },
+        { name: '考试成绩批阅与发布', super: '可写（全局）', dept: '可写', pre: '—', formal: '查看' },
+        { name: '任务（发布 / 结束 / 批阅作业）', super: '只读', dept: '可写（本部门）', pre: '—', formal: '查看' },
         { name: '转正审批', super: '只读 + 撤回纠错 ★', dept: '终审即生效', pre: '提交申请', formal: '查看' },
         { name: '考核规则（门槛 / 权重 / 补考）', super: '可写 ★', dept: '只读', pre: '—', formal: '—' },
         { name: '协议 / 证书模板', super: '可写 ★', dept: '只读（使用）', pre: '签署', formal: '查看' },
@@ -131,4 +136,6 @@ export default {
 <style lang="scss" scoped>
 @import '~@/assets/styles/super-module.scss';
 code { padding: 1px 5px; color: #475467; background: #f2f4f7; font-size: 11px; border-radius: 3px; }
+/* 已停用角色的标记：区分「框架内置 admin」与「项目 SUPER_ADMIN」两条同名角色 */
+.role-off { margin-left: 6px; padding: 1px 5px; color: #b54708; background: #fffaeb; border: 1px solid #fedf89; border-radius: 3px; font-size: 11px; line-height: 16px; white-space: nowrap; }
 </style>

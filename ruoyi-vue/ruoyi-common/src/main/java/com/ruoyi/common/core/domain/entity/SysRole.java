@@ -64,6 +64,12 @@ public class SysRole extends BaseEntity
     /** 角色菜单权限 */
     private Set<String> permissions;
 
+    /**
+     * ★ 项目扩展（2026-09-20）：该角色的成员数。
+     * 仅由 SysRoleMapper.selectRoleList 的子查询填充（非 sys_role 库表字段），供超管「角色权限」页展示「成员」列。
+     */
+    private Integer userCount;
+
     public SysRole()
     {
 
@@ -217,6 +223,17 @@ public class SysRole extends BaseEntity
     public void setPermissions(Set<String> permissions)
     {
         this.permissions = permissions;
+    }
+
+    /** ★ 项目扩展（2026-09-20）：角色成员数 */
+    public Integer getUserCount()
+    {
+        return userCount;
+    }
+
+    public void setUserCount(Integer userCount)
+    {
+        this.userCount = userCount;
     }
 
     @Override

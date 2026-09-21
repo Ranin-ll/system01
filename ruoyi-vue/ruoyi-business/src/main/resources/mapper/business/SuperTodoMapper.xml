@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.SuperTodoMapper">
+
+    <!--
+      超管督办视图 · 四源待办
+
+      判定口径（全项目仅此一处，改口径只改这里）：
+        ① 待审报名  register_application.status = 'WAIT_AUDIT'
+        ② 待批作业  task_submission.review_status = 'PENDING' 且是「该 assignment 的最新版本」
+                    ⚠️ review_status 是三个值（PENDING / PASSED / REJECTED），不能当布尔用；
+                    也不能看 task_submission.status（那是 SUBMITTED / REVIEWED / OVERDUE，两回事）
+        ③ 逾期任务  task_assignment.status = 'OVERDUE'
+        ④ 学习停滞  study_record 未完成（NOT_STARTED / IN_PROGRESS）且超 N 天无 last_study_time
+
+      责任人不在这里判定：SQL 只带回 dept_id，由 Service 统一归到「该部门的部门管理员」名下。
+      （注意：XML 注释里不能出现连续两个短横线，所以本文件不用横线做分隔。）
+    -->
+
+    <!-- 部门管理员清单：按【角色】判定，与 is_dept_admin 字段互为印证；账号须有效 -->
+    <select id="selectDeptAdmins" resultType="com.ruoyi.business.domain.SuperDeptAdminStat">
+        SELECT u.user_id,
+               u.user_name,
+               u.nick_name,
+               u.dept_id,
+               d.dept_name,
+               u.status,
+               u.phonenumber AS phone
+        FROM sys_user u
+                 INNER JOIN sys_user_role ur ON ur.user_id = u.user_id
+                 INNER JOIN sys_role r ON r.role_id = ur.role_id AND r.role_key = 'DEPT_ADMIN'
+                 LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+        WHERE u.del_flag = '0'
+        ORDER BY u.dept_id, u.user_id
+    </select>
+
+    <!-- 源①：待审报名 -->
+    <select id="selectPendingRegisters" resultType="com.ruoyi.business.domain.SuperTodoItem">
+        SELECT 'REGISTER' AS todo_type,
+               ra.id       AS biz_id,
+               CONCAT(IFNULL(ra.real_name, '未填写'), ' 的报名待审核') AS title,
+               CONCAT('提交于 ', DATE_FORMAT(ra.create_time, '%Y-%m-%d %H:%i')) AS detail,
+               ra.dept_id,
+               d.dept_name,
+               ra.user_id  AS target_id,
+               ra.real_name AS target_name,
+               ra.create_time AS happen_time
+        FROM register_application ra
+                 LEFT JOIN sys_dept d ON d.dept_id = ra.dept_id
+        WHERE ra.status = 'WAIT_AUDIT'
+        ORDER BY ra.create_time
+    </select>
+
+    <!-- 源②：待批作业 —— 只看每人【最新一版】，旧版本的 PENDING 是历史，不算待办 -->
+    <select id="selectPendingReviews" resultType="com.ruoyi.business.domain.SuperTodoItem">
+        SELECT 'REVIEW' AS todo_type,
+               a.id     AS biz_id,
+               a.task_id,
+               CONCAT(t.task_name, ' · ', IFNULL(u.nick_name, '未知'), ' 已提交待批阅') AS title,
+               CONCAT('第 ', s.version, ' 次提交 · ',
+                      DATE_FORMAT(s.submit_time, '%Y-%m-%d %H:%i')) AS detail,
+               u.dept_id,
+               d.dept_name,
+               a.user_id AS target_id,
+               u.nick_name AS target_name,
+               t.deadline,
+               s.submit_time AS happen_time
+        FROM task_assignment a
+                 INNER JOIN learning_task t ON t.id = a.task_id AND t.deleted = 0
+                 INNER JOIN task_submission s ON s.assignment_id = a.id
+                 INNER JOIN sys_user u ON u.user_id = a.user_id AND u.del_flag = '0'
+                 LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+        WHERE s.review_status = 'PENDING'
+          AND s.version = (SELECT MAX(s2.version) FROM task_submission s2 WHERE s2.assignment_id = a.id)
+        ORDER BY s.submit_time
+    </select>
+
+    <!-- 源③：逾期任务 -->
+    <select id="selectOverdueTasks" resultType="com.ruoyi.business.domain.SuperTodoItem">
+        SELECT 'OVERDUE_TASK' AS todo_type,
+               a.id     AS biz_id,
+               a.task_id,
+               CONCAT(t.task_name, ' · ', IFNULL(u.nick_name, '未知'), ' 逾期未交') AS title,
+               CONCAT('截止 ', DATE_FORMAT(t.deadline, '%Y-%m-%d %H:%i')) AS detail,
+               u.dept_id,
+               d.dept_name,
+               a.user_id AS target_id,
+               u.nick_name AS target_name,
+               t.deadline,
+               TIMESTAMPDIFF(HOUR, t.deadline, NOW()) AS overdue_hours,
+               t.deadline AS happen_time
+        FROM task_assignment a
+                 INNER JOIN learning_task t ON t.id = a.task_id AND t.deleted = 0
+                 INNER JOIN sys_user u ON u.user_id = a.user_id AND u.del_flag = '0'
+                 LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+        WHERE a.status = 'OVERDUE'
+        ORDER BY t.deadline
+    </select>
+
+    <!-- 源④：学习停滞 -->
+    <select id="selectStalledStudies" resultType="com.ruoyi.business.domain.SuperTodoItem">
+        SELECT 'STALLED_STUDY' AS todo_type,
+               sr.id    AS biz_id,
+               CONCAT(IFNULL(u.nick_name, '未知'), ' · ', IFNULL(c.course_name, '未知课程'), ' 学习停滞') AS title,
+               CONCAT('最近学习 ', IFNULL(DATE_FORMAT(sr.last_study_time, '%Y-%m-%d'), '从未开始'),
+                      ' · 已 ', DATEDIFF(NOW(), IFNULL(sr.last_study_time, sr.create_time)), ' 天无进展') AS detail,
+               u.dept_id,
+               d.dept_name,
+               sr.user_id AS target_id,
+               u.nick_name AS target_name,
+               DATEDIFF(NOW(), IFNULL(sr.last_study_time, sr.create_time)) AS idle_days,
+               sr.last_study_time AS happen_time
+        FROM study_record sr
+                 INNER JOIN sys_user u ON u.user_id = sr.user_id AND u.del_flag = '0'
+                 LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+                 LEFT JOIN course c ON c.id = sr.course_id
+        WHERE sr.status IN ('NOT_STARTED', 'IN_PROGRESS')
+          AND DATEDIFF(NOW(), IFNULL(sr.last_study_time, sr.create_time)) &gt;= #{idleDays}
+        ORDER BY idle_days DESC
+    </select>
+
+    <!-- 催办频控：当天已给该人发过催办则跳过（与定时任务的去重思路一致） -->
+    <select id="countUrgeToday" resultType="int">
+        SELECT COUNT(*)
+        FROM notice n
+                 INNER JOIN notice_target nt ON nt.notice_id = n.id
+        WHERE n.biz_type = 'URGE'
+          AND nt.user_id = #{userId}
+          AND n.status = 'PUBLISHED'
+          AND DATE(n.publish_time) = CURDATE()
+    </select>
+
+</mapper>

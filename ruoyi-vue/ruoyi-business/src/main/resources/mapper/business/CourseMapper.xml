@@ -147,6 +147,13 @@
           AND status = 1
     </select>
 
+    <!-- 扩展（2026-09-20）：超管不限部门时使用，只确认岗位真实存在 -->
+    <select id="countPosition" resultType="int">
+        SELECT COUNT(1)
+        FROM position
+        WHERE id = #{positionId}
+    </select>
+
     <select id="countActiveChapters" resultType="int">
         SELECT COUNT(1)
         FROM course_chapter

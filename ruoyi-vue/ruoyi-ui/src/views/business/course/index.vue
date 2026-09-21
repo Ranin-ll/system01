@@ -3,8 +3,8 @@
     <header class="page-heading">
       <div>
         <div class="eyebrow">学习考核 / 部门运营</div>
-        <div class="title-line"><h2>部门课程管理</h2><el-tag size="mini" effect="plain" :type="readOnly ? 'info' : 'success'">{{ readOnly ? '全局只读' : '本部门范围' }}</el-tag></div>
-        <p>{{ readOnly ? '查看全组织课程与学习汇总。超级管理员不参与部门课程编辑、发布和停用。' : '维护本部门岗位课程、学习章节和学员学习情况，已发布课程会同步展示在实习生学习中心。' }}</p>
+        <div class="title-line"><h2>{{ superAdmin ? '课程管理（全组织）' : '部门课程管理' }}</h2><el-tag size="mini" effect="plain" :type="superAdmin ? 'warning' : 'success'">{{ superAdmin ? '全局范围 · 可写' : '本部门范围' }}</el-tag></div>
+        <p>{{ superAdmin ? '管理全组织课程、章节与学习资料 —— 超管可维护任意部门岗位的课程（2026-09-20 规则调整：超管可写课程与题库）。' : '维护本部门岗位课程、学习章节和学员学习情况，已发布课程会同步展示在实习生学习中心。' }}</p>
       </div>
       <div class="heading-actions">
         <el-button icon="el-icon-refresh" size="small" @click="refreshAll">刷新数据</el-button>
@@ -13,7 +13,7 @@
     </header>
 
     <section class="scope-strip">
-      <div class="scope-main"><span class="scope-icon"><i class="el-icon-office-building" /></span><div><strong>{{ readOnly ? '全局课程视图' : (deptName || '当前部门') }}</strong><span>{{ readOnly ? '可查看五个部门的课程数据' : '仅管理本部门已绑定岗位：' + managedPositionText }}</span></div></div>
+      <div class="scope-main"><span class="scope-icon"><i class="el-icon-office-building" /></span><div><strong>{{ superAdmin ? '全组织课程' : (deptName || '当前部门') }}</strong><span>{{ superAdmin ? '可维护五个部门全部岗位的课程' : '仅管理本部门已绑定岗位：' + managedPositionText }}</span></div></div>
       <div class="scope-meta"><span><i class="el-icon-lock" /> 数据范围由登录账号决定</span><el-button v-if="readOnly" type="text" size="mini" @click="comingSoon">查看全局统计</el-button></div>
     </section>
 
@@ -121,9 +121,10 @@
         <el-table-column label="更新时间" width="150">
           <template slot-scope="scope">{{ formatDate(scope.row.updateTime || scope.row.publishedAt || scope.row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="310" fixed="right" align="center" class-name="course-actions">
+        <el-table-column label="操作" width="366" fixed="right" align="center" class-name="course-actions">
           <template slot-scope="scope">
             <el-button type="text" size="mini" @click="openContent(scope.row)">{{ canEditContent(scope.row) ? '编排内容' : '查看内容' }}</el-button>
+            <el-button v-if="canPreview(scope.row)" type="text" size="mini" icon="el-icon-view" @click="openPreview(scope.row)">预览</el-button>
             <el-button type="text" size="mini" @click="openRecords(scope.row)">记录</el-button>
             <el-button v-if="!readOnly && scope.row.status !== 'PUBLISHED'" v-hasPermi="['business:course:edit']" type="text" size="mini" @click="handleUpdate(scope.row)">编辑信息</el-button>
             <el-button v-if="!readOnly && (scope.row.status === 'DRAFT' || scope.row.status === 'DISABLED')" v-hasPermi="['business:course:publish']" type="text" size="mini" @click="handlePublish(scope.row)">{{ scope.row.status === 'DISABLED' ? '重新发布' : '发布' }}</el-button>
@@ -378,8 +379,23 @@ export default {
     deptName() {
       return this.$store.getters.deptName || ''
     },
-    readOnly() {
+    /** 是否超管 —— 只用于文案（超管是「全局范围」，不是「本部门范围」） */
+    superAdmin() {
       return this.roles.indexOf('SUPER_ADMIN') > -1 || this.roles.indexOf('admin') > -1
+    },
+    /**
+     * 是否只读。
+     *
+     * <p><b>2026-09-20 规则调整</b>：超管由「业务实例一律只读」改为
+     * <b>「可管理全部课程与题库」</b>，所以这里不再把超管当只读 ——
+     * 否则「新建课程 / 编辑 / 发布 / 停用」按钮会被 {@code v-if="!readOnly"} 隐藏，
+     * 即使后端已放开也点不到。</p>
+     *
+     * <p>保留这个 computed 是因为模板里仍有多处 v-if / 文案引用它；
+     * 与后端 {@code CourseServiceImpl#managerScopeDeptId()} 的「超管返回 null（不限部门）」配套。</p>
+     */
+    readOnly() {
+      return false
     },
     managedPositionText() {
       const names = this.positionOptions.map(item => item.positionName).filter(Boolean)
@@ -590,6 +606,29 @@ export default {
           this.getList()
         })
       }).catch(() => {})
+    },
+    /**
+     * 是否显示「预览」：数据库课程 + 状态为「已保存(DRAFT)」或「已发布(PUBLISHED)」+ 已配置内容。
+     *
+     * 内容判据与后端 `CourseServiceImpl.publish()` 的前置校验同口径的前两项
+     * （至少一个章节、每个章节至少一项资料）—— 列表接口已带回 chapterCount / itemCount，不用额外请求。
+     * 第三项「所有资料都已上传文件」列表里拿不到，交给预览页如实呈现（未上传的资料会显示为无法预览）。
+     */
+    canPreview(row) {
+      if (this.previewMode) return false
+      if (!/^\d+$/.test(String(row.id))) return false
+      if (row.status !== 'DRAFT' && row.status !== 'PUBLISHED') return false
+      return Number(row.chapterCount || 0) > 0 && Number(row.itemCount || 0) > 0
+    },
+    /** 新标签页打开「实习生视角」的课程页（复用 detail.vue，路由 meta.preview=true） */
+    openPreview(row) {
+      const href = this.$router.resolve({
+        name: 'CoursePreview',
+        params: { courseId: row.id },
+        query: { from: this.$route.fullPath }
+      }).href
+      const win = window.open(href, '_blank')
+      if (!win) this.$modal.msgWarning('浏览器拦截了新标签页，请允许本站弹出窗口后重试')
     },
     openContent(course) {
       this.currentCourse = course

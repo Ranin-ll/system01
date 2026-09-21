@@ -411,35 +411,86 @@ public class TaskServiceImpl implements ITaskService {
     public int markOverdue() {
         List<Map<String, Object>> rows = taskMapper.selectOverdueAssignments();
         int marked = 0;
+
+        // ★ 2026-09-20 重构：原来「实习生 + reviewer(部门管理员)」共用一条通知，
+        //   文案是给实习生的（"请尽快补交"），部门管理员看到很怪；
+        //   且同一任务有多个逾期人时，reviewer 会**重复收到多条**。
+        //   现在：① 实习生**每天最多一条**（首日起，提交后停止）；② reviewer 仅在**首次逾期**时收一条（按任务合并）。
+        //   受众与频率：实习生=每日常规提醒，管理员=一次性知会（有督办看板兜底，不每日打扰）。
+        Map<Long, List<String>> newOverdueByTask = new java.util.LinkedHashMap<>();
+        Map<Long, Long> reviewerByTask = new java.util.LinkedHashMap<>();
+        Map<Long, String> taskNameById = new java.util.LinkedHashMap<>();
+
         for (Map<String, Object> r : rows) {
             Long assignmentId = toLong(r.get("assignmentId"));
             Long taskId = toLong(r.get("taskId"));
             Long userId = toLong(r.get("userId"));
             Long reviewerId = toLong(r.get("reviewerId"));
             String taskName = r.get("taskName") == null ? "学习任务" : String.valueOf(r.get("taskName"));
-            if (assignmentMapper.markOverdue(assignmentId) <= 0) {
+            String userName = r.get("userName") == null ? "该实习生" : String.valueOf(r.get("userName"));
+
+            // ★ 状态推进：只有「本次从非逾期变成逾期」才返回 1（SQL 已排除 OVERDUE），幂等。
+            //   注意：这里**不再 continue** —— 已是 OVERDUE 的行也必须往下走，
+            //   因为实习生侧要「每天最多提醒一次」（见 ①）。
+            boolean newlyOverdue = assignmentMapper.markOverdue(assignmentId) > 0;
+            if (newlyOverdue) {
+                marked++;
+            }
+
+            // ① 给实习生本人：**每天最多一条**（countNotifiedToday 按「当天 + 任务 + 收件人」去重，
+            //   所以首日会发、之后每天也各发一次；当天重复执行定时任务不会刷屏）。
+            //   文案是「你的…请尽快补交」。
+            if (userId != null && taskMapper.countNotifiedToday(taskId, userId, "URGE") == 0) {
+                Notice mine = new Notice();
+                mine.setMsgType("URGE");
+                mine.setScopeType(Notice.SCOPE_USER);
+                mine.setTargetUserIds(java.util.Collections.singletonList(userId));
+                mine.setBizType("TASK");
+                mine.setBizId(taskId);
+                mine.setTitle("你的任务已逾期：" + taskName);
+                mine.setContent("该任务已超过截止时间，请尽快补交。逾期仍可提交，但会记入培养评价。"
+                        + "（此提醒每天最多一次，提交后自动停止。）");
+                messageService.publishSystem(mine);
+            }
+
+            // ② 收集给 reviewer（批阅人/部门管理员）的：同一任务合并，姓名去重
+            //   ★ 仅「首次逾期」那一次通知管理员 —— 不随实习生的每日提醒一起打扰他。
+            if (newlyOverdue && reviewerId != null && !reviewerId.equals(userId)) {
+                List<String> names = newOverdueByTask.get(taskId);
+                if (names == null) {
+                    names = new java.util.ArrayList<>();
+                    newOverdueByTask.put(taskId, names);
+                    reviewerByTask.put(taskId, reviewerId);
+                    taskNameById.put(taskId, taskName);
+                }
+                if (!names.contains(userName)) {
+                    names.add(userName);
+                }
+            }
+        }
+
+        // ③ 给每个任务的 reviewer 发一条（列出本次新逾期的所有人；同一任务每天最多一次）
+        for (Map.Entry<Long, List<String>> e : newOverdueByTask.entrySet()) {
+            Long taskId = e.getKey();
+            List<String> names = e.getValue();
+            Long reviewerId = reviewerByTask.get(taskId);
+            if (reviewerId == null || taskMapper.countNotifiedToday(taskId, reviewerId, "URGE") > 0) {
                 continue;
             }
-            marked++;
-            // 当天是否已提醒过（同一任务同一人只发一次，避免定时任务刷屏）
-            if (taskMapper.countNotifiedToday(taskId, userId, "URGE") > 0) {
-                continue;
-            }
-            List<Long> targets = new java.util.ArrayList<>();
-            targets.add(userId);
-            if (reviewerId != null && !reviewerId.equals(userId)) {
-                targets.add(reviewerId);
-            }
-            Notice notice = new Notice();
-            notice.setMsgType("URGE");
-            notice.setScopeType(Notice.SCOPE_USER);
-            notice.setTargetUserIds(targets);
-            notice.setBizType("TASK");
-            notice.setBizId(taskId);
-            notice.setTitle("任务已逾期：" + taskName);
-            notice.setContent("该任务已超过截止时间，请尽快补交。逾期仍可提交，但会记入培养评价。");
+            String who = String.join("、", names);
+            String name = taskNameById.get(taskId);
+            Notice toReviewer = new Notice();
+            toReviewer.setMsgType("URGE");
+            toReviewer.setScopeType(Notice.SCOPE_USER);
+            toReviewer.setTargetUserIds(java.util.Collections.singletonList(reviewerId));
+            toReviewer.setBizType("TASK");
+            toReviewer.setBizId(taskId);
+            toReviewer.setTitle(names.size() > 1
+                    ? (names.size() + " 人的任务已逾期：" + name)
+                    : (who + " 的任务已逾期：" + name));
+            toReviewer.setContent(who + " 的该任务已超过截止时间，请督促尽快补交。");
             // 定时任务没有用户上下文 → 走系统发布通道（不做权限校验）
-            messageService.publishSystem(notice);
+            messageService.publishSystem(toReviewer);
         }
         return marked;
     }

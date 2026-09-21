@@ -1,12 +1,28 @@
 <template>
   <div class="course-detail-page">
+    <!-- 预览模式提示条：管理员在「课程管理」点「预览」进来，看到的就是实习生视角，但不产生任何学习记录 -->
+    <div v-if="isPreview" class="preview-banner">
+      <i class="el-icon-view" />
+      <span>
+        <b>预览模式</b> · 这是实习生打开该课程时看到的样子（按岗位匹配）。
+        <em>预览不写入学习进度，也不会出现在任何人的学习记录里。</em>
+      </span>
+    </div>
     <div class="detail-breadcrumb">
-      <el-button type="text" icon="el-icon-arrow-left" @click="backToLearning">返回在线学习</el-button>
+      <el-button type="text" icon="el-icon-arrow-left" @click="backToLearning">{{ isPreview ? '返回课程管理' : '返回在线学习' }}</el-button>
       <span>/</span>
       <b>{{ course.courseName }}</b>
     </div>
 
-    <section class="course-hero">
+    <!-- 预览取数失败（越权 / 已删除）：给明确原因与出口，而不是留个空壳 -->
+    <section v-if="previewFailed" class="preview-empty">
+      <i class="el-icon-warning-outline" />
+      <strong>无法预览该课程</strong>
+      <span>{{ previewError }}</span>
+      <el-button size="small" @click="backToLearning">返回课程管理</el-button>
+    </section>
+
+    <section v-if="!previewFailed" class="course-hero">
       <div class="hero-mark" :class="course.courseType === 'PRACTICE' ? 'practice' : 'theory'"><i :class="course.courseType === 'PRACTICE' ? 'el-icon-video-play' : 'el-icon-document'" /></div>
       <div class="hero-copy">
         <div class="hero-tags"><span>{{ course.courseType === 'PRACTICE' ? '视频实操课程' : '文档理论课程' }}</span><el-tag size="mini" :type="course.isRequired === 1 ? 'danger' : 'info'" effect="plain">{{ course.isRequired === 1 ? '必修' : '选修' }}</el-tag></div>
@@ -14,18 +30,19 @@
         <p>{{ course.intro }}</p>
         <div class="hero-meta"><span><i class="el-icon-user" /> {{ course.positionName }}</span><span><i class="el-icon-menu" /> {{ course.chapterCount }} 个章节</span><span><i class="el-icon-time" /> {{ formatDuration(course.duration) }}</span></div>
       </div>
-      <div class="hero-progress"><span>课程完成率</span><strong>{{ course.progress }}%</strong><el-progress :percentage="course.progress" :show-text="false" :color="progressColor(course.progress)" /></div>
+      <div v-if="isPreview" class="hero-progress"><span>预览模式</span><strong>—</strong><small class="preview-note">不统计进度</small></div>
+      <div v-else class="hero-progress"><span>课程完成率</span><strong>{{ course.progress }}%</strong><el-progress :percentage="course.progress" :show-text="false" :color="progressColor(course.progress)" /></div>
       <el-button type="primary" size="small" icon="el-icon-right" @click="startNext">{{ currentItem ? actionText(currentItem) : '开始学习' }}</el-button>
     </section>
 
-    <section class="course-toolbar">
+    <section v-if="!previewFailed" class="course-toolbar">
       <div class="course-tabs">
         <button v-for="tab in tabs" :key="tab.value" type="button" :class="{ active: itemFilter === tab.value }" @click="itemFilter = tab.value">{{ tab.label }} <em>{{ tab.count }}</em></button>
       </div>
       <el-button type="text" icon="el-icon-sort" @click="toggleChapters">{{ allExpanded ? '收起全部' : '展开全部' }}</el-button>
     </section>
 
-    <section class="detail-layout">
+    <section v-if="!previewFailed" class="detail-layout">
       <aside class="chapter-sidebar">
         <div class="sidebar-title"><strong>课程目录</strong><span>{{ course.completedItems }}/{{ course.itemCount }} 已完成</span></div>
         <el-collapse v-model="activeChapters">
@@ -112,7 +129,7 @@
           </div>
           <div class="study-footer">
             <div><span class="save-state"><i class="el-icon-circle-check" /> {{ saveState }}</span><span>材料版本 V1.0</span></div>
-            <div class="study-actions"><el-button size="small" icon="el-icon-arrow-left" :disabled="!previousItem" @click="goSibling(-1)">上一项</el-button><el-button v-if="currentItem.itemType === 'DOC'" type="primary" size="small" icon="el-icon-check" :disabled="!readerReachedEnd || saving" :loading="saving" @click="completeCurrent">确认完成阅读</el-button><el-button v-else-if="currentItem.itemType === 'VIDEO'" type="primary" size="small" icon="el-icon-check" :disabled="videoProgress < completionThreshold || saving" :loading="saving" @click="completeCurrent">确认完成学习</el-button><el-button size="small" :disabled="!nextItem" @click="goSibling(1)">下一项 <i class="el-icon-arrow-right" /></el-button></div>
+            <div class="study-actions"><el-button size="small" icon="el-icon-arrow-left" :disabled="!previousItem" @click="goSibling(-1)">上一项</el-button><el-button v-if="!isPreview && currentItem.itemType === 'DOC'" type="primary" size="small" icon="el-icon-check" :disabled="!readerReachedEnd || saving" :loading="saving" @click="completeCurrent">确认完成阅读</el-button><el-button v-else-if="!isPreview && currentItem.itemType === 'VIDEO'" type="primary" size="small" icon="el-icon-check" :disabled="videoProgress < completionThreshold || saving" :loading="saving" @click="completeCurrent">确认完成学习</el-button><el-button size="small" :disabled="!nextItem" @click="goSibling(1)">下一项 <i class="el-icon-arrow-right" /></el-button></div>
           </div>
         </div>
         <div v-else class="study-empty"><i class="el-icon-reading" /><strong>请选择一个学习单项</strong><span>从左侧课程目录开始学习。</span></div>
@@ -128,6 +145,9 @@ import { renderAsync } from 'docx-preview/dist/docx-preview.js'
 import { init as initPptxPreview } from 'pptx-preview'
 import { mapGetters } from 'vuex'
 import { getLearningCourse, saveLearningProgress } from '@/api/business/learning'
+// 预览模式（管理员视角）用的管理侧接口：课程本体 + 章节/资料
+import { getCourse } from '@/api/business/course'
+import { getCourseContents } from '@/api/business/courseContent'
 import { flattenItems, formatLearningDuration, getPositionName } from '@/utils/learningPreview'
 
 export default {
@@ -151,13 +171,26 @@ export default {
       videoTimer: null,
       saveState: '进度已保存',
       saving: false,
-      progressTimer: null
+      progressTimer: null,
+      /** 预览取数失败原因（空串 = 正常） */
+      previewError: ''
     }
   },
   computed: {
     ...mapGetters(['name', 'deptName']),
     positionName() {
       return getPositionName(this.deptName)
+    },
+    /**
+     * 预览模式：管理员在「课程管理」里点「预览」进来（路由 meta.preview = true）。
+     * 数据改走管理侧接口，**不写任何学习进度**（管理员没有 study_record，也不该产生记录）。
+     */
+    isPreview() {
+      return !!this.$route.meta.preview
+    },
+    /** 预览取数失败（典型：该课程不属于你管理的部门，或已被删除）→ 给明确说明，别留空壳 */
+    previewFailed() {
+      return this.isPreview && this.previewError !== ''
     },
     tabs() {
       const items = flattenItems(this.course)
@@ -200,6 +233,10 @@ export default {
   },
   methods: {
     loadCourse() {
+      if (this.isPreview) {
+        this.loadPreviewCourse()
+        return
+      }
       getLearningCourse(this.$route.params.courseId).then(response => {
         this.course = response.data || { chapters: [] }
         this.course.chapters = this.course.chapters || []
@@ -213,6 +250,48 @@ export default {
       }).catch(() => {
         this.$modal.msgError('课程不存在、已停用或不适用于当前岗位')
         this.backToLearning()
+      })
+    },
+    /**
+     * 预览模式：走管理侧接口取数，并归一化成实习生页面的数据形态。
+     *
+     * `GET /business/course/{id}/contents` 返回的章节/资料字段与实习生接口**完全一致**
+     * （仅进度类字段为 null），所以只需把进度补成「未开始」，就能复用同一套模板渲染 ——
+     * 这正是「预览 = 实习生看到的页面」而不是另做一套近似版的原因。
+     * 注意：课程本体走 `GET /business/course/{id}`，**不做岗位/部门适用性校验**（管理员要能预览任何课程）。
+     */
+    loadPreviewCourse() {
+      const courseId = this.$route.params.courseId
+      Promise.all([getCourse(courseId), getCourseContents(courseId)]).then(([courseRes, contentRes]) => {
+        const course = courseRes.data || {}
+        const chapters = (contentRes.data || []).map(chapter => Object.assign({}, chapter, {
+          items: (chapter.items || []).map(item => Object.assign({}, item, {
+            // 模板里用 item.status.toLowerCase() 挂样式类，null 会直接抛错 → 统一置为未开始
+            status: 'NOT_STARTED',
+            progress: 0,
+            readConfirm: 0,
+            studyDuration: 0
+          }))
+        }))
+        const flat = []
+        chapters.forEach(chapter => (chapter.items || []).forEach(item => flat.push(item)))
+        course.chapters = chapters
+        course.chapterCount = chapters.length
+        course.itemCount = flat.length
+        course.completedItems = 0
+        course.progress = 0
+        course.duration = flat.reduce((sum, item) => sum + (Number(item.duration) || 0), 0)
+        course.positionName = course.positionName || this.positionName
+        this.course = course
+        this.activeChapters = chapters.length ? [chapters[0].id] : []
+        const first = flat[0]
+        if (first) {
+          const chapter = chapters.find(row => row.items.some(child => child.id === first.id))
+          this.selectItem(first, chapter)
+        }
+      }).catch(() => {
+        this.previewError = '课程不存在、已被删除，或不属于你管理的部门范围'
+        this.$modal.msgError('无法预览该课程：' + this.previewError)
       })
     },
     filteredItems(chapter) {
@@ -235,7 +314,8 @@ export default {
       this.pptxPreviewLoading = false
       this.pptxPreviewError = ''
       this.videoProgress = item.itemType === 'VIDEO' ? Number(item.progress || 0) : 0
-      if (item.status === 'NOT_STARTED') {
+      // 预览模式不改状态：没有「某个人」在学习，应当保持实习生打开前的干净样子（未开始）
+      if (!this.isPreview && item.status === 'NOT_STARTED') {
         item.status = 'IN_PROGRESS'
         item.lastStudyTime = this.nowText()
       }
@@ -359,6 +439,9 @@ export default {
     },
     saveProgress(completed, item = this.currentItem) {
       if (!item || !item.id) return Promise.resolve(false)
+      // 预览模式（管理员视角）**不写任何学习进度** —— 管理员没有 study_record，
+      // 且 /business/learning/items/{id}/progress 本身只对实习生角色开放（会 403）。
+      if (this.isPreview) return Promise.resolve(false)
       this.saving = Boolean(completed)
       const isCurrentItem = () => this.currentItem && Number(this.currentItem.id) === Number(item.id)
       const payload = {
@@ -502,6 +585,18 @@ export default {
       }
     },
     backToLearning() {
+      // 预览模式是从「课程管理」window.open 出来的新标签页：
+      // 优先回来源页（?from= 由课程管理页带上，超管/部门管理员各自的路径不同，所以不能写死），
+      // 没有来源参数就尝试关掉标签页。
+      if (this.isPreview) {
+        const from = this.$route.query.from
+        if (from) {
+          this.$router.push(from)
+        } else {
+          window.close()
+        }
+        return
+      }
       this.$router.push('/assessment/intern/learning')
     },
     comingSoon() {
@@ -513,6 +608,22 @@ export default {
 
 <style lang="scss" scoped>
 .course-detail-page { min-height: 100%; padding: 22px 26px 36px; color: #283544; background: #f5f7fa; }
+/* 预览模式（管理员在课程管理点「预览」进入）：醒目但不抢戏的浅色提示条 */
+.preview-banner {
+  display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; padding: 10px 14px;
+  color: #175cd3; background: #eff8ff; border: 1px solid #b2ddff; border-radius: 8px; font-size: 12.5px; line-height: 1.6;
+  i { margin-top: 2px; }
+  em { color: #475467; font-style: normal; }
+}
+.hero-progress .preview-note { color: #98a2b3; font-size: 11px; }
+/* 预览失败态：越权 / 课程已删除时的说明卡 */
+.preview-empty {
+  display: flex; align-items: center; flex-direction: column; gap: 8px;
+  padding: 56px 20px; color: #667085; background: #fff; border: 1px solid #e4e9f0; border-radius: 8px; text-align: center;
+  i { color: #f79009; font-size: 30px; }
+  strong { color: #101828; font-size: 15px; }
+  span { font-size: 12.5px; }
+}
 .detail-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #98a2b3; font-size: 12px; }
 .detail-breadcrumb .el-button { padding: 0; color: #2878c7; font-size: 12px; }
 .detail-breadcrumb b { max-width: 420px; overflow: hidden; color: #475467; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }

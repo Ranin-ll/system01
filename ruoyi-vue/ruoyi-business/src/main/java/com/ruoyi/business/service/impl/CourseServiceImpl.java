@@ -138,9 +138,17 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         return deptId;
     }
 
+    /**
+     * 写操作的部门范围。
+     *
+     * <p><b>超管返回 null</b>，表示「不限部门」—— 可管理所有部门的课程。
+     * 这是 2026-09-20 的规则调整：超管由「业务实例一律只读」改为
+     * <b>「可管理全部课程与题库」</b>（与 {@code QuestionBankServiceImpl} 的同一方法口径对齐，
+     * 那边早已是 {@code return null}）。</p>
+     */
     private Long managerScopeDeptId() {
         if (isGlobalReadOnly()) {
-            throw new ServiceException("超级管理员仅可查看课程，不能执行课程写入操作");
+            return null;
         }
         Long deptId = SecurityUtils.getDeptId();
         if (deptId == null) {
@@ -160,8 +168,23 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         return course;
     }
 
+    /**
+     * 岗位范围校验。
+     *
+     * <p>{@code deptId} 为 null 表示<b>超管（不限部门）</b> → 只校验岗位真实存在，
+     * 允许把课程挂到任意岗位；否则要求岗位属于该部门（`dept_position` 绑定关系）。</p>
+     */
     private void checkPositionScope(Long positionId, Long deptId) {
-        if (positionId == null || courseMapper.countPositionInDept(positionId, deptId) == 0) {
+        if (positionId == null) {
+            throw new ServiceException("请选择课程所属岗位");
+        }
+        if (deptId == null) {
+            if (courseMapper.countPosition(positionId) == 0) {
+                throw new ServiceException("岗位不存在");
+            }
+            return;
+        }
+        if (courseMapper.countPositionInDept(positionId, deptId) == 0) {
             throw new ServiceException("只能选择当前部门已绑定的岗位");
         }
     }

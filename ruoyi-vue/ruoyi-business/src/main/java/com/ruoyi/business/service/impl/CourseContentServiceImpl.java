@@ -320,9 +320,20 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         return deptId;
     }
 
+    /**
+     * 写操作的部门校验。
+     *
+     * <p><b>超管直接放行</b>（不限部门）—— 2026-09-20 规则调整：超管可管理全部课程与题库，
+     * 与 {@code CourseServiceImpl#managerScopeDeptId()} 口径一致（那边返回 null 表示不限部门）。
+     * 其余账号仍要求已配置部门。</p>
+     */
     private void managerScopeDeptId() {
-        if (isGlobalReadOnly()) throw new ServiceException("超级管理员仅可查看课程，不能执行课程写入操作");
-        if (SecurityUtils.getDeptId() == null) throw new ServiceException("当前账号未配置部门，无法管理课程");
+        if (isGlobalReadOnly()) {
+            return;
+        }
+        if (SecurityUtils.getDeptId() == null) {
+            throw new ServiceException("当前账号未配置部门，无法管理课程");
+        }
     }
 
     private boolean isGlobalReadOnly() {

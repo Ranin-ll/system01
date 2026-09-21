@@ -4,7 +4,7 @@
       <div>
         <span class="eyebrow">SUPER ADMIN · GLOBAL CONSOLE</span>
         <h1>全局工作台</h1>
-        <p>全组织培养与考核的总览：在培规模、部门分布、课程与题库健康度、考核场次与异常预警。超管在此<b>只读全局数据</b>，不代部门管理员执行业务写操作。</p>
+        <p>全组织培养与考核的总览：在培规模、部门分布、课程与题库健康度、考核场次与异常预警。本页<b>只读全局数据</b>；业务写操作请到对应管理入口（课程 / 题库 / 实操题库对超管开放，任务类仍归部门管理员）。</p>
       </div>
       <div class="s-head-actions">
         <span class="s-ro"><i class="el-icon-view" /> 全局只读</span>

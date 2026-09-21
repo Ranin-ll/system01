@@ -120,17 +120,45 @@ function buildSuperSidebar(dbRoutes = []) {
     return { path, component: Layout, children: [Object.assign({}, child, { path: realPath })] }
   }
 
+  // 板块分组（跨前缀安全）：子项写**绝对路由**，组路径只作容器标识。
+  //
+  // 为什么需要它：group() 靠「组路径 + 末段 = 真实路由」的巧合，而「通知与督办」的两个子项
+  // 来自 notify / todo 两个**不同前缀**，取末段会拼出 /super/notify/todo 这种错路径。
+  // 改用绝对路由后这条易错规则在本函数里彻底消失。
+  // 注意：**不改既有 group() / single()**（部门端仍在用 group()）。
+  const absGroup = (path, title, icon, segs) => {
+    const children = segs
+      .map(seg => all.find(child => child.path === seg))
+      .filter(Boolean)
+      .map(child => Object.assign({}, child, { path: '/super/' + child.path }))
+    if (!children.length) return null
+    return {
+      path,
+      component: Layout,
+      alwaysShow: true,
+      redirect: children[0].path,
+      meta: { title, icon },
+      children
+    }
+  }
+
   // 原生系统三项（系统管理 / 系统监控 / 系统工具）直接透传 DB 菜单
   const systemDirs = dbRoutes.filter(route =>
     ['system', 'monitor', 'tool'].indexOf(route.path) > -1)
 
   return [
     single('/super', 'dashboard'),
-    group('/super/org', '组织与人员', 'peoples', ['org/organization', 'org/roles', 'org/accounts']),
-    group('/super/ops', '培养运营', 'education', ['ops/courses', 'ops/exams', 'ops/scores']),
-    // 任务与通知：三端命名统一（决策 6）。单链接 → /super/notify，子项 path 保持相对段 'notify'，
-    // resolve('/super/notify', '/super/notify') 仍回到自身（见上方 single() 的说明）。
-    single('/super/notify', 'notify'),
+    // 「组织岗位」页已于 2026-09-20 整合部门/岗位管理（三个页签），
+    // 原独立的 `org/positions` 入口从侧栏移除（路由保留，避免旧链接 404）。
+    // 「部门管理员」页已于 2026-09-20 并入「督办看板」的「按人」视角（内容与看板同源）；
+    // 路由保留并重定向到 /super/todo?view=people，侧栏不再单独列出 —— 本组回归纯「组织」语义。
+    absGroup('/super/org', '组织与人员', 'peoples',
+      ['org/organization', 'org/roles', 'org/accounts']),
+    group('/super/ops', '培养运营', 'education',
+      ['ops/analysis', 'ops/courses', 'ops/course-admin', 'ops/bank-admin', 'ops/psubject-admin', 'ops/exams', 'ops/scores']),
+    // 「任务与通知」→「通知与督办」：多了「督办看板」，单项目录升级为分组。
+    // 两个子项来自 notify / todo 两个前缀 → 必须用 absGroup（group 取末段会拼错）。
+    absGroup('/super/notify', '通知与督办', 'message', ['notify', 'todo']),
     single('/super/rule', 'rule'),
     single('/super/audit', 'audit')
   ].filter(Boolean).concat(systemDirs)
