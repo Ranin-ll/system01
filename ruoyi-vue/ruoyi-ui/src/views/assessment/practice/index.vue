@@ -1,19 +1,12 @@
 <template>
   <div class="practice-page">
     <div class="exam-breadcrumb">
-      <template v-if="stage === 'module'">
-        <el-button type="text" icon="el-icon-arrow-left" @click="backToModules">返回阶段列表</el-button>
-        <span>/</span>
-        <b>{{ activeModule ? activeModule.name : '阶段' }}</b>
-      </template>
-      <template v-else>
-        <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回工作台</el-button>
-        <span>/</span>
-        <b>{{ isFormal ? '模拟理论考核记录' : '模拟理论考核' }}</b>
-      </template>
+      <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回工作台</el-button>
+      <span>/</span>
+      <b>{{ isFormal ? '模拟理论考核记录' : '模拟理论考核' }}</b>
     </div>
 
-    <!-- ================= 阶段一：阶段列表（先选阶段） ================= -->
+    <!-- ================= 列表页：套卷 + 练习记录（无阶段层级） ================= -->
     <template v-if="stage === 'list'">
       <header class="exam-heading">
         <div>
@@ -46,7 +39,7 @@
         <div class="stat">
           <span>模拟理论考核</span>
           <b>{{ examTotal }}<small> 套</small></b>
-          <div class="sub">{{ modules.length ? '分布在 ' + modules.length + ' 个阶段' : '尚未发布' }}</div>
+          <div class="sub">{{ exams.length ? '已发布 ' + exams.length + ' 套' : '尚未发布' }}</div>
         </div>
         <div class="stat">
           <span>最近自测</span>
@@ -55,31 +48,28 @@
         </div>
       </div>
 
-      <!-- ② 阶段列表：先选阶段 -->
+      <!-- ② 模拟理论考核套卷：直接全量列出已发布套卷（无阶段层级） -->
       <section v-if="!isFormal" class="pm-card">
         <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">阶</span><h3>阶段</h3></div>
+          <div class="pm-title"><span class="pm-idx">卷</span><h3>模拟理论考核套卷</h3></div>
+          <el-button size="mini" icon="el-icon-refresh" @click="loadPapers">刷新</el-button>
         </div>
-        <div v-if="loading && !modules.length" class="pm-empty small"><i class="el-icon-loading" /><span>正在加载阶段…</span></div>
-        <div v-else-if="!modules.length" class="pm-empty small"><i class="el-icon-folder-opened" /><span>本部门暂未发布模拟阶段</span></div>
-        <div v-else class="pm-mods">
-          <button
-            v-for="m in modules"
-            :key="m.id"
-            type="button"
-            class="pm-mod"
-            @click="openModule(m)"
-          >
-            <span class="pm-mod-top">
-              <span class="pm-mod-ico">{{ (m.name || '模').slice(0, 1) }}</span>
-              <span class="pm-mod-name">{{ m.name }}</span>
-            </span>
-            <span class="pm-mod-desc">{{ m.description || '（未填写阶段说明）' }}</span>
-            <span class="pm-mod-foot">
-              <span>模拟套卷 <b>{{ m.examCount || 0 }}</b></span>
-              <span class="pm-mod-go">进入 <i class="el-icon-arrow-right" /></span>
-            </span>
-          </button>
+        <div v-if="contentLoading" class="pm-empty small"><i class="el-icon-loading" /><span>正在加载…</span></div>
+        <div v-else-if="!exams.length" class="pm-empty small"><i class="el-icon-document" /><span>本部门暂未发布模拟理论考核套卷</span></div>
+        <div v-else class="pm-exams">
+          <div v-for="e in exams" :key="e.id" class="pm-exam">
+            <div class="pm-exam-l">
+              <b>{{ e.examName || '模拟理论考核卷' }}<span v-if="e.difficulty" class="pm-diff" :class="diffTone(e.difficulty)">{{ diffText(e.difficulty) }}</span></b>
+              <span class="pm-exam-meta">
+                共 {{ e.questionCount || 0 }} 题（单选 {{ e.singleCount || 0 }} · 多选 {{ e.multiCount || 0 }} · 判断 {{ e.judgeCount || 0 }}）
+                · 满分 {{ e.fullScore != null ? e.fullScore : '--' }} 分
+                · 通过线 {{ e.passLine != null ? e.passLine : 0 }} 分
+                <template v-if="Number(e.duration) > 0"> · 限时 {{ e.duration }} 分钟</template>
+              </span>
+              <span v-if="e.contentBias" class="pm-exam-bias"><i class="el-icon-info" />内容偏向：{{ e.contentBias }}</span>
+            </div>
+            <el-button type="primary" size="small" icon="el-icon-caret-right" :loading="starting" @click="startPractice(e)">开始练习</el-button>
+          </div>
         </div>
       </section>
 
@@ -91,14 +81,13 @@
         <div v-loading="loading" class="pm-table-wrap" style="padding-top:12px">
           <div v-if="!records.length && !loading" class="pm-empty">
             <i class="el-icon-tickets" />
-            <span>{{ isFormal ? '暂无转正前的模拟记录' : '还没有模拟记录，进入阶段来一次练习吧' }}</span>
+            <span>{{ isFormal ? '暂无转正前的模拟记录' : '还没有模拟记录，选一套卷开始练习吧' }}</span>
           </div>
           <table v-else class="pm-table">
-            <thead><tr><th>时间</th><th>阶段</th><th>套卷</th><th>题数</th><th>正确率</th><th>操作</th></tr></thead>
+            <thead><tr><th>时间</th><th>套卷</th><th>题数</th><th>正确率</th><th>操作</th></tr></thead>
             <tbody>
               <tr v-for="row in pagedRecords" :key="row.id">
                 <td>{{ fmtTime(row.createTime) }}</td>
-                <td class="ellipsis">{{ row.moduleName || '—' }}</td>
                 <td class="ellipsis">{{ row.examName || '—' }}</td>
                 <td>{{ row.totalCount }} 题</td>
                 <td><b :class="rateTone(row)">{{ rateOf(row) }}%</b></td>
@@ -122,81 +111,8 @@
       </section>
     </template>
 
-    <!-- ================= 阶段二：阶段内套卷列表 ================= -->
-    <template v-else-if="stage === 'module'">
-      <header class="exam-heading">
-        <div>
-          <span class="eyebrow">PRACTICE STAGE</span>
-          <h1>{{ activeModule ? activeModule.name : '阶段' }}</h1>
-          <p v-if="activeModule && activeModule.description">{{ activeModule.description }}</p>
-        </div>
-        <el-button size="medium" icon="el-icon-refresh" @click="loadModuleContent">刷新</el-button>
-      </header>
 
-      <!-- 模拟套卷：一个阶段下可以有多套（可重复练习） -->
-      <section class="pm-card">
-        <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">卷</span><h3>模拟套卷</h3></div>
-        </div>
-        <div v-if="contentLoading" class="pm-empty small"><i class="el-icon-loading" /><span>正在加载…</span></div>
-        <div v-else-if="!exams.length" class="pm-empty small"><i class="el-icon-document" /><span>本阶段暂未发布模拟套卷</span></div>
-        <div v-else class="pm-exams">
-          <div v-for="e in exams" :key="e.id" class="pm-exam">
-            <div class="pm-exam-l">
-              <b>{{ e.examName || '模拟理论考核卷' }}<span v-if="e.difficulty" class="pm-diff" :class="diffTone(e.difficulty)">{{ diffText(e.difficulty) }}</span></b>
-              <span class="pm-exam-meta">
-                共 {{ e.questionCount || 0 }} 题（单选 {{ e.singleCount || 0 }} · 多选 {{ e.multiCount || 0 }} · 判断 {{ e.judgeCount || 0 }}）
-                · 满分 {{ e.fullScore != null ? e.fullScore : '--' }} 分
-                · 通过线 {{ e.passLine != null ? e.passLine : 0 }} 分
-                <template v-if="Number(e.duration) > 0"> · 限时 {{ e.duration }} 分钟</template>
-              </span>
-              <span v-if="e.contentBias" class="pm-exam-bias"><i class="el-icon-info" />内容偏向：{{ e.contentBias }}</span>
-            </div>
-            <el-button v-if="!isFormal" type="primary" size="small" icon="el-icon-caret-right" :loading="starting" @click="startPractice(e)">开始练习</el-button>
-            <span v-else class="pm-hint">转正后仅可查看记录</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- 本阶段练习记录：按阶段过滤，并显示对应套卷名称 -->
-      <section class="pm-card">
-        <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">录</span><h3>本阶段练习记录</h3></div>
-        </div>
-        <div v-loading="contentLoading" class="pm-table-wrap" style="padding-top:12px">
-          <div v-if="!moduleRecords.length && !contentLoading" class="pm-empty">
-            <i class="el-icon-tickets" />
-            <span>还没有本阶段的练习记录，选一套模拟套卷开始吧</span>
-          </div>
-          <table v-else class="pm-table">
-            <thead><tr><th>时间</th><th>考核</th><th>题数</th><th>正确率</th><th>操作</th></tr></thead>
-            <tbody>
-              <tr v-for="row in pagedModuleRecords" :key="row.id">
-                <td>{{ fmtTime(row.createTime) }}</td>
-                <td class="ellipsis">{{ row.examName || '—' }}</td>
-                <td>{{ row.totalCount }} 题</td>
-                <td><b :class="rateTone(row)">{{ rateOf(row) }}%</b></td>
-                <td><el-button type="text" size="mini" @click="goRecordDetail(row)">查看详情</el-button></td>
-              </tr>
-            </tbody>
-          </table>
-          <el-pagination
-            v-if="moduleRecords.length > recordPageSize"
-            class="pm-pager"
-            background
-            layout="total, sizes, prev, pager, next, jumper"
-            :total="moduleRecords.length"
-            :current-page="moduleRecordPage"
-            :page-size="recordPageSize"
-            :page-sizes="[8, 10, 20, 50]"
-            @current-change="onModuleRecordPageChange"
-            @size-change="onModuleRecordPageSizeChange"
-          />
-        </div>
-      </section>
-    </template>
-
-    <!-- ================= 阶段三：作答 ================= -->
+    <!-- ================= 作答 ================= -->
     <template v-else-if="stage === 'exam'">
       <header class="exam-heading">
         <div><span class="eyebrow">ANSWERING</span><h1>{{ bankName || '模拟理论考核' }}</h1><p>共 {{ questions.length }} 题</p></div>
@@ -240,7 +156,7 @@
       </div>
     </template>
 
-    <!-- ================= 阶段四：交卷结果（含逐题回顾） ================= -->
+    <!-- ================= 交卷结果（含逐题回顾） ================= -->
     <template v-else>
       <div class="result-card">
         <div class="result-score">
@@ -281,7 +197,7 @@
         </div>
 
         <div class="result-actions">
-          <el-button size="medium" @click="goList">返回阶段列表</el-button>
+          <el-button size="medium" @click="goList">返回套卷列表</el-button>
           <el-button v-if="!isFormal && currentExamId" type="primary" size="medium" @click="restartSameExam">再练一次</el-button>
         </div>
       </div>
@@ -294,7 +210,6 @@ import {
   startPractice, submitPractice, myPracticeRecords,
   listPracticeExams
 } from '@/api/business/practice'
-import { listPublishedModules } from '@/api/business/practiceModule'
 import practiceMixin from './practice-mixin'
 import { mapGetters } from 'vuex'
 
@@ -303,24 +218,16 @@ export default {
   mixins: [practiceMixin],
   data() {
     return {
-      /** list 模块列表 / module 模块内考核 / exam 作答 / result 结果 */
+      /** list 套卷列表 / exam 作答 / result 结果 */
       stage: 'list',
       loading: false,
       contentLoading: false,
       records: [],
-      /** 阶段列表（先选阶段） */
-      modules: [],
-      activeModule: null,
-      /** 从「实操题详情」页返回时带回的阶段ID（历史入口），等阶段列表加载完再展开 */
-      pendingModuleId: null,
-      /** 当前阶段下的模拟套卷 */
+      /** 本部门已发布的模拟理论考核套卷 */
       exams: [],
-      /** 当前阶段下的练习记录（按阶段过滤，带套卷名称） */
-      moduleRecords: [],
-      /** 记录列表分页（顶层「模拟练习记录」与阶段内「本阶段练习记录」各一套页码，共用页长） */
+      /** 记录列表分页 */
       recordPage: 1,
       recordPageSize: 8,
-      moduleRecordPage: 1,
       bankId: null,
       bankName: '',
       questions: [],
@@ -354,10 +261,6 @@ export default {
     pagedRecords() {
       return this.pageSlice(this.records, this.recordPage, this.recordPageSize)
     },
-    /** 模块内「本模块自测记录」当前页 */
-    pagedModuleRecords() {
-      return this.pageSlice(this.moduleRecords, this.moduleRecordPage, this.recordPageSize)
-    },
     avgRate() {
       const s = this.rateSeries
       if (!s.length) return '--'
@@ -382,7 +285,7 @@ export default {
       return this.records.slice().sort((a, b) => new Date(b.createTime || 0) - new Date(a.createTime || 0))[0]
     },
     examTotal() {
-      return this.modules.reduce((n, m) => n + (Number(m.examCount) || 0), 0)
+      return this.exams.length
     },
     /** 倒计时展示：≥1 小时用 HH:MM:SS，否则 MM:SS */
     countdownText() {
@@ -403,17 +306,12 @@ export default {
   created() {
     this.reload()
     const q = this.$route.query
-    const wantModuleId = !this.isFormal && q.moduleId ? Number(q.moduleId) : null
     const autoStart = !this.isFormal && q.start === '1'
     // 先清掉 query，避免刷新时重复触发
-    if (wantModuleId || autoStart) {
+    if (autoStart) {
       this.$router.replace({ path: this.$route.path })
     }
-    // 从「实操题详情」页返回回来（历史入口）：等阶段列表到位后直接展开该阶段
-    if (wantModuleId) {
-      this.pendingModuleId = wantModuleId
-    }
-    // 从回顾页「再练一次」跳回时自动按同一考核开考
+    // 从回顾页「再练一次」跳回时自动按同一套卷开考
     if (autoStart) {
       this.startPracticeById(q.examId ? Number(q.examId) : null)
     }
@@ -446,12 +344,10 @@ export default {
       return arr.slice(start, start + size)
     },
     onRecordPageChange(p) { this.recordPage = p },
-    onRecordPageSizeChange(size) { this.recordPageSize = size; this.recordPage = 1; this.moduleRecordPage = 1 },
-    onModuleRecordPageChange(p) { this.moduleRecordPage = p },
-    onModuleRecordPageSizeChange(size) { this.recordPageSize = size; this.recordPage = 1; this.moduleRecordPage = 1 },
+    onRecordPageSizeChange(size) { this.recordPageSize = size; this.recordPage = 1 },
     reload() {
       this.loadRecords()
-      if (!this.isFormal) this.loadModules()
+      if (!this.isFormal) this.loadPapers()
     },
     loadRecords() {
       this.loading = true
@@ -461,44 +357,13 @@ export default {
         this.recordPage = 1
       }).catch(() => { this.loading = false })
     },
-    /** 阶段列表（含各阶段下模拟套卷数量） */
-    loadModules() {
-      this.loading = true
-      listPublishedModules().then(res => {
-        this.modules = res.data || []
-        this.loading = false
-        this.openPendingModule()
-      }).catch(() => { this.loading = false; this.modules = [] })
-    },
-    /** 从「实操题详情」页返回时，展开来源阶段 */
-    openPendingModule() {
-      const mid = this.pendingModuleId
-      if (!mid) return
-      this.pendingModuleId = null
-      const target = this.modules.filter(m => Number(m.id) === Number(mid))[0]
-      if (target) this.openModule(target)
-    },
-    /** 进入阶段：拉该阶段下的模拟套卷与练习记录 */
-    openModule(m) {
-      this.activeModule = m
-      this.stage = 'module'
-      this.loadModuleContent()
-    },
-    loadModuleContent() {
-      if (!this.activeModule) return
-      const mid = this.activeModule.id
+    /** 本部门已发布的模拟理论考核套卷（无阶段层级，直接全量列出） */
+    loadPapers() {
       this.contentLoading = true
-      Promise.all([
-        listPracticeExams(mid).then(res => { this.exams = res.data || [] }).catch(() => { this.exams = [] }),
-        myPracticeRecords(mid).then(res => { this.moduleRecords = res.data || [] }).catch(() => { this.moduleRecords = [] })
-      ]).then(() => { this.contentLoading = false; this.moduleRecordPage = 1 }).catch(() => { this.contentLoading = false })
-    },
-    backToModules() {
-      this.stage = 'list'
-      this.activeModule = null
-      this.exams = []
-      this.moduleRecords = []
-      this.loadRecords()
+      listPracticeExams().then(res => {
+        this.exams = res.data || []
+        this.contentLoading = false
+      }).catch(() => { this.exams = []; this.contentLoading = false })
     },
     rateOf(row) {
       const total = Number(row.totalCount) || 0
@@ -518,7 +383,7 @@ export default {
     diffTone(d) {
       return { EASY: 'easy', MEDIUM: 'mid', HARD: 'hard' }[d] || 'mid'
     },
-    /** 阶段内某套卷「开始练习」 */
+    /** 套卷「开始练习」 */
     startPractice(exam) {
       this.startPracticeById(exam ? exam.id : null)
     },
@@ -625,12 +490,11 @@ export default {
         }
       })
     },
-    /** 回到套卷列表：阶段内则回到「本阶段练习记录 + 模拟套卷」，否则回阶段列表 */
+    /** 回到套卷列表 */
     backToExamList() {
-      this.stage = this.activeModule ? 'module' : 'list'
+      this.stage = 'list'
       this.loadRecords()
-      // 模块内还要刷新「本模块自测记录」，否则刚交的这次不会出现在模块页
-      if (this.activeModule) this.loadModuleContent()
+      this.loadPapers()
     },
     /** 进入独立的回顾页查看当次题目与作答 */
     goRecordDetail(row) {
@@ -640,15 +504,13 @@ export default {
       this.$modal.confirm('退出后本次作答进度不会保存，确定退出吗？').then(() => {
         this.clearCountdown()
         this.remainingSeconds = 0
-        this.stage = this.activeModule ? 'module' : 'list'
+        this.stage = 'list'
         this.loadRecords()
-        if (this.activeModule) this.loadModuleContent()
+        this.loadPapers()
       }).catch(() => {})
     },
     goList() {
       this.stage = 'list'
-      this.activeModule = null
-      this.exams = []
       this.reload()
     },
     goBack() {
@@ -713,31 +575,7 @@ export default {
 .pm-empty i { color: #b7c1cc; font-size: 32px; }
 .pm-empty span { font-size: 13px; }
 
-/* ② 模块卡片 */
-.pm-mods { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 14px; padding-top: 16px; }
-.pm-mod {
-  display: block; padding: 16px 16px 14px; text-align: left; background: #fff;
-  border: 1px solid #e7ecf3; border-radius: 10px; cursor: pointer;
-  transition: border-color .15s, box-shadow .15s, transform .15s;
-}
-.pm-mod:hover { border-color: #a9c8f7; box-shadow: 0 8px 20px rgba(23, 100, 245, .1); transform: translateY(-1px); }
-.pm-mod-top { display: flex; align-items: center; gap: 10px; }
-.pm-mod-ico {
-  display: inline-flex; flex: none; width: 34px; height: 34px; align-items: center; justify-content: center;
-  color: #1764f5; background: linear-gradient(135deg, #e8f1fd 0%, #dbe9ff 100%);
-  font-size: 15px; font-weight: 700; border-radius: 9px;
-}
-.pm-mod-name { color: #1d2939; font-size: 15px; font-weight: 600; }
-.pm-mod-desc {
-  display: block; margin: 10px 0 12px; min-height: 34px;
-  color: #98a2b3; font-size: 12px; line-height: 1.5;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.pm-mod-foot { display: flex; align-items: center; gap: 14px; padding-top: 11px; border-top: 1px dashed #edf0f4; color: #8490a0; font-size: 11.5px; }
-.pm-mod-foot b { color: #1764f5; font-size: 13px; }
-.pm-mod-go { margin-left: auto; color: #1764f5; }
-
-/* ③ 模块内理论考核列表 */
+/* ③ 套卷列表 */
 .pm-exams { padding-top: 6px; }
 .pm-exam { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 4px; border-bottom: 1px solid #edf0f4; }
 .pm-exam:last-child { border-bottom: 0; }
@@ -803,7 +641,6 @@ export default {
   .stat-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
-  .pm-mods { grid-template-columns: 1fr; }
   .pm-exam { align-items: flex-start; flex-direction: column; gap: 10px; }
 }
 @media (max-width: 640px) {
