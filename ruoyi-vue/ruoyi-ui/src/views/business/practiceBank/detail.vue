@@ -22,7 +22,29 @@
       <div class="kpi-card tone-green"><span class="kpi-value">{{ enabledCount }}<small>道</small></span><span class="kpi-label">已启用</span></div>
       <div class="kpi-card tone-purple"><span class="kpi-value">{{ directionCount }}<small>个</small></span><span class="kpi-label">覆盖方向</span></div>
       <div class="kpi-card tone-orange"><span class="kpi-value">{{ scoredCount }}<small>道</small></span><span class="kpi-label">已设建议满分</span></div>
+      <!-- ★ 可点即筛选：一键筛出「没有参考图」的题，逐题补传 -->
+      <button
+        type="button"
+        class="kpi-card tone-red clickable"
+        :class="{ active: query.noImage }"
+        :title="missingImageCount ? '点此只看缺参考图的题' : '全部题目都已有参考图'"
+        @click="toggleNoImage"
+      >
+        <span class="kpi-value">{{ missingImageCount }}<small>道</small></span>
+        <span class="kpi-label">缺参考图<em v-if="query.noImage">· 筛选中</em></span>
+      </button>
     </section>
+
+    <!-- 缺素材引导：只在确实有缺的时候出现，说清后果与怎么补 -->
+    <div v-if="missingImageCount" class="media-hint">
+      <i class="el-icon-warning-outline" />
+      <span>
+        本库还有 <b>{{ missingImageCount }}</b> 道题没上传参考图 ——
+        实习生端这些题的卡片会显示占位块、详情页图库为空。
+        点上方「缺参考图」筛出来，再点右侧「补素材」逐题上传（图片 / 视频）。
+      </span>
+      <el-button v-if="!query.noImage" size="mini" plain @click="query.noImage = true">只看缺参考图</el-button>
+    </div>
 
     <section class="filter-bar">
       <el-input v-model="query.keyword" size="small" clearable prefix-icon="el-icon-search" placeholder="搜索题名 / 方向 / 题干" class="filter-keyword" />
@@ -33,7 +55,9 @@
         <el-option label="启用" :value="1" />
         <el-option label="停用" :value="0" />
       </el-select>
-      <span class="filter-summary">共 {{ total }} 道</span>
+      <el-checkbox v-model="query.noImage" border size="small" class="filter-chk">只看缺参考图</el-checkbox>
+      <el-button v-if="hasFilter" size="small" icon="el-icon-refresh-left" @click="resetQuery">重置</el-button>
+      <span class="filter-summary">显示 {{ filteredList.length }} / {{ total }} 道</span>
     </section>
 
     <section class="content-panel">
@@ -57,9 +81,11 @@
             <strong class="num">{{ scope.row.suggestScore != null ? scope.row.suggestScore : '—' }}</strong>
           </template>
         </el-table-column>
-        <el-table-column label="素材" width="96" align="center">
+        <el-table-column label="素材" width="118" align="center">
           <template slot-scope="scope">
-            <span class="muted">图 {{ imgCount(scope.row) }} · 视 {{ vidCount(scope.row) }} · 附 {{ attCount(scope.row) }}</span>
+            <el-tag v-if="!imgCount(scope.row)" size="mini" type="warning" effect="plain" title="实习生端会显示占位块，点右侧「补素材」上传">缺参考图</el-tag>
+            <span v-else class="muted">图 {{ imgCount(scope.row) }} · 视 {{ vidCount(scope.row) }} · 附 {{ attCount(scope.row) }}</span>
+            <small v-if="!imgCount(scope.row) && attCount(scope.row)" class="muted">附 {{ attCount(scope.row) }}</small>
           </template>
         </el-table-column>
         <el-table-column label="创建时间" width="132" align="center">
@@ -70,17 +96,27 @@
             <el-tag size="mini" :type="scope.row.status === 1 ? 'success' : 'info'">{{ scope.row.status === 1 ? '启用' : '停用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" align="center">
+        <el-table-column label="操作" width="196" align="center">
           <template slot-scope="scope">
-            <el-button type="text" size="mini" icon="el-icon-edit" @click="openDialog(scope.row)">编辑</el-button>
+            <!-- 缺参考图的行，按钮文案直接写成「补素材」——管理员一眼知道该点哪 -->
+            <el-button
+              type="text"
+              size="mini"
+              icon="el-icon-edit"
+              :class="{ 'warn-text': !imgCount(scope.row) }"
+              @click="openDialog(scope.row)"
+            >{{ imgCount(scope.row) ? '编辑' : '补素材' }}</el-button>
             <el-button type="text" size="mini" @click="toggle(scope.row)">{{ scope.row.status === 1 ? '停用' : '启用' }}</el-button>
             <el-button type="text" size="mini" icon="el-icon-delete" class="danger-text" @click="remove(scope.row)">删除</el-button>
           </template>
         </el-table-column>
         <template slot="empty">
           <div class="empty-block">
-            <i class="el-icon-document" />
-            <p>{{ list.length ? '当前筛选条件下没有匹配的实操题' : '本实操题库还没有题目，点右上角「新增实操题」开始录入' }}</p>
+            <i :class="hasFilter ? 'el-icon-search' : 'el-icon-document'" />
+            <!-- 分清「筛没了」与「本来就没有」 -->
+            <p v-if="hasFilter">当前筛选条件下没有匹配的实操题，换个条件或点「重置」。</p>
+            <p v-else>本实操题库还没有题目，点右上角「新增实操题」开始录入</p>
+            <el-button v-if="hasFilter" size="mini" plain @click="resetQuery">重置筛选</el-button>
           </div>
         </template>
       </el-table>
@@ -201,7 +237,7 @@ export default {
       loading: false,
       list: [],
       total: 0,
-      query: { keyword: '', direction: '', status: null },
+      query: { keyword: '', direction: '', status: null, noImage: false },
       visible: false,
       saving: false,
       form: this.emptyForm(),
@@ -219,6 +255,8 @@ export default {
         }
         if (this.query.direction && r.direction !== this.query.direction) return false
         if (this.query.status !== null && this.query.status !== '' && Number(r.status) !== Number(this.query.status)) return false
+        // ★ 缺参考图：实习生端卡片缩略图取的是「第一张图片」，所以只有视频也算缺
+        if (this.query.noImage && this.imgCount(r)) return false
         return true
       }).sort((a, b) => {
         // 不再用「排序号」，默认按创建时间倒序（最新在前）；时间相同按 id 倒序兜底
@@ -227,6 +265,10 @@ export default {
         return Number(b.id || 0) - Number(a.id || 0)
       })
     },
+    hasFilter() {
+      return !!(this.query.keyword || this.query.direction ||
+        (this.query.status !== null && this.query.status !== '') || this.query.noImage)
+    },
     directionOptions() {
       const s = new Set()
       ;(this.list || []).forEach(r => { if (r.direction) s.add(r.direction) })
@@ -234,7 +276,9 @@ export default {
     },
     directionCount() { return this.directionOptions.length },
     enabledCount() { return (this.list || []).filter(r => Number(r.status) === 1).length },
-    scoredCount() { return (this.list || []).filter(r => r.suggestScore != null).length }
+    scoredCount() { return (this.list || []).filter(r => r.suggestScore != null).length },
+    /** 没有「图片」的题数 —— 实习生端这类题的卡片只能显示占位块 */
+    missingImageCount() { return (this.list || []).filter(r => !this.imgCount(r)).length }
   },
   created() {
     this.bankId = this.$route.params.bankId
@@ -325,6 +369,11 @@ export default {
       }).catch(() => {})
     },
     isVideo(url) { return /\.(mp4|webm|ogg|ogv|mov|avi|m4v)(\?|#|$)/i.test(String(url || '')) },
+    /** 「缺参考图」筛选开关（KPI 卡与筛选条复选框共用同一状态） */
+    toggleNoImage() { this.query.noImage = !this.query.noImage },
+    resetQuery() {
+      this.query = { keyword: '', direction: '', status: null, noImage: false }
+    },
     imgCount(row) { return parseJsonList(row.referenceImages).filter(f => !this.isVideo(f.url)).length },
     vidCount(row) { return parseJsonList(row.referenceImages).filter(f => this.isVideo(f.url)).length },
     attCount(row) { return parseJsonList(row.attachmentsJson).length },
@@ -348,7 +397,7 @@ export default {
 .page-heading h2 { margin: 6px 0 8px; font-size: 21px; font-weight: 600; color: #1d2939; }
 .page-heading p { margin: 0; color: #667085; font-size: 13px; }
 .heading-actions { flex: none; display: flex; gap: 8px; }
-.kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.kpi-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
 .kpi-card { padding: 12px 16px; background: #fff; border: 1px solid #e7ecf3; border-radius: 6px; }
 .kpi-value { display: block; color: #1d2939; font-size: 20px; font-weight: 600; }
 .kpi-value small { margin-left: 3px; color: #667085; font-size: 12px; font-weight: 400; }
@@ -356,6 +405,20 @@ export default {
 .kpi-card.tone-green .kpi-value { color: #23966f; }
 .kpi-card.tone-purple .kpi-value { color: #7b5cf0; }
 .kpi-card.tone-orange .kpi-value { color: #e6a23c; }
+.kpi-card.tone-red .kpi-value { color: #d9534f; }
+/* 可点的 KPI 卡（点即为筛选）：button 重置默认外观 */
+.kpi-card.clickable { display: block; width: 100%; text-align: left; font: inherit; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.kpi-card.clickable:hover { border-color: #b9d2ff; box-shadow: 0 2px 8px rgba(23, 100, 245, .08); }
+.kpi-card.clickable.active { border-color: #1764f5; background: #f6faff; box-shadow: 0 0 0 2px rgba(23, 100, 245, .12); }
+.kpi-label em { margin-left: 4px; color: #1764f5; font-size: 11px; font-style: normal; }
+
+/* 缺素材引导条：只在真有缺的时候出现 */
+.media-hint { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 14px; color: #8a5a12; background: #fffbf3; border: 1px solid #f5dfb4; border-radius: 6px; font-size: 12.5px; line-height: 1.7; }
+.media-hint > i { flex: none; color: #e6a23c; font-size: 15px; }
+.media-hint > span { flex: 1; min-width: 0; }
+.media-hint b { color: #d9534f; }
+.filter-chk { margin-left: 2px; }
+.warn-text { color: #e6a23c !important; }
 .filter-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; padding: 12px 16px; background: #fff; border: 1px solid #e7ecf3; border-radius: 6px; }
 .filter-keyword { width: 240px; }
 .filter-select { width: 140px; }
