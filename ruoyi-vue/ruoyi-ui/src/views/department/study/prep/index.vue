@@ -466,7 +466,7 @@ import {
 } from '@/api/business/practiceModule'
 import { listDept } from '@/api/system/dept'
 import {
-  previewKindOf, extOf, fileUrlOf as resolveFileUrl, PREVIEW_SUPPORT_TEXT, triggerDownload
+  previewKindOf, extLabel, fileUrlOf as resolveFileUrl, PREVIEW_SUPPORT_TEXT, triggerDownload
 } from '@/utils/filePreview'
 import {
   listMaterial, addMaterial, updateMaterial, changeMaterialStatus, delMaterial, listApplicablePositions, uploadFile
@@ -556,7 +556,7 @@ export default {
     },
     /** 不支持预览时提示用到的扩展名 */
     previewExt() {
-      return extOf(this.previewFile && this.previewFile.url)
+      return extLabel(this.previewFile && this.previewFile.url)
     },
     previewSupportText() {
       return PREVIEW_SUPPORT_TEXT
