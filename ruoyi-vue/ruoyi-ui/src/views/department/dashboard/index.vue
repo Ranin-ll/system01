@@ -40,7 +40,6 @@
             <div class="dkpi-label">
               <span class="d" :style="{ background: item.color }" />
               {{ item.label }}
-              <span v-if="item.sample" class="dsample">示例</span>
             </div>
             <div class="dkpi-val" :class="{ mute: !item.value }">{{ item.value === null || item.value === undefined ? '--' : item.value }}</div>
             <div class="dkpi-sub">{{ item.hint }}</div>
@@ -53,7 +52,6 @@
         <div class="dkpi-label">
           <span class="d" :style="{ background: item.color }" />
           {{ item.label }}
-          <span v-if="item.sample" class="dsample">示例</span>
         </div>
         <div class="dkpi-val">
           <template v-if="item.value === null || item.value === undefined">--</template>
@@ -137,7 +135,6 @@
             <tr v-for="row in examRows" :key="row.key" class="row-link" @click="goScores">
               <td>
                 <span class="strong">{{ row.name }}</span>
-                <span v-if="row.sample" class="dsample" style="margin-left:6px">示例</span>
               </td>
               <td>{{ row.typeText }}</td>
               <td>{{ row.stageText }}</td>
@@ -218,28 +215,6 @@
 import { getRegisterSummary, listRegister } from '@/api/business/register'
 import { listExam } from '@/api/business/exam'
 
-/** 无后端聚合接口的区块：沿用设计稿示例值，并在界面打「示例」标记 */
-const SAMPLE = {
-  studyDist: [
-    { label: '≥90%', pct: 52, tone: 'good' },
-    { label: '70-89%', pct: 74, tone: '' },
-    { label: '50-69%', pct: 36, tone: 'mute' },
-    { label: '<50%', pct: 52, tone: 'mid' }
-  ],
-  studyRateAvg: 72,
-  practiceRateAvg: 76,
-  passRate: 83,
-  weakPoints: [
-    { name: 'Docker', rate: 42, tone: 'poor' },
-    { name: 'DIX脚本', rate: 50, tone: 'poor' },
-    { name: 'Maven', rate: 55, tone: 'poor' },
-    { name: 'nginx', rate: 62, tone: 'mid' },
-    { name: 'MySQL', rate: 70, tone: 'mid' }
-  ],
-  tasks: 4,
-  unread: 6
-}
-
 export default {
   name: 'DeptDashboard',
   data() {
@@ -312,7 +287,7 @@ export default {
       const max = Math.max.apply(null, rows.map(r => r.value).concat([1]))
       return rows.map(r => Object.assign({}, r, { pct: Math.round(r.value / max * 100) }))
     },
-    /** 今日待办（前 4 项为真实待办，后 2 项为示例） */
+    /** 今日待办（前 4 项为真实待办；后 2 项无接口 ⇒ 值为 null，界面显示 --） */
     todoItems() {
       return [
         { key: 'audit', label: '待审核注册', value: this.summary.pendingCount, color: '#1764f5', hint: '本部门累计提交 ' + this.summary.totalCount + ' 条', to: '/department/people/register-review' },
@@ -351,7 +326,7 @@ export default {
     weakPoints() {
       return []
     },
-    /** ⑥ 考核概览：真实考核在前，示例行补足 5 行 */
+    /** ⑥ 考核概览：只显示真实的考核环节（不再用示例行补足） */
     examRows() {
       const statusMap = {
         DRAFT: { text: '草稿', tone: '' },
