@@ -331,7 +331,11 @@ export default {
     fmtTime(v) { return v ? String(v).replace('T', ' ').slice(0, 16) : '—' },
     diffText(d) { return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[d] || '中等' },
     goBack() {
-      this.$router.push(this.$route.path.indexOf('/super') === 0 ? '/super/ops/banks' : '/department/study/banks').catch(() => {})
+      // ★ 2026-09-22 修 BUG：超管原来回 /super/ops/banks —— 该路由**不存在**，点了掉 404；
+      //   超管端的题库列表是 /super/ops/bank-admin。
+      const back = this.$route.path.indexOf('/super') === 0 ? '/super/ops/bank-admin' : '/department/study/banks'
+      if (!this.$router.resolve(back).route.matched.length) return
+      this.$router.push(back).catch(() => {})
     }
   }
 }

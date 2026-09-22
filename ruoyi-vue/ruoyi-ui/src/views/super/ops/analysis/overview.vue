@@ -28,67 +28,31 @@
     </div>
 
     <template v-else>
-      <!-- ==================== KPI 条（6） ==================== -->
+      <!-- ==================== KPI 条（6，全部可点进对应页面） ==================== -->
       <div v-loading="loading" class="s-kpis">
-        <div class="s-kpi">
-          <div class="lb"><i class="dot" style="background:#1764f5" />在培实习生</div>
-          <div class="vl">{{ num(ov.internTotal) }}<small>人</small></div>
-          <div class="ft">覆盖 {{ num(ov.deptCount) }} 个部门 · 已转正 {{ num(ov.formalTotal) }} 人</div>
-        </div>
-
-        <div class="s-kpi">
-          <div class="lb"><i class="dot" style="background:#12b76a" />学习达标率</div>
-          <div class="vl">{{ ov.learnRate === null ? '--' : ov.learnRate }}<small v-if="ov.learnRate !== null">%</small></div>
-          <div class="ft">
-            <template v-if="ov.learnRate === null">暂无学习记录</template>
-            <template v-else>
-              {{ num(ov.learnDone) }}/{{ num(ov.learnTotal) }} 条达标（门槛 {{ num(ov.learnThreshold) }}）· N={{ num(ov.learnPersons) }} 人
-            </template>
-          </div>
-        </div>
-
-        <div class="s-kpi">
-          <div class="lb"><i class="dot" style="background:#7a5af8" />模拟考核均分</div>
-          <div class="vl">{{ examKpi.practiceAvg === null ? '--' : examKpi.practiceAvg }}<small v-if="examKpi.practiceAvg !== null">/10</small></div>
-          <div class="ft" :class="{ warn: examKpi.practiceAvg !== null }">
-            {{ num(examKpi.practiceCount) }} 人次 · N={{ examKpi.practicePersons }} 人
-          </div>
-        </div>
-
-        <div class="s-kpi">
-          <div class="lb"><i class="dot" style="background:#f04438" />正式通过率</div>
-          <div class="vl">{{ examKpi.formalRate === null ? '--' : examKpi.formalRate }}<small v-if="examKpi.formalRate !== null">%</small></div>
-          <div class="ft">
-            已发布 {{ num(examKpi.formalPublished) }} 张 · 通过 {{ num(examKpi.formalPassed) }} / 参加 {{ num(examKpi.formalAttended) }} 人
-          </div>
-        </div>
-
-        <div class="s-kpi">
-          <div class="lb"><i class="dot" style="background:#f79009" />任务完成率</div>
-          <div class="vl">{{ ov.taskDoneRate === null ? '--' : ov.taskDoneRate }}<small v-if="ov.taskDoneRate !== null">%</small></div>
-          <div class="ft" :class="{ warn: num(ov.taskOverdue) > 0 }">
-            {{ num(ov.taskDone) }}/{{ num(ov.taskTotal) }} 已交 · 逾期 {{ num(ov.taskOverdue) }}
-          </div>
-        </div>
-
-        <div class="s-kpi">
-          <div class="lb"><i class="dot" style="background:#667085" />培养卡点</div>
-          <div class="vl">{{ num(ov.statusConflict) }}<small>人</small></div>
-          <div class="ft" :class="{ warn: num(ov.statusConflict) > 0 }">
-            角色与状态不一致 · 未分导师 {{ num(ov.mentorMissing) }} · 未签协议 {{ num(ov.protocolUnsigned) }}
-          </div>
+        <div
+          v-for="k in kpis"
+          :key="k.key"
+          class="s-kpi link"
+          :title="'查看：' + k.toLabel"
+          @click="go(k.path, k.query)"
+        >
+          <i class="jump el-icon-top-right" />
+          <div class="lb"><i class="dot" :style="{ background: k.color }" />{{ k.label }}</div>
+          <div class="vl">{{ k.value }}<small v-if="k.unit && k.value !== '--'">{{ k.unit }}</small></div>
+          <div class="ft" :class="{ warn: k.warn }">{{ k.foot }}</div>
         </div>
       </div>
 
       <!-- ==================== 部门对比矩阵 ==================== -->
       <div class="s-grid">
-        <section class="s-card s-c12">
+        <section id="sec-matrix" class="s-card s-c12" :class="{ 'focus-flash': focusKey === 'sec-matrix' }">
           <div class="s-card-h">
             <div class="tt">
               <span class="s-idx">阵</span>
               <h3>部门对比矩阵</h3>
             </div>
-            <span class="hint">行 = 部门 · 数值列带同列相对条 · 默认按综合健康度降序</span>
+            <span class="hint">行 = 部门 · 点任一行 → 部门详情 · 默认按综合健康度降序</span>
           </div>
 
           <div v-if="loading && !matrix.length" class="s-empty"><i class="el-icon-loading" /><span>加载中…</span></div>
@@ -189,12 +153,19 @@
 
       <!-- ==================== 学习进度对比 + 培养状态进度 ==================== -->
       <div class="s-grid">
-        <section class="s-card s-c5">
+        <section id="sec-learn" class="s-card s-c5" :class="{ 'focus-flash': focusKey === 'sec-learn' }">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx g">1</span><h3>部门学习进度对比</h3></div>
             <span class="hint">全公司均值 {{ ov.learnAvgProgress === null ? '--' : ov.learnAvgProgress + '%' }}</span>
           </div>
-          <div v-for="r in matrix" :key="r.deptId" class="s-hbar" :class="{ low: r.learnAvgProgress !== null && r.learnAvgProgress < num(ov.learnThreshold) }">
+          <div
+            v-for="r in matrix"
+            :key="r.deptId"
+            class="s-hbar link"
+            :class="{ low: r.learnAvgProgress !== null && r.learnAvgProgress < num(ov.learnThreshold) }"
+            :title="'查看 ' + r.deptName + ' 部门详情'"
+            @click="goDept(r.deptId)"
+          >
             <span class="nm" :title="r.deptName">{{ r.deptName }}</span>
             <span v-if="r.learnAvgProgress !== null" class="track"><i :style="{ width: clamp(r.learnAvgProgress) + '%' }" /></span>
             <span v-else class="track empty" />
@@ -205,14 +176,20 @@
           </p>
         </section>
 
-        <section class="s-card s-c7">
+        <section id="sec-stage" class="s-card s-c7" :class="{ 'focus-flash': focusKey === 'sec-stage' }">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx p">2</span><h3>培养状态进度</h3></div>
             <span class="hint">阶段判定：以角色为主、user_status 为辅</span>
           </div>
 
-          <div v-for="s in stages" :key="s.stage" class="fstep">
-            <span class="st">{{ s.label }}</span>
+          <div
+            v-for="s in stages"
+            :key="s.stage"
+            class="fstep link"
+            :title="'查看「' + s.label + '」阶段的人员明细'"
+            @click="goPeople"
+          >
+            <span class="st">{{ s.label }} <i class="el-icon-arrow-right drill" /></span>
             <span class="fw">
               <span class="fb" :style="{ width: funnelWidth(s.cnt), background: stageColor(s.stage) }">{{ s.cnt }} 人</span>
             </span>
@@ -231,13 +208,20 @@
           </div>
 
           <div v-if="gateRows.length" class="s-steps" style="margin-top:12px">
-            <div v-for="g in gateRows" :key="g.key" class="s-step">
+            <div
+              v-for="g in gateRows"
+              :key="g.key"
+              class="s-step link"
+              :title="'查看人员明细核对「' + g.label + '」'"
+              @click="goPeople"
+            >
               <!-- ⚠️ 勾选态必须"全员满足才算过"：只看 pass 真假会把 0/17 显示成通过 -->
               <span class="mark" :class="gateCls(g)">{{ gateMark(g) }}</span>
               <div class="txt">
                 <b>{{ g.label }} <data-tag :mock="g.mock" /></b>
                 <span>{{ g.pass }}/{{ g.total }} 人满足 · {{ g.text }}</span>
               </div>
+              <i class="jump el-icon-arrow-right" />
             </div>
           </div>
 
@@ -250,14 +234,20 @@
         </section>
       </div>
 
-      <!-- ==================== 模拟考核 + 知识点热力（示例） ==================== -->
+      <!-- ==================== 模拟考核 + 知识点热力（真数据） ==================== -->
       <div class="s-grid">
-        <section class="s-card s-c5">
+        <section id="sec-practice" class="s-card s-c5" :class="{ 'focus-flash': focusKey === 'sec-practice' }">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx">3</span><h3>部门模拟考核均分</h3></div>
-            <!-- 2026-09-22：该卡已接真数据，示例标已移除 -->
+            <span class="hint">点任一行 → 部门详情</span>
           </div>
-          <div v-for="r in matrix" :key="r.deptId" class="s-hbar">
+          <div
+            v-for="r in matrix"
+            :key="r.deptId"
+            class="s-hbar link"
+            :title="'查看 ' + r.deptName + ' 部门详情'"
+            @click="goDept(r.deptId)"
+          >
             <span class="nm" :title="r.deptName">{{ r.deptName }}</span>
             <span v-if="r.practiceAvg !== null" class="track"><i class="p" :style="{ width: clamp(r.practiceAvg * 10) + '%' }" /></span>
             <span v-else class="track empty" />
@@ -268,22 +258,27 @@
           </p>
         </section>
 
-        <section class="s-card s-c7">
+        <section id="sec-knowledge" class="s-card s-c7" :class="{ 'focus-flash': focusKey === 'sec-knowledge' }">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx o">4</span><h3>知识点掌握热力（部门 × 知识点）</h3></div>
-            <!-- 2026-09-22：该卡已接真数据，示例标已移除 -->
+            <span class="hint">点部门名或格子 → 该部门详情</span>
           </div>
 
           <div v-if="!heatRows.length" class="s-empty"><i class="el-icon-data-analysis" /><span>暂无逐题明细</span></div>
           <div v-for="h in heatRows" :key="h.deptId" class="heat-row">
-            <span class="heat-dept">{{ h.deptName }}</span>
+            <span
+              class="heat-dept link"
+              :title="'查看 ' + h.deptName + ' 部门详情'"
+              @click="goDept(h.deptId)"
+            >{{ h.deptName }}</span>
             <span class="heat-cells">
               <span
                 v-for="c in h.cells"
                 :key="c.point"
-                class="heat-cell"
+                class="heat-cell link"
                 :class="heatClass(c)"
-                :title="c.point + '：' + c.correct + '/' + c.items + ' 题次'"
+                :title="c.point + '：' + c.correct + '/' + c.items + ' 题次（点进 ' + h.deptName + ' 详情）'"
+                @click="goDept(h.deptId)"
               >{{ c.point }}<b>{{ c.correct }}/{{ c.items }}</b></span>
             </span>
           </div>
@@ -298,25 +293,34 @@
 
       <!-- ==================== 异常预警 ==================== -->
       <div class="s-grid">
-        <section class="s-card s-c12">
+        <section id="sec-alert" class="s-card s-c12" :class="{ 'focus-flash': focusKey === 'sec-alert' }">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx o">警</span><h3>异常预警</h3></div>
-            <span class="hint">阈值全部读 assessment_config · 共 {{ alerts.length }} 条</span>
+            <span class="hint">阈值全部读 assessment_config · 共 {{ alerts.length }} 条 · <b>点任一条直达处理位置</b></span>
           </div>
           <div v-if="!alerts.length" class="s-empty"><i class="el-icon-circle-check" /><span>当前无预警</span></div>
           <div v-else class="s-steps">
-            <div v-for="(a, i) in alerts" :key="a.key + i" class="s-step">
+            <div
+              v-for="(a, i) in alerts"
+              :key="a.key + i"
+              class="s-step link"
+              :title="a.link ? ('前往处理：' + a.link) : ''"
+              @click="goLink(a.link)"
+            >
               <span class="mark" :class="{ now: a.level === 'HIGH' }">{{ a.level === 'HIGH' ? '!' : '·' }}</span>
               <div class="txt">
                 <b>{{ a.title }}</b>
                 <span>{{ a.detail }}</span>
               </div>
               <span class="s-badge" :class="a.level === 'HIGH' ? 'red' : 'warn'">{{ a.level === 'HIGH' ? '高' : '中' }}</span>
+              <i class="jump el-icon-arrow-right" />
             </div>
           </div>
           <p class="s-note">
             预警口径全部落在 <code>assessment_config</code>（部门完成率下限、逾期小时数等），
-            <b>改配置即改判定，不在代码里硬编码阈值</b>。
+            <b>改配置即改判定，不在代码里硬编码阈值</b>。<br />
+            ★ 每条预警都带后端下发的 <code>link</code>：部门类直达该部门详情，其余带 <code>?focus=</code>
+            锚点回到本页对应卡片并高亮。
           </p>
         </section>
       </div>
@@ -349,7 +353,9 @@ export default {
       rawMatrix: [],
       knowledgeMatrix: [],
       stages: [],
-      stageRows: []
+      stageRows: [],
+      /** ★ ?focus= 锚点：用**响应式**变量驱动高亮（手写 classList 会被 Vue 重渲染覆写） */
+      focusKey: ''
     }
   },
   computed: {
@@ -396,6 +402,60 @@ export default {
       }
     },
 
+    /**
+     * KPI 条（6）—— 每张卡都带跳转目标，点进去就是对应详情页。
+     * ★ 值全部取自上面同源的 ov / examKpi，不在模板里另算，避免两处不一致。
+     */
+    kpis() {
+      const ov = this.ov
+      const ek = this.examKpi
+      const nil = v => v === null || v === undefined
+      return [
+        {
+          key: 'intern', label: '在培实习生', color: '#1764f5',
+          value: this.num(ov.internTotal), unit: '人',
+          foot: '覆盖 ' + this.num(ov.deptCount) + ' 个部门 · 已转正 ' + this.num(ov.formalTotal) + ' 人',
+          path: '/super/org/accounts', query: { tab: 'people' }, toLabel: '人员与账号 · 人员列表'
+        },
+        {
+          key: 'learn', label: '学习达标率', color: '#12b76a',
+          value: nil(ov.learnRate) ? '--' : ov.learnRate, unit: '%',
+          foot: nil(ov.learnRate)
+            ? '暂无学习记录'
+            : this.num(ov.learnDone) + '/' + this.num(ov.learnTotal) + ' 条达标（门槛 ' + this.num(ov.learnThreshold) + '）· N=' + this.num(ov.learnPersons) + ' 人',
+          path: '/super/ops/courses', toLabel: '课程与题库总览'
+        },
+        {
+          key: 'practice', label: '模拟考核均分', color: '#7a5af8',
+          value: ek.practiceAvg === null ? '--' : ek.practiceAvg, unit: '/10',
+          foot: this.num(ek.practiceCount) + ' 人次 · N=' + ek.practicePersons + ' 人',
+          warn: ek.practiceAvg !== null,
+          path: '/super/ops/prep', toLabel: '模拟备考管理'
+        },
+        {
+          key: 'formal', label: '正式通过率', color: '#f04438',
+          value: ek.formalRate === null ? '--' : ek.formalRate, unit: '%',
+          foot: '已发布 ' + this.num(ek.formalPublished) + ' 张 · 通过 ' + this.num(ek.formalPassed) + ' / 参加 ' + this.num(ek.formalAttended) + ' 人',
+          hasFormal: ek.formalRate !== null,
+          path: '/super/ops/exams', toLabel: '考核与成绩'
+        },
+        {
+          key: 'task', label: '任务完成率', color: '#f79009',
+          value: nil(ov.taskDoneRate) ? '--' : ov.taskDoneRate, unit: '%',
+          foot: this.num(ov.taskDone) + '/' + this.num(ov.taskTotal) + ' 已交 · 逾期 ' + this.num(ov.taskOverdue),
+          warn: this.num(ov.taskOverdue) > 0,
+          path: '/super/todo', toLabel: '督办看板'
+        },
+        {
+          key: 'block', label: '培养卡点', color: '#667085',
+          value: this.num(ov.statusConflict), unit: '人',
+          foot: '角色与状态不一致 · 未分导师 ' + this.num(ov.mentorMissing) + ' · 未签协议 ' + this.num(ov.protocolUnsigned),
+          warn: this.num(ov.statusConflict) > 0,
+          path: '/super/org/accounts', query: { tab: 'people' }, toLabel: '人员与账号 · 人员列表'
+        }
+      ]
+    },
+
     /** 知识点热力（真数据：部门 × 章节矩阵，来自 /knowledge-matrix） */
     heatRows() {
       const byDept = {}
@@ -427,7 +487,7 @@ export default {
       return rows
     },
 
-    /** 转正 gate 逐条勾选（真数据 4 条 + 示例 1 条） */
+    /** 转正 gate 逐条勾选（5 条**全部为真数据**；「部门终审」因 promotion_application 无表 ⇒ 恒 0 人） */
     gateRows() {
       const total = this.stageRows.length
       if (!total) return []
@@ -461,6 +521,12 @@ export default {
   },
   created() {
     this.loadAll()
+  },
+  watch: {
+    /** 带 ?focus= 从预警点进来时，数据到位后再锚点定位 */
+    '$route.query.focus'() {
+      this.applyFocus()
+    }
   },
   methods: {
     num(v) {
@@ -500,11 +566,52 @@ export default {
     stageColor(stage) {
       return { WAIT_AUDIT: '#98a2b3', PRE_TRAINEE: '#1764f5', PENDING_PROMOTE: '#f79009', FORMAL_TRAINEE: '#12b76a' }[stage] || '#667085'
     },
-    /** 下钻到部门详情（L1）。目标路由不存在时不动 —— 不给死链 */
-    goDept(deptId) {
-      const path = '/super/ops/analysis/dept/' + deptId
+    /**
+     * 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律）。
+     */
+    go(path, query) {
+      if (!path) return
       if (!this.$router.resolve(path).route.matched.length) return
-      this.$router.push(path).catch(() => {})
+      this.$router.push(query ? { path, query } : path).catch(() => {})
+    },
+    /** 后端的预警 link 可能是「/x/y」或「/x/y?focus=zzz」，这里拆开跳 */
+    goLink(link) {
+      if (!link) return
+      const i = link.indexOf('?')
+      if (i < 0) return this.go(link)
+      const query = {}
+      link.slice(i + 1).split('&').filter(Boolean).forEach(kv => {
+        const parts = kv.split('=')
+        query[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1] || '')
+      })
+      this.go(link.slice(0, i), query)
+    },
+    /** 人员类下钻统一落「人员与账号 · 人员列表」（该页只支持 ?tab=people|register） */
+    goPeople() {
+      this.go('/super/org/accounts', { tab: 'people' })
+    },
+    /** 下钻到部门详情（L1） */
+    goDept(deptId) {
+      this.go('/super/ops/analysis/dept/' + deptId)
+    },
+    /**
+     * ★ 实现后端约定的 `?focus=` 锚点：从预警点进来后滚到对应卡片并短暂高亮。
+     * 后端当前取值 task / stage（其余按 sec-&lt;key&gt; 兜底）。
+     */
+    focusIdOf(key) {
+      return ({ task: 'sec-stage', stage: 'sec-stage' })[key] || ('sec-' + key)
+    },
+    applyFocus() {
+      const key = this.$route.query.focus
+      if (!key) return
+      const id = this.focusIdOf(key)
+      this.focusKey = id
+      this.$nextTick(() => {
+        const el = document.getElementById(id)
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+      window.clearTimeout(this._focusTimer)
+      this._focusTimer = window.setTimeout(() => { this.focusKey = '' }, 3000)
     },
     funnelWidth(cnt) {
       const max = Math.max.apply(null, this.stages.map(s => Number(s.cnt) || 0).concat([1]))
@@ -512,9 +619,8 @@ export default {
     },
 
     /**
-     * 把后端一行真数据 + 示例考核数据合成展示行。
-     * ★ 考核类字段自 2026-09-22 起为后端真值，直接取 r.xxx（不再走 pick(real, mock)）
-     *   **本方法与模板都不需要改**。
+     * 把后端一行真数据合成展示行（保留 `{ value, mock }` 形状以兼容模板）。
+     * ★ 考核类字段自 2026-09-22 起为后端真值，直接取 r.xxx —— **已无任何示例兜底**。
      */
     decorate(r) {
       // 2026-09-22：考核类已由后端提供真值，不再 fallback 示例数据（保持 {value, mock} 形状）
@@ -596,7 +702,10 @@ export default {
         this.knowledgeMatrix = []
         this.stages = []
         this.stageRows = []
-      }).finally(() => { this.loading = false })
+      }).finally(() => {
+        this.loading = false
+        this.applyFocus()
+      })
     }
   }
 }
@@ -721,4 +830,48 @@ export default {
 .h3 { color: #1a7a58; background: $green-soft; }
 /* 注意：不要用 #98a2b3 配浅灰底（对比度太低，看着像空白） */
 .hn { color: #475467; background: #f2f4f7; }
+
+/* ==================== 2026-09-22：全卡片可点（统一 affordance） ====================
+   ★ 只加视觉与鼠标态，不改任何数据结构；跳转一律走 go() / goDept() / goPeople() / goLink()，
+     目标路由不存在时不动 —— 不给死链（项目铁律）。 */
+.link { position: relative; cursor: pointer; transition: background .15s, box-shadow .15s, border-color .15s; }
+.link:hover { background: #f7fbff; }
+
+/* KPI 卡：hover 抬一层 + 右上角出现跳转箭头 */
+.s-kpi.link { position: relative; }
+.s-kpi.link:hover { border-color: #cfe0fb; box-shadow: 0 2px 10px rgba(23, 100, 245, .12); }
+.s-kpi .jump,
+.s-step .jump {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: #98a2b3;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity .15s, color .15s;
+}
+.s-kpi.link:hover .jump,
+.s-step.link:hover .jump { color: $blue; opacity: 1; }
+
+/* 横条行（学习进度 / 模拟均分）与漏斗阶段 */
+.s-hbar.link:hover { background: #f7fbff; border-radius: 6px; }
+.fstep.link:hover { background: #f7fbff; border-radius: 6px; }
+.fstep.link .drill { color: $blue; font-size: 11px; opacity: 0; }
+.fstep.link:hover .drill { opacity: 1; }
+
+/* 热力图：部门名与格子（文字类 hover 用下划线，不要铺底色） */
+.heat-dept.link:hover { background: transparent; text-decoration: underline; text-underline-offset: 2px; }
+.heat-cell.link { transition: filter .15s; }
+.heat-cell.link:hover { filter: brightness(1.05); text-decoration: underline; text-underline-offset: 2px; }
+
+/* 预警行 / gate 行：标题变蓝，明确"可点进去" */
+.s-step.link .txt b { transition: color .15s; }
+.s-step.link:hover .txt b { color: $blue; }
+
+/* ?focus= 锚点：滚过去后闪两下，明确「就是这里」 */
+@keyframes focusFlash {
+  0% { box-shadow: 0 0 0 0 rgba(23, 100, 245, .40); }
+  100% { box-shadow: 0 0 0 14px rgba(23, 100, 245, 0); }
+}
+.focus-flash { animation: focusFlash 1.2s ease-out 2; border-radius: 10px; }
 </style>

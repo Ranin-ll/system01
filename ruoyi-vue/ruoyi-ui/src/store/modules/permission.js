@@ -155,7 +155,10 @@ function buildSuperSidebar(dbRoutes = []) {
     absGroup('/super/org', '组织与人员', 'peoples',
       ['org/organization', 'org/roles', 'org/accounts']),
     group('/super/ops', '培养运营', 'education',
-      ['ops/analysis', 'ops/courses', 'ops/course-admin', 'ops/bank-admin', 'ops/psubject-admin', 'ops/exams', 'ops/prep']),
+      // ★ 2026-09-22：'ops/psubject-admin'（实操题库）已下线 —— 题库管理内点实操题库即可进入维护
+      // ★ 顺序即侧栏顺序（group() 用 .map 保序，不走排序）：
+      //   备考在前、考核在后 —— 先配置好「模拟备考管理」的套卷，再进「考核与成绩」看结果，符合使用动线。
+      ['ops/analysis', 'ops/courses', 'ops/course-admin', 'ops/bank-admin', 'ops/prep', 'ops/exams']),
     // 「任务与通知」→「通知与督办」：多了「督办看板」，单项目录升级为分组。
     // 两个子项来自 notify / todo 两个前缀 → 必须用 absGroup（group 取末段会拼错）。
     absGroup('/super/notify', '通知与督办', 'message', ['notify', 'todo']),
@@ -240,10 +243,19 @@ function buildInternSidebar(roles = []) {
     ? [{
         path: '/assessment/intern/learning',
         component: Layout,
-        alwaysShow: true,
-        redirect: '/assessment/intern/learning/' + children[0].path,
-        meta: { title: '学习与考核', icon: 'education' },
-        children
+        // ★ 2026-09-22：去掉二级下拉 —— 点「学习与考核」直接进在线学习首页。
+        //   做法与下面「任务与通知」完全一致：**只留一个 path 为空串的子项**，
+        //   SidebarItem 的 hasOneShowingChild 会把它渲染成一条指向父级的单链接
+        //   （resolve('/assessment/intern/learning', '') 正好回到父路径）。
+        //   ⚠️ 必须**同时去掉 alwaysShow**，否则它会走「可展开目录」分支、下拉又回来了。
+        //   路由本身在 router/index.js 里没动（`/assessment/intern/learning` 已 redirect 到
+        //   `/assessment/intern/learning/courses`），页签栏由 shell.vue + INTERN_TABS 独立渲染，
+        //   所以去下拉**不影响**跳转与页签，只是侧栏少一层。
+        children: [{
+          path: '',
+          component: () => import('@/views/assessment/learning/shell'),
+          meta: { title: '学习与考核', icon: 'education' }
+        }]
       }]
     : []
 

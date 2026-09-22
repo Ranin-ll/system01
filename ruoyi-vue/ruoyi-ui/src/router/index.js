@@ -505,12 +505,21 @@ export const dynamicRoutes = [
         meta: { title: '题库详情', activeMenu: '/super/ops/bank-admin' }
       },
       {
-        // 超管「可写」模拟实操题：该模块本就支持超管（Service 返回 null + 权限全套 + 页面文案已写「全局管理」），
-        // 此前缺的只是超管端入口。
+        // ★ 2026-09-22 新增：实操题库详情（与部门端共用同一组件，含实操题 增/删/改/停用）。
+        //   必须挂在 /super 下 —— 原先「题库管理」点实操题库时把路径硬编码成
+        //   /department/study/practice-bank-detail/，超管点了一律 404（因为超管访问 /department/** 会掉 404）。
+        path: 'ops/practice-bank-detail/:bankId',
+        component: () => import('@/views/business/practiceBank/detail'),
+        name: 'SuperPracticeBankDetail',
+        hidden: true,
+        meta: { title: '实操题库', activeMenu: '/super/ops/bank-admin' }
+      },
+      {
+        // ★ 2026-09-22：独立「实操题库」页已下线 —— 能力被「题库管理 → 点实操题库 → 实操题库详情页」
+        //   完整覆盖（新增/编辑/停用/删除实操题），且按题库归属组织更合理，故侧栏不再单列。
+        //   路由**保留并重定向**，避免旧书签 / 旧链接掉 404（项目铁律：弃用页别删路由，改 redirect 保底）。
         path: 'ops/psubject-admin',
-        component: () => import('@/views/business/practiceSubject/index'),
-        name: 'SuperPsubjectAdmin',
-        meta: { title: '实操题库', icon: 'form', activeMenu: '/super/ops/psubject-admin' }
+        redirect: () => ({ path: '/super/ops/bank-admin' })
       },
       {
         // 「考核与成绩」L0：总览（两个视角）+ KPI，下钻到 /exam-config/{id}

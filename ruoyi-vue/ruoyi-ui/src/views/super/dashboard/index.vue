@@ -14,7 +14,14 @@
 
     <!-- 6 个全局 KPI -->
     <div class="s-kpis">
-      <div v-for="k in kpis" :key="k.label" class="s-kpi">
+      <div
+        v-for="k in kpis"
+        :key="k.label"
+        class="s-kpi link"
+        :title="'前往：' + k.toLabel"
+        @click="go(k.path, k.query)"
+      >
+        <i class="jump el-icon-top-right" />
         <div class="lb"><i class="dot" :style="{ background: k.color }" />{{ k.label }}</div>
         <div class="vl">{{ k.value }}<small v-if="k.unit">{{ k.unit }}</small></div>
         <div class="ft" :class="k.tone">{{ k.hint }}</div>
@@ -26,10 +33,16 @@
       <section class="s-card s-c7">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx">1</span><h3>部门分布 · 在培实习生</h3></div>
-          <span class="hint">数据来源：register_application 实时聚合</span>
+          <span class="hint">数据来源：register_application 实时聚合 · <b>点柱子 → 该部门详情</b></span>
         </div>
         <div v-if="deptStats.length" class="s-vchart">
-          <div v-for="d in deptStats" :key="d.deptId" class="s-vcol">
+          <div
+            v-for="d in deptStats"
+            :key="d.deptId"
+            class="s-vcol link"
+            :title="'查看 ' + d.name + ' 详情'"
+            @click="goDept(d.deptId)"
+          >
             <span class="bar" :class="{ hi: d.count === maxDeptCount }" :style="{ height: barHeight(d.count) }">{{ d.count }}</span>
             <span class="lb">{{ d.shortName }}</span>
           </div>
@@ -48,7 +61,7 @@
           <table class="s-tbl">
             <thead><tr><th>考核名称</th><th style="width:74px">部门</th><th style="width:62px">环节</th><th style="width:74px">状态</th></tr></thead>
             <tbody>
-              <tr v-for="e in exams" :key="e.id">
+              <tr v-for="e in exams" :key="e.id" class="row-link" title="查看：考核与成绩" @click="go('/super/ops/exams')">
                 <td class="nm">{{ e.examName }}</td>
                 <td>{{ e.deptName || '—' }}</td>
                 <td>{{ e.examType === 'PRACTICAL' ? '实操' : '理论' }}</td>
@@ -71,7 +84,7 @@
           <table class="s-tbl">
             <thead><tr><th>题库</th><th style="width:70px">类型</th><th style="width:64px">题量</th><th style="width:70px">状态</th></tr></thead>
             <tbody>
-              <tr v-for="b in banks" :key="b.id">
+              <tr v-for="b in banks" :key="b.id" class="row-link" :title="'查看题库：' + b.bankName" @click="goBank(b.id)">
                 <td class="nm">{{ b.bankName }}</td>
                 <td>{{ b.bankType === 'FORMAL' ? '正式' : '模拟' }}</td>
                 <td class="num">{{ b.questionCount || 0 }}</td>
@@ -91,25 +104,32 @@
           <span class="s-badge" :class="alerts.length ? 'warn' : 'ok'">{{ alerts.length }} 项</span>
         </div>
         <div v-if="alerts.length" class="s-steps">
-          <div v-for="(a, i) in alerts" :key="i" class="s-step now">
+          <div
+            v-for="(a, i) in alerts"
+            :key="i"
+            class="s-step now link"
+            :title="a.link ? ('前往处理：' + a.link) : ''"
+            @click="goLink(a.link)"
+          >
             <span class="mark">!</span>
             <div class="txt"><b>{{ a.title }}</b><span>{{ a.desc }}</span></div>
+            <i class="jump el-icon-arrow-right" />
           </div>
         </div>
         <div v-else class="s-empty"><i class="el-icon-circle-check" /><span>暂无异常</span></div>
-        <p class="s-note">当前规则：空题库、草稿未发布考核、待审核报名堆积。<b>部门完成率 / 逾期未提交</b> 规则需跨模块聚合接口，属 P3 排期。</p>
+        <p class="s-note"><b>点任一条可直达处理位置</b>（空库 → 题库详情 / 草稿 → 考核与成绩 / 堆积 → 注册审核）。当前规则：空题库、草稿未发布考核、待审核报名堆积。<b>部门完成率 / 逾期未提交</b> 规则需跨模块聚合接口，属 P3 排期。</p>
       </section>
 
       <!-- 最近动态 -->
       <section class="s-card s-c12">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx p">5</span><h3>最近动态（操作日志）</h3></div>
-          <span class="hint">sys_oper_log · 共 {{ operTotal }} 条</span>
+          <span class="hint">sys_oper_log · 共 {{ operTotal }} 条 · <b>点任一行 → 审计与合规</b></span>
         </div>
         <table v-if="operLogs.length" class="s-tbl">
           <thead><tr><th style="width:170px">时间</th><th style="width:150px">操作人</th><th style="width:150px">动作</th><th>请求</th><th style="width:80px">结果</th></tr></thead>
           <tbody>
-            <tr v-for="(l, i) in operLogs" :key="i">
+            <tr v-for="(l, i) in operLogs" :key="i" class="row-link" title="查看：审计与合规" @click="go('/super/audit')">
               <td>{{ l.operTime }}</td>
               <td>{{ l.operName }}</td>
               <td>{{ l.title }}</td>
@@ -213,29 +233,35 @@ export default {
         {
           label: '在培实习生', value: this.passedInterns.length, unit: '人', color: '#1764f5',
           hint: this.waitingInterns.length ? ('另有 ' + this.waitingInterns.length + ' 人待审核') : '无待审核报名',
-          tone: this.waitingInterns.length ? 'warn' : ''
+          tone: this.waitingInterns.length ? 'warn' : '',
+          path: '/super/org/accounts', query: { tab: 'people' }, toLabel: '人员与账号 · 人员列表'
         },
         {
           label: '业务部门', value: this.trainDepts.length, unit: '个', color: '#12b76a',
-          hint: this.positions.length + ' 个岗位一一绑定', tone: ''
+          hint: this.positions.length + ' 个岗位一一绑定', tone: '',
+          path: '/super/org/organization', toLabel: '组织与岗位管理'
         },
         {
           label: '已发布课程', value: this.courses.filter(c => c.status === 'PUBLISHED').length, unit: '门', color: '#7a5af8',
-          hint: '跨部门合计 ' + this.courses.length + ' 门', tone: ''
+          hint: '跨部门合计 ' + this.courses.length + ' 门', tone: '',
+          path: '/super/ops/courses', toLabel: '课程与题库总览'
         },
         {
           label: '正式考核场次', value: this.exams.length, unit: '场', color: '#f79009',
           hint: this.draftExams.length ? (this.draftExams.length + ' 场仍为草稿') : '无草稿待发布',
-          tone: this.draftExams.length ? 'warn' : ''
+          tone: this.draftExams.length ? 'warn' : '',
+          path: '/super/ops/exams', toLabel: '考核与成绩'
         },
         {
           label: '题库总题量', value: this.banks.reduce((sum, b) => sum + (b.questionCount || 0), 0), unit: '题', color: '#0e7490',
           hint: this.emptyBanks.length ? (this.emptyBanks.length + ' 个空库需补充') : '题库均可用',
-          tone: this.emptyBanks.length ? 'warn' : ''
+          tone: this.emptyBanks.length ? 'warn' : '',
+          path: '/super/ops/bank-admin', toLabel: '题库管理'
         },
         {
           label: '操作日志', value: this.operTotal, unit: '条', color: '#667085',
-          hint: '全局操作留痕（含部门管理员）', tone: ''
+          hint: '全局操作留痕（含部门管理员）', tone: '',
+          path: '/super/audit', toLabel: '审计与合规'
         }
       ]
     },
@@ -243,13 +269,13 @@ export default {
       const list = []
       const pendingLimit = Number(this.ruleConfig.alertRegisterPending) || 3
       this.emptyBanks.forEach(b => {
-        list.push({ title: b.bankName + ' 为空库', desc: '题量 0，无法组卷；请通知对应部门管理员导入题目' })
+        list.push({ title: b.bankName + ' 为空库', desc: '题量 0，无法组卷；请通知对应部门管理员导入题目', link: '/super/ops/bank-detail/' + b.id })
       })
       this.draftExams.forEach(e => {
-        list.push({ title: '考核仍为草稿：' + e.examName, desc: (e.deptName || '未知部门') + ' · 未发布前实习生在正式考核页看不到该场次' })
+        list.push({ title: '考核仍为草稿：' + e.examName, desc: (e.deptName || '未知部门') + ' · 未发布前实习生在正式考核页看不到该场次', link: '/super/ops/exams' })
       })
       if (this.waitingInterns.length > pendingLimit) {
-        list.push({ title: '待审核报名 ' + this.waitingInterns.length + ' 条', desc: '超过阈值 ' + pendingLimit + ' 条（可在「规则与配置」调整）；建议提醒部门管理员处理' })
+        list.push({ title: '待审核报名 ' + this.waitingInterns.length + ' 条', desc: '超过阈值 ' + pendingLimit + ' 条（可在「规则与配置」调整）；建议提醒部门管理员处理', link: '/super/org/accounts?tab=register' })
       }
       return list.slice(0, 6)
     }
@@ -258,6 +284,32 @@ export default {
     this.loadAll()
   },
   methods: {
+    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    go(path, query) {
+      if (!path) return
+      if (!this.$router.resolve(path).route.matched.length) return
+      this.$router.push(query ? { path, query } : path).catch(() => {})
+    },
+    /** 后端的预警 link 可能是「/x/y」或「/x/y?a=b」，这里拆开跳 */
+    goLink(link) {
+      if (!link) return
+      const i = link.indexOf('?')
+      if (i < 0) return this.go(link)
+      const query = {}
+      link.slice(i + 1).split('&').filter(Boolean).forEach(kv => {
+        const parts = kv.split('=')
+        query[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1] || '')
+      })
+      this.go(link.slice(0, i), query)
+    },
+    /** 部门柱 → L1 部门详情 */
+    goDept(deptId) {
+      this.go('/super/ops/analysis/dept/' + deptId)
+    },
+    /** 题库行 → 题库详情（带题目列表） */
+    goBank(bankId) {
+      this.go('/super/ops/bank-detail/' + bankId)
+    },
     loadAll() {
       this.loading = true
       Promise.all([this.loadDepts(), this.loadPositions(), this.loadInterns(), this.loadExams(), this.loadCourses(), this.loadBanks(), this.loadLogs(), this.loadRuleConfig()])
@@ -306,4 +358,29 @@ export default {
 
 <style lang="scss" scoped>
 @import '~@/assets/styles/super-module.scss';
+
+/* ==================== 2026-09-22：全卡片可点（与培养分析看板统一 affordance） ====================
+   ★ 只加视觉与鼠标态；跳转走 go() / goLink() / goDept() / goBank()，目标路由不存在时不动。 */
+.link { position: relative; cursor: pointer; transition: background .15s, box-shadow .15s, border-color .15s; }
+.link:hover { background: #f7fbff; }
+.s-kpi.link:hover { border-color: #cfe0fb; box-shadow: 0 2px 10px rgba(23, 100, 245, .12); }
+.s-kpi .jump,
+.s-step .jump {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: #98a2b3;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity .15s, color .15s;
+}
+.s-kpi.link:hover .jump,
+.s-step.link:hover .jump { color: #1764f5; opacity: 1; }
+.s-step.link .txt b { transition: color .15s; }
+.s-step.link:hover .txt b { color: #1764f5; }
+/* 柱状图的柱子：hover 抬升 + 标签变蓝 */
+.s-vcol.link:hover .bar { filter: brightness(1.08); }
+.s-vcol.link:hover .lb { color: #1764f5; }
+.s-tbl tbody tr.row-link { cursor: pointer; }
+.s-tbl tbody tr.row-link:hover { background: #f7fbff; }
 </style>

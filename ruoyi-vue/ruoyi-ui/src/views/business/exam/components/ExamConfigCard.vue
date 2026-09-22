@@ -10,7 +10,24 @@
         <span v-if="isSuperAdmin" class="dm-hint">{{ exam.deptName || '未设置部门' }}</span>
       </div>
       <div class="dm-actions">
-        <el-button v-hasPermi="['business:bank:edit']" size="mini" @click="$emit('edit', exam)">编辑</el-button>
+        <!-- ★ 2026-09-22 配置编排：未发布 = 可改 / 可存 / 可发布；已发布 = 全锁，只能查看·停用·删除 -->
+        <el-button v-if="!configLocked" v-hasPermi="['business:bank:edit']" size="mini" @click="$emit('edit', exam)">编辑</el-button>
+        <el-button
+          v-if="!configLocked"
+          v-hasPermi="['business:bank:edit']"
+          size="mini"
+          :loading="savingAll"
+          @click="saveAll"
+        >保存配置</el-button>
+        <el-button
+          v-if="exam.status === 'DRAFT'"
+          v-hasPermi="['business:bank:edit']"
+          size="mini"
+          type="primary"
+          :loading="publishing"
+          title="发布前请先点「保存配置」；发布后配置将锁定"
+          @click="handlePublish"
+        >发布</el-button>
         <el-button
           v-if="exam.status !== 'DRAFT'"
           v-hasPermi="['business:bank:list']"
@@ -18,14 +35,6 @@
           :icon="isPractice ? 'el-icon-edit-outline' : 'el-icon-view'"
           @click="$emit('grade', exam)"
         >{{ isPractice ? '批改答卷' : '查看答卷' }}</el-button>
-        <el-button
-          v-if="exam.status === 'DRAFT'"
-          v-hasPermi="['business:bank:edit']"
-          size="mini"
-          type="primary"
-          :loading="publishing"
-          @click="handlePublish"
-        >保存发布</el-button>
         <el-button
           v-if="exam.status === 'PUBLISHED' || exam.status === 'GRADING'"
           v-hasPermi="['business:bank:edit']"
@@ -48,6 +57,23 @@
           @click="$emit('delete', exam)"
         >删除</el-button>
       </div>
+    </div>
+
+    <!-- ★ 已发布 → 配置只读（与后端 saveConfig / updateExam 的守卫同口径） -->
+    <div v-if="configLocked" class="dm-note lock">
+      <i class="el-icon-lock" />
+      <span>
+        <b>配置已锁定</b>：{{ statusLabel }} 的正式考核不能再改<b>基本信息 / 组卷 / 题目 / 分值 / 发布设置</b>，
+        本页仅可查看。确需修改请先「<b>停用</b>」（停用后恢复可编辑），或<b>删除本场考核后重新发布</b>。
+      </span>
+    </div>
+    <!-- ★ 未发布 → 明确「先保存、再发布」的两步走 -->
+    <div v-else class="dm-note flow">
+      <i class="el-icon-info" />
+      <span>
+        <b>两步走</b>：① 改完所有配置（基本信息 · 组卷或题目清单 · 发布设置）后，点右上角「<b>保存配置</b>」统一落库；
+        ② 确认无误再点「<b>发布</b>」。<b>发布后配置即锁定</b>，只能查看或删除后重新发布。
+      </span>
     </div>
 
     <div class="dm-grid">
@@ -89,8 +115,9 @@
         </div>
         <div class="field-tip">
           <template v-if="canEditBase">
-            <el-button size="mini" type="primary" plain :loading="baseSaving" :disabled="!baseDirty" @click="saveBase">保存基本信息</el-button>
-            <span class="f-hint" :class="{ bad: baseScoreLevel === 'danger' }">{{ baseScoreHint }}</span>
+            <span class="f-hint" :class="{ bad: baseScoreLevel === 'danger' }">
+              {{ baseScoreHint }} · 改完请点右上角「<b>保存配置</b>」统一落库
+            </span>
           </template>
           <span v-else class="f-hint lock"><i class="el-icon-lock" /> 已发布／批改中的正式考核不能改基本信息，可先「停用」再改</span>
         </div>
@@ -112,7 +139,7 @@
       </div>
 
       <!-- ===== 右：内容（理论＝组卷题库 / 实操＝题目清单） ===== -->
-      <div class="dm-table-wrap">
+      <div class="dm-table-wrap" :class="{ locked: configLocked }">
         <!-- 理论：多题库 × 题型配额 -->
         <template v-if="!isPractice">
           <div class="dm-sub-head">
@@ -128,7 +155,6 @@
                 />
               </el-select>
               <el-button size="mini" :loading="drawing" @click="tryDraw">试抽一套</el-button>
-              <el-button size="mini" :loading="configSaving" type="primary" plain @click="saveConfig">保存配置</el-button>
             </div>
           </div>
 
@@ -205,7 +231,6 @@
               <!-- ★ 实操题来源统一到题库：从「实操题库」勾选带入（与实习生端「模拟实操题」页同一批题） -->
               <el-button v-hasPermi="['business:bank:edit']" size="mini" icon="el-icon-folder-add" @click="pickerVisible = true">从实操题库选题</el-button>
               <el-button v-hasPermi="['business:bank:edit']" size="mini" :icon="editingSubjects ? 'el-icon-arrow-up' : 'el-icon-edit'" @click="toggleSubjectEditor">{{ editingSubjects ? '收起编辑' : '编辑题目' }}</el-button>
-              <el-button v-if="editingSubjects" size="mini" type="primary" plain :loading="configSaving" @click="saveConfig">保存题目</el-button>
             </div>
           </div>
 
@@ -286,7 +311,7 @@
     </div>
 
     <!-- ===== 发布设置（本条考核独立） ===== -->
-    <div class="stage-publish">
+    <div class="stage-publish" :class="{ locked: configLocked }">
       <div class="dm-sub-head">
         <h4>{{ typeLabel }}发布设置</h4>
       </div>
@@ -321,7 +346,6 @@
               <el-radio-button label="ASSIGNED">指定人员</el-radio-button>
             </el-radio-group>
             <span v-if="assignMode === 'ASSIGNED'" class="ap-scope">可选范围：{{ scopeLabel }}</span>
-            <el-button class="ap-save" size="mini" :loading="configSaving" @click="saveConfig">保存设置</el-button>
           </div>
 
           <!-- 指定人员：按范围拉花名册，复选框勾选 -->
@@ -402,6 +426,8 @@ export default {
       addBankId: null,
       drawing: false,
       configSaving: false,
+      /** 统一保存（基本信息 + 组卷/题目 + 发布设置）的 loading */
+      savingAll: false,
       publishing: false,
       publishMode: 'NOW',
       timeRange: [],
@@ -443,6 +469,17 @@ export default {
     },
     statusTag() {
       return { DRAFT: 'info', PUBLISHED: 'success', GRADING: 'warning', DISABLED: 'danger' }[this.exam.status] || 'info'
+    },
+    /**
+     * ★★ 2026-09-22 配置锁定：正式考核一旦「已发布 / 待批改」，整卡配置只读。
+     * 与后端 `updateExam`（基本信息）+ `saveConfig`（组卷/题目/发布设置）的守卫**同口径**：
+     * 只有 DRAFT（待发布）与 DISABLED（已停用）可编辑 —— 停用是既有的「解锁」出口。
+     * 模拟考核（PRACTICE）不计成绩、无答卷归属，保持随时可改。
+     */
+    configLocked() {
+      const e = this.exam || {}
+      if (e.examMode === 'PRACTICE') return false
+      return e.status !== 'DRAFT' && e.status !== 'DISABLED'
     },
     // === 2026-09-21：基本参数（就地编辑）===
     /** 已发布 / 批改中的正式考核不允许改基本信息（与后端 updateExam 的约束一致） */
@@ -881,20 +918,16 @@ export default {
       }
       return payload
     },
-    /** 保存基本参数（名称 / 时长 / 通过线）—— 与「编辑考核」弹窗同一接口同一口径；
+    /** 基本信息载荷（与「编辑考核」弹窗同一接口同一口径）；
      *  不传 subjectItems：后端只在显式传时才覆写实操题目，避免误清空。 */
-    saveBase() {
-      const name = String(this.baseForm.examName || '').trim()
-      if (!name) { this.$modal.msgWarning('请填写考核名称'); return }
-      const pass = Number(this.baseForm.passLine) || 0
-      if (pass < 0) { this.$modal.msgWarning('通过线不能为负数'); return }
+    buildBasePayload() {
       const payload = {
         id: this.exam.id,
         deptId: this.exam.deptId,
-        examName: name,
+        examName: String(this.baseForm.examName || '').trim(),
         examMode: this.exam.examMode,
         examType: this.exam.examType,
-        passLine: pass,
+        passLine: Number(this.baseForm.passLine) || 0,
         duration: Number(this.baseForm.duration) || 0,
         description: String(this.baseForm.description || '').trim() || null
       }
@@ -903,12 +936,44 @@ export default {
         payload.multiScore = this.exam.multiScore
         payload.judgeScore = this.exam.judgeScore
       }
+      return payload
+    },
+    /** 保存基本参数（保留：单独保存基本信息时使用） */
+    saveBase() {
+      const name = String(this.baseForm.examName || '').trim()
+      if (!name) { this.$modal.msgWarning('请填写考核名称'); return }
+      const pass = Number(this.baseForm.passLine) || 0
+      if (pass < 0) { this.$modal.msgWarning('通过线不能为负数'); return }
       this.baseSaving = true
-      updateExam(payload).then(() => {
+      updateExam(this.buildBasePayload()).then(() => {
         this.baseSaving = false
         this.$modal.msgSuccess('基本信息已保存')
         this.$emit('refresh')
       }).catch(() => { this.baseSaving = false })
+    },
+    /**
+     * ★★ 统一保存（2026-09-22 配置编排）：一次点击把**基本信息 + 组卷/实操题目 + 发布设置**全部落库。
+     * 顺序：先 updateExam（基本信息）再 saveExamConfig（组卷/题目/时间窗/名单）——
+     * 两步都成功才提示「已保存」，任一步失败都不报成功（避免"以为存了其实没存"）。
+     */
+    saveAll() {
+      if (this.configLocked) {
+        this.$modal.msgWarning('考核已发布，配置已锁定；请先「停用」或删除后重新发布')
+        return
+      }
+      if (!String(this.baseForm.examName || '').trim()) { this.$modal.msgWarning('请填写考核名称'); return }
+      if (Number(this.baseForm.passLine) < 0) { this.$modal.msgWarning('通过线不能为负数'); return }
+      if (!this.checkOk) { this.$modal.msgWarning(this.checkMessage || '配置校验未通过'); return }
+      if (!this.checkAssignReady()) return
+      this.savingAll = true
+      updateExam(this.buildBasePayload())
+        .then(() => saveExamConfig(this.exam.id, this.buildPayload()))
+        .then(() => {
+          this.savingAll = false
+          this.$modal.msgSuccess('配置已保存（基本信息 · ' + (this.isPractice ? '题目清单' : '组卷') + ' · 发布设置）')
+          this.$emit('refresh')
+        })
+        .catch(() => { this.savingAll = false })
     },
     resetBase() {
       const e = this.exam || {}
@@ -945,6 +1010,15 @@ export default {
       }).catch(() => { this.configSaving = false })
     },
     handlePublish() {
+      if (this.configLocked) {
+        this.$modal.msgWarning('考核已发布，配置已锁定；如需修改请先停用或删除后重新发布')
+        return
+      }
+      // ★ 两步走的第 ① 步没做完就不给发布（避免"直接发布"把没保存的改动一起带过去）
+      if (this.baseDirty) {
+        this.$modal.msgWarning('基本信息有未保存的改动，请先点「保存配置」再发布')
+        return
+      }
       if (!this.checkOk) {
         this.$modal.msgWarning(this.checkMessage || '配置校验未通过')
         return
@@ -1040,6 +1114,38 @@ function parseJsonList(json) {
   margin-left: 4px; padding: 0 4px; color: #98a2b3; background: #eef1f6;
   border-radius: 3px; font-size: 10px; font-style: normal; font-weight: 400;
 }
+/* ===== 2026-09-22：配置编排（未发布=可改 / 已发布=全锁） ===== */
+.dm-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  margin: 10px 0 12px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  border-radius: 8px;
+}
+.dm-note i { margin-top: 2px; }
+.dm-note.flow { color: #344054; background: #f0f6ff; border: 1px solid #d3e3fd; }
+.dm-note.flow i { color: #1764f5; }
+.dm-note.lock { color: #7a4a06; background: #fff8ec; border: 1px solid #fadfb0; }
+.dm-note.lock i { color: #b54708; }
+/* 已发布：可编辑区整体降饱和 + 屏蔽交互（值仍可查看） */
+.dm-table-wrap.locked,
+.stage-publish.locked { opacity: .8; }
+.dm-table-wrap.locked .el-button,
+.dm-table-wrap.locked .el-input,
+.dm-table-wrap.locked .el-select,
+.dm-table-wrap.locked .el-input-number,
+.dm-table-wrap.locked .el-textarea,
+.dm-table-wrap.locked .el-checkbox,
+.stage-publish.locked .el-button,
+.stage-publish.locked .el-input,
+.stage-publish.locked .el-select,
+.stage-publish.locked .el-input-number,
+.stage-publish.locked .el-radio-group,
+.stage-publish.locked .el-date-editor { pointer-events: none; }
+
 .field-tip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
 .f-hint { color: #8490a0; font-size: 11.5px; }
 .f-hint.bad { color: #d9534f; }

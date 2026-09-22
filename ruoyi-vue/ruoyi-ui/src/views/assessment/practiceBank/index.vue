@@ -1,126 +1,141 @@
 <template>
   <div class="ipb-page">
-    <header class="ipb-head">
-      <div>
+    <!-- 顶部：标题 + 说明 + 统计（口径：只统计已加载的真实数据） -->
+    <header class="ipb-hero">
+      <div class="ipb-hero-copy">
         <h1>模拟实操题</h1>
-        <p>这里是本部门开放的模拟实操题（只读）。每道题都写明了题目描述、考核要点与提交要求，点<b>查看详情</b>进入单题页面，先照着练，再参加正式实操考核。</p>
+        <p>
+          这里是本部门开放的模拟实操题（只读练习），按<b>所属题库</b>分组排列。
+          点任意一张题目卡进入详情，先照着练，再参加正式实操考核。
+        </p>
       </div>
-      <el-button size="small" icon="el-icon-refresh" @click="loadBanks">刷新</el-button>
+      <div class="ipb-hero-side">
+        <div class="ipb-hero-stats">
+          <div>
+            <strong>{{ stats.subjects }}</strong>
+            <span>道可练习题目</span>
+          </div>
+          <div>
+            <strong>{{ stats.banks }}</strong>
+            <span>个实操题库</span>
+          </div>
+          <div>
+            <strong>{{ stats.maxMinutes || '—' }}</strong>
+            <span>最长建议用时 / 分钟</span>
+          </div>
+        </div>
+        <el-button size="mini" icon="el-icon-refresh" :loading="loading" @click="loadAll">刷新</el-button>
+      </div>
     </header>
 
-    <div class="ipb-body">
-      <aside class="ipb-side" v-loading="loading">
-        <div class="ipb-side-head">
-          <strong>题库</strong>
-          <span>{{ banks.length }} 个</span>
-        </div>
-        <div
-          v-for="b in banks"
-          :key="b.bankId"
-          class="ipb-bank"
-          :class="{ on: current && current.bankId === b.bankId }"
-          @click="pick(b)"
+    <!-- 筛选条：关键词 + 方向 + 难度 + 显示 N / M + 重置 -->
+    <div class="ipb-filter">
+      <el-input
+        v-model="filters.keyword"
+        size="small"
+        clearable
+        prefix-icon="el-icon-search"
+        placeholder="搜题名 / 题目描述 / 考核要点"
+        class="ipb-filter-input"
+      />
+      <el-select v-model="filters.direction" size="small" clearable placeholder="全部方向" class="ipb-filter-select">
+        <el-option v-for="d in directionOptions" :key="d" :label="d" :value="d" />
+      </el-select>
+      <el-select v-model="filters.difficulty" size="small" clearable placeholder="全部难度" class="ipb-filter-select">
+        <el-option label="简单" value="EASY" />
+        <el-option label="中等" value="MEDIUM" />
+        <el-option label="困难" value="HARD" />
+      </el-select>
+      <el-button v-if="hasFilter" size="small" icon="el-icon-refresh-left" @click="resetFilters">重置</el-button>
+      <span class="ipb-filter-sum">显示 {{ filteredCount }} / {{ stats.subjects }} 道</span>
+    </div>
+
+    <div v-loading="loading" class="ipb-body">
+      <!-- 加载失败：与「业务上没有数据」严格区分，绝不伪装成空态 -->
+      <div v-if="!loading && loadFailed" class="ipb-empty big">
+        <i class="el-icon-warning-outline" />
+        <p>题库数据加载失败，可能是网络或服务异常。<br />请稍后重试；若持续失败请联系管理员。</p>
+        <el-button size="small" type="primary" plain icon="el-icon-refresh" @click="loadAll">重新加载</el-button>
+      </div>
+
+      <!-- 空态①：本部门没有开放题库 -->
+      <div v-else-if="!loading && !groups.length" class="ipb-empty big">
+        <i class="el-icon-folder-opened" />
+        <p>本部门还没有开放的模拟实操题。<br />请等待管理员配置题库后刷新。</p>
+      </div>
+
+      <!-- 空态②a：题目拉取失败（≠ 真的没有题目）-->
+      <div v-else-if="!loading && !stats.subjects && hasBad" class="ipb-empty big">
+        <i class="el-icon-warning-outline" />
+        <p>题库里的题目加载失败，可能是网络或服务异常。<br />请点下方按钮重试；若持续失败请联系管理员。</p>
+        <el-button size="small" type="primary" plain icon="el-icon-refresh" @click="loadAll">重新加载</el-button>
+      </div>
+
+      <!-- 空态②b：确实还没有录入题目 -->
+      <div v-else-if="!loading && !stats.subjects" class="ipb-empty big">
+        <i class="el-icon-tickets" />
+        <p>开放的实操题库里还没有录入题目。<br />请等待管理员补充后刷新。</p>
+      </div>
+
+      <!-- 空态③：筛没了（与「没有数据」区分开） -->
+      <div v-else-if="!loading && !filteredCount" class="ipb-empty big">
+        <i class="el-icon-search" />
+        <p>当前筛选条件下没有匹配的题目。<br />换个关键词或难度，或清空筛选条件。</p>
+        <el-button size="small" type="primary" plain @click="resetFilters">清空筛选</el-button>
+      </div>
+
+      <!-- 按题库分组：组标题 = 所属题库 -->
+      <template v-else>
+        <section
+          v-for="g in visibleGroups"
+          :key="g.bankId"
+          class="ipb-section"
+          :class="{ flash: flashBankId === g.bankId }"
+          :id="'ipb-bank-' + g.bankId"
         >
-          <div class="ipb-bank-title">
-            <strong>{{ b.bankName }}</strong>
-            <el-tag size="mini" effect="plain" :type="b.bankType === 'PRACTICE' ? 'warning' : 'success'">{{ typeText(b.bankType) }}</el-tag>
-          </div>
-          <small>{{ b.description || '暂无说明' }}</small>
-          <span class="ipb-count">{{ b.subjectCount }} 道题</span>
-        </div>
-        <div v-if="!loading && !banks.length" class="ipb-empty">
-          <i class="el-icon-folder-opened" />
-          <p>本部门还没有开放的模拟实操题，请等待管理员配置。</p>
-        </div>
-      </aside>
-
-      <section class="ipb-main" v-loading="subLoading">
-        <div v-if="!current" class="ipb-empty big">
-          <i class="el-icon-hand-up" />
-          <p>左侧选择一个题库，这里会列出它包含的全部实操题。</p>
-        </div>
-        <template v-else>
           <div class="ipb-sec-head">
-            <h3>{{ current.bankName }}</h3>
-            <span class="ipb-muted">共 {{ subjects.length }} 道 · 只读浏览</span>
+            <div class="ipb-sec-title">
+              <h2>{{ g.bankName }}</h2>
+              <p>{{ g.description || '参考题目要求完成建模练习，按规范命名与整理结构。' }}</p>
+            </div>
+            <span class="ipb-sec-count">
+              {{ hasFilter ? g.shown.length + ' / ' + g.subjects.length : g.subjects.length }} 题
+            </span>
           </div>
 
-          <!-- ① 总览：难度分布，点卡即按难度筛选（再点一次取消） -->
-          <div class="ipb-kpi-row">
+          <p v-if="g.bad" class="ipb-sec-none err">该题库的题目加载失败，请点右上角「刷新」重试。</p>
+          <p v-else-if="!g.shown.length" class="ipb-sec-none">该题库还没有录入实操题，等待管理员补充。</p>
+          <div v-else class="ipb-grid">
             <button
-              v-for="k in kpiCards()"
-              :key="k.key || 'all'"
+              v-for="s in g.shown"
+              :key="s.id"
               type="button"
-              class="ipb-kpi-card"
-              :class="[{ active: filters.difficulty === k.key }, k.tone]"
-              @click="applyKpi(k.key)"
+              class="ipb-card"
+              @click="goDetail(g, s)"
             >
-              <span class="ipb-kpi-icon"><i :class="k.icon" /></span>
-              <span class="ipb-kpi-body">
-                <span class="ipb-kpi-value">{{ k.value }}<small>道</small></span>
-                <span class="ipb-kpi-label">{{ k.label }}</span>
+              <!-- 缩略图：有参考图用真图，没有则用明确的占位块（不编素材） -->
+              <span class="ipb-thumb">
+                <img v-if="thumb(s)" :src="thumb(s)" :alt="s.title" @error="onImgErr(s)">
+                <span v-else class="ipb-thumb-ph" :class="phTone(s)">
+                  <i :class="phIcon(s)" />
+                  <em>{{ dirName(s) }}</em>
+                </span>
+                <span class="ipb-thumb-marks">
+                  <em class="d" :class="'d-' + diffKey(s.difficulty)">{{ diffText(s.difficulty) }}</em>
+                  <em v-if="s.suggestScore != null" class="sc">{{ s.suggestScore }} 分</em>
+                </span>
+              </span>
+              <span class="ipb-copy">
+                <strong :title="s.title">{{ s.title }}</strong>
+                <small>
+                  <template v-if="s.estimatedMinutes">建议用时 <i>{{ s.estimatedMinutes }} 分钟</i></template>
+                  <template v-else>建议用时 <i class="none">未设定</i></template>
+                </small>
               </span>
             </button>
           </div>
-
-          <!-- ② 筛选：关键词 + 方向 + 难度 + 显示 N / M + 重置 -->
-          <div class="ipb-filter">
-            <el-input
-              v-model="filters.keyword"
-              size="small"
-              clearable
-              prefix-icon="el-icon-search"
-              placeholder="搜题名 / 题目描述 / 考核要点"
-              class="ipb-filter-input"
-            />
-            <el-select v-model="filters.direction" size="small" clearable placeholder="全部方向" class="ipb-filter-select">
-              <el-option v-for="d in directionOptions" :key="d" :label="d" :value="d" />
-            </el-select>
-            <el-select v-model="filters.difficulty" size="small" clearable placeholder="全部难度" class="ipb-filter-select">
-              <el-option label="简单" value="EASY" />
-              <el-option label="中等" value="MEDIUM" />
-              <el-option label="困难" value="HARD" />
-            </el-select>
-            <el-button v-if="hasFilter" size="small" icon="el-icon-refresh-left" @click="resetFilters">重置</el-button>
-            <span class="ipb-filter-sum">显示 {{ filteredSubjects.length }} / {{ subjects.length }} 道</span>
-          </div>
-
-          <!-- ③ 列表 + 两种空态 -->
-          <div v-if="!subjects.length" class="ipb-empty">
-            <i class="el-icon-tickets" />
-            <p>这个题库还没有录入实操题。<br />换一个题库看看，或等待管理员补充。</p>
-          </div>
-          <div v-else-if="!filteredSubjects.length" class="ipb-empty">
-            <i class="el-icon-search" />
-            <p>当前筛选条件下没有匹配的题目。<br />换个关键词，或清空筛选条件。</p>
-            <el-button size="small" type="primary" plain @click="resetFilters">清空筛选</el-button>
-          </div>
-          <template v-else>
-            <article v-for="(s, i) in filteredSubjects" :key="s.id" class="ipb-card">
-              <div class="ipb-card-head">
-                <span class="ipb-idx">{{ i + 1 }}</span>
-                <div class="ipb-card-title">
-                  <strong>{{ s.title }}</strong>
-                  <small>
-                    {{ dirName(s) }}
-                    · {{ diffText(s.difficulty) }}
-                    <template v-if="s.estimatedMinutes"> · 建议 {{ s.estimatedMinutes }} 分钟</template>
-                    <template v-if="s.suggestScore != null"> · {{ s.suggestScore }} 分</template>
-                  </small>
-                  <p class="ipb-excerpt">{{ excerpt(s) }}</p>
-                </div>
-                <div class="ipb-card-side">
-                  <span class="ipb-marks">
-                    <em v-if="refs(s).length">素材 {{ refs(s).length }}</em>
-                    <em v-if="atts(s).length">附件 {{ atts(s).length }}</em>
-                  </span>
-                  <el-button size="mini" type="primary" plain @click="goDetail(s)">查看详情</el-button>
-                </div>
-              </div>
-            </article>
-          </template>
-        </template>
-      </section>
+        </section>
+      </template>
     </div>
   </div>
 </template>
@@ -136,195 +151,251 @@ function parseList(v) {
   } catch (e) { return [] }
 }
 
-/** 难度的「有效档位」：空 / 未知一律归入「中等」，与列表展示口径一致 */
+/** 难度的「有效档位」：空 / 未知一律归入「中等」，与展示口径一致 */
 function diffKey(d) {
   const v = String(d || '').toUpperCase()
   return { EASY: 'EASY', MEDIUM: 'MEDIUM', HARD: 'HARD' }[v] || 'MEDIUM'
 }
+
+/** 参考素材里第一张「图片」（视频不拿来当封面） */
+function firstImage(list) {
+  const img = list.find(f => f && f.url && !/\.(mp4|webm|ogg|ogv|mov|avi|m4v)(\?|#|$)/i.test(String(f.url)))
+  return img || null
+}
+
+/** 方向 → 占位块配色（纯展示，不改数据） */
+const PH_TONES = ['tone-a', 'tone-b', 'tone-c', 'tone-d', 'tone-e', 'tone-f']
 
 export default {
   name: 'InternPracticeBank',
   data() {
     return {
       loading: false,
-      banks: [],
-      current: null,
-      subLoading: false,
-      subjects: [],
-      filters: { keyword: '', direction: '', difficulty: '' }
+      /** 接口失败（≠ 业务上没有数据）—— 必须分开表达，否则故障会被伪装成空态 */
+      loadFailed: false,
+      /** [{ bankId, bankName, bankType, description, subjects: [] }] —— 按题库分组 */
+      groups: [],
+      filters: { keyword: '', direction: '', difficulty: '' },
+      /** 图片加载失败的题目 id（挂了就退回占位块，不留破图） */
+      brokenImg: {},
+      /** 从详情页返回时高亮一下来源题库 */
+      flashBankId: null
     }
   },
   computed: {
     baseApi() { return process.env.VUE_APP_BASE_API || '' },
+    /** 全部题目打平（KPI / 筛选计数都以真实数据算） */
+    allSubjects() {
+      return this.groups.reduce((acc, g) => acc.concat(g.subjects || []), [])
+    },
+    stats() {
+      const list = this.allSubjects
+      const minutes = list.map(s => Number(s.estimatedMinutes) || 0)
+      return {
+        subjects: list.length,
+        banks: this.groups.filter(g => (g.subjects || []).length).length,
+        maxMinutes: minutes.length ? Math.max.apply(null, minutes) : 0
+      }
+    },
     /** 方向选项：按已加载题目去重（含「未分方向」） */
     directionOptions() {
       const set = {}
-      this.subjects.forEach(s => { set[this.dirName(s)] = 1 })
+      this.allSubjects.forEach(s => { set[this.dirName(s)] = 1 })
       return Object.keys(set).sort()
     },
-    /** 是否处于筛选态（用于「重置」与「筛没了」空态） */
     hasFilter() {
       return !!(this.filters.keyword || this.filters.direction || this.filters.difficulty)
     },
-    /** ③ 列表数据（纯前端筛选，不改接口） */
-    filteredSubjects() {
-      const kw = String(this.filters.keyword || '').trim().toLowerCase()
-      const dir = this.filters.direction
-      const diff = this.filters.difficulty
-      return this.subjects.filter(s => {
-        if (diff && diffKey(s.difficulty) !== diff) return false
-        if (dir && this.dirName(s) !== dir) return false
-        if (kw) {
-          const hay = [s.title, s.content, s.devConstraints, s.deliverables, s.direction]
-            .map(v => String(v || '')).join('\n').toLowerCase()
-          if (hay.indexOf(kw) === -1) return false
-        }
-        return true
-      })
+    /** 是否有题库「拉题失败」—— 用于把故障与本就没有数据区分开 */
+    hasBad() {
+      return this.groups.some(g => g.bad)
+    },
+    filteredCount() {
+      return this.visibleGroups.reduce((n, g) => n + g.shown.length, 0)
+    },
+    /**
+     * 可见分组：每组带上「筛选后的可见题目」。
+     * 未筛选时保留空题库（显示「还没录入题目」更诚实）；筛选时隐藏空组（否则全是空壳）。
+     */
+    visibleGroups() {
+      const has = this.hasFilter
+      return this.groups
+        .map(g => Object.assign({}, g, { shown: (g.subjects || []).filter(s => this.match(s)) }))
+        .filter(g => (has ? g.shown.length > 0 : true))
     }
   },
   created() {
-    this.loadBanks()
+    this.loadAll()
   },
   methods: {
-    loadBanks() {
+    /** 零新增接口：先取开放题库，再并发取每个题库的题目（题库数量 = 部门开放数，量小） */
+    loadAll() {
       this.loading = true
+      this.loadFailed = false
       request({ url: '/business/practice-bank/enabled', method: 'get' }).then(res => {
-        this.banks = res.data || []
-        this.loading = false
-        if (!this.banks.length) {
-          this.current = null
-          this.subjects = []
+        const banks = res.data || []
+        if (!banks.length) {
+          this.groups = []
+          this.loading = false
           return
         }
-        // 优先用 ?bank= 回跳（从详情页返回时保持原题库），其次保持当前选中，最后取第一个
-        const want = this.$route.query.bank ? Number(this.$route.query.bank) : (this.current ? this.current.bankId : null)
-        const target = this.banks.find(b => b.bankId === want) || this.banks[0]
-        this.pick(target)
+        Promise.all(banks.map(b =>
+          request({ url: '/business/practice-bank/' + b.bankId + '/subjects', method: 'get' })
+            .then(r => Object.assign({}, b, { subjects: (r && r.rows) || [] }))
+            // 单个题库失败 ⇒ 标记 bad，页面显示「加载失败，请刷新」，不冒充「该题库没有题目」
+            .catch(() => Object.assign({}, b, { subjects: [], bad: true }))
+        )).then(list => {
+          this.groups = list
+          this.loading = false
+          this.$nextTick(this.focusQueryBank)
+        })
       }).catch(() => {
+        // 题库列表都没拿到 ⇒ 是真的失败，不能落进「本部门还没有开放题库」的空态
+        this.groups = []
+        this.loadFailed = true
         this.loading = false
-        this.banks = []
       })
     },
-    pick(b) {
-      // 重复点同一个库不重复请求（刷新走 loadBanks 的显式调用）
-      if (this.current && this.current.bankId === b.bankId && this.subjects.length && !this.subLoading) return
-      this.current = b
-      this.subLoading = true
-      this.subjects = []
-      this.resetFilters()
-      request({ url: '/business/practice-bank/' + b.bankId + '/subjects', method: 'get' }).then(res => {
-        this.subjects = res.rows || []
-        this.subLoading = false
-      }).catch(() => {
-        this.subLoading = false
-        this.subjects = []
-      })
+    /** 从详情页返回时带 ?bank= ⇒ 滚到该题库并闪一下 */
+    focusQueryBank() {
+      const want = this.$route.query.bank ? String(this.$route.query.bank) : ''
+      if (!want) return
+      const el = document.getElementById('ipb-bank-' + want)
+      if (!el) return
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      this.flashBankId = want === '' ? null : Number(want)
+      setTimeout(() => { this.flashBankId = null }, 1800)
     },
-    // ① 总览 KPI：全部由已加载题目算；点卡 = 按难度筛选，再点一次取消
-    kpiCards() {
-      const list = this.subjects || []
-      const cnt = d => list.filter(s => diffKey(s.difficulty) === d).length
-      return [
-        { key: '', label: '题目总数', value: list.length, icon: 'el-icon-collection', tone: '' },
-        { key: 'EASY', label: '简单', value: cnt('EASY'), icon: 'el-icon-sunny', tone: 'tone-green' },
-        { key: 'MEDIUM', label: '中等', value: cnt('MEDIUM'), icon: 'el-icon-cloudy', tone: 'tone-orange' },
-        { key: 'HARD', label: '困难', value: cnt('HARD'), icon: 'el-icon-heavy-rain', tone: 'tone-red' }
-      ]
-    },
-    applyKpi(key) {
-      this.filters.difficulty = this.filters.difficulty === key ? '' : key
+    match(s) {
+      const diff = this.filters.difficulty
+      const dir = this.filters.direction
+      if (diff && diffKey(s.difficulty) !== diff) return false
+      if (dir && this.dirName(s) !== dir) return false
+      const kw = String(this.filters.keyword || '').trim().toLowerCase()
+      if (kw) {
+        const hay = [s.title, s.content, s.devConstraints, s.deliverables, s.direction]
+          .map(v => String(v || '')).join('\n').toLowerCase()
+        if (hay.indexOf(kw) === -1) return false
+      }
+      return true
     },
     resetFilters() {
       this.filters = { keyword: '', direction: '', difficulty: '' }
     },
-    goDetail(s) {
-      this.$router.push('/assessment/intern/learning/practice-bank/' + this.current.bankId + '/subject/' + s.id)
+    goDetail(g, s) {
+      this.$router.push('/assessment/intern/learning/practice-bank/' + g.bankId + '/subject/' + s.id)
     },
-    /** 卡片摘要：题干首段压平后截断（详情页看全文） */
-    excerpt(s) {
-      const raw = String(s.content || s.deliverables || '').replace(/\s+/g, ' ').trim()
-      if (!raw) return '暂无题目描述，点「查看详情」查看完整要求。'
-      return raw.length > 88 ? raw.slice(0, 88) + '…' : raw
+    /** 封面：参考素材第一张图；加载失败过则不再用（避免破图） */
+    thumb(s) {
+      if (this.brokenImg[s.id]) return ''
+      const f = firstImage(parseList(s.referenceImages))
+      return f ? this.baseApi + f.url : ''
     },
+    onImgErr(s) {
+      this.$set(this.brokenImg, s.id, true)
+    },
+    refCount(s) { return parseList(s.referenceImages).length },
+    attCount(s) { return parseList(s.attachmentsJson).length },
     dirName(s) { return s.direction || '未分方向' },
-    refs(s) { return parseList(s.referenceImages) },
-    atts(s) { return parseList(s.attachmentsJson) },
     isVideo(url) { return /\.(mp4|webm|ogg|ogv|mov|avi|m4v)(\?|#|$)/i.test(String(url || '')) },
-    typeText(t) { return { PRACTICE: '模拟题库', COMMON: '通用题库' }[t] || '通用题库' },
-    diffText(d) { return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[diffKey(d)] }
+    diffKey(d) { return diffKey(d) },
+    diffText(d) { return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[diffKey(d)] },
+    /** 占位块配色 / 图标：由「方向」稳定散列，同一方向永远同色 */
+    phTone(s) {
+      const k = String(this.dirName(s))
+      let h = 0
+      for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) % 997
+      return PH_TONES[h % PH_TONES.length]
+    },
+    phIcon(s) {
+      return this.refCount(s) ? 'el-icon-picture-outline' : 'el-icon-edit-outline'
+    }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.ipb-page { padding: 16px 18px; }
-.ipb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
-.ipb-head h1 { margin: 0 0 6px; color: #1d2939; font-size: 20px; font-weight: 600; }
-.ipb-head p { margin: 0; max-width: 780px; color: #667085; font-size: 13px; line-height: 1.7; }
+.ipb-page { padding: 16px 18px 24px; }
 
-.ipb-body { display: grid; grid-template-columns: 268px minmax(0, 1fr); gap: 14px; align-items: start; }
-.ipb-side { padding: 10px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; }
-.ipb-side-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 10px; }
-.ipb-side-head strong { color: #1d2939; font-size: 13px; font-weight: 600; }
-.ipb-side-head span { color: #98a2b3; font-size: 12px; }
-.ipb-bank { padding: 11px 12px; margin-bottom: 8px; border: 1px solid #eef1f6; border-radius: 6px; cursor: pointer; transition: all .15s; }
-.ipb-bank:last-child { margin-bottom: 0; }
-.ipb-bank:hover { border-color: #b9d2ff; }
-.ipb-bank.on { border-color: #1764f5; background: #f6faff; }
-.ipb-bank-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ipb-bank-title strong { color: #1d2939; font-size: 13.5px; }
-.ipb-bank small { display: block; margin-top: 4px; color: #98a2b3; font-size: 12px; line-height: 1.6; }
-.ipb-count { display: block; margin-top: 6px; color: #1764f5; font-size: 12px; }
+/* ── 顶部 hero ───────────────────────────────── */
+.ipb-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
+.ipb-hero-copy { min-width: 0; }
+.ipb-hero-copy h1 { margin: 0 0 7px; color: #111d2d; font-size: 24px; font-weight: 600; }
+.ipb-hero-copy p { margin: 0; max-width: 760px; color: #6d7989; font-size: 13px; line-height: 1.75; }
+.ipb-hero-side { display: flex; flex: none; align-items: flex-end; gap: 16px; }
+.ipb-hero-stats { display: flex; gap: 25px; padding-left: 26px; border-left: 1px solid #dfe7f2; }
+.ipb-hero-stats > div { display: grid; min-width: 78px; gap: 5px; text-align: center; }
+.ipb-hero-stats strong { color: #1768ed; font-size: 25px; font-weight: 600; line-height: 1; }
+.ipb-hero-stats span { color: #8b96a5; font-size: 11px; white-space: nowrap; }
 
-.ipb-main { padding: 14px 16px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; min-height: 320px; }
-.ipb-sec-head { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid #edf0f4; }
-.ipb-sec-head h3 { margin: 0; color: #1d2939; font-size: 15px; font-weight: 600; }
-.ipb-muted { color: #98a2b3; font-size: 12px; }
-
-/* ① 总览 KPI（可点即筛选） */
-.ipb-kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-.ipb-kpi-card { display: flex; align-items: center; gap: 12px; padding: 13px 16px; text-align: left; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; cursor: pointer; transition: all .15s; }
-.ipb-kpi-card:hover { border-color: #b9d2ff; box-shadow: 0 2px 8px rgba(23, 100, 245, .08); }
-.ipb-kpi-card.active { border-color: #1764f5; box-shadow: 0 0 0 2px rgba(23, 100, 245, .12); }
-.ipb-kpi-icon { display: flex; width: 38px; height: 38px; flex: none; align-items: center; justify-content: center; color: #1764f5; background: #edf4ff; font-size: 19px; border-radius: 8px; }
-.ipb-kpi-body { display: flex; min-width: 0; flex-direction: column; }
-.ipb-kpi-value { color: #1d2939; font-size: 21px; font-weight: 600; line-height: 1.2; }
-.ipb-kpi-value small { margin-left: 3px; color: #667085; font-size: 12px; font-weight: 400; }
-.ipb-kpi-label { margin-top: 2px; color: #667085; font-size: 12px; }
-.ipb-kpi-card.tone-green .ipb-kpi-icon { color: #23966f; background: #eaf7f1; }
-.ipb-kpi-card.tone-orange .ipb-kpi-icon { color: #e6a23c; background: #fdf6ec; }
-.ipb-kpi-card.tone-red .ipb-kpi-icon { color: #d9534f; background: #fdeeed; }
-
-/* ② 筛选条 */
-.ipb-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 0 12px; }
+/* ── 筛选条 ──────────────────────────────────── */
+.ipb-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 4px; }
 .ipb-filter-input { width: 250px; }
 .ipb-filter-select { width: 132px; }
 .ipb-filter-sum { margin-left: auto; color: #667085; font-size: 12px; }
 
-/* ③ 列表卡片 */
-.ipb-card { margin-bottom: 10px; border: 1px solid #eef1f6; border-radius: 8px; overflow: hidden; }
-.ipb-card:hover { border-color: #d6e4ff; }
-.ipb-card-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
-.ipb-idx { display: inline-flex; width: 22px; height: 22px; flex: none; align-items: center; justify-content: center; color: #1764f5; background: #e8f1fd; border-radius: 4px; font-size: 12px; }
-.ipb-card-title { flex: 1; min-width: 0; }
-.ipb-card-title strong { display: block; color: #1d2939; font-size: 13.5px; }
-.ipb-card-title small { display: block; margin-top: 3px; color: #98a2b3; font-size: 12px; }
-.ipb-excerpt { margin: 6px 0 0; overflow: hidden; color: #667085; font-size: 12.5px; line-height: 1.6; white-space: nowrap; text-overflow: ellipsis; }
-.ipb-card-side { display: flex; flex: none; align-items: center; gap: 12px; }
-.ipb-marks { display: flex; gap: 6px; }
-.ipb-marks em { padding: 2px 7px; color: #667085; background: #f2f4f7; border-radius: 4px; font-size: 11px; font-style: normal; }
+/* ── 分组（组标题 = 所属题库） ───────────────── */
+.ipb-body { min-height: 240px; }
+.ipb-section { padding: 4px 2px; margin-top: 22px; border-radius: 8px; transition: background .3s; }
+.ipb-section:first-child { margin-top: 14px; }
+.ipb-section.flash { background: #f3f8ff; box-shadow: 0 0 0 1px #d6e6ff inset; }
+.ipb-sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 13px; }
+.ipb-sec-title { min-width: 0; }
+.ipb-sec-title h2 { margin: 0; color: #1d2734; font-size: 19px; font-weight: 600; }
+.ipb-sec-title p { margin: 6px 0 0; color: #8893a2; font-size: 12px; line-height: 1.6; }
+.ipb-sec-count { flex: none; color: #8b96a5; font-size: 12px; }
+.ipb-sec-none { margin: 0; padding: 22px 14px; color: #98a2b3; background: #fafbfc; border: 1px dashed #e4e9f0; border-radius: 7px; font-size: 12.5px; text-align: center; }
+.ipb-sec-none.err { color: #b7791f; background: #fffbf3; border-color: #f5dfb4; }
 
+/* ── 卡片网格 ────────────────────────────────── */
+.ipb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 14px; }
+.ipb-card {
+  display: flex; min-width: 0; flex-direction: column; padding: 0; overflow: hidden;
+  border: 1px solid #e0e7ef; border-radius: 8px; background: #fff; color: #233145;
+  text-align: left; cursor: pointer; transition: transform .18s, border-color .18s, box-shadow .18s;
+}
+.ipb-card:hover { transform: translateY(-2px); border-color: #8db5ef; box-shadow: 0 10px 22px rgba(36, 95, 156, .10); }
+
+.ipb-thumb { position: relative; display: block; overflow: hidden; aspect-ratio: 1.62; background: #eef2f7; }
+.ipb-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ipb-thumb-ph { display: flex; height: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.ipb-thumb-ph i { font-size: 30px; opacity: .85; }
+.ipb-thumb-ph em { overflow: hidden; max-width: 84%; font-size: 11.5px; font-style: normal; white-space: nowrap; text-overflow: ellipsis; }
+.ipb-thumb-ph.tone-a { color: #1768ed; background: linear-gradient(135deg, #eaf2ff, #f7fbff); }
+.ipb-thumb-ph.tone-b { color: #23966f; background: linear-gradient(135deg, #e8f7f1, #f6fdfa); }
+.ipb-thumb-ph.tone-c { color: #b7791f; background: linear-gradient(135deg, #fdf4e4, #fffcf6); }
+.ipb-thumb-ph.tone-d { color: #7b5cf0; background: linear-gradient(135deg, #f1edff, #fbfaff); }
+.ipb-thumb-ph.tone-e { color: #0e8fa8; background: linear-gradient(135deg, #e6f6fa, #f7fdff); }
+.ipb-thumb-ph.tone-f { color: #d9534f; background: linear-gradient(135deg, #fdeeed, #fff9f8); }
+
+.ipb-thumb-marks { position: absolute; top: 8px; left: 8px; display: flex; gap: 5px; }
+.ipb-thumb-marks em { padding: 2px 7px; color: #fff; border-radius: 4px; font-size: 11px; font-style: normal; }
+.ipb-thumb-marks .d { background: rgba(102, 112, 133, .86); }
+.ipb-thumb-marks .d-EASY { background: rgba(35, 150, 111, .9); }
+.ipb-thumb-marks .d-MEDIUM { background: rgba(230, 162, 60, .92); }
+.ipb-thumb-marks .d-HARD { background: rgba(217, 83, 79, .9); }
+.ipb-thumb-marks .sc { background: rgba(23, 104, 237, .9); }
+
+.ipb-copy { display: block; padding: 13px 14px 15px; }
+.ipb-copy strong { display: -webkit-box; overflow: hidden; margin-bottom: 10px; color: #233145; font-size: 14.5px; font-weight: 600; line-height: 1.45; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ipb-copy small { display: block; color: #8492a5; font-size: 12.5px; }
+.ipb-copy small i { margin-left: 4px; color: #1768ed; font-style: normal; }
+.ipb-copy small i.none { color: #98a2b3; }
+
+/* ── 空态 ────────────────────────────────────── */
 .ipb-empty { padding: 30px 12px; text-align: center; }
-.ipb-empty.big { padding: 80px 12px; }
+.ipb-empty.big { padding: 74px 12px; }
 .ipb-empty i { color: #d0d5dd; font-size: 32px; }
 .ipb-empty p { margin: 12px 0 0; color: #8490a0; font-size: 13px; line-height: 1.8; }
 .ipb-empty .el-button { margin-top: 12px; }
 
-@media (max-width: 1100px) { .ipb-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1180px) {
+  .ipb-hero { flex-wrap: wrap; align-items: flex-start; }
+  .ipb-hero-side { width: 100%; justify-content: space-between; }
+}
 @media (max-width: 1000px) {
-  .ipb-body { grid-template-columns: minmax(0, 1fr); }
   .ipb-filter-sum { margin-left: 0; }
   .ipb-filter-input { width: 100%; }
+  .ipb-hero-stats { padding-left: 0; border-left: 0; }
 }
 </style>

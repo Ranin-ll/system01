@@ -309,9 +309,20 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
             Map<Long, String> userAnswerMap = new HashMap<>();
             if (answers != null) {
                 for (Map<String, String> a : answers) {
-                    try {
-                        userAnswerMap.put(Long.valueOf(a.get("questionId")), a.get("userAnswer"));
-                    } catch (Exception ignore) {}
+                    if (a == null) {
+                        continue;
+                    }
+                    // ★★ 2026-09-22 修 BUG：原来写的是 `Long.valueOf(a.get("questionId"))` +
+                    //    `catch (Exception ignore) {}` —— 前端理论卷传的 questionId 是**数字**
+                    //    （Jackson 解成 Integer），而 Long.valueOf 要求 String，编译期会插入
+                    //    checkcast → 运行时 ClassCastException → **被 catch 静默吞掉**，
+                    //    结果「答案全部丢失 → 全部判 0 分且显示未作答」（实操卷传的是字符串所以没暴露）。
+                    //    这里一律走 toLong(Object)（不做 String 强转），并从源头不再吞异常。
+                    Long qid = toLong(a.get("questionId"));
+                    if (qid == null) {
+                        continue;
+                    }
+                    userAnswerMap.put(qid, answerText(a.get("userAnswer")));
                 }
             }
 
@@ -321,7 +332,12 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
                 String normalized = normalizeAnswer(userAnswer);
                 String correctAnswer = normalizeAnswer(answerMap.get(item.getQuestionId()));
                 boolean correct = !correctAnswer.isEmpty() && normalized.equals(correctAnswer);
-                BigDecimal score = correct ? getScoreByQtype(exam, item.getQtype()) : BigDecimal.ZERO;
+                // ★ 用**明细上的满分快照**判分，而不是 exam 的当前分值：
+                //   建卷时已把 full_score 落进明细，若管理员在作答期间改了分值（或重修了 exam 记录），
+                //   用 exam 当前值会导致「各题得分之和 ≠ 卷面满分口径」。快照缺失才回退到 exam。
+                BigDecimal fullScore = item.getFullScore() != null
+                        ? item.getFullScore() : getScoreByQtype(exam, item.getQtype());
+                BigDecimal score = correct ? fullScore : BigDecimal.ZERO;
                 AnswerSheetItem upd = new AnswerSheetItem();
                 upd.setId(item.getId());
                 upd.setUserAnswer(normalized);
@@ -331,7 +347,9 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
                 answerSheetMapper.updateItem(upd);
             }
 
-            int pass = aiScore.compareTo(exam.getPassLine()) >= 0 ? 1 : 0;
+            // 通过线缺失（历史脏数据）时按「未通过」处理：既不 NPE 打成 500，也不静默全员通过
+            BigDecimal passLine = exam == null ? null : exam.getPassLine();
+            int pass = (passLine != null && aiScore.compareTo(passLine) >= 0) ? 1 : 0;
             updSheet.setStatus("PUBLISHED");
             updSheet.setAiScore(aiScore);
             updSheet.setFinalScore(aiScore);
@@ -346,11 +364,13 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
                     if (a == null || a.get("userAnswer") == null) {
                         continue;
                     }
-                    try {
-                        // 实操明细以 subjectItemId 对齐（前端按题提交）
-                        answerMap.put(Long.valueOf(a.get("questionId")), a.get("userAnswer"));
-                    } catch (Exception ignore) {
+                    // 实操明细以 subjectItemId 对齐（前端按题提交，questionId 里放的是 subjectItemId 字符串）。
+                    // 同样走 toLong(Object) —— 不依赖「前端一定传字符串」这个隐含前提。
+                    Long sid = toLong(a.get("questionId"));
+                    if (sid == null) {
+                        continue;
                     }
+                    answerMap.put(sid, answerText(a.get("userAnswer")));
                 }
             }
             List<AnswerSheetItem> toUpdate = new ArrayList<>();
@@ -606,7 +626,9 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
                 BigDecimal ai = sheet.getAiScore() == null ? BigDecimal.ZERO : sheet.getAiScore();
                 BigDecimal manual = sheet.getManualScore() == null ? BigDecimal.ZERO : sheet.getManualScore();
                 BigDecimal finalScore = ai.add(manual);
-                int pass = finalScore.compareTo(exam.getPassLine()) >= 0 ? 1 : 0;
+                // 通过线缺失时按「未通过」处理，避免 NPE 500，也避免静默全员通过
+                BigDecimal passLine = exam.getPassLine();
+                int pass = (passLine != null && finalScore.compareTo(passLine) >= 0) ? 1 : 0;
                 AnswerSheet upd = new AnswerSheet();
                 upd.setId(sheet.getId());
                 upd.setStatus("PUBLISHED");
@@ -718,6 +740,28 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
 
     private boolean isGlobalManager() {
         return SecurityUtils.hasRole("SUPER_ADMIN") || SecurityUtils.isAdmin(SecurityUtils.getUserId());
+    }
+
+    /**
+     * 作答内容归一化：容忍前端传字符串 / 字符串数组（多选题若未自行 join，这里兜底排序拼串）。
+     * ★ 与 toLong 一样接收 Object：避免对 JSON 反序列化出来的值做 String 强转而抛
+     *   ClassCastException（多选若传成数组，强转必然失败）。
+     */
+    private String answerText(Object v) {
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof java.util.Collection) {
+            List<String> list = new ArrayList<>();
+            for (Object o : (java.util.Collection<?>) v) {
+                if (o != null && !o.toString().trim().isEmpty()) {
+                    list.add(o.toString().trim());
+                }
+            }
+            Collections.sort(list);
+            return String.join(",", list);
+        }
+        return v.toString();
     }
 
     private Long toLong(Object v) {

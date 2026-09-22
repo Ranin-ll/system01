@@ -303,16 +303,18 @@ export default {
      */
     goDetail(row) {
       // 实操题库 → 独立的实操题管理页；理论题库 → 题目管理页
+      const isSuper = this.$route.path.indexOf('/super') === 0
+      // ★ 2026-09-22 修 BUG：实操分支原来把路径**硬编码成部门端** /department/study/practice-bank-detail/，
+      //   超管点了一律 404（超管访问 /department/** 会掉 404）。改为与理论分支同口径按角色前缀拼。
       if ((row.bankKind || 'THEORY') === 'PRACTICAL') {
-        this.$router.push({
-          path: '/department/study/practice-bank-detail/' + row.id,
-          query: { bankName: row.bankName, bankType: row.bankType }
-        }).catch(() => {})
+        const pPath = (isSuper ? '/super/ops/practice-bank-detail/' : '/department/study/practice-bank-detail/') + row.id
+        // 目标路由不存在则不动 —— 不给死链（项目铁律）
+        if (!this.$router.resolve(pPath).route.matched.length) return
+        this.$router.push({ path: pPath, query: { bankName: row.bankName, bankType: row.bankType } }).catch(() => {})
         return
       }
-      const base = this.$route.path.indexOf('/super') === 0
-        ? '/super/ops/bank-detail/'
-        : '/department/study/bank-detail/'
+      const base = isSuper ? '/super/ops/bank-detail/' : '/department/study/bank-detail/'
+      if (!this.$router.resolve(base + row.id).route.matched.length) return
       this.$router.push(base + row.id).catch(() => {})
     },
     selectBank(row) {
