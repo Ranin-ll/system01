@@ -248,7 +248,7 @@
  *
  * 真数据：部门 KPI / 岗位分布 / 课程完成率 / 实习生明细 —— 全部来自
  *         `GET /business/super/analysis/dept-stats?deptId=`
- * 示例：  薄弱知识点（题库与考核模块待同事分支合并）
+ * 真数据：薄弱知识点（`dept-stats.knowledge`，2026-09-22 已接真）
  *
  * ★ 一致性：本页的「本部门」与「全局」对照值都取自后端 `overview()` 的同一份聚合，
  *   所以与 L0 看板**不会漂移**（后端 deptStats 内部直接复用 overview()）。

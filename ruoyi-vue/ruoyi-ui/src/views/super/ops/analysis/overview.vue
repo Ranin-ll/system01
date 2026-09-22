@@ -250,7 +250,7 @@
         </section>
       </div>
 
-      <!-- ==================== 模拟考核 + 知识点热力（示例） ==================== -->
+      <!-- ==================== 模拟考核 + 知识点热力（真数据） ==================== -->
       <div class="s-grid">
         <section class="s-card s-c5">
           <div class="s-card-h">
@@ -427,7 +427,7 @@ export default {
       return rows
     },
 
-    /** 转正 gate 逐条勾选（真数据 4 条 + 示例 1 条） */
+    /** 转正 gate 逐条勾选（5 条**全部为真数据**；「部门终审」因 promotion_application 无表 ⇒ 恒 0 人） */
     gateRows() {
       const total = this.stageRows.length
       if (!total) return []
@@ -512,9 +512,8 @@ export default {
     },
 
     /**
-     * 把后端一行真数据 + 示例考核数据合成展示行。
-     * ★ 考核类字段自 2026-09-22 起为后端真值，直接取 r.xxx（不再走 pick(real, mock)）
-     *   **本方法与模板都不需要改**。
+     * 把后端一行真数据合成展示行（保留 `{ value, mock }` 形状以兼容模板）。
+     * ★ 考核类字段自 2026-09-22 起为后端真值，直接取 r.xxx —— **已无任何示例兜底**。
      */
     decorate(r) {
       // 2026-09-22：考核类已由后端提供真值，不再 fallback 示例数据（保持 {value, mock} 形状）

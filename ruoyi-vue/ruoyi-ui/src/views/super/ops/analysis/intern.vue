@@ -343,7 +343,7 @@ export default {
       })
     },
 
-    /** 转正 gate：逐条勾选（学习/任务/协议为真数据；正式考试为示例；终审无数据） */
+    /** 转正 gate：逐条勾选（5 条**全部为真数据**；「部门终审」因 promotion_application 无表 ⇒ 恒未通过） */
     gate() {
       const th = Number(this.threshold || 70)
       const total = Number(this.user.learnTotal || 0)
