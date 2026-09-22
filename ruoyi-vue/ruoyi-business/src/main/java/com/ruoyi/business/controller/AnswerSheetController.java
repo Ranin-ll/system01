@@ -40,6 +40,18 @@ public class AnswerSheetController extends BaseController {
         return AjaxResult.success(answerSheetService.submit(sheetId, answers));
     }
 
+    /**
+     * 实习生保存作答进度（★ 2026-09-22 新增，独立子路径 /draft，不触碰既有 /submit）。
+     *
+     * 只把前端的作答草稿落到明细上，**不判分、不改答卷状态**；
+     * 配合 startExam 的「未过期即续答」，实现刷新/离开后再回来能接着答。
+     */
+    @PreAuthorize("@ss.hasRole('PRE_TRAINEE')")
+    @PutMapping("/draft")
+    public AjaxResult saveDraft(@RequestBody Map<String, Object> body) {
+        return AjaxResult.success("已保存作答进度", answerSheetService.saveDraft(body));
+    }
+
     /** 实习生考核列表（含答卷结果） */
     @PreAuthorize("@ss.hasAnyRoles('PRE_TRAINEE,FORMAL_TRAINEE')")
     @GetMapping("/my")

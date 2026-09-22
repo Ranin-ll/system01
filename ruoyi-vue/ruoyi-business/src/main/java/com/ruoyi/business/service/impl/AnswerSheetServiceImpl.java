@@ -80,9 +80,14 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         Long userId = loginUserId;
         AnswerSheet exist = answerSheetMapper.selectByExamAndUser(examId, userId);
         if (exist != null) {
-            // 作答中（未交卷）的答卷：通常是实习生答题时离开/刷新页面遗留，
-            // 不保留进度、不视为提交，本次重新开始时作废旧答卷后重开。
+            // 作答中（未交卷）的答卷：通常是实习生答题时刷新/离开页面遗留。
+            // ★ 2026-09-22 改为「续答」：只要答卷还没过期就**复用同一份**（题目、顺序、已作答内容都不变）。
+            //   旧写法是直接删掉重开 —— 那会让「刷新一下，题目全换、答案全空」，作答进度无从谈起。
             if ("IN_PROGRESS".equals(exist.getStatus())) {
+                if (isResumable(exist, exam)) {
+                    return resumeResult(exist, exam);
+                }
+                // 已过期（超时或已过考核截止时间）：保留旧行为，作废后重开
                 answerSheetMapper.deleteItemsBySheetId(exist.getId());
                 answerSheetMapper.deleteById(exist.getId());
             } else {
@@ -209,6 +214,227 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         result.put("serverTime", System.currentTimeMillis());
 
         return result;
+    }
+
+    /**
+     * 遗留的「作答中」答卷能不能续答（★ 2026-09-22 新增）。
+     *
+     * 判据只看两件会用完的东西：考核截止时间、单场时长。都不限制（都是 null / 0）就永远可续。
+     */
+    private boolean isResumable(AnswerSheet sheet, Exam exam) {
+        if (sheet.getStartTime() == null) {
+            return true;
+        }
+        Date now = new Date();
+        if (exam.getEndTime() != null && now.after(exam.getEndTime())) {
+            return false;
+        }
+        int duration = exam.getDuration() == null ? 0 : exam.getDuration();
+        if (duration > 0) {
+            long elapsed = (now.getTime() - sheet.getStartTime().getTime()) / 1000L;
+            if (elapsed >= duration * 60L) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 续答：把**同一份**答卷的题目（含已作答内容）再下发一遍（★ 2026-09-22 新增）。
+     *
+     * 与 startExam 新开时的返回结构完全一致（sheetId / questions / subjectItems /
+     * duration / remainingSeconds / serverTime），只多一个 {@code resumed: true} 标记，
+     * 前端据此提示「已恢复上次作答进度」。
+     *
+     * 题干用明细上的**快照**（题目可能已被管理员改掉），选项/参考素材仍实时查表；
+     * 查不到时一律降级为「有题面、无选项」而不是抛错 —— 不能让一份遗留答卷把入口卡死。
+     */
+    private Map<String, Object> resumeResult(AnswerSheet sheet, Exam exam) {
+        Long sheetId = sheet.getId();
+        List<AnswerSheetItem> items = answerSheetMapper.selectItemsBySheetId(sheetId);
+        String type = sheet.getSheetType() == null ? "THEORY" : sheet.getSheetType();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sheetId", sheetId);
+        result.put("examName", exam.getExamName());
+        result.put("examType", type);
+        result.put("resumed", true);
+        result.put("subjectContent", null);
+        result.put("subjectAttachment", null);
+
+        if ("THEORY".equals(type)) {
+            // 实时取选项：(题目 id → 题目)，题被删掉时取不到，降级为空选项
+            List<Long> qids = new ArrayList<>();
+            for (AnswerSheetItem it : items) {
+                if (it.getQuestionId() != null) {
+                    qids.add(it.getQuestionId());
+                }
+            }
+            Map<Long, Question> qMap = new HashMap<>();
+            if (!qids.isEmpty()) {
+                List<Question> qs = questionMapper.selectQuestionsByIds(qids, null);
+                if (qs != null) {
+                    for (Question q : qs) {
+                        qMap.put(q.getId(), q);
+                    }
+                }
+            }
+
+            List<Map<String, Object>> questionList = new ArrayList<>();
+            for (AnswerSheetItem it : items) {
+                Question q = it.getQuestionId() == null ? null : qMap.get(it.getQuestionId());
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("id", it.getQuestionId());
+                m.put("seq", it.getSeq());
+                m.put("qtype", it.getQtype());
+                // 题干优先用题目现值，取不到退回快照
+                m.put("stem", q != null && q.getStem() != null ? q.getStem() : it.getStemSnapshot());
+                m.put("optionsJson", q == null ? null : q.getOptionsJson());
+                m.put("score", it.getFullScore());
+                m.put("isSubjective", it.getIsSubjective() == null ? 0 : it.getIsSubjective());
+                // ★ 已作答内容（前端据此回填选项）；空串/NULL 一律给 null，前端好判「未作答」
+                String ua = it.getUserAnswer();
+                m.put("userAnswer", (ua == null || ua.trim().isEmpty()) ? null : ua);
+                questionList.add(m);
+            }
+            result.put("questions", questionList);
+            result.put("subjectItems", Collections.emptyList());
+        } else {
+            // 实操：题面实时取（管理员可能改过），取不到退回快照
+            Map<Long, com.ruoyi.business.domain.ExamSubjectItem> siMap = new HashMap<>();
+            List<com.ruoyi.business.domain.ExamSubjectItem> sis = examRuleMapper.selectSubjectItems(exam.getId());
+            if (sis != null) {
+                for (com.ruoyi.business.domain.ExamSubjectItem si : sis) {
+                    siMap.put(si.getId(), si);
+                }
+            }
+
+            List<Map<String, Object>> subjectList = new ArrayList<>();
+            for (AnswerSheetItem it : items) {
+                com.ruoyi.business.domain.ExamSubjectItem si =
+                        it.getSubjectItemId() == null ? null : siMap.get(it.getSubjectItemId());
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("itemId", it.getId());
+                m.put("subjectItemId", it.getSubjectItemId());
+                m.put("seq", it.getSeq());
+                m.put("title", si != null && si.getTitle() != null ? si.getTitle() : it.getStemSnapshot());
+                m.put("description", si == null ? null : si.getDescription());
+                m.put("score", it.getFullScore());
+                m.put("referenceImages", si == null ? null : si.getReferenceImages());
+                m.put("attachments", si == null ? null : si.getAttachmentsJson());
+                String ua = it.getUserAnswer();
+                m.put("userAnswer", (ua == null || ua.trim().isEmpty()) ? null : ua);
+                subjectList.add(m);
+            }
+            result.put("subjectItems", subjectList);
+            result.put("questions", Collections.emptyList());
+        }
+
+        // 计时信息：与新开时同口径，但基准是这份答卷的 startTime（续答不能重置倒计时）
+        int duration = exam.getDuration() == null ? 0 : exam.getDuration();
+        long remainSeconds = 0;
+        Date base = sheet.getStartTime() == null ? new Date() : sheet.getStartTime();
+        if (duration > 0) {
+            long elapsed = (System.currentTimeMillis() - base.getTime()) / 1000L;
+            remainSeconds = Math.max(0, duration * 60L - elapsed);
+            if (exam.getEndTime() != null) {
+                long toEnd = (exam.getEndTime().getTime() - System.currentTimeMillis()) / 1000L;
+                if (toEnd > 0 && toEnd < remainSeconds) {
+                    remainSeconds = toEnd;
+                }
+            }
+        }
+        result.put("duration", duration);
+        result.put("remainingSeconds", remainSeconds);
+        result.put("serverTime", System.currentTimeMillis());
+        return result;
+    }
+
+    /**
+     * 保存作答进度（★ 2026-09-22 新增）：只写 answer_sheet_item.user_answer，
+     * **不判分、不改答卷状态、不写交卷时间** —— 等价于把前端的草稿落到库里。
+     *
+     * 安全：只能写**本人的**、且仍在作答中的答卷（越权 / 已交卷一律拒绝）。
+     */
+    @Override
+    public int saveDraft(Map<String, Object> body) {
+        Long sheetId = toLong(body == null ? null : body.get("sheetId"));
+        if (sheetId == null) {
+            throw new ServiceException("缺少答卷编号");
+        }
+        AnswerSheet sheet = answerSheetMapper.selectSheetById(sheetId);
+        if (sheet == null) {
+            throw new ServiceException("答卷不存在");
+        }
+        if (!SecurityUtils.getUserId().equals(sheet.getUserId())) {
+            throw new ServiceException("只能保存本人的作答进度");
+        }
+        if (!"IN_PROGRESS".equals(sheet.getStatus())) {
+            throw new ServiceException("该答卷已交卷，不能再保存进度");
+        }
+
+        List<Map<String, String>> answers = new ArrayList<>();
+        Object raw = body.get("answers");
+        if (raw instanceof List) {
+            for (Object o : (List<?>) raw) {
+                if (o instanceof Map) {
+                    Map<String, String> one = new HashMap<>();
+                    Object qid = ((Map<?, ?>) o).get("questionId");
+                    Object ua = ((Map<?, ?>) o).get("userAnswer");
+                    if (qid != null) {
+                        one.put("questionId", String.valueOf(qid));
+                    }
+                    if (ua != null) {
+                        one.put("userAnswer", String.valueOf(ua));
+                    }
+                    answers.add(one);
+                }
+            }
+        }
+        if (answers.isEmpty()) {
+            return 0;
+        }
+
+        boolean practical = "PRACTICAL".equals(sheet.getSheetType());
+        // 对齐键：理论卷按 questionId，实操卷按 subjectItemId（与 submit 同口径）
+        Map<Long, String> answerMap = new HashMap<>();
+        for (Map<String, String> a : answers) {
+            if (a.get("userAnswer") == null) {
+                continue;
+            }
+            Long key = toLong(a.get("questionId"));
+            if (key == null) {
+                continue;
+            }
+            answerMap.put(key, answerText(a.get("userAnswer")));
+        }
+        if (answerMap.isEmpty()) {
+            return 0;
+        }
+
+        List<AnswerSheetItem> toUpdate = new ArrayList<>();
+        for (AnswerSheetItem item : answerSheetMapper.selectItemsBySheetId(sheetId)) {
+            Long key = practical ? item.getSubjectItemId() : item.getQuestionId();
+            if (key == null) {
+                continue;
+            }
+            String val = answerMap.get(key);
+            if (val == null) {
+                continue;
+            }
+            String old = item.getUserAnswer();
+            if (val.equals(old == null ? "" : old)) {
+                continue;   // 没变化不写库，省掉无谓的 UPDATE
+            }
+            AnswerSheetItem upd = new AnswerSheetItem();
+            upd.setId(item.getId());
+            upd.setUserAnswer(val);
+            toUpdate.add(upd);
+        }
+        if (toUpdate.isEmpty()) {
+            return 0;
+        }
+        return answerSheetMapper.updateItemAnswers(toUpdate);
     }
 
     /**

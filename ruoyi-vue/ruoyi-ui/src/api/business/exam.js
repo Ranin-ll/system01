@@ -64,6 +64,14 @@ export function startExam(examId) {
 export function submitExam(data) {
   return request({ url: '/business/answer-sheet/submit', method: 'post', data })
 }
+// ★ 2026-09-22 新增：保存作答进度（草稿）。
+// 只写 answer_sheet_item.user_answer，不判分、不改状态、不写交卷时间。
+// body 与交卷同口径：{ sheetId, answers: [{ questionId, userAnswer }] }
+//   · 理论卷 questionId = 题目 id；实操卷 questionId = 实操题目 id（与 submit 一致）
+//   · 空作答不必传（后端会跳过）
+export function saveDraft(data) {
+  return request({ url: '/business/answer-sheet/draft', method: 'put', data })
+}
 // 实习生考核列表（含结果，按考核性质过滤）
 export function myExamList(examMode) {
   return request({ url: '/business/answer-sheet/my', method: 'get', params: examMode ? { examMode } : {} })

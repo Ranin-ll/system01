@@ -20,6 +20,18 @@ public interface IAnswerSheetService extends IService<AnswerSheet> {
     /** 交卷：客观题自动判分，实操题待人工。 */
     Map<String, Object> submit(Long sheetId, List<Map<String, String>> answers);
 
+    /**
+     * 保存作答进度（**不判分、不改答卷状态**）。
+     *
+     * 背景：作答只存在前端内存里，刷新/关页即丢；而 startExam 又只在「未过期」时才续答。
+     * 所以需要一个轻量的中途落库入口，让实习生回来能接着答。
+     * body: { sheetId, answers: [{questionId, userAnswer}] }
+     * 理论卷 questionId = 题目 id；实操卷 questionId = 实操题目 id(subjectItemId)。
+     *
+     * @return 实际更新的明细行数
+     */
+    int saveDraft(Map<String, Object> body);
+
     /** 实习生考核列表（含我的答卷结果）。examMode 为 FORMAL/PRACTICE，null 表示全部。 */
     List<Map<String, Object>> myExamList(String examMode);
 
