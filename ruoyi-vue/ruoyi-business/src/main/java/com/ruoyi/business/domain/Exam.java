@@ -27,6 +27,9 @@ public class Exam implements Serializable {
     /** 考核名称 */
     private String examName;
 
+    /** 套卷描述/说明（基础信息，与「题目内容偏向」的区别：这是整体说明） */
+    private String description;
+
     /** 类型：THEORY理论 / PRACTICAL实操 */
     private String examType;
 
@@ -92,6 +95,12 @@ public class Exam implements Serializable {
     /** 通过线 */
     private BigDecimal passLine;
 
+    /** 难易程度：EASY 简单 / MEDIUM 中等 / HARD 困难（空=未设置） */
+    private String difficulty;
+
+    /** 题目内容偏向（给实习生看的侧重备注，如「偏 Java 集合与并发」） */
+    private String contentBias;
+
     private Date publishedAt;
     private Long publisherId;
 
@@ -133,7 +142,8 @@ public class Exam implements Serializable {
 
     /**
      * 多题库组卷配置（当前主用，落 exam_bank_rule）
-     * 语义：题库即知识模块；每个题库分别配置 单选/多选/判断 的抽题数量。
+     * 语义：按题库分配抽题量；每个题库分别配置 单选/多选/判断 的抽题数量。
+     * 注：题库 = 一个部门的一门科目（**不是"知识模块"**，一个题库内含多个知识点）。
      * 配置非空时优先按它抽题；为空时回退到 bankId 单库 + knowledgeRules 老逻辑。
      */
     @TableField(exist = false)

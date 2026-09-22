@@ -70,4 +70,7 @@ public class DeptStatsVO implements Serializable {
 
     /** 本部门卡点计数：角色状态不一致 / 未分导师 / 未签协议 / 无学习记录 / 有逾期任务 */
     private Map<String, Object> blockers;
+
+    /** 本部门 × 知识点明细（题次 / 正确数）—— 2026-09-22 起为真数据（原先前端用 _mock.js 填充） */
+    private List<Map<String, Object>> knowledge;
 }

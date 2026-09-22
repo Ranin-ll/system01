@@ -97,11 +97,9 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
             exam.setSubjectCount(0);
         } else if ("PRACTICAL".equals(type)) {
             // 实操不抽题：题目由管理员逐条填写（题干 / 描述 / 参考图 / 附件 / 本题满分）。
-            // 至少要有 1 道题，否则实习生进去无事可做。
+            // ★ 允许 0 道题：建卷走两步式（先建草稿 → 到配置页从「实操题库」带入或逐题填写），
+            //   「至少一道题」的守卫统一放在 publish() 里（发布前必然检查）。
             java.util.List<com.ruoyi.business.domain.ExamSubjectItem> items = normalizeSubjectItems(exam.getSubjectItems());
-            if (items.isEmpty()) {
-                throw new ServiceException("实操考核至少需要一道题目，请填写题干后保存");
-            }
             exam.setSubjectItems(items);
             exam.setSubjectCount(items.size());
             exam.setBankId(null);
@@ -187,11 +185,9 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
         } else {
             // 实操：题目清单为准。只有显式传了 subjectItems 才覆写，
             // 避免「只改名称 / 时长」的保存把已配好的题目清空。
+            // ★ 允许传空数组（= 清空题目）：草稿阶段随便改，「至少一道题」的守卫在 publish()。
             if (exam.getSubjectItems() != null) {
                 subjectItems = normalizeSubjectItems(exam.getSubjectItems());
-                if (subjectItems.isEmpty()) {
-                    throw new ServiceException("实操考核至少需要一道题目，请填写题干后保存");
-                }
                 exam.setSubjectCount(subjectItems.size());
                 exam.setQuestionCount(subjectItems.size());
             }
@@ -257,6 +253,16 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
                 throw new ServiceException("发布前请先配置实操题目：至少填写一道题的题干");
             }
             saveSubjectItems(id, items);
+        }
+        // ★ 发布是「至少一道实操题」的唯一守卫点：即使本次没带题目清单
+        //   （例如在列表页直接点「发布」），也要确保库里确实有题，避免发出空卷。
+        //   新建 / 编辑 / 保存配置阶段都允许 0 道题（草稿态随便改）。
+        if ("PRACTICAL".equals(exam.getExamType())) {
+            java.util.List<com.ruoyi.business.domain.ExamSubjectItem> existingItems =
+                    examRuleMapper.selectSubjectItems(id);
+            if (existingItems == null || existingItems.isEmpty()) {
+                throw new ServiceException("发布前请先配置实操题目：至少填写一道题的题干");
+            }
         }
         assertDrawConfigReady(exam, effective);
         // 发布校验：通过线不能超过卷面满分（防管理员误设，从后端兜底拦截）
@@ -338,6 +344,16 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
             if (params.getPassLine() != null) {
                 update.setPassLine(params.getPassLine());
             }
+            // 套卷元信息：「难易程度」与「题目内容偏向」（模拟理论考核配置页维护；不传即不更新）
+            if (params.getDescription() != null) {
+                update.setDescription(params.getDescription());
+            }
+            if (params.getDifficulty() != null) {
+                update.setDifficulty(params.getDifficulty());
+            }
+            if (params.getContentBias() != null) {
+                update.setContentBias(params.getContentBias());
+            }
             if ("THEORY".equals(exam.getExamType())) {
                 if (params.getSingleScore() != null) {
                     update.setSingleScore(params.getSingleScore());
@@ -388,7 +404,7 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
     }
 
     @Override
-    public java.util.List<java.util.Map<String, Object>> bankOptions(Long deptId) {
+    public java.util.List<java.util.Map<String, Object>> bankOptions(Long deptId, String examMode, String bankKind) {
         Long scope = managerScopeDeptId();
         Long target = scope != null ? scope : deptId;
         if (target == null) {
@@ -397,10 +413,28 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
         QuestionBank query = new QuestionBank();
         query.setDeptId(target);
         query.setScopeDeptId(scope);
+        // 形态过滤（理论套卷只能选理论库；实操考核只能选实操库）；为空则不过滤（向后兼容）
+        if (bankKind != null && !bankKind.trim().isEmpty()) {
+            query.setBankKind(bankKind.trim().toUpperCase());
+        }
         java.util.List<QuestionBank> banks = questionBankMapper.selectBankList(query);
         java.util.List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
         if (banks == null) {
             return result;
+        }
+        // 按考核性质过滤候选题库：正式考核 → 正式题库 + 通用题库；模拟考核 → 模拟题库 + 通用题库。
+        // examMode 为空（老前端不传）时不过滤，保持向后兼容。
+        if (examMode != null && !examMode.trim().isEmpty()) {
+            String mode = examMode.trim().toUpperCase();
+            java.util.List<QuestionBank> filtered = new java.util.ArrayList<>();
+            for (QuestionBank bank : banks) {
+                String bt = bank.getBankType() == null ? "COMMON" : bank.getBankType().toUpperCase();
+                boolean usable = "COMMON".equals(bt) || ("PRACTICE".equals(mode) ? "PRACTICE".equals(bt) : "FORMAL".equals(bt));
+                if (usable) {
+                    filtered.add(bank);
+                }
+            }
+            banks = filtered;
         }
         for (QuestionBank bank : banks) {
             java.util.Map<String, Object> avail = examRuleMapper.selectBankAvailable(bank.getId());
@@ -517,7 +551,7 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
      *         非 null（可能为空列表）表示要以它为准覆写。
      */
     private java.util.List<com.ruoyi.business.domain.ExamBankRule> collectBankRules(Exam exam, Exam params) {
-        // 只有理论考核从题库组卷（题库即知识模块，多题库 × 题型配额）。
+        // 只有理论考核从题库组卷（多题库 × 题型配额；题库 = 部门的一门科目）。
         // 实操考核已改为「管理员逐条填写题目清单」，不再接受任何题库组卷配置。
         if (!"THEORY".equals(exam.getExamType())) {
             return null;

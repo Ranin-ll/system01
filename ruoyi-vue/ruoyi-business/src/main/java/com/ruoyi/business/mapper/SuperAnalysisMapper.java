@@ -17,10 +17,10 @@ import java.util.Map;
  * 且是按 {@code user_id / course_id} 分组 —— **部门维度的聚合一条都没有**，
  * 「部门横向对比」无法靠前端拼出来。</p>
  *
- * <p><b>取数范围（本期）</b>：只查 <b>人 / 学习 / 任务</b> 三族（真数据）。
- * 模拟考核、正式考核、知识点**一个都不查** —— 题库与考核模块将被同事分支改动，
- * 在会变的表上取数等于白做。这几列由前端 {@code _mock.js} 填充并统一打橙标，
- * 待分支合并后在 {@code SuperAnalysisMapper.xml} 里补查询即可，**前端模板零改动**。</p>
+ * <p><b>取数范围</b>：人 / 学习 / 任务 / <b>考核类（模拟 · 正式 · 知识点）</b> 全部为真数据。
+ * ★ 2026-09-22 更新：原先「考核类本期不查、由前端 {@code _mock.js} 填充并打橙标」的前提
+ * （等同事的题库 / 考核分支合并）**已失效** —— 分支早已合并、表结构已稳定，
+ * 因此在本模块补齐聚合查询，前端 {@code pick(real, mock)} 会自动优先真值并去掉橙标。</p>
  *
  * <p><b>★ 人数口径</b>：所有「捞人 / 数人」一律用 {@code EXISTS} 做角色存在性判断 ——
  * {@code sys_user.user_status} 不是权限，历史遗留账号常有「状态是实习生但一个角色都没有」，
@@ -78,4 +78,41 @@ public interface SuperAnalysisMapper {
      * 直接 JOIN 会让任务清单**行数翻倍**、审核结果还会串。</p>
      */
     List<Map<String, Object>> selectInternTasks(@Param("userId") Long userId);
+
+    // ==================================================================
+    // 考核类（2026-09-22 起接真数据）
+    // ★ 背景：原来「考核类本期不查、由前端 _mock.js 填充并打橙标」的前提是
+    //   「等同事的题库/考核分支合并」—— 该分支早已合并、表结构稳定，前提失效。
+    //   在此补齐聚合查询后，前端 pick(real, mock) 会自动优先真值并去掉橙标。
+    // ==================================================================
+
+    /** 部门级：模拟考核练习次数与平均分（practice_record 按 dept_id 聚合） */
+    List<DeptMatrixRow> selectPracticeByDept(@Param("deptId") Long deptId);
+
+    /** 部门级：正式考核已发布张数 */
+    List<DeptMatrixRow> selectFormalByDept(@Param("deptId") Long deptId);
+
+    /** 部门级：知识点题次与正确数（模拟题次 + 正式答卷明细，按章节聚合） */
+    List<DeptMatrixRow> selectKnowledgeByDept(@Param("deptId") Long deptId);
+
+    /** 部门 × 知识点明细（L1 部门详情的「薄弱知识点」；按题次降序） */
+    List<Map<String, Object>> selectKnowledgeDetailByDept(@Param("deptId") Long deptId);
+
+    /** 部门 × 知识点矩阵（L0 热力卡用；一次取全，前端自行 pivot） */
+    List<Map<String, Object>> selectKnowledgeMatrix(@Param("deptId") Long deptId);
+
+    /** 逐人：模拟考核逐场记录（日期 / 对题数 / 总题数 / 得分） */
+    List<Map<String, Object>> selectInternPractice(@Param("userId") Long userId);
+
+    /** 逐人：正式考核逐场结果（含是否通过） */
+    List<Map<String, Object>> selectInternFormal(@Param("userId") Long userId);
+
+    /** 逐人：知识点掌握（题次 / 正确数） */
+    List<Map<String, Object>> selectInternKnowledge(@Param("userId") Long userId);
+
+    /**
+     * 按部门批量取「正式考试是否通过」（1 通过 / 0 未通过；无记录的人不返回）。
+     * 给培养状态页的转正 gate 用 —— 用它替代逐人查询，避免 N+1。
+     */
+    List<Map<String, Object>> selectFormalPassedByUser(@Param("deptId") Long deptId);
 }

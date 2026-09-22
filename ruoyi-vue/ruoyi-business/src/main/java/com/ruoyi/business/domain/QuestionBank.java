@@ -29,6 +29,12 @@ public class QuestionBank implements Serializable {
     /** 题库类型：FORMAL正式 / PRACTICE模拟（部门自带，不可删除） */
     private String bankType;
 
+    /** 题库形态：THEORY 理论题库 / PRACTICAL 实操题库（与 bankType「用途标签」正交） */
+    private String bankKind;
+
+    /** 是否对实习生开放浏览（仅实操题库有效）：1 开放 / 0 不开放 */
+    private Integer practiceEnabled;
+
     /** 所属部门ID（关联sys_dept） */
     private Long deptId;
 
@@ -57,6 +63,10 @@ public class QuestionBank implements Serializable {
     /** 所属部门名称（列表展示字段） */
     @TableField(exist = false)
     private String deptName;
+
+    /** 知识点数：本题库内题目标签（question.knowledge_point）去重计数，仅列表展示用，非表字段 */
+    @TableField(exist = false)
+    private Integer knowledgePointCount;
 
     /** 当前登录账号的数据范围（仅供查询使用，不落库） */
     @TableField(exist = false)

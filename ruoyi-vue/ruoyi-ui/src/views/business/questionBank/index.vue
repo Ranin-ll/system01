@@ -8,6 +8,7 @@
           <el-tag size="mini" effect="plain" :type="isSuperAdmin ? 'warning' : 'success'">{{ isSuperAdmin ? '全局管理' : '本部门范围' }}</el-tag>
         </div>
         <p>{{ isSuperAdmin ? '查看全组织题库与题目，可按部门筛选并维护任一部门数据。' : '维护本部门题库与题目，题目支持 Excel 批量导入；发布后实习生可在考试中心参与考核。' }}</p>
+        <p class="page-note"><b>题库</b> 按<b>科目 / 课程</b>划分，可自由新建、上传题目、编辑与删除；题目按「<b>知识点（章节）</b>」归类；「<b>使用范围</b>」只是可选标签（正式考核用 / 模拟考核用），不影响题库本身。</p>
       </div>
       <div class="heading-actions">
         <el-button icon="el-icon-refresh" size="small" @click="loadBanks">刷新数据</el-button>
@@ -15,43 +16,137 @@
       </div>
     </header>
 
-    <section class="scope-strip">
-      <div class="scope-main"><span class="scope-icon"><i class="el-icon-office-building" /></span><div><strong>{{ isSuperAdmin ? '全局题库管理' : (deptName || '当前部门') }}</strong><span>{{ isSuperAdmin ? '可查看并维护五个部门的题库数据' : '仅管理本部门题库与题目' }}</span></div></div>
-      <div class="scope-meta"><span><i class="el-icon-lock" /> 数据范围由登录账号决定</span></div>
+    <!-- ① 总览：先看清家底，点一下即按该口径筛选 -->
+    <section class="kpi-row">
+      <button v-for="card in kpiCards" :key="card.key" type="button" class="kpi-card" :class="[{ active: activeKpi === card.key }, card.tone]" @click="applyKpi(card.key)">
+        <span class="kpi-icon"><i :class="card.icon" /></span>
+        <span class="kpi-body">
+          <span class="kpi-value">{{ card.value }}<small v-if="card.unit">{{ card.unit }}</small></span>
+          <span class="kpi-label">{{ card.label }}</span>
+        </span>
+        <span class="kpi-hint">{{ card.hint }}</span>
+      </button>
     </section>
 
-    <!-- 题库列表 -->
-    <section class="content-panel">
-      <div class="panel-heading"><div><h3>题库目录</h3><p>题库按部门归属，点击「管理题目」维护题库内的题目。</p></div></div>
+    <!-- ①.5 形态切换：理论题库 / 实操题库 -->
+    <section class="kind-bar">
+      <button
+        v-for="k in kindTabs()"
+        :key="k.value"
+        type="button"
+        class="kind-tab"
+        :class="{ on: filters.bankKind === k.value }"
+        @click="switchKind(k.value)"
+      >
+        {{ k.label }}
+        <span class="kind-n">{{ k.count }}</span>
+      </button>
+      <span class="kind-hint">理论题库按题型组卷抽题；实操题库供考核挑选实操题目（逐题作业）</span>
+    </section>
 
-      <el-table v-loading="bankLoading" :data="bankList" stripe class="bank-table" empty-text="暂无题库，点击“新建题库”开始配置">
-        <el-table-column label="题库名称" min-width="200">
+    <!-- ② 筛选条：关键字 / 部门 / 用途 / 状态 -->
+    <section class="filter-bar">
+      <el-input v-model="filters.keyword" size="small" clearable prefix-icon="el-icon-search" placeholder="搜索题库名称或说明" class="filter-keyword" />
+      <el-select v-if="isSuperAdmin" v-model="filters.deptId" size="small" clearable placeholder="全部部门" class="filter-select">
+        <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
+      </el-select>
+      <el-select v-model="filters.bankType" size="small" clearable placeholder="全部用途" class="filter-select">
+        <el-option label="正式考核题库" value="FORMAL" />
+        <el-option label="模拟考核题库" value="PRACTICE" />
+        <el-option label="通用题库" value="COMMON" />
+      </el-select>
+      <el-select v-model="filters.status" size="small" clearable placeholder="全部状态" class="filter-select">
+        <el-option label="启用" value="ENABLED" />
+        <el-option label="停用" value="DISABLED" />
+      </el-select>
+      <span class="filter-summary">显示 {{ filteredBanks.length }} / {{ bankList.length }} 个题库</span>
+      <el-button type="text" size="small" icon="el-icon-sort" @click="toggleSortByCount">{{ sortByCount ? '题目最多优先' : '按默认顺序' }}</el-button>
+      <el-button v-if="hasActiveFilter" type="text" size="small" icon="el-icon-refresh-left" @click="resetFilters">重置筛选</el-button>
+    </section>
+
+    <!-- ③ 题库目录 -->
+    <section class="content-panel">
+      <div class="panel-heading">
+        <div>
+          <h3>题库目录</h3>
+          <p>题库按部门归属；点「管理题目」进入详情页维护题目、查看题型与难度分布。</p>
+        </div>
+      </div>
+
+      <el-table :key="'bank-table'" v-loading="bankLoading" :data="filteredBanks" stripe class="bank-table">
+        <el-table-column label="题库名称" min-width="240">
           <template slot-scope="scope">
-            <div class="bank-cell"><span class="bank-icon"><i class="el-icon-collection" /></span><div><strong>{{ scope.row.bankName }} <el-tag v-if="scope.row.bankType === 'PRACTICE'" size="mini" type="warning" effect="plain">模拟题库</el-tag></strong><small>{{ scope.row.description || '暂无说明' }}</small></div></div>
+            <div class="bank-cell">
+              <span class="bank-icon" :class="{ practice: scope.row.bankType === 'PRACTICE' }">
+                <i :class="scope.row.bankType === 'PRACTICE' ? 'el-icon-edit-outline' : 'el-icon-collection'" />
+              </span>
+              <div class="bank-main">
+                <strong>{{ scope.row.bankName }}</strong>
+                <small>{{ scope.row.description || '暂无说明' }}</small>
+              </div>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="所属部门" min-width="130">
+        <el-table-column label="形态" width="96" align="center">
+          <template slot-scope="scope">
+            <el-tag size="mini" effect="plain" :type="scope.row.bankKind === 'PRACTICAL' ? 'warning' : ''">{{ bankKindLabel(scope.row.bankKind) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="用途标签" min-width="120" align="center">
+          <template slot-scope="scope">
+            <el-tag size="mini" effect="plain" :type="bankTypeTag(scope.row.bankType)">{{ bankTypeLabel(scope.row.bankType) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="所属部门" min-width="120">
           <template slot-scope="scope"><span class="dept-text"><i class="el-icon-office-building" />{{ scope.row.deptName || '未设置' }}</span></template>
         </el-table-column>
-        <el-table-column label="题目数" width="90" align="center">
-          <template slot-scope="scope"><strong class="table-number">{{ scope.row.questionCount || 0 }}</strong></template>
+        <el-table-column :label="(filters.bankKind === 'PRACTICAL') ? '实操题' : '题目数'" min-width="110" align="center">
+          <template slot-scope="scope">
+            <template v-if="(scope.row.bankKind || 'THEORY') === 'PRACTICAL'">
+              <strong class="table-number">—</strong>
+              <small class="table-sub">进入实操题库维护</small>
+            </template>
+            <template v-else>
+              <strong class="table-number">{{ scope.row.questionCount || 0 }}</strong>
+              <small class="table-sub">{{ (scope.row.questionCount || 0) > 0 ? '题' : '未导入' }}</small>
+            </template>
+          </template>
+        </el-table-column>
+        <el-table-column :label="(filters.bankKind === 'PRACTICAL') ? '技能方向' : '知识点(章节)'" min-width="118" align="center">
+          <template slot-scope="scope">
+            <template v-if="(scope.row.bankKind || 'THEORY') === 'PRACTICAL'">
+              <strong class="table-number">—</strong>
+              <small class="table-sub">按方向在实操题库内查看</small>
+            </template>
+            <template v-else>
+              <strong class="table-number">{{ scope.row.knowledgePointCount || 0 }}</strong>
+              <small class="table-sub">{{ (scope.row.knowledgePointCount || 0) > 0 ? '个标签' : '未标注' }}</small>
+            </template>
+          </template>
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template slot-scope="scope"><el-tag size="mini" effect="plain" :type="scope.row.status === 'ENABLED' ? 'success' : 'info'">{{ scope.row.status === 'ENABLED' ? '启用' : '停用' }}</el-tag></template>
         </el-table-column>
         <el-table-column label="操作" width="230" align="center">
           <template slot-scope="scope">
-            <el-button type="text" size="mini" icon="el-icon-s-management" @click.stop="goDetail(scope.row)">管理题库</el-button>
+            <el-button type="text" size="mini" icon="el-icon-s-management" @click.stop="goDetail(scope.row)">管理题目</el-button>
             <el-button v-hasPermi="['business:bank:edit']" type="text" size="mini" icon="el-icon-edit" @click.stop="handleEditBank(scope.row)">编辑</el-button>
-            <el-button v-if="scope.row.bankType !== 'PRACTICE'" v-hasPermi="['business:bank:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click.stop="handleDeleteBank(scope.row)">删除</el-button>
+            <el-button v-hasPermi="['business:bank:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click.stop="handleDeleteBank(scope.row)">删除</el-button>
           </template>
         </el-table-column>
+
+        <template slot="empty">
+          <div class="empty-block">
+            <i class="el-icon-collection" />
+            <p v-if="bankList.length">当前筛选条件下没有匹配的题库</p>
+            <p v-else>暂无题库，点击右上角「新建题库」开始配置</p>
+            <el-button v-if="hasActiveFilter" size="mini" @click="resetFilters">清空筛选</el-button>
+          </div>
+        </template>
       </el-table>
     </section>
 
-
-
-    <!-- 题库编辑弹窗 -->
+    <!-- 题库编辑弹窗（保持原逻辑） -->
     <el-dialog :title="bankDialogTitle" :visible.sync="bankDialogVisible" width="520px" append-to-body>
       <el-form ref="bankForm" :model="bankForm" :rules="bankRules" label-width="90px">
         <el-form-item v-if="isSuperAdmin && !bankForm.id" label="所属部门" prop="deptId">
@@ -59,14 +154,27 @@
             <el-option v-for="dept in deptOptions" :key="dept.deptId" :label="dept.deptName" :value="dept.deptId" />
           </el-select>
         </el-form-item>
-        <el-form-item label="题库名称" prop="bankName"><el-input v-model="bankForm.bankName" placeholder="请输入题库名称" maxlength="128" /></el-form-item>
+        <el-form-item label="题库名称" prop="bankName"><el-input v-model="bankForm.bankName" placeholder="按科目 / 课程命名，例如：Java 后端基础" maxlength="128" /></el-form-item>
+        <el-form-item label="题库形态" prop="bankKind">
+          <el-radio-group v-model="bankForm.bankKind">
+            <el-radio label="THEORY">理论题库</el-radio>
+            <el-radio label="PRACTICAL">实操题库</el-radio>
+          </el-radio-group>
+          <div class="form-tip">理论题库按题型组卷抽题；实操题库存放「逐题作业」型题目（题干 / 方向 / 交付要求 / 附件 / 建议满分）。</div>
+        </el-form-item>
+        <el-form-item label="用途标签" prop="bankType">
+          <el-radio-group v-model="bankForm.bankType">
+            <el-radio label="FORMAL">正式考核题库</el-radio>
+            <el-radio label="PRACTICE">模拟考核题库</el-radio>
+            <el-radio label="COMMON">通用题库</el-radio>
+          </el-radio-group>
+          <div class="form-tip">通用题库在正式考核与模拟考核中都可被选用；正式 / 模拟题库只在对应考核里可选。</div>
+        </el-form-item>
         <el-form-item label="题库说明"><el-input v-model="bankForm.description" type="textarea" :rows="3" placeholder="填写题库说明（可选）" maxlength="500" /></el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="bankForm.status"><el-radio label="ENABLED">启用</el-radio><el-radio label="DISABLED">停用</el-radio></el-radio-group></el-form-item>
       </el-form>
       <span slot="footer"><el-button @click="bankDialogVisible = false">取消</el-button><el-button type="primary" :loading="bankSubmitting" @click="submitBank">确定</el-button></span>
     </el-dialog>
-
-
   </div>
 </template>
 
@@ -95,7 +203,9 @@ export default {
       bankForm: { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED' },
       bankRules: {
         deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }],
-        bankName: [{ required: true, message: '请输入题库名称', trigger: 'blur' }]
+        bankName: [{ required: true, message: '请输入题库名称', trigger: 'blur' }],
+        bankType: [{ required: true, message: '请选择用途标签', trigger: 'change' }],
+        bankKind: [{ required: true, message: '请选择题库形态', trigger: 'change' }]
       },
       bankSubmitting: false,
 
@@ -110,7 +220,12 @@ export default {
       importStep: 0,
       uploadFile: null,
       importing: false,
-      importResult: null
+      importResult: null,
+
+      // === 2026-09-21 改版新增（纯追加，不影响既有逻辑）===
+      filters: { keyword: '', deptId: null, bankType: '', status: '', bankKind: 'THEORY' },
+      activeKpi: '',
+      sortByCount: false
     }
   },
   computed: {
@@ -122,6 +237,43 @@ export default {
     importResultText() {
       if (!this.importResult) return ''
       return `共 ${this.importResult.total} 条，成功 ${this.importResult.success} 条，失败 ${this.importResult.failed} 条`
+    },
+
+    // === 2026-09-21 改版新增：筛选 + 总览（全部由已加载的 bankList 计算，不改接口）===
+    /** 按 关键字 / 部门 / 类型 / 状态 过滤后的题库 */
+    filteredBanks() {
+      const f = this.filters
+      const kw = (f.keyword || '').trim().toLowerCase()
+      let list = (this.bankList || []).filter(bank => {
+        if (kw) {
+          const hay = `${bank.bankName || ''} ${bank.description || ''}`.toLowerCase()
+          if (hay.indexOf(kw) === -1) return false
+        }
+        if (f.deptId && bank.deptId !== f.deptId) return false
+        if (f.bankType && bank.bankType !== f.bankType) return false
+        if (f.status && bank.status !== f.status) return false
+        if (f.bankKind && (bank.bankKind || 'THEORY') !== f.bankKind) return false
+        return true
+      })
+      if (this.sortByCount) {
+        list = list.slice().sort((a, b) => (b.questionCount || 0) - (a.questionCount || 0))
+      }
+      return list
+    },
+    hasActiveFilter() {
+      const f = this.filters
+      return !!(f.keyword || f.deptId || f.bankType || f.status || this.sortByCount)
+    },
+    /** 总览四格：值全部来自真实列表 */
+    kpiCards() {
+      const list = this.bankList || []
+      const sum = list.reduce((acc, bank) => acc + (bank.questionCount || 0), 0)
+      return [
+        { key: 'all', label: '题库总数', value: list.length, unit: '个', hint: '点此清空筛选', icon: 'el-icon-collection', tone: '' },
+        { key: 'questions', label: '题目总数', value: sum, unit: '题', hint: '点此按题量排序', icon: 'el-icon-tickets', tone: 'tone-purple' },
+        { key: 'enabled', label: '启用中', value: list.filter(b => b.status === 'ENABLED').length, unit: '个', hint: '点此只看启用', icon: 'el-icon-circle-check', tone: 'tone-green' },
+        { key: 'practice', label: '模拟考核用', value: list.filter(b => b.bankType === 'PRACTICE').length, unit: '个', hint: '点此只看模拟考核用', icon: 'el-icon-edit-outline', tone: 'tone-orange' }
+      ]
     }
   },
   created() {
@@ -150,6 +302,14 @@ export default {
      * <p>详情页挂在 `/super` 与 `/department` 两处，按当前路径前缀拼目标路由。</p>
      */
     goDetail(row) {
+      // 实操题库 → 独立的实操题管理页；理论题库 → 题目管理页
+      if ((row.bankKind || 'THEORY') === 'PRACTICAL') {
+        this.$router.push({
+          path: '/department/study/practice-bank-detail/' + row.id,
+          query: { bankName: row.bankName, bankType: row.bankType }
+        }).catch(() => {})
+        return
+      }
       const base = this.$route.path.indexOf('/super') === 0
         ? '/super/ops/bank-detail/'
         : '/department/study/bank-detail/'
@@ -175,11 +335,11 @@ export default {
       this.loadQuestions()
     },
     handleAddBank() {
-      this.bankForm = { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED' }
+      this.bankForm = { id: null, deptId: null, bankName: '', description: '', status: 'ENABLED', bankType: 'COMMON', bankKind: this.filters.bankKind || 'THEORY' }
       this.bankDialogVisible = true
     },
     handleEditBank(row) {
-      this.bankForm = { id: row.id, deptId: row.deptId, bankName: row.bankName, description: row.description, status: row.status }
+      this.bankForm = { id: row.id, deptId: row.deptId, bankName: row.bankName, description: row.description, status: row.status, bankType: row.bankType || 'COMMON', bankKind: row.bankKind || 'THEORY' }
       this.bankDialogVisible = true
     },
     submitBank() {
@@ -196,7 +356,10 @@ export default {
       })
     },
     handleDeleteBank(row) {
-      this.$modal.confirm(`确认删除题库「${row.bankName}」吗？题库下的题目将一并处理。`).then(() => {
+      const tagTip = row.bankType === 'FORMAL' ? '该题库为「正式考核题库」，删除后引用它的正式考核将无题可抽。'
+        : row.bankType === 'PRACTICE' ? '该题库为「模拟考核题库」，删除后未配组卷的模拟考核将无题可抽（会回退到本部门其它模拟/通用题库）。'
+          : row.bankType === 'COMMON' ? '该题库为「通用题库」，正式与模拟考核都可能引用它。' : '该题库未设置用途标签。'
+      this.$modal.confirm(`确认删除题库「${row.bankName}」吗？${tagTip}题库下的题目将一并删除。`).then(() => {
         delBank(row.id).then(() => {
           this.$modal.msgSuccess('删除成功')
           if (this.currentBank && this.currentBank.id === row.id) this.currentBank = null
@@ -314,48 +477,131 @@ export default {
     },
     difficultyLabel(d) {
       return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[d] || d
-    }
+    },
+
+    // === 2026-09-21 改版新增 ===
+    /** 点总览卡 = 一键套用该口径（再点一次取消） */
+    applyKpi(key) {
+      if (this.activeKpi === key) { this.resetFilters(); return }
+      this.activeKpi = key
+      this.filters.status = key === 'enabled' ? 'ENABLED' : ''
+      this.filters.bankType = key === 'practice' ? 'PRACTICE' : ''
+      this.sortByCount = key === 'questions'
+      if (key === 'all') { this.filters.status = ''; this.filters.bankType = ''; this.sortByCount = false }
+    },
+    resetFilters() {
+      this.filters = { keyword: '', deptId: null, bankType: '', status: '', bankKind: this.filters.bankKind || 'THEORY' }
+      this.activeKpi = ''
+      this.sortByCount = false
+    },
+    toggleSortByCount() {
+      this.sortByCount = !this.sortByCount
+      this.activeKpi = this.sortByCount ? 'questions' : ''
+    },
+    /** 形态切换条（数量按当前筛选结果算，不含形态条件本身） */
+    kindTabs() {
+      const list = this.bankList || []
+      const cnt = k => list.filter(b => (b.bankKind || 'THEORY') === k).length
+      return [
+        { value: 'THEORY', label: '理论题库', count: cnt('THEORY') },
+        { value: 'PRACTICAL', label: '实操题库', count: cnt('PRACTICAL') }
+      ]
+    },
+    switchKind(k) {
+      this.filters.bankKind = k
+    },
+    bankKindLabel(k) { return { THEORY: '理论', PRACTICAL: '实操' }[k] || '理论' },
+    bankTypeLabel(t) { return { FORMAL: '正式考核题库', PRACTICE: '模拟考核题库', COMMON: '通用题库' }[t] || '未设置' },
+    bankTypeTag(t) { return t === 'PRACTICE' ? 'warning' : (t === 'COMMON' ? 'success' : 'primary') },
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.page-heading { margin-bottom: 18px; }
+/* ============ 页头 ============ */
+.page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .eyebrow { color: #1764f5; font-size: 12px; letter-spacing: .05em; }
+.page-note { margin: 6px 0 0; color: #8490a0; font-size: 12px; }
+.page-note b { color: #475467; }
+.form-tip { margin-top: 4px; color: #98a2b3; font-size: 12px; line-height: 1.6; }
+.kind-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.kind-tab {
+  padding: 7px 16px; color: #475467; background: #fff; border: 1px solid #e7ecf3;
+  border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 13px; transition: all .15s;
+}
+.kind-tab:hover { border-color: #b9d2ff; color: #1764f5; }
+.kind-tab.on { color: #1764f5; background: #f6faff; border-color: #1764f5; font-weight: 500; }
+.kind-n { margin-left: 6px; padding: 0 6px; color: #667085; background: #eef1f6; border-radius: 9px; font-size: 11px; }
+.kind-tab.on .kind-n { color: #1764f5; background: #e8f1fd; }
+.kind-hint { margin-left: auto; color: #98a2b3; font-size: 12px; }
+@media (max-width: 900px) { .kind-hint { margin-left: 0; } }
 .title-line { display: flex; align-items: center; gap: 10px; }
 .page-heading h2 { margin: 6px 0 8px; font-size: 22px; font-weight: 600; color: #1d2939; }
 .page-heading p { margin: 0; color: #667085; font-size: 13px; }
-.heading-actions { text-align: right; }
-.scope-strip { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding: 14px 18px; border: 1px solid #e7ecf3; border-radius: 6px; background: #fff; }
-.scope-main { display: flex; align-items: center; gap: 12px; }
-.scope-icon { display: flex; width: 38px; height: 38px; align-items: center; justify-content: center; color: #1764f5; background: #edf4ff; font-size: 19px; border-radius: 6px; }
-.scope-main strong, .scope-main span { display: block; }
-.scope-main strong { color: #1d2939; font-size: 14px; }
-.scope-main span { color: #8490a0; font-size: 12px; margin-top: 2px; }
-.scope-meta { color: #8490a0; font-size: 12px; }
+.heading-actions { flex: none; }
+
+/* ============ ① 总览 KPI（可点即筛选） ============ */
+.kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.kpi-card {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-align: left;
+  background: #fff; border: 1px solid #e7ecf3; border-radius: 6px; cursor: pointer;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+  font-family: inherit;
+}
+.kpi-card:hover { border-color: #b9d2ff; box-shadow: 0 2px 8px rgba(23, 100, 245, .08); }
+.kpi-card.active { border-color: #1764f5; box-shadow: 0 0 0 2px rgba(23, 100, 245, .12); }
+.kpi-icon { display: flex; width: 40px; height: 40px; flex: none; align-items: center; justify-content: center; color: #1764f5; background: #edf4ff; font-size: 20px; border-radius: 8px; }
+.kpi-body { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.kpi-value { color: #1d2939; font-size: 22px; font-weight: 600; line-height: 1.2; }
+.kpi-value small { margin-left: 3px; color: #667085; font-size: 12px; font-weight: 400; }
+.kpi-label { margin-top: 2px; color: #667085; font-size: 12px; }
+.kpi-hint { flex: none; align-self: flex-start; color: #b6bfcc; font-size: 11px; }
+.kpi-card.active .kpi-hint { color: #1764f5; }
+.kpi-card.tone-green .kpi-icon { color: #23966f; background: #eaf7f1; }
+.kpi-card.tone-orange .kpi-icon { color: #e6a23c; background: #fdf6ec; }
+.kpi-card.tone-purple .kpi-icon { color: #7b5cf0; background: #f2eeff; }
+
+/* ============ ② 筛选条 ============ */
+.filter-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin-bottom: 14px; padding: 12px 16px; background: #fff;
+  border: 1px solid #e7ecf3; border-radius: 6px;
+}
+.filter-keyword { width: 240px; }
+.filter-select { width: 150px; }
+.filter-summary { margin-left: auto; color: #667085; font-size: 12px; }
+
+/* ============ ③ 题库目录 ============ */
 .content-panel { margin-bottom: 16px; padding: 18px 20px; background: #fff; border: 1px solid #e7ecf3; border-radius: 6px; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .panel-heading h3 { margin: 0 0 5px; font-size: 16px; font-weight: 600; color: #1d2939; }
 .panel-heading p { margin: 0; color: #8490a0; font-size: 12px; }
-.panel-actions { display: flex; gap: 8px; }
 .bank-cell { display: flex; align-items: center; gap: 12px; }
-.bank-icon { display: flex; width: 38px; height: 38px; align-items: center; justify-content: center; color: #fff; background: #1764f5; font-size: 18px; border-radius: 6px; }
-.bank-cell strong, .bank-cell small { display: block; }
-.bank-cell strong { color: #1d2939; font-size: 14px; }
-.bank-cell small { color: #98a2b3; font-size: 12px; margin-top: 3px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bank-icon { display: flex; width: 38px; height: 38px; flex: none; align-items: center; justify-content: center; color: #fff; background: #1764f5; font-size: 18px; border-radius: 6px; }
+.bank-icon.practice { background: #e6a23c; }
+.bank-main { min-width: 0; }
+.bank-main strong { display: block; color: #1d2939; font-size: 14px; }
+.bank-main small { display: block; max-width: 420px; margin-top: 3px; overflow: hidden; color: #98a2b3; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .dept-text { color: #475467; font-size: 13px; }
 .dept-text i { margin-right: 4px; color: #98a2b3; }
-.table-number { color: #1764f5; font-size: 16px; }
+.table-number { color: #1764f5; font-size: 16px; font-weight: 600; }
+.table-sub { display: block; margin-top: 2px; color: #98a2b3; font-size: 11px; }
 .danger-text { color: #f56c6c; }
-.query-form { padding: 4px 0 10px; border-bottom: 1px solid #edf0f4; }
-.stem-cell { display: flex; align-items: center; gap: 8px; }
-.stem-cell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.answer-text { color: #23966f; }
-.judge-options { display: flex; gap: 16px; }
-.judge-item { display: inline-flex; align-items: center; gap: 8px; color: #475467; }
-.judge-item b { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; background: #edf4ff; color: #1764f5; border-radius: 4px; }
-.import-guide { padding-top: 6px; }
-.import-body { margin-top: 18px; color: #475467; font-size: 13px; line-height: 1.7; }
-.import-actions { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
-.import-errors { max-height: 160px; margin-top: 10px; padding: 10px; overflow-y: auto; color: #e6a23c; font-size: 12px; background: #fdf6ec; border: 1px solid #faecd8; border-radius: 4px; line-height: 1.8; }
+
+/* ============ 空态（区分「没有」与「筛没了」） ============ */
+.empty-block { padding: 26px 0; text-align: center; }
+.empty-block i { color: #d0d5dd; font-size: 34px; }
+.empty-block p { margin: 10px 0 12px; color: #8490a0; font-size: 13px; }
+
+/* ============ 窄屏 ============ */
+@media (max-width: 1100px) {
+  .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-keyword { width: 100%; }
+  .filter-summary { margin-left: 0; }
+}
+@media (max-width: 700px) {
+  .kpi-row { grid-template-columns: minmax(0, 1fr); }
+  .page-heading { flex-direction: column; }
+  .content-panel { padding: 14px 12px; }
+}
 </style>

@@ -40,9 +40,8 @@
             <div class="dkpi-label">
               <span class="d" :style="{ background: item.color }" />
               {{ item.label }}
-              <span v-if="item.sample" class="dsample">示例</span>
             </div>
-            <div class="dkpi-val" :class="{ mute: !item.value }">{{ item.value }}</div>
+            <div class="dkpi-val" :class="{ mute: !item.value }">{{ item.value === null || item.value === undefined ? '--' : item.value }}</div>
             <div class="dkpi-sub">{{ item.hint }}</div>
           </div>
         </div>
@@ -53,10 +52,10 @@
         <div class="dkpi-label">
           <span class="d" :style="{ background: item.color }" />
           {{ item.label }}
-          <span v-if="item.sample" class="dsample">示例</span>
         </div>
         <div class="dkpi-val">
-          {{ item.value }}<small v-if="item.unit">{{ item.unit }}</small>
+          <template v-if="item.value === null || item.value === undefined">--</template>
+          <template v-else>{{ item.value }}<small v-if="item.unit">{{ item.unit }}</small></template>
         </div>
         <div class="dkpi-sub" :class="item.tone">{{ item.hint }}</div>
         <div v-if="item.pct !== undefined" class="dbar-mini">
@@ -96,7 +95,7 @@
           </div>
           <span class="hint-text">
             {{ internCount }} 名实习生 · 按完成率分档
-            <span class="dsample">示例</span>
+      <!-- 2026-09-22：本卡数据待接入，已移除「示例」标（没有就不显示假数） -->
           </span>
         </div>
         <div class="dvcols">
@@ -123,7 +122,7 @@
           </div>
           <span class="hint-text">
             最近 5 个环节 · 点行进成绩管理
-            <span class="dsample">示例</span>
+      <!-- 2026-09-22：本卡数据待接入，已移除「示例」标（没有就不显示假数） -->
           </span>
         </div>
         <table class="dtbl">
@@ -136,7 +135,6 @@
             <tr v-for="row in examRows" :key="row.key" class="row-link" @click="goScores">
               <td>
                 <span class="strong">{{ row.name }}</span>
-                <span v-if="row.sample" class="dsample" style="margin-left:6px">示例</span>
               </td>
               <td>{{ row.typeText }}</td>
               <td>{{ row.stageText }}</td>
@@ -160,7 +158,7 @@
           </div>
           <span class="hint-text">
             本部门整体
-            <span class="dsample">示例</span>
+      <!-- 2026-09-22：本卡数据待接入，已移除「示例」标（没有就不显示假数） -->
           </span>
         </div>
         <div v-for="row in weakPoints" :key="row.name" class="dhbar">
@@ -216,28 +214,6 @@
 <script>
 import { getRegisterSummary, listRegister } from '@/api/business/register'
 import { listExam } from '@/api/business/exam'
-
-/** 无后端聚合接口的区块：沿用设计稿示例值，并在界面打「示例」标记 */
-const SAMPLE = {
-  studyDist: [
-    { label: '≥90%', pct: 52, tone: 'good' },
-    { label: '70-89%', pct: 74, tone: '' },
-    { label: '50-69%', pct: 36, tone: 'mute' },
-    { label: '<50%', pct: 52, tone: 'mid' }
-  ],
-  studyRateAvg: 72,
-  practiceRateAvg: 76,
-  passRate: 83,
-  weakPoints: [
-    { name: 'Docker', rate: 42, tone: 'poor' },
-    { name: 'DIX脚本', rate: 50, tone: 'poor' },
-    { name: 'Maven', rate: 55, tone: 'poor' },
-    { name: 'nginx', rate: 62, tone: 'mid' },
-    { name: 'MySQL', rate: 70, tone: 'mid' }
-  ],
-  tasks: 4,
-  unread: 6
-}
 
 export default {
   name: 'DeptDashboard',
@@ -311,15 +287,15 @@ export default {
       const max = Math.max.apply(null, rows.map(r => r.value).concat([1]))
       return rows.map(r => Object.assign({}, r, { pct: Math.round(r.value / max * 100) }))
     },
-    /** 今日待办（前 4 项为真实待办，后 2 项为示例） */
+    /** 今日待办（前 4 项为真实待办；后 2 项无接口 ⇒ 值为 null，界面显示 --） */
     todoItems() {
       return [
         { key: 'audit', label: '待审核注册', value: this.summary.pendingCount, color: '#1764f5', hint: '本部门累计提交 ' + this.summary.totalCount + ' 条', to: '/department/people/register-review' },
         { key: 'grading', label: '待批阅答卷', value: this.pendingGrading, color: '#f79009', hint: this.exams.length ? '来自 ' + this.exams.length + ' 场考核' : '暂无待批阅', to: '/department/study/scores' },
         { key: 'promote', label: '待转正审批', value: this.pendingPromoteCount, color: '#7a5af8', hint: this.pendingPromoteCount ? '已推荐待终审' : '暂无待审批', to: '/department/people/promotion' },
         { key: 'publish', label: '待发布考核', value: this.draftExams, color: '#12b76a', hint: this.draftExams ? '草稿待发布' : '暂无草稿', to: '/department/study/exam' },
-        { key: 'task', label: '进行中任务', value: SAMPLE.tasks, color: '#f79009', hint: '2 个今天截止', to: '/department/messages/tasks', sample: true },
-        { key: 'unread', label: '未读消息', value: SAMPLE.unread, color: '#98a2b3', hint: '来自 3 位实习生', to: '/department/messages/notices', sample: true }
+        { key: 'task', label: '进行中任务', value: null, color: '#f79009', hint: '待接入任务统计', to: '/department/messages/tasks' },
+        { key: 'unread', label: '未读消息', value: null, color: '#98a2b3', hint: '待接入消息统计', to: '/department/messages/notices' }
       ]
     },
     todayTodo() {
@@ -331,26 +307,26 @@ export default {
         { key: 'intern', label: '在册实习生', value: this.internCount, unit: '人', hint: '本部门 ' + this.positionCount + ' 个岗位', color: '#1764f5' },
         { key: 'pre', label: '预备实习中', value: this.preCount, unit: '人', hint: 'PRE_TRAINEE', color: '#1764f5' },
         { key: 'formal', label: '已转正', value: this.formalCount, unit: '人', hint: 'FORMAL_TRAINEE', tone: 'ok', color: '#12b76a' },
-        { key: 'study', label: '学习完成率均值', value: SAMPLE.studyRateAvg, unit: '%', hint: '低于目标 80%', tone: 'bad', pct: SAMPLE.studyRateAvg, barTone: 'o', color: '#1764f5', sample: true },
-        { key: 'practice', label: '模拟正确率均值', value: SAMPLE.practiceRateAvg, unit: '%', hint: '较上期 +5.2%', tone: 'ok', pct: SAMPLE.practiceRateAvg, barTone: 'g', color: '#1764f5', sample: true },
-        { key: 'pass', label: '正式考核通过率', value: SAMPLE.passRate, unit: '%', hint: this.formalCount + ' 人已转正', tone: 'ok', pct: SAMPLE.passRate, barTone: 'g', color: '#12b76a', sample: true }
+        { key: 'study', label: '学习完成率均值', value: null, unit: '%', hint: '待接入部门学习统计', tone: '', barTone: 'o', color: '#1764f5' },
+        { key: 'practice', label: '模拟正确率均值', value: null, unit: '%', hint: '待接入模拟考核统计', tone: '', barTone: 'g', color: '#1764f5' },
+        { key: 'pass', label: '正式考核通过率', value: null, unit: '%', hint: this.formalCount + ' 人已转正', tone: '', barTone: 'g', color: '#12b76a' }
       ]
     },
+    /** 学习进度分布：待接入「部门学习完成率分档」接口（2026-09-22：先留空，不再用示例值） */
     studyDist() {
-      return SAMPLE.studyDist
+      return []
     },
     lowCount() {
-      return SAMPLE.studyDist[3].pct > 0 ? 3 : 0
+      return 0
     },
     blockedCount() {
-      return 2
+      return 0
     },
+    /** 最薄弱知识点：待接入「部门 × 章节得分率」接口（超管端已有 knowledge-matrix，部门端待补） */
     weakPoints() {
-      return SAMPLE.weakPoints.map(row => Object.assign({}, row, {
-        barTone: row.rate < 60 ? 'poor' : (row.rate < 70 ? 'mid' : 'avg')
-      }))
+      return []
     },
-    /** ⑥ 考核概览：真实考核在前，示例行补足 5 行 */
+    /** ⑥ 考核概览：只显示真实的考核环节（不再用示例行补足） */
     examRows() {
       const statusMap = {
         DRAFT: { text: '草稿', tone: '' },
@@ -372,15 +348,8 @@ export default {
           tone: st.tone
         }
       })
-      const samples = [
-        { name: '2026Q3 正式考核 v2', typeText: '正式', stageText: '理论', joined: 6, avg: 78.5, passRate: '83%', statusText: '已发布', tone: 'green' },
-        { name: '2026Q3 正式考核 v2', typeText: '正式', stageText: '实操', joined: 6, avg: 71.2, passRate: '60%', statusText: '已发布', tone: 'green' },
-        { name: '2026Q3 模拟自测', typeText: '模拟', stageText: '理论', joined: 11, avg: 76.0, passRate: '—', statusText: '进行中', tone: 'blue' },
-        { name: '7 月专项 · Spring Boot', typeText: '正式', stageText: '实操', joined: 4, avg: '—', passRate: '—', statusText: '待批阅', tone: 'orange' },
-        { name: '2026Q3 正式考核 v1', typeText: '正式', stageText: '理论', joined: '—', avg: '—', passRate: '—', statusText: '草稿', tone: '' }
-      ].map((row, i) => Object.assign({ key: 's' + i, sample: true }, row))
-      const need = Math.max(0, 5 - real.length)
-      return real.concat(samples.slice(0, need))
+      // 2026-09-22：不再用示例行补足 5 行（没有就空着），只显示真实的考核环节
+      return real
     },
     /** ⑧ 最近动态：由注册申请 + 考核发布时间线合成（真实） */
     activities() {

@@ -111,7 +111,7 @@ export const dynamicRoutes = [
     roles: ['PRE_TRAINEE', 'FORMAL_TRAINEE'],
     children: [
       {
-        // 「学习与考核」页签壳：承载 5 个页签子路由（在线学习 / 备考资料 / 模拟考核 / 正式考核 / 考核成绩与转正）
+        // 「学习与考核」页签壳：承载 6 个页签子路由（在线学习 / 备考资料 / 模拟理论考核 / 模拟实操题 / 正式考核 / 考核成绩与转正）
         path: 'learning',
         component: () => import('@/views/assessment/learning/shell'),
         name: 'InternLearningShell',
@@ -134,7 +134,26 @@ export const dynamicRoutes = [
             path: 'mock',
             component: () => import('@/views/assessment/practice/index'),
             name: 'InternMockExam',
-            meta: { title: '模拟考核', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+            meta: { title: '模拟理论考核', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+          },
+          // ★ 子项顺序 = 侧栏「学习与考核」的子项顺序（store/modules/permission.js 的
+          //   buildInternSidebar 只按 INTERN_TABS 过滤、不排序）⇒ 这里必须与
+          //   utils/internTabs.js 的数组顺序保持一致，否则侧栏与页签栏顺序会走偏。
+          {
+            path: 'practice-bank',
+            component: () => import('@/views/assessment/practiceBank/index'),
+            name: 'InternPracticeBank',
+            meta: { title: '模拟实操题', activeMenu: '/assessment/intern/learning', tab: 'InternPracticeBank' }
+          },
+          {
+            // 模拟实操题详情（下钻页，不占页签）：从列表点「查看详情」进入。
+            // 放在页签壳的 children 下 ⇒ 保留页签条；meta.tab 指回「模拟实操题」保证高亮不丢。
+            // 路由自带 bankId/subjectId ⇒ 刷新 / 直达 / 回退都可用（不靠组件间传对象）。
+            // name 不在 INTERN_TABS 里 ⇒ 不会出现在侧栏。
+            path: 'practice-bank/:bankId/subject/:subjectId',
+            component: () => import('@/views/assessment/practiceBank/detail'),
+            name: 'InternPracticeSubject',
+            meta: { title: '模拟实操题详情', activeMenu: '/assessment/intern/learning', tab: 'InternPracticeBank' }
           },
           {
             path: 'exam',
@@ -184,7 +203,7 @@ export const dynamicRoutes = [
         path: 'mock-exam/record/:recordId(\\d+)',
         component: () => import('@/views/assessment/practice/record'),
         name: 'InternMockExamRecord',
-        meta: { title: '模拟考核回顾', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+        meta: { title: '模拟理论考核回顾', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
       },
       {
         path: 'practice-subject/:id(\\d+)',
@@ -305,6 +324,13 @@ export const dynamicRoutes = [
       },
       {
         // 题库详情（独立页）：与超管端共用同一组件（统计 + 题目管理）
+        path: 'study/practice-bank-detail/:bankId',
+        component: () => import('@/views/business/practiceBank/detail'),
+        name: 'DeptPracticeBankDetail',
+        hidden: true,
+        meta: { title: '实操题库', activeMenu: '/department/study/banks' }
+      },
+      {
         path: 'study/bank-detail/:bankId',
         component: () => import('@/views/business/questionBank/detail'),
         name: 'DeptBankDetail',
@@ -316,6 +342,14 @@ export const dynamicRoutes = [
         component: () => import('@/views/department/study/prep/index'),
         name: 'DeptPrep',
         meta: { title: '模拟备考管理', icon: 'documentation', activeMenu: '/department/study/prep' }
+      },
+      {
+        // 套卷配置（独立页）：从「模拟理论考核」列表点「配置」进来，不进侧栏。
+        path: 'study/paper-config/:examId',
+        component: () => import('@/views/department/study/prep/paperConfig'),
+        name: 'DeptPaperConfig',
+        hidden: true,
+        meta: { title: '套卷配置', activeMenu: '/department/study/prep' }
       },
       {
         path: 'study/exam',
@@ -479,16 +513,35 @@ export const dynamicRoutes = [
         meta: { title: '实操题库', icon: 'form', activeMenu: '/super/ops/psubject-admin' }
       },
       {
+        // 「考核与成绩」L0：总览（两个视角）+ KPI，下钻到 /exam-config/{id}
         path: 'ops/exams',
         component: () => import('@/views/super/ops/exams/index'),
         name: 'SuperOpsExams',
-        meta: { title: '考核运营总览', icon: 'date', activeMenu: '/super/ops/exams' }
+        meta: { title: '考核与成绩', icon: 'date', activeMenu: '/super/ops/exams' }
       },
       {
+        // 模拟备考管理：**复用部门端同一页面**（该页已有超管适配 —— isSuperAdmin 会加载部门列表，
+        // 且 listExam 不传 deptId ⇒ 超管天然拿全量），所以无需另写一套。
+        // 补这个入口的原因：超管访问部门端 /department/study/prep 会 404（超管只有 DB 菜单树里的路径）。
+        path: 'ops/prep',
+        component: () => import('@/views/department/study/prep/index'),
+        name: 'SuperOpsPrep',
+        meta: { title: '模拟备考管理', icon: 'education', activeMenu: '/super/ops/prep' }
+      },
+      {
+        // 套卷配置（独立页，不进侧栏）：超管走 /super 前缀，
+        // 与部门端的 /department/study/paper-config 各自独立，避免互相跳成 404
+        path: 'ops/paper-config/:examId',
+        component: () => import('@/views/department/study/prep/paperConfig'),
+        name: 'SuperPaperConfig',
+        hidden: true,
+        meta: { title: '套卷配置', activeMenu: '/super/ops/prep' }
+      },
+      {
+        // 已下线（2026-09-22）：成绩与统计分析并入「考核与成绩」（ops/exams），侧栏不再单列。
+        // 保留路由做 redirect 兜底，避免旧书签 / 收藏 404（与 org/dept-admins 同一做法）。
         path: 'ops/scores',
-        component: () => import('@/views/super/ops/scores/index'),
-        name: 'SuperOpsScores',
-        meta: { title: '成绩与统计分析', icon: 'chart', activeMenu: '/super/ops/scores' }
+        redirect: () => ({ path: '/super/ops/exams' })
       },
       // ④ 任务与通知（单项目录；三端命名统一 —— 决策 6）
       {
@@ -627,6 +680,53 @@ export const dynamicRoutes = [
         component: () => import('@/views/business/exam/index'),
         meta: { title: '考核管理', icon: 'list' },
         permissions: ['business:bank:list']
+      },
+    ]
+  },
+  {
+    // 考核配置（独立页）：与列表分离；部门端/超管端两处列表都跳这里
+    // 说明：不按路径前缀猜地址 —— 超管的列表在 DB 菜单树的 /assessment/department/exam，
+    //       部门端在 dynamicRoutes 的 /department/study/exam，故统一用顶层路由 + ?from= 回跳。
+    path: '/exam-config',
+    component: Layout,
+    hidden: true,
+    permissions: ['business:bank:list'],
+    children: [
+      {
+        path: ':examId(\\d+)',
+        component: () => import('@/views/business/exam/config'),
+        name: 'ExamConfig',
+        meta: { title: '考核配置', activeMenu: '/assessment/department/exam' }
+      }
+    ]
+  },
+  {
+    // 「考核与成绩」L1 单场详情（顶层 hidden；带 ?from= 回跳，activeMenu 指回 L0）
+    path: '/exam-session',
+    component: Layout,
+    hidden: true,
+    permissions: ['business:bank:list'],
+    children: [
+      {
+        path: ':examId(\\d+)',
+        component: () => import('@/views/super/ops/exams/session'),
+        name: 'SuperExamSession',
+        meta: { title: '考核详情', activeMenu: '/super/ops/exams' }
+      }
+    ]
+  },
+  {
+    // 「考核与成绩」L2 单份答卷详情（顶层 hidden；?examId= 用于取同场样本做位次对照）
+    path: '/exam-sheet',
+    component: Layout,
+    hidden: true,
+    permissions: ['business:bank:list'],
+    children: [
+      {
+        path: ':sheetId(\\d+)',
+        component: () => import('@/views/super/ops/exams/sheet'),
+        name: 'SuperExamSheet',
+        meta: { title: '答卷明细', activeMenu: '/super/ops/exams' }
       }
     ]
   },

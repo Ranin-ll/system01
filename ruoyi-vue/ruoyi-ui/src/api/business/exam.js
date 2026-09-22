@@ -81,8 +81,12 @@ export function uploadFile(formData) {
 
 // ---------- 多题库组卷配置（当前主用） ----------
 // 本部门可选题库清单（含各库按题型的可用题量）
-export function listExamBankOptions(deptId) {
-  return request({ url: '/business/exam/bank-options', method: 'get', params: deptId ? { deptId } : {} })
+export function listExamBankOptions(deptId, examMode, bankKind) {
+  const params = {}
+  if (deptId) params.deptId = deptId
+  if (examMode) params.examMode = examMode
+  if (bankKind) params.bankKind = bankKind
+  return request({ url: '/business/exam/bank-options', method: 'get', params })
 }
 // 按多题库组卷配置试抽一套卷（校验用，不落库）
 export function tryDrawByBanks(data) {

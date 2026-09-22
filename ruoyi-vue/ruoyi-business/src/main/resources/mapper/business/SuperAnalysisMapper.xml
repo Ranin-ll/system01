@@ -260,4 +260,193 @@
         ORDER BY FIELD(ta.status, 'OVERDUE', 'NOT_STARTED', 'DONE'), ta.id
     </select>
 
+    <!-- ==================================================================
+         考核类（2026-09-22 接真数据）
+         ★ 原来这几列由前端 _mock.js 填充，前提是「等同事的题库/考核分支合并」；
+           分支早已合并、表结构稳定 ⇒ 在此补聚合，前端 pick(real, mock) 自动优先真值。
+         ★ 知识点口径：模拟练习的逐题明细（practice_record_item）+ 正式答卷的客观题明细
+           （answer_sheet_item，is_subjective = 0，主观题没有"对错"概念）合并后
+           按 question.knowledge_point（= 章节）聚合。题目被软删的不计入。
+         ================================================================== -->
+
+    <!-- 部门级：模拟考核练习次数与平均分 -->
+    <select id="selectPracticeByDept" resultType="com.ruoyi.business.domain.DeptMatrixRow">
+        SELECT p.dept_id          AS deptId,
+               COUNT(1)           AS practiceCount,
+               ROUND(AVG(p.score), 2) AS practiceAvg
+        FROM practice_record p
+        WHERE p.dept_id IS NOT NULL
+        <if test="deptId != null">AND p.dept_id = #{deptId}</if>
+        GROUP BY p.dept_id
+    </select>
+
+    <!-- 部门级：正式考核已发布张数 -->
+    <select id="selectFormalByDept" resultType="com.ruoyi.business.domain.DeptMatrixRow">
+        SELECT e.dept_id   AS deptId,
+               COUNT(1)    AS formalPublished
+        FROM exam e
+        WHERE e.deleted = 0
+          AND e.exam_mode = 'FORMAL'
+          AND e.status = 'PUBLISHED'
+        <if test="deptId != null">AND e.dept_id = #{deptId}</if>
+        GROUP BY e.dept_id
+    </select>
+
+    <!-- 部门级：知识点题次 / 正确数 -->
+    <select id="selectKnowledgeByDept" resultType="com.ruoyi.business.domain.DeptMatrixRow">
+        SELECT t.dept_id AS deptId,
+               COUNT(1)  AS knowledgeItems,
+               SUM(CASE WHEN t.is_correct = 1 THEN 1 ELSE 0 END) AS knowledgeCorrect
+        FROM (
+            SELECT p.dept_id AS dept_id, pri.is_correct AS is_correct
+            FROM practice_record_item pri
+            INNER JOIN practice_record p ON p.id = pri.record_id
+            INNER JOIN question q ON q.id = pri.question_id AND q.deleted = 0
+            WHERE p.dept_id IS NOT NULL
+              AND q.knowledge_point IS NOT NULL AND q.knowledge_point != ''
+            UNION ALL
+            SELECT e.dept_id AS dept_id, asi.is_correct AS is_correct
+            FROM answer_sheet_item asi
+            INNER JOIN answer_sheet s ON s.id = asi.answer_sheet_id
+            INNER JOIN exam e ON e.id = s.exam_id AND e.deleted = 0
+            INNER JOIN question q2 ON q2.id = asi.question_id AND q2.deleted = 0
+            WHERE e.dept_id IS NOT NULL
+              AND asi.is_subjective = 0
+              AND q2.knowledge_point IS NOT NULL AND q2.knowledge_point != ''
+        ) t
+        <where>
+            <if test="deptId != null">t.dept_id = #{deptId}</if>
+        </where>
+        GROUP BY t.dept_id
+    </select>
+
+    <!-- 部门 × 知识点明细（按题次降序；前端再按正确率升序取 Top5 作为薄弱章节） -->
+    <select id="selectKnowledgeDetailByDept" resultType="java.util.LinkedHashMap">
+        SELECT t.point AS point,
+               COUNT(1)  AS items,
+               SUM(CASE WHEN t.is_correct = 1 THEN 1 ELSE 0 END) AS correct
+        FROM (
+            SELECT q.knowledge_point AS point, pri.is_correct AS is_correct
+            FROM practice_record_item pri
+            INNER JOIN practice_record p ON p.id = pri.record_id
+            INNER JOIN question q ON q.id = pri.question_id AND q.deleted = 0
+            WHERE p.dept_id = #{deptId}
+              AND q.knowledge_point IS NOT NULL AND q.knowledge_point != ''
+            UNION ALL
+            SELECT q2.knowledge_point AS point, asi.is_correct AS is_correct
+            FROM answer_sheet_item asi
+            INNER JOIN answer_sheet s ON s.id = asi.answer_sheet_id
+            INNER JOIN exam e ON e.id = s.exam_id AND e.deleted = 0
+            INNER JOIN question q2 ON q2.id = asi.question_id AND q2.deleted = 0
+            WHERE e.dept_id = #{deptId}
+              AND asi.is_subjective = 0
+              AND q2.knowledge_point IS NOT NULL AND q2.knowledge_point != ''
+        ) t
+        GROUP BY t.point
+        ORDER BY items DESC, t.point ASC
+    </select>
+
+    <!-- 部门 × 知识点矩阵（L0 热力卡：一次取全，前端自行 pivot 成 部门行 × 知识点列） -->
+    <select id="selectKnowledgeMatrix" resultType="java.util.LinkedHashMap">
+        SELECT t.dept_id  AS deptId,
+               d.dept_name AS deptName,
+               t.point    AS point,
+               COUNT(1)   AS items,
+               SUM(CASE WHEN t.is_correct = 1 THEN 1 ELSE 0 END) AS correct
+        FROM (
+            SELECT p.dept_id AS dept_id, q.knowledge_point AS point, pri.is_correct AS is_correct
+            FROM practice_record_item pri
+            INNER JOIN practice_record p ON p.id = pri.record_id
+            INNER JOIN question q ON q.id = pri.question_id AND q.deleted = 0
+            WHERE p.dept_id IS NOT NULL
+              AND q.knowledge_point IS NOT NULL AND q.knowledge_point != ''
+            UNION ALL
+            SELECT e.dept_id AS dept_id, q2.knowledge_point AS point, asi.is_correct AS is_correct
+            FROM answer_sheet_item asi
+            INNER JOIN answer_sheet s ON s.id = asi.answer_sheet_id
+            INNER JOIN exam e ON e.id = s.exam_id AND e.deleted = 0
+            INNER JOIN question q2 ON q2.id = asi.question_id AND q2.deleted = 0
+            WHERE e.dept_id IS NOT NULL
+              AND asi.is_subjective = 0
+              AND q2.knowledge_point IS NOT NULL AND q2.knowledge_point != ''
+        ) t
+        LEFT JOIN sys_dept d ON d.dept_id = t.dept_id AND d.del_flag = '0'
+        <where>
+            <if test="deptId != null">t.dept_id = #{deptId}</if>
+        </where>
+        GROUP BY t.dept_id, d.dept_name, t.point
+        ORDER BY t.dept_id ASC, items DESC, t.point ASC
+    </select>
+
+    <!-- 逐人：模拟考核逐场 -->
+    <select id="selectInternPractice" resultType="java.util.LinkedHashMap">
+        SELECT DATE_FORMAT(p.create_time, '%Y-%m-%d %H:%i') AS date,
+               p.correct_count AS correct,
+               p.total_count   AS total,
+               p.score         AS score,
+               e.exam_name     AS examName
+        FROM practice_record p
+        LEFT JOIN exam e ON e.id = p.exam_id
+        WHERE p.user_id = #{userId}
+        ORDER BY p.create_time ASC, p.id ASC
+    </select>
+
+    <!-- 逐人：正式考核逐场结果 -->
+    <select id="selectInternFormal" resultType="java.util.LinkedHashMap">
+        SELECT e.id            AS examId,
+               e.exam_name     AS examName,
+               e.exam_type     AS examType,
+               e.exam_mode     AS examMode,
+               e.pass_line     AS passLine,
+               s.id            AS sheetId,
+               s.status        AS sheetStatus,
+               s.ai_score      AS aiScore,
+               s.manual_score  AS manualScore,
+               s.final_score   AS finalScore,
+               s.pass_flag     AS passFlag,
+               DATE_FORMAT(s.submit_time, '%Y-%m-%d %H:%i') AS submitTime
+        FROM answer_sheet s
+        INNER JOIN exam e ON e.id = s.exam_id AND e.deleted = 0 AND e.exam_mode = 'FORMAL'
+        WHERE s.user_id = #{userId}
+        ORDER BY s.submit_time ASC, s.id ASC
+    </select>
+
+    <!-- 逐人：知识点掌握 -->
+    <select id="selectInternKnowledge" resultType="java.util.LinkedHashMap">
+        SELECT t.point AS point,
+               COUNT(1)  AS items,
+               SUM(CASE WHEN t.is_correct = 1 THEN 1 ELSE 0 END) AS correct
+        FROM (
+            SELECT q.knowledge_point AS point, pri.is_correct AS is_correct
+            FROM practice_record_item pri
+            INNER JOIN practice_record p ON p.id = pri.record_id
+            INNER JOIN question q ON q.id = pri.question_id AND q.deleted = 0
+            WHERE p.user_id = #{userId}
+              AND q.knowledge_point IS NOT NULL AND q.knowledge_point != ''
+            UNION ALL
+            SELECT q2.knowledge_point AS point, asi.is_correct AS is_correct
+            FROM answer_sheet_item asi
+            INNER JOIN answer_sheet s ON s.id = asi.answer_sheet_id
+            INNER JOIN question q2 ON q2.id = asi.question_id AND q2.deleted = 0
+            WHERE s.user_id = #{userId}
+              AND asi.is_subjective = 0
+              AND q2.knowledge_point IS NOT NULL AND q2.knowledge_point != ''
+        ) t
+        GROUP BY t.point
+        ORDER BY items DESC, t.point ASC
+    </select>
+
+    <!-- 按部门批量取「正式考试是否通过」（给转正 gate 用，避免 N+1） -->
+    <select id="selectFormalPassedByUser" resultType="java.util.LinkedHashMap">
+        SELECT s.user_id AS userId,
+               MAX(CASE WHEN s.pass_flag = 1 THEN 1 ELSE 0 END) AS passed,
+               COUNT(1) AS sheetCount,
+               ROUND(MAX(s.final_score), 1) AS bestScore
+        FROM answer_sheet s
+        INNER JOIN exam e ON e.id = s.exam_id AND e.deleted = 0 AND e.exam_mode = 'FORMAL'
+        WHERE s.user_id IS NOT NULL
+        <if test="deptId != null">AND e.dept_id = #{deptId}</if>
+        GROUP BY s.user_id
+    </select>
+
 </mapper>

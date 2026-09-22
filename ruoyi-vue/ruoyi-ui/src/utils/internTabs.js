@@ -11,7 +11,8 @@
 export const INTERN_TABS = [
   { name: 'InternLearning', label: '在线学习', path: '/assessment/intern/learning/courses' },
   { name: 'InternGuide', label: '备考资料', path: '/assessment/intern/learning/guide' },
-  { name: 'InternMockExam', label: '模拟考核', path: '/assessment/intern/learning/mock' },
+  { name: 'InternMockExam', label: '模拟理论考核', path: '/assessment/intern/learning/mock' },
+  { name: 'InternPracticeBank', label: '模拟实操题', path: '/assessment/intern/learning/practice-bank' },
   { name: 'InternLearningExam', label: '正式考核', path: '/assessment/intern/learning/exam' },
   { name: 'InternResult', label: '考核成绩与转正', path: '/assessment/intern/learning/result' }
 ]
@@ -22,7 +23,8 @@ export const FORMAL_INTERN_TAB_NAMES = ['InternLearning', 'InternLearningExam', 
 // 正式实习生被关闭的路径（备考资料 / 模拟考核的新地址）
 export const FORMAL_INTERN_BLOCKED_PATHS = [
   '/assessment/intern/learning/guide',
-  '/assessment/intern/learning/mock'
+  '/assessment/intern/learning/mock',
+  '/assessment/intern/learning/practice-bank'
 ]
 
 export function isFormalIntern(roles = []) {

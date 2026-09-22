@@ -103,7 +103,7 @@
             <div class="chk">
               <span class="mark ok">✓</span>
               <span>剩余考试次数</span>
-              <b>{{ remainTimes }} 次<em class="dsample">示例</em></b>
+              <b>{{ remainTimes === null ? '--' : remainTimes + ' 次' }}</b>
             </div>
           </div>
         </section>
@@ -285,8 +285,8 @@ function parseJsonList(json) {
     return []
   }
 }
-/** 剩余考试次数（批次规则未接接口，页面标注「示例」） */
-const DEMO_REMAIN_TIMES = 2
+/** 剩余考试次数：批次规则未接接口 ⇒ 留空（不再用固定 2 次假装） */
+const DEMO_REMAIN_TIMES = null
 
 export default {
   name: 'InternExam',
@@ -526,7 +526,7 @@ export default {
       else if (attended) footText = published.length
         ? '已出分 ' + published.length + '/' + sheets.length + ' 项 · 得分合计 ' + scored
         : '已完成 ' + sheets.length + ' 项考核'
-      else if (running) footText = '剩余次数 ' + this.remainTimes + ' 次'
+      else if (running) footText = this.remainTimes === null ? '进行中' : '剩余次数 ' + this.remainTimes + ' 次'
       else if (expired) footText = '已过截止时间'
       else footText = '未解锁'
 

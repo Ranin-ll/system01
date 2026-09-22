@@ -27,9 +27,9 @@
           </div>
           <div class="fact">
             <span>保密协议</span>
-            <b :class="demo.protocol ? 'ok' : 'warn'" style="font-size:14px">{{ demo.protocol ? '已签署' : '未签署' }}</b>
+            <b :class="demo.protocol ? 'ok' : 'warn'" style="font-size:14px">{{ demo.protocol === null ? '--' : (demo.protocol ? '已签署' : '未签署') }}</b>
           </div>
-          <div class="fact"><span>学习完成率</span><b>{{ demo.studyRate }}%</b></div>
+          <div class="fact"><span>学习完成率</span><b>{{ demo.studyRate === null ? '--' : demo.studyRate + '%' }}</b></div>
           <div class="fact">
             <span>正式考核</span>
             <b :class="demo.examKey === 'PASS' ? 'ok' : ''" style="font-size:14px">{{ demo.examText }}</b>
@@ -73,7 +73,7 @@
       <div class="dcard c8">
         <div class="dcard-h">
           <div class="tt"><span class="idx">能</span><h3>能力画像</h3></div>
-          <span class="hint-text">四维度 · 数据完整度 {{ demo.completeness }}%</span>
+          <span class="hint-text">四维度 · 数据完整度 {{ demo.completeness === null ? '--' : demo.completeness + '%' }}</span>
         </div>
         <div class="dgrid" style="gap:14px">
           <div class="c6">
@@ -86,6 +86,7 @@
                 <div class="dhbar-fill" :class="d.barTone" :style="{ width: (d.measured ? d.value : 0) + '%' }" />
               </div>
             </div>
+            <p v-if="!dimensions.length" class="dsec-note">能力维度待定义（<code>profile_snapshot</code> 无 Java 层实现）。</p>
           </div>
           <div class="c6">
             <div class="dcallout" style="padding:10px 12px;margin-bottom:10px">
@@ -112,8 +113,7 @@
         <div class="dcard-h">
           <div class="tt"><span class="idx">课</span><h3>学习明细</h3></div>
           <span class="hint-text">
-            完成率 {{ demo.studyRate }}%
-            <span class="dsample">示例</span>
+            完成率 {{ demo.studyRate === null ? '--' : demo.studyRate + '%' }}
           </span>
         </div>
         <div v-for="c in courses" :key="c.name" class="dhbar">
@@ -125,6 +125,7 @@
             <div class="dhbar-fill" :class="c.barTone" :style="{ width: c.rate + '%' }" />
           </div>
         </div>
+        <p v-if="!courses.length" class="dsec-note">暂无按课程维度的完成率（需后端聚合接口）。</p>
       </div>
 
       <!-- 考核记录 -->
@@ -133,7 +134,6 @@
           <div class="tt"><span class="idx">考</span><h3>考核记录</h3></div>
           <span class="hint-text">
             模拟 {{ mockCount }} 次 · 正式 {{ formalCount }} 次
-            <span class="dsample">示例</span>
           </span>
         </div>
         <table class="dtbl">
@@ -176,31 +176,18 @@ const STATUS_TEXT = {
   ARCHIVED: '已归档'
 }
 
-function demoOf(userId) {
-  const seed = ((userId || 1) * 9301) % 233280
-  const r1 = Math.round((seed / 233280) * 55) + 40
-  return {
-    protocol: seed % 3 !== 0,
-    studyRate: Math.min(r1 + 15, 100),
-    completeness: 78,
-    examKey: seed % 5 === 0 ? 'NONE' : (seed % 3 === 0 ? 'PENDING' : 'PASS'),
-    examText: seed % 5 === 0 ? '未参加' : (seed % 3 === 0 ? '待批阅' : '已通过'),
-    dimensions: [
-      { name: '学习投入', value: Math.min(r1 + 10, 100), measured: true },
-      { name: '理论掌握', value: Math.min(r1 + 6, 100), measured: true },
-      { name: '实践能力', value: Math.max(r1 - 4, 30), measured: true },
-      { name: '规范遵从', value: 0, measured: false }
-    ]
-  }
-}
-
 export default {
   name: 'DeptStudentProfile',
   data() {
     return {
       loading: false,
       person: {},
-      demo: demoOf(0)
+      /**
+       * 2026-09-22：本页的协议 / 学习完成率 / 考核结论 / 数据完整度 / 四维能力
+       * **没有可用的聚合接口**（`profile_snapshot` 零 Java 层、`stage_evaluation` 0 行）
+       * ⇒ 一律留空（原来用 `demoOf(0)` 编造），模板侧显示「--」
+       */
+      demo: { protocol: null, studyRate: null, examKey: null, examText: '待接入', completeness: null, dimensions: [] }
     }
   },
   computed: {
@@ -216,18 +203,19 @@ export default {
     steps() {
       const st = this.person.userStatus
       const passedProtocol = this.demo.protocol
-      const studyOk = this.demo.studyRate >= 70
+      const rate = this.demo.studyRate
+      const studyOk = rate !== null && rate >= 70
       const examOk = this.demo.examKey === 'PASS'
       const formal = st === 'FORMAL_TRAINEE'
       return [
         {
           key: 'protocol', no: 1, title: '协议签署',
-          desc: passedProtocol ? this.fmtDay(this.person.createTime) + ' 已签' : '尚未签署',
+          desc: passedProtocol === null ? '签署状态待接入' : (passedProtocol ? this.fmtDay(this.person.createTime) + ' 已签' : '尚未签署'),
           state: passedProtocol ? 'done' : 'now'
         },
         {
           key: 'study', no: 2, title: '在线学习',
-          desc: this.demo.studyRate + '% · ' + (studyOk ? '已达 70% 门槛' : '未达门槛'),
+          desc: rate === null ? '完成率待接入' : (rate + '% · ' + (studyOk ? '已达 70% 门槛' : '未达门槛')),
           state: studyOk ? 'done' : (passedProtocol ? 'now' : '')
         },
         {
@@ -251,38 +239,13 @@ export default {
         barTone: d.value >= 85 ? 'good' : (d.value >= 70 ? 'avg' : 'poor')
       }))
     },
+    /** 无「按课程维度的完成率」聚合接口 ⇒ 留空（不再用 studyRate 反推编造 4 门课） */
     courses() {
-      const base = this.demo.studyRate
-      const raw = [
-        ['Java 基础', 100],
-        ['MySQL 实务', 100],
-        ['Spring Boot', Math.max(30, base - 16)],
-        ['Docker 部署', Math.max(10, Math.round(base * 0.23))]
-      ]
-      return raw.map(([name, rate]) => ({
-        name,
-        rate,
-        tone: rate >= 90 ? 'good' : (rate >= 60 ? 'mid' : 'poor'),
-        barTone: rate >= 90 ? 'good' : (rate >= 60 ? 'avg' : 'poor')
-      }))
+      return []
     },
+    /** 无「该实习生考核记录」聚合接口 ⇒ 留空 */
     records() {
-      const st = this.person.userStatus
-      const out = []
-      if (st !== 'WAIT_AUDIT' && this.demo.examKey !== 'NONE') {
-        out.push({
-          key: 'f1',
-          typeText: '正式', typeTone: 'purple',
-          title: '2026Q3 正式考核 v2',
-          score: (78 + (this.demo.studyRate % 8)).toFixed(1),
-          conclusion: this.demo.examKey === 'PASS' ? '通过' : '待批阅',
-          tone: this.demo.examKey === 'PASS' ? 'green' : 'orange',
-          time: '09-14'
-        })
-      }
-      out.push({ key: 'm1', typeText: '模拟', typeTone: 'blue', title: '随机 10 题自测', score: '8/10', conclusion: '80%', tone: 'gray', time: '09-10' })
-      out.push({ key: 'm2', typeText: '模拟', typeTone: 'blue', title: '随机 10 题自测', score: '9/10', conclusion: '90%', tone: 'gray', time: '09-06' })
-      return out
+      return []
     },
     mockCount() {
       return this.records.filter(r => r.typeText === '模拟').length
@@ -302,7 +265,6 @@ export default {
   methods: {
     loadPerson() {
       const id = this.userId
-      this.demo = demoOf(Number(id) || 0)
       this.loading = true
       listRegister({ pageNum: 1, pageSize: 200 }).then(res => {
         const rows = (res && res.rows) || []

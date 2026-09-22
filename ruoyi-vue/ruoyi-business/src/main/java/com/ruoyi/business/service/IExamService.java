@@ -33,7 +33,7 @@ public interface IExamService extends IService<Exam> {
     java.util.List<java.util.Map<String, Object>> bankKnowledgePoints(Long bankId);
 
     /** 本部门可选题库清单（含各库按题型的可用题量，供多题库组卷配置页选题库） */
-    java.util.List<java.util.Map<String, Object>> bankOptions(Long deptId);
+    java.util.List<java.util.Map<String, Object>> bankOptions(Long deptId, String examMode, String bankKind);
 
     /**
      * 在培实习生花名册（「指定人员」的可选名单）。

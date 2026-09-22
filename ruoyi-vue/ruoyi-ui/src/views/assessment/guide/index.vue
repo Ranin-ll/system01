@@ -92,7 +92,7 @@
 import { parseTime } from '@/utils/ruoyi'
 import { listPublishedMaterials } from '@/api/business/material'
 import {
-  previewKindOf, extOf, fileUrlOf as resolveFileUrl, PREVIEW_SUPPORT_TEXT, triggerDownload
+  previewKindOf, extLabel, fileUrlOf as resolveFileUrl, PREVIEW_SUPPORT_TEXT, triggerDownload
 } from '@/utils/filePreview'
 
 export default {
@@ -115,7 +115,7 @@ export default {
     },
     /** 不支持预览时提示用到的扩展名 */
     previewExt() {
-      return extOf(this.previewFile && this.previewFile.url)
+      return extLabel(this.previewFile && this.previewFile.url)
     },
     previewSupportText() {
       return PREVIEW_SUPPORT_TEXT

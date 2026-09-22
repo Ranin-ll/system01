@@ -53,25 +53,62 @@
     <div class="dm-grid">
       <!-- ===== 左：概览 ===== -->
       <div class="dm-fields">
-        <div class="field"><span>考核名称</span><b>{{ exam.examName }}</b></div>
-        <div class="field"><span>考试形式</span><b>{{ isPractice ? '实操考试' : '理论考试' }}</b></div>
-        <div class="field"><span>考试时长</span><b>{{ exam.duration > 0 ? exam.duration + ' 分钟 · 到点自动交卷' : '不限时' }}</b></div>
-        <div class="field"><span>通过线</span><b>{{ exam.passLine }} 分</b></div>
+        <!-- ↓ 可就地编辑的三项（保存走 updateExam；已发布/批改中的正式考核为只读） -->
+        <div class="field edit">
+          <span>考核名称 <b v-if="canEditBase">*</b></span>
+          <el-input v-model="baseForm.examName" size="mini" maxlength="128" class="f-input" :disabled="!canEditBase" placeholder="请输入考核名称" />
+        </div>
+        <div class="field"><span>考试形式<i class="f-note">创建后锁定</i></span><b>{{ isPractice ? '实操考试' : '理论考试' }}</b></div>
+        <div class="field block">
+          <span>考核说明<i class="f-note">实习生端可见</i></span>
+          <el-input
+            v-model="baseForm.description"
+            type="textarea"
+            :rows="2"
+            size="mini"
+            maxlength="500"
+            show-word-limit
+            :disabled="!canEditBase"
+            placeholder="这场考核考什么、面向哪些人、有哪些注意事项…"
+          />
+        </div>
+        <div class="field edit">
+          <span>考试时长</span>
+          <el-select v-model="durationPreset" size="mini" class="f-input" :disabled="!canEditBase" @change="onDurationPresetChange">
+            <el-option v-for="d in durationOptions" :key="d" :label="d > 0 ? d + ' 分钟（到点自动交卷）' : '不限时'" :value="d" />
+            <el-option label="自定义…" :value="-1" />
+          </el-select>
+        </div>
+        <div v-if="durationPreset === -1" class="field edit">
+          <span>自定义时长（分钟）</span>
+          <el-input-number v-model="baseForm.duration" :min="1" :max="600" size="mini" controls-position="right" class="f-input" :disabled="!canEditBase" />
+        </div>
+        <div class="field edit">
+          <span>通过线（分）</span>
+          <el-input-number v-model="baseForm.passLine" :min="0" :max="999" :precision="1" size="mini" controls-position="right" class="f-input" :disabled="!canEditBase" />
+        </div>
+        <div class="field-tip">
+          <template v-if="canEditBase">
+            <el-button size="mini" type="primary" plain :loading="baseSaving" :disabled="!baseDirty" @click="saveBase">保存基本信息</el-button>
+            <span class="f-hint" :class="{ bad: baseScoreLevel === 'danger' }">{{ baseScoreHint }}</span>
+          </template>
+          <span v-else class="f-hint lock"><i class="el-icon-lock" /> 已发布／批改中的正式考核不能改基本信息，可先「停用」再改</span>
+        </div>
 
         <template v-if="isPractice">
-          <div class="field"><span>题目数量</span><b>{{ subjectItems.length }} 道</b></div>
-          <div class="field"><span>卷面满分</span><b>{{ subjectTotalScore }} 分</b></div>
+          <div class="field"><span>题目数量<i class="f-note">自动计算</i></span><b>{{ subjectItems.length }} 道</b></div>
+          <div class="field"><span>卷面满分<i class="f-note">自动计算</i></span><b>{{ subjectTotalScore }} 分</b></div>
         </template>
         <template v-else>
-          <div class="field"><span>组卷题库</span><b>{{ bankText }}</b></div>
-          <div class="field"><span>题型与分值</span><b>{{ theorySpec }}</b></div>
-          <div class="field"><span>题目数量</span><b>{{ exam.questionCount || 0 }} 题</b></div>
-          <div class="field"><span>卷面满分</span><b>{{ ruleTotalScore }} 分</b></div>
+          <div class="field"><span>组卷题库<i class="f-note">右侧配置</i></span><b>{{ bankText }}</b></div>
+          <div class="field"><span>题型与分值<i class="f-note">自动汇总</i></span><b>{{ theorySpec }}</b></div>
+          <div class="field"><span>题目数量<i class="f-note">自动计算</i></span><b>{{ exam.questionCount || 0 }} 题</b></div>
+          <div class="field"><span>卷面满分<i class="f-note">自动计算</i></span><b>{{ ruleTotalScore }} 分</b></div>
         </template>
 
-        <div class="field"><span>考核时间</span><b>{{ windowText }}</b></div>
-        <div class="field"><span>发布范围</span><b>{{ assignText }}</b></div>
-        <div class="field"><span>已作答 / 待批阅</span><b>{{ exam.answeredCount || 0 }} / {{ exam.pendingCount || 0 }}</b></div>
+        <div class="field"><span>考核时间<i class="f-note">下方设置</i></span><b>{{ windowText }}</b></div>
+        <div class="field"><span>发布范围<i class="f-note">下方设置</i></span><b>{{ assignText }}</b></div>
+        <div class="field"><span>已作答 / 待批阅<i class="f-note">统计</i></span><b>{{ exam.answeredCount || 0 }} / {{ exam.pendingCount || 0 }}</b></div>
       </div>
 
       <!-- ===== 右：内容（理论＝组卷题库 / 实操＝题目清单） ===== -->
@@ -79,7 +116,7 @@
         <!-- 理论：多题库 × 题型配额 -->
         <template v-if="!isPractice">
           <div class="dm-sub-head">
-            <h4>组卷题库与分值（每个题库分别设置抽题量）</h4>
+            <h4>组卷规则（每个题库各出几道什么题型）</h4>
             <div class="dm-actions">
               <el-select v-model="addBankId" size="mini" placeholder="＋ 添加题库" style="width:170px" @change="addBankRule">
                 <el-option
@@ -95,6 +132,11 @@
             </div>
           </div>
 
+          <p class="draw-basis">
+            当前主链路按「<b>题库 × 题型</b>」配额抽题；未配组卷时回退历史链路（模拟考核按<b>知识点/章节</b>配比）。
+            <el-tag size="mini" effect="plain" :type="drawBasisTag">{{ drawBasisText }}</el-tag>
+          </p>
+
           <!-- 每题分值：与抽题数量同一处设置，改完点「保存配置」落库 -->
           <div class="score-bar">
             <span class="sb-title">每题分值</span>
@@ -105,7 +147,7 @@
           </div>
 
           <el-table :data="bankRules" size="mini" border empty-text="点右上角「＋ 添加题库」选择参与组卷的题库">
-            <el-table-column label="知识模块（题库）" min-width="164">
+            <el-table-column label="题库" min-width="164">
               <template slot-scope="scope">
                 <el-select v-model="scope.row.bankId" size="mini" filterable style="width:100%">
                   <el-option v-for="b in bankMeta" :key="b.bankId" :label="b.bankName" :value="b.bankId" />
@@ -155,18 +197,23 @@
           <div class="dm-sub-head">
             <h4>题目清单（共 {{ subjectItems.length }} 道 · 卷面满分 {{ subjectTotalScore }} 分）</h4>
             <div class="dm-actions">
-              <template v-if="subjectItems.length">
+              <template v-if="subjectItems.length && !editingSubjects">
                 <span class="sb-title">全部设为</span>
                 <el-input-number v-model="bulkScore" :min="0" :max="1000" :precision="1" controls-position="right" size="mini" style="width:88px" />
                 <el-button size="mini" @click="applyBulkScore">应用</el-button>
               </template>
-              <el-button v-hasPermi="['business:bank:edit']" size="mini" icon="el-icon-edit" @click="$emit('edit', exam)">编辑题目</el-button>
+              <!-- ★ 实操题来源统一到题库：从「实操题库」勾选带入（与实习生端「模拟实操题」页同一批题） -->
+              <el-button v-hasPermi="['business:bank:edit']" size="mini" icon="el-icon-folder-add" @click="pickerVisible = true">从实操题库选题</el-button>
+              <el-button v-hasPermi="['business:bank:edit']" size="mini" :icon="editingSubjects ? 'el-icon-arrow-up' : 'el-icon-edit'" @click="toggleSubjectEditor">{{ editingSubjects ? '收起编辑' : '编辑题目' }}</el-button>
+              <el-button v-if="editingSubjects" size="mini" type="primary" plain :loading="configSaving" @click="saveConfig">保存题目</el-button>
             </div>
           </div>
 
-          <div v-if="!subjectItems.length" class="dm-empty">
+          <!-- 编辑态：复用新建时同一套逐题编辑器（题干 / 描述 / 参考 / 附件 / 满分） -->
+          <subject-item-editor v-if="editingSubjects" v-model="subjectItems" />
+          <div v-else-if="!subjectItems.length" class="dm-empty">
             <i class="el-icon-document-add" />
-            <span>尚未配置实操题目：点右上角「编辑题目」逐条填写，至少一道题才能发布</span>
+            <span>尚未配置实操题目：点右上角「从实操题库选题」一键带入，或「编辑题目」逐条填写；至少一道题才能发布</span>
           </div>
 
           <template v-else>
@@ -314,11 +361,21 @@
       </div>
     </div>
 
+    <!-- 从实操题库选题（实操考核专用；题库与实习生端「模拟实操题」同源） -->
+    <practice-subject-picker
+      :visible.sync="pickerVisible"
+      :dept-id="deptId ? Number(deptId) : null"
+      :is-super-admin="isSuperAdmin"
+      :existing-titles="existingTitles"
+      @confirm="onPickerConfirm"
+    />
   </section>
 </template>
 
 <script>
-import { getExamConfig, saveExamConfig, publishExam, listExamBankOptions, tryDrawByBanks, listExamInternOptions } from '@/api/business/exam'
+import { getExamConfig, saveExamConfig, publishExam, listExamBankOptions, tryDrawByBanks, listExamInternOptions, updateExam } from '@/api/business/exam'
+import SubjectItemEditor from './SubjectItemEditor'
+import PracticeSubjectPicker from './PracticeSubjectPicker'
 
 /**
  * 单条考核的配置卡。
@@ -330,6 +387,7 @@ import { getExamConfig, saveExamConfig, publishExam, listExamBankOptions, tryDra
  */
 export default {
   name: 'ExamConfigCard',
+  components: { SubjectItemEditor, PracticeSubjectPicker },
   props: {
     /** 考核记录（列表行） */
     exam: { type: Object, required: true },
@@ -364,7 +422,16 @@ export default {
       internDeptFilter: null,
       subjectItems: [],
       activeSubjectIndex: 0,
-      metaReady: false
+      metaReady: false,
+      /** 实操：内联展开逐题编辑器 / 「从实操题库选题」弹窗 */
+      editingSubjects: false,
+      pickerVisible: false,
+
+      // === 2026-09-21：左栏「基本参数」就地编辑（名称/时长/通过线/考核说明）===
+      baseForm: { examName: '', passLine: 0, duration: 0, description: '' },
+      durationPreset: 0,
+      durationOptions: [0, 30, 45, 60, 90, 120, 150, 180, 240],
+      baseSaving: false
     }
   },
   computed: {
@@ -376,6 +443,46 @@ export default {
     },
     statusTag() {
       return { DRAFT: 'info', PUBLISHED: 'success', GRADING: 'warning', DISABLED: 'danger' }[this.exam.status] || 'info'
+    },
+    // === 2026-09-21：基本参数（就地编辑）===
+    /** 已发布 / 批改中的正式考核不允许改基本信息（与后端 updateExam 的约束一致） */
+    canEditBase() {
+      const e = this.exam || {}
+      if (e.examMode === 'PRACTICE') return true
+      return e.status === 'DRAFT' || e.status === 'DISABLED'
+    },
+    baseDirty() {
+      const e = this.exam || {}
+      return String(this.baseForm.examName || '').trim() !== String(e.examName || '')
+        || Number(this.baseForm.passLine) !== Number(e.passLine)
+        || Number(this.baseForm.duration) !== Number(e.duration)
+        || String(this.baseForm.description || '').trim() !== String(e.description || '').trim()
+    },
+    /** 通过线 vs 卷面满分（实时，不等保存） */
+    baseTotal() {
+      return this.isPractice ? this.subjectTotalScore : this.ruleTotalScore
+    },
+    baseScoreLevel() {
+      const pass = Number(this.baseForm.passLine) || 0
+      if (!this.baseTotal) return 'danger'
+      if (pass > this.baseTotal) return 'danger'
+      if (pass === this.baseTotal) return 'warn'
+      return 'ok'
+    },
+    baseScoreHint() {
+      if (!this.baseTotal) return this.isPractice ? '尚未添加题目，卷面满分为 0' : '尚未组卷，卷面满分为 0'
+      if (this.baseScoreLevel === 'danger') return '高于卷面满分 ' + this.baseTotal + ' 分，保存后无法发布'
+      if (this.baseScoreLevel === 'warn') return '等于卷面满分，须全对才及格'
+      return '卷面满分 ' + this.baseTotal + ' 分，余量 ' + (Math.round((this.baseTotal - (Number(this.baseForm.passLine) || 0)) * 10) / 10) + ' 分'
+    },
+    /** 当前这条考核实际走哪条抽题链路（界面上要看得见，避免双轨制下"不知道走哪条"） */
+    drawBasisText() {
+      if (this.bankRules && this.bankRules.length) return '当前生效：题库 × 题型'
+      const mode = this.exam && this.exam.examMode
+      return mode === 'PRACTICE' ? '当前生效：按章节(知识点)配比（历史链路）' : '当前生效：单库兜底（未配组卷）'
+    },
+    drawBasisTag() {
+      return this.bankRules && this.bankRules.length ? 'success' : 'warning'
     },
     bankText() {
       if (this.bankRules.length) return this.bankRules.map(r => this.bankNameOf(r.bankId)).join(' + ')
@@ -399,9 +506,22 @@ export default {
       const sum = this.subjectItems.reduce((acc, s) => acc + (Number(s.score) || 0), 0)
       return Math.round(sum * 100) / 100
     },
+    /** 已在清单里的题目名（「从实操题库选题」据此标「已添加」并禁止重复勾选） */
+    existingTitles() {
+      return this.subjectItems.map(s => String(s.title || '').trim()).filter(Boolean)
+    },
     activeSubject() { return this.subjectItems[this.activeSubjectIndex] || null },
-    activeImages() { return parseJsonList(this.activeSubject && this.activeSubject.referenceImages) },
-    activeAttachments() { return parseJsonList(this.activeSubject && this.activeSubject.attachmentsJson) },
+    /** 图片/附件：编辑态下模型里是数组（编辑器写回），只读态是后端原样 JSON 字符串 —— 两者都吃 */
+    activeImages() {
+      const s = this.activeSubject
+      if (!s) return []
+      return (s.images && s.images.length) ? s.images : parseJsonList(s.referenceImages)
+    },
+    activeAttachments() {
+      const s = this.activeSubject
+      if (!s) return []
+      return (s.attachments && s.attachments.length) ? s.attachments : parseJsonList(s.attachmentsJson)
+    },
     activePreview() { return this.activeImages.filter(i => !this.isVideo(i.url)).map(i => this.baseApi + i.url) },
     windowText() {
       const start = this.exam.startTime ? String(this.exam.startTime).slice(0, 16) : ''
@@ -447,7 +567,13 @@ export default {
       })
     },
     checkOk() {
-      if (this.isPractice) return true // 实操不走题库
+      // 实操不走题库，但题目清单要能用（后端发布时也要求「至少一道题」）
+      if (this.isPractice) {
+        if (!this.subjectItems.length) return false
+        if (this.subjectItems.some(s => !String(s.title || '').trim())) return false
+        if (this.subjectItems.some(s => !(Number(s.score) > 0))) return false
+        return true
+      }
       if (!this.bankRules.length) return false
       if (this.bankRules.some(r => !r.bankId)) return false
       if (this.ruleCountSum <= 0) return false
@@ -455,6 +581,12 @@ export default {
       return this.overRows.length === 0
     },
     checkMessage() {
+      if (this.isPractice) {
+        if (!this.subjectItems.length) return '还没有实操题目：点右上角「从实操题库选题」一键带入，或「编辑题目」逐条填写（至少一道题才能发布）。'
+        if (this.subjectItems.some(s => !String(s.title || '').trim())) return '存在没填题干的题目，请补全或删除该题。'
+        if (this.subjectItems.some(s => !(Number(s.score) > 0))) return '存在满分为 0 的题目，请填写每题满分（发布时后端也会拦截）。'
+        return ''
+      }
       if (!this.bankRules.length) return '尚未配置组卷题库：点右上角「＋ 添加题库」选择参与组卷的题库，再分别设置每个题库的抽题数量。'
       if (this.bankRules.some(r => !r.bankId)) return '存在未选择题库的行，请选择对应题库或删除该行。'
       if (this.ruleCountSum <= 0) return '抽题数量合计为 0，请至少为一个题库设置抽题数量，或删除该题库行。'
@@ -475,6 +607,7 @@ export default {
     'exam.id'() {
       this.internKeyword = ''
       this.internDeptFilter = null
+      this.resetBase()
     }
   },
   created() {
@@ -488,6 +621,7 @@ export default {
      * 「抽题数量合计为 0」。理论考核必须等清单到位后再渲染抽题量。
      */
     bootstrap() {
+      this.resetBase()
       this.loadBankMeta().then(() => {
         this.metaReady = true
         this.loadConfig()
@@ -504,7 +638,12 @@ export default {
           judgeCount: Number(r.judgeCount) || 0,
           sortNo: r.sortNo || i + 1
         }))
-        this.subjectItems = data.subjectItems || []
+        // 统一成「编辑形态」：后端返回的参考图/附件是 JSON 字符串，这里解析成数组，
+        // 使其与内联编辑器、「从实操题库选题」带回的结构一致；保存时（buildPayload）再序列化。
+        this.subjectItems = (data.subjectItems || []).map(s => Object.assign({}, s, {
+          images: parseJsonList(s.referenceImages),
+          attachments: parseJsonList(s.attachmentsJson)
+        }))
         if (this.activeSubjectIndex >= this.subjectItems.length) this.activeSubjectIndex = 0
         // 每题分值不在 configDetail 里返回，取自列表行（exam.singleScore 等），确保与库中一致
         this.singleScore = numOf(this.exam.singleScore, 0)
@@ -573,7 +712,9 @@ export default {
         this.bankMeta = []
         return Promise.resolve()
       }
-      return listExamBankOptions(this.isSuperAdmin ? this.deptId : undefined).then(res => {
+      // 候选库 = 形态 × 用途：理论套卷只选理论库（防止抽到正式题库），实操考核才取实操库
+      const kind = this.isPractice ? 'PRACTICAL' : 'THEORY'
+      return listExamBankOptions(this.isSuperAdmin ? this.deptId : undefined, this.exam && this.exam.examMode, kind).then(res => {
         this.bankMeta = (res.data || []).map(b => ({
           bankId: b.bankId,
           bankName: b.bankName,
@@ -616,6 +757,49 @@ export default {
     },
     /** 按扩展名判断是否为视频（参考/附件为视频时用 <video> 渲染） */
     isVideo(url) { return /\.(mp4|webm|ogg|ogv|mov|avi|m4v)$/i.test(String(url || '')) },
+    /** 实操：展开/收起内联逐题编辑器（不再跳回列表页弹窗，两步式的第二步就在这里完成） */
+    toggleSubjectEditor() {
+      this.editingSubjects = !this.editingSubjects
+    },
+    /** 题库题 → 考核题目清单：题干 / 考核要点 / 交付要求 / 提交格式与命名全部带过去，信息不丢 */
+    toSubjectItem(p) {
+      const parts = []
+      if (p.content) parts.push(String(p.content).trim())
+      if (p.devConstraints) parts.push('【考核要点】\n' + String(p.devConstraints).trim())
+      if (p.deliverables) parts.push('【交付要求】\n' + String(p.deliverables).trim())
+      const extra = []
+      if (p.submitFormat) extra.push('提交格式：' + p.submitFormat)
+      if (p.namingRule) extra.push('命名规则：' + p.namingRule)
+      if (extra.length) parts.push(extra.join('\n'))
+      return {
+        id: null,
+        title: String(p.title || '').trim(),
+        description: parts.join('\n\n'),
+        score: Number(p.score) || 0,
+        images: p.images || [],
+        attachments: p.attachments || []
+      }
+    },
+    /** 「从实操题库选题」确认：按题名去重后追加，并直接展开编辑器便于核对满分 */
+    onPickerConfirm(rows) {
+      const exist = {}
+      this.subjectItems.forEach(s => { exist[String(s.title || '').trim()] = true })
+      const added = []
+      ;(rows || []).forEach(p => {
+        const key = String(p.title || '').trim()
+        if (!key || exist[key]) return
+        exist[key] = true
+        added.push(this.toSubjectItem(p))
+      })
+      if (!added.length) {
+        this.$modal.msgWarning('所选题目都已在本场考核的清单里，未重复添加')
+        return
+      }
+      this.subjectItems = this.subjectItems.concat(added)
+      this.activeSubjectIndex = this.subjectItems.length - added.length
+      this.editingSubjects = true
+      this.$modal.msgSuccess('已带入 ' + added.length + ' 道题：核对每道题的满分后点「保存题目」落库')
+    },
     /** 实操：把「全部设为」的分数应用到每一道题 */
     applyBulkScore() {
       if (!this.subjectItems.length) return
@@ -681,12 +865,13 @@ export default {
         // 实操：题目清单连同每题满分一起提交（后端先清后插，顺序与分值以此为准）
         payload.subjectItems = this.subjectItems.map(s => ({
           id: s.id || null,
-          title: s.title,
+          title: String(s.title || '').trim(),
           description: s.description || null,
           score: Number(s.score) || 0,
-          // 参考 / 附件是后端原样返回的 JSON 字符串，回传时不做二次解析
-          referenceImages: s.referenceImages || '',
-          attachmentsJson: s.attachmentsJson || ''
+          // 模型里是数组（编辑器 / 题库导入写回），落库时序列化；
+          // 空数组必须传空串而不是 null，否则后端会保留旧值
+          referenceImages: (s.images && s.images.length) ? JSON.stringify(s.images) : '',
+          attachmentsJson: (s.attachments && s.attachments.length) ? JSON.stringify(s.attachments) : ''
         }))
       } else {
         // 理论：每题分值与抽题数量一起落库
@@ -695,6 +880,56 @@ export default {
         payload.judgeScore = Number(this.judgeScore) || 0
       }
       return payload
+    },
+    /** 保存基本参数（名称 / 时长 / 通过线）—— 与「编辑考核」弹窗同一接口同一口径；
+     *  不传 subjectItems：后端只在显式传时才覆写实操题目，避免误清空。 */
+    saveBase() {
+      const name = String(this.baseForm.examName || '').trim()
+      if (!name) { this.$modal.msgWarning('请填写考核名称'); return }
+      const pass = Number(this.baseForm.passLine) || 0
+      if (pass < 0) { this.$modal.msgWarning('通过线不能为负数'); return }
+      const payload = {
+        id: this.exam.id,
+        deptId: this.exam.deptId,
+        examName: name,
+        examMode: this.exam.examMode,
+        examType: this.exam.examType,
+        passLine: pass,
+        duration: Number(this.baseForm.duration) || 0,
+        description: String(this.baseForm.description || '').trim() || null
+      }
+      if (!this.isPractice) {
+        payload.singleScore = this.exam.singleScore
+        payload.multiScore = this.exam.multiScore
+        payload.judgeScore = this.exam.judgeScore
+      }
+      this.baseSaving = true
+      updateExam(payload).then(() => {
+        this.baseSaving = false
+        this.$modal.msgSuccess('基本信息已保存')
+        this.$emit('refresh')
+      }).catch(() => { this.baseSaving = false })
+    },
+    resetBase() {
+      const e = this.exam || {}
+      this.baseForm = {
+        examName: e.examName || '',
+        passLine: Number(e.passLine) || 0,
+        duration: Number(e.duration) || 0,
+        description: e.description || ''
+      }
+      this.durationPreset = this.presetOfDuration(this.baseForm.duration)
+    },
+    onDurationPresetChange(v) {
+      if (v !== -1) {
+        this.baseForm.duration = v
+      } else if (!this.baseForm.duration) {
+        this.baseForm.duration = 60
+      }
+    },
+    presetOfDuration(minutes) {
+      const d = Number(minutes) || 0
+      return this.durationOptions.indexOf(d) > -1 ? d : -1
     },
     saveConfig() {
       if (!this.checkOk) {
@@ -788,11 +1023,27 @@ function parseJsonList(json) {
 .num { color: #1764f5; font-size: 15px; }
 
 .dm-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 18px; padding-top: 14px; }
+.draw-basis { margin: 0 0 10px; color: #8490a0; font-size: 11.5px; line-height: 1.7; }
+.draw-basis b { color: #475467; }
 .dm-fields { display: grid; align-content: start; gap: 9px; }
 .field { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 5px; }
 .field span { flex: none; color: #8490a0; font-size: 12px; }
 .field b { color: #1d2939; font-size: 12.5px; font-weight: 600; text-align: right; }
 .field.block { display: block; }
+
+/* ===== 2026-09-21：左栏可就地编辑的基本参数 + 只读项的来源标注 ===== */
+.field.edit { display: block; }
+.field.edit > span { display: block; margin-bottom: 5px; }
+.field.edit .f-input { width: 100%; }
+.field.edit > span b { color: #f56c6c; }
+.field span .f-note {
+  margin-left: 4px; padding: 0 4px; color: #98a2b3; background: #eef1f6;
+  border-radius: 3px; font-size: 10px; font-style: normal; font-weight: 400;
+}
+.field-tip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.f-hint { color: #8490a0; font-size: 11.5px; }
+.f-hint.bad { color: #d9534f; }
+.f-hint.lock { color: #b54708; }
 .field.block .block-label { display: block; margin-bottom: 6px; }
 .dm-table-wrap { min-width: 0; }
 .dm-sub-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
@@ -875,5 +1126,16 @@ function parseJsonList(json) {
 
 @media (max-width: 1100px) {
   .dm-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== 2026-09-21：独立配置页适配（本组件只被考核列表/配置页使用） =====
+   概览列收窄、组卷区变宽；窄屏自动堆叠，避免小窗口里两栏互相挤压。 */
+.dm-grid { grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: 22px; }
+@media (max-width: 1280px) {
+  .dm-grid { grid-template-columns: minmax(0, 1fr); }
+  .dm-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .dm-fields { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

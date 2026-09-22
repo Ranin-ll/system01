@@ -1,5 +1,5 @@
 <template>
-  <div class="dept-page">
+  <div v-loading="loading" class="dept-page">
     <div class="dept-breadcrumb">
       人员管理 <span>/</span> <b>实习转正审核</b>
     </div>
@@ -11,7 +11,7 @@
         <p>把「预备实习生」变成「正式实习生」的审批台。左列表 + 右决策页，核心是资格核对清单 —— 每项都有明确的数据依据。</p>
       </div>
       <div class="dept-heading-actions">
-        <span class="dsample">演示数据 · promotion_application 待后端</span>
+        <span class="dsample">名单真实 · 资格项待接入</span>
       </div>
     </div>
 
@@ -79,7 +79,7 @@
         <template v-if="current">
           <div class="dcard-h">
             <div class="tt"><span class="idx">审</span><h3>审核详情 · {{ current.name }}</h3></div>
-            <span class="hint-text">提交时间 {{ current.submittedAt }}</span>
+            <span class="hint-text">{{ current.submittedAt ? '提交时间 ' + current.submittedAt : '尚未提交转正申请' }}</span>
           </div>
 
           <div class="dcallout" :class="current.verdict.tone === 'green' ? 'ok' : (current.verdict.tone === 'red' ? 'warn' : 'warn')" style="margin-bottom:12px">
@@ -91,8 +91,8 @@
 
           <div class="dfg2" style="margin-bottom:14px">
             <div v-for="item in current.checklist" :key="item.key" class="dchk">
-              <span class="box" :class="item.pass ? 'sw' : 'fail'">
-                <i :class="item.pass ? 'el-icon-check' : 'el-icon-close'" />
+              <span class="box" :class="item.pass === null ? 'pend' : (item.pass ? 'sw' : 'fail')">
+                <i :class="item.pass === null ? 'el-icon-more' : (item.pass ? 'el-icon-check' : 'el-icon-close')" />
               </span>
               <span v-html="item.text" />
             </div>
@@ -105,7 +105,8 @@
               <div><span>加权综合分</span><strong>{{ fmtScore(current.total) }} <small>理论60% 实操40%</small></strong></div>
               <div>
                 <span>通过线</span>
-                <strong :style="{ color: current.passed ? '#067647' : '#b42318' }">
+                <strong v-if="current.passed === null" style="color:#98a2b3">≥ {{ passLine }} · 待判定</strong>
+                <strong v-else :style="{ color: current.passed ? '#067647' : '#b42318' }">
                   ≥ {{ passLine }} · {{ current.passed ? '已过' : '未过' }}
                 </strong>
               </div>
@@ -120,16 +121,17 @@
                   <div class="dhbar-fill" :class="d.barTone" :style="{ width: d.value + '%' }" />
                 </div>
               </div>
+              <p v-if="!current.dimensions.length" class="dsec-note">四维能力待生成（需 profile_snapshot 聚合接口）。</p>
             </div>
           </div>
 
           <div class="dfield">
             <label>部门管理员评价 · 优势</label>
-            <div class="dinp">{{ current.good }}</div>
+            <div class="dinp">{{ current.good || '—' }}</div>
           </div>
           <div class="dfield">
             <label>待提升 / 改进建议</label>
-            <div class="dinp">{{ current.improve }}</div>
+            <div class="dinp">{{ current.improve || '—' }}</div>
           </div>
 
           <!-- 状态流转 -->
@@ -219,85 +221,46 @@
 </template>
 
 <script>
+import { listRegister } from '@/api/business/register'
+
 const PASS_LINE = 70
 
-/** 部门管理员直接终审 → 演示态数据（promotion_application 尚无 Java 层） */
-function buildCandidates() {
-  const raw = [
-    {
-      id: 1, name: '陈子轩', position: '开发实习生', userId: 1041,
-      studyRate: 91, theory: 88, practice: 85, protocol: true, signedAt: '2026-06-15 13:20',
-      requiredDone: 4, requiredTotal: 4, submittedAt: '2026-09-16 15:02',
-      dim: [['学习投入', 91], ['理论掌握', 88], ['实践能力', 85], ['规范遵从', 82]],
-      good: '代码规范意识强，Spring Boot 掌握扎实，能独立完成模块联调。',
-      improve: 'Docker 部署环节偏弱（该知识点错误率 42%），建议转正后继续补。整体建议予以转正。'
-    },
-    {
-      id: 2, name: '林知遥', position: '开发实习生', userId: 1042,
-      studyRate: 78, theory: 74, practice: 76, protocol: true, signedAt: '2026-06-20 09:05',
-      requiredDone: 3, requiredTotal: 4, submittedAt: '2026-09-16 11:38',
-      dim: [['学习投入', 78], ['理论掌握', 74], ['实践能力', 76], ['规范遵从', 80]],
-      good: '学习节奏稳定，前端基础扎实，接口联调配合度高。',
-      improve: '尚有 1 门必修未完成（Docker 部署），完成率 78% 已过线，建议限期一周补齐后终审。'
-    },
-    {
-      id: 3, name: '吴柏舟', position: '开发实习生', userId: 1043,
-      studyRate: 66, theory: 72, practice: 68, protocol: true, signedAt: '2026-06-25 15:40',
-      requiredDone: 3, requiredTotal: 4, submittedAt: '2026-09-15 17:20',
-      dim: [['学习投入', 66], ['理论掌握', 72], ['实践能力', 68], ['规范遵从', 70]],
-      good: '动手意愿强，能主动承担联调工作。',
-      improve: '学习完成率 66% 未达门槛（需 70%），建议继续培养一周期后再提交。'
-    },
-    {
-      id: 4, name: '孙悦', position: '开发实习生', userId: 1044,
-      studyRate: 100, theory: 93, practice: 90, protocol: true, signedAt: '2026-06-10 10:12',
-      requiredDone: 4, requiredTotal: 4, submittedAt: '2026-09-10 09:30',
-      status: 'PASSED', decidedAt: '2026-09-10 14:05',
-      dim: [['学习投入', 100], ['理论掌握', 93], ['实践能力', 90], ['规范遵从', 88]],
-      good: '全科通过，学习完成率 100%，可作为组内样板。',
-      improve: '进展良好，无特别短板。'
-    },
-    {
-      id: 5, name: '周霖', position: '开发实习生', userId: 1045,
-      studyRate: 23, theory: 51, practice: 40, protocol: true, signedAt: '2026-06-28 16:00',
-      requiredDone: 1, requiredTotal: 4, submittedAt: '2026-08-28 10:00',
-      status: 'REJECTED', decidedAt: '2026-08-29 11:20',
-      rejectReason: '学习完成率与实操能力均明显不足，建议延长培养期后再评估。',
-      dim: [['学习投入', 23], ['理论掌握', 51], ['实践能力', 40], ['规范遵从', 58]],
-      good: '无明显优势项。',
-      improve: '多项指标未达门槛，本轮不予转正。'
-    }
+/** 资格核对清单：4 项数据依据（学习完成率 / 正式考核结论 / 协议签署 / 必修完成）
+ *  均无聚合接口（profile_snapshot / promotion_application 零 Java 层）
+ *  ⇒ pass = null 表示「待接入」，渲染为灰点，不用假分数假装已核对 */
+function buildChecklist() {
+  return [
+    { key: 'study', pass: null, text: '学习完成率 <b>待接入</b>（需部门学习聚合接口）' },
+    { key: 'exam', pass: null, text: '正式考核结论 <b>待接入</b>（需成绩聚合接口）' },
+    { key: 'protocol', pass: null, text: '保密协议签署状态 <b>待接入</b>' },
+    { key: 'required', pass: null, text: '未完成必修项 <b>待接入</b>' }
   ]
+}
 
-  return raw.map(item => {
-    const total = Math.round((item.theory * 0.6 + item.practice * 0.4) * 10) / 10
-    const passed = total >= PASS_LINE && item.studyRate >= PASS_LINE
-    const checklist = [
-      { key: 'study', pass: item.studyRate >= PASS_LINE, text: '学习完成率 <b>' + item.studyRate + '%</b> ≥ 门槛 ' + PASS_LINE + '%' },
-      { key: 'exam', pass: item.theory >= PASS_LINE && item.practice >= PASS_LINE, text: '正式考核已通过（理论 ' + item.theory + ' · 实操 ' + item.practice + ' · 综合 ' + total + '）' },
-      { key: 'protocol', pass: item.protocol, text: item.protocol ? '保密协议已签署（' + item.signedAt + '）' : '保密协议<b>未签署</b>' },
-      { key: 'required', pass: item.requiredDone >= item.requiredTotal, text: '无未完成必修项（' + item.requiredDone + '/' + item.requiredTotal + ' 门已完成）' }
-    ]
-    const failCount = checklist.filter(c => !c.pass).length
-    let verdict
-    if (failCount === 0) verdict = { text: '资格齐备', tone: 'green', dot: 'g' }
-    else if (!passed) verdict = { text: '未达门槛', tone: 'red', dot: '' }
-    else verdict = { text: failCount + ' 项待补', tone: 'orange', dot: 'o' }
-    return Object.assign({}, item, {
-      status: item.status || 'PENDING',
-      total,
-      passed,
-      checklist,
-      verdict,
-      summary: '完成率 ' + item.studyRate + '% · 综合 ' + total + ' 分 · ' + (item.protocol ? '协议已签' : '协议未签'),
-      dimensions: item.dim.map(([name, value]) => ({
-        name,
-        value,
-        tone: value >= 85 ? 'good' : (value >= 70 ? 'mid' : 'poor'),
-        barTone: value >= 85 ? 'good' : (value >= 70 ? 'avg' : 'poor')
-      }))
-    })
-  })
+/** 只把「名单」接真：来自 register_application（status=PASSED）；资格项无接口 ⇒ 留空 */
+function mapCandidate(row, status) {
+  return {
+    id: row.userId || row.id,
+    userId: row.userId,
+    name: row.realName || '—',
+    position: row.positionName || '—',
+    mentorName: row.mentorName || '',
+    entryDate: row.expectedEntryDate || row.createTime || null,
+    status,
+    submittedAt: null,
+    theory: null,
+    practice: null,
+    total: null,
+    passed: null,
+    good: null,
+    improve: null,
+    checklist: buildChecklist(),
+    dimensions: [],
+    verdict: status === 'PASSED'
+      ? { text: '已转正', tone: 'green', dot: 'g' }
+      : { text: '待核对', tone: 'orange', dot: 'o' },
+    summary: (row.positionName || '—') + ' · 导师 ' + (row.mentorName || '未分配')
+  }
 }
 
 export default {
@@ -307,8 +270,9 @@ export default {
       passLine: PASS_LINE,
       activeStatus: 'PENDING',
       positionFilter: '',
-      candidates: buildCandidates(),
-      currentId: null
+      candidates: [],
+      currentId: null,
+      loading: false
     }
   },
   computed: {
@@ -343,7 +307,7 @@ export default {
         id: c.id,
         name: c.name,
         position: c.position,
-        summary: c.status === 'PENDING' ? c.summary : ('处理时间 ' + (c.decidedAt || '—')),
+        summary: c.summary,
         verdict: c.verdict,
         dotTone: c.verdict.dot
       }))
@@ -353,8 +317,12 @@ export default {
     },
     checklistSummary() {
       if (!this.current) return ''
-      const fail = this.current.checklist.filter(c => !c.pass).length
-      return fail === 0 ? '4 项全部通过，可直接审批转正' : fail + ' 项未通过，需补齐后再提交'
+      const list = this.current.checklist
+      const unknown = list.filter(c => c.pass === null).length
+      if (unknown === list.length) return '资格项数据待接入，暂无法自动核对'
+      const fail = list.filter(c => c.pass === false).length
+      if (fail) return fail + ' 项未通过，需补齐后再提交'
+      return (list.length - unknown) + ' 项通过，可直接审批转正' + (unknown ? '（另有 ' + unknown + ' 项待接入）' : '')
     }
   },
   watch: {
@@ -367,18 +335,39 @@ export default {
     }
   },
   created() {
-    const fromQuery = Number(this.$route.query.id)
-    if (fromQuery) {
-      const hit = this.candidates.find(c => c.userId === fromQuery || c.id === fromQuery)
-      if (hit) {
-        this.activeStatus = hit.status
-        this.currentId = hit.id
-        return
-      }
-    }
-    this.syncSelection()
+    this.loadCandidates()
   },
   methods: {
+    /** 只接真「名单」：register_application 里注册已通过的人，按培养状态归入两个页签 */
+    loadCandidates() {
+      this.loading = true
+      listRegister({ pageNum: 1, pageSize: 200 }).then(res => {
+        const rows = (res && res.rows) || []
+        const mapped = rows
+          .filter(r => r.status === 'PASSED')
+          .map(r => {
+            if (r.userStatus === 'FORMAL_TRAINEE') return mapCandidate(r, 'PASSED')
+            if (r.userStatus === 'PENDING_PROMOTE') return mapCandidate(r, 'PENDING')
+            return null
+          })
+          .filter(Boolean)
+        this.candidates = mapped
+        const fromQuery = Number(this.$route.query.id)
+        if (fromQuery) {
+          const hit = mapped.find(c => c.userId === fromQuery || c.id === fromQuery)
+          if (hit) {
+            this.activeStatus = hit.status
+            this.currentId = hit.id
+            return
+          }
+        }
+        this.syncSelection()
+      }).catch(() => {
+        this.candidates = []
+      }).finally(() => {
+        this.loading = false
+      })
+    },
     syncSelection() {
       const rows = this.listRows
       if (!rows.length) {
@@ -403,10 +392,7 @@ export default {
         '确认审批通过',
         { confirmButtonText: '确认通过', cancelButtonText: '取消', type: 'warning' }
       ).then(() => {
-        target.status = 'PASSED'
-        target.decidedAt = this.now()
-        target.verdict = { text: '资格齐备', tone: 'green', dot: 'g' }
-        this.$message.success('已通过「' + target.name + '」的转正审批（演示态：promotion_application 接口待补）')
+        this.$message.warning('转正审批接口（promotion_application）尚未实现 —— 当前仅支持查看，未做任何变更')
       }).catch(() => {})
     },
     reject() {
@@ -417,18 +403,9 @@ export default {
         cancelButtonText: '取消',
         inputType: 'textarea',
         inputPlaceholder: '例如：学习完成率 66% 未达 70% 门槛，建议继续培养一周期。'
-      }).then(({ value }) => {
-        target.status = 'REJECTED'
-        target.decidedAt = this.now()
-        target.rejectReason = value
-        target.verdict = { text: '已驳回', tone: 'gray', dot: '' }
-        this.$message.warning('已驳回「' + target.name + '」的转正申请（演示态）')
+      }).then(() => {
+        this.$message.warning('驳回接口（promotion_application）尚未实现 —— 当前仅支持查看，未做任何变更')
       }).catch(() => {})
-    },
-    now() {
-      const d = new Date()
-      const p = n => (n < 10 ? '0' + n : '' + n)
-      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
     }
   }
 }
@@ -450,6 +427,7 @@ export default {
 .dchk .box { display: inline-flex; width: 18px; height: 18px; flex: none; align-items: center; justify-content: center; margin-top: 1px; font-size: 11px; border-radius: 5px; }
 .dchk .box.sw { color: #fff; background: #12b76a; }
 .dchk .box.fail { color: #fff; background: #f04438; }
+.dchk .box.pend { color: #fff; background: #d0d5dd; }
 
 /* 表单域 */
 .dfield { margin-top: 12px; }

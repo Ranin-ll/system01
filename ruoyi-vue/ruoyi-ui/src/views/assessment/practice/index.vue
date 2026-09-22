@@ -1,24 +1,17 @@
 <template>
   <div class="practice-page">
     <div class="exam-breadcrumb">
-      <template v-if="stage === 'module'">
-        <el-button type="text" icon="el-icon-arrow-left" @click="backToModules">返回模块列表</el-button>
-        <span>/</span>
-        <b>{{ activeModule ? activeModule.name : '模块' }}</b>
-      </template>
-      <template v-else>
-        <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回工作台</el-button>
-        <span>/</span>
-        <b>{{ isFormal ? '模拟考核记录' : '模拟考核' }}</b>
-      </template>
+      <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回工作台</el-button>
+      <span>/</span>
+      <b>{{ isFormal ? '模拟理论考核记录' : '模拟理论考核' }}</b>
     </div>
 
-    <!-- ================= 阶段一：模块列表（先选模块） ================= -->
+    <!-- ================= 列表页：套卷 + 练习记录（无阶段层级） ================= -->
     <template v-if="stage === 'list'">
       <header class="exam-heading">
         <div>
-          <span class="eyebrow">{{ isFormal ? 'PRACTICE HISTORY' : 'PRACTICE CENTER' }}</span>
-          <h1>{{ isFormal ? '模拟考核记录' : '模拟考核' }}</h1>
+          <span class="eyebrow">{{ isFormal ? 'PRACTICE HISTORY' : 'THEORY PRACTICE' }}</span>
+          <h1>{{ isFormal ? '模拟理论考核记录' : '模拟理论考核' }}</h1>
         </div>
         <el-button size="medium" icon="el-icon-refresh" @click="reload">刷新</el-button>
       </header>
@@ -44,14 +37,9 @@
           <div class="sub">单次自测峰值</div>
         </div>
         <div class="stat">
-          <span>实操题量</span>
-          <b>{{ subjectTotal }}<small>题</small></b>
-          <div class="sub">{{ modules.length }} 个模块</div>
-        </div>
-        <div class="stat">
-          <span>理论考核</span>
-          <b>{{ examTotal }}<small> 个</small></b>
-          <div class="sub">{{ modules.length ? '分布在 ' + modules.length + ' 个模块' : '尚未发布' }}</div>
+          <span>模拟理论考核</span>
+          <b>{{ examTotal }}<small> 套</small></b>
+          <div class="sub">{{ exams.length ? '已发布 ' + exams.length + ' 套' : '尚未发布' }}</div>
         </div>
         <div class="stat">
           <span>最近自测</span>
@@ -60,51 +48,47 @@
         </div>
       </div>
 
-      <!-- ② 模块列表：先选模块 -->
+      <!-- ② 模拟理论考核套卷：直接全量列出已发布套卷（无阶段层级） -->
       <section v-if="!isFormal" class="pm-card">
         <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">模</span><h3>模拟模块</h3></div>
+          <div class="pm-title"><span class="pm-idx">卷</span><h3>模拟理论考核套卷</h3></div>
+          <el-button size="mini" icon="el-icon-refresh" @click="loadPapers">刷新</el-button>
         </div>
-        <div v-if="loading && !modules.length" class="pm-empty small"><i class="el-icon-loading" /><span>正在加载模块…</span></div>
-        <div v-else-if="!modules.length" class="pm-empty small"><i class="el-icon-folder-opened" /><span>本部门暂未发布模拟模块</span></div>
-        <div v-else class="pm-mods">
-          <button
-            v-for="m in modules"
-            :key="m.id"
-            type="button"
-            class="pm-mod"
-            @click="openModule(m)"
-          >
-            <span class="pm-mod-top">
-              <span class="pm-mod-ico">{{ (m.name || '模').slice(0, 1) }}</span>
-              <span class="pm-mod-name">{{ m.name }}</span>
-            </span>
-            <span class="pm-mod-desc">{{ m.description || '（未填写模块说明）' }}</span>
-            <span class="pm-mod-foot">
-              <span>理论考核 <b>{{ m.examCount || 0 }}</b></span>
-              <span>实操题 <b>{{ m.subjectCount || 0 }}</b></span>
-              <span class="pm-mod-go">进入 <i class="el-icon-arrow-right" /></span>
-            </span>
-          </button>
+        <div v-if="contentLoading" class="pm-empty small"><i class="el-icon-loading" /><span>正在加载…</span></div>
+        <div v-else-if="!exams.length" class="pm-empty small"><i class="el-icon-document" /><span>本部门暂未发布模拟理论考核套卷</span></div>
+        <div v-else class="pm-exams">
+          <div v-for="e in exams" :key="e.id" class="pm-exam">
+            <div class="pm-exam-l">
+              <b>{{ e.examName || '模拟理论考核卷' }}<span v-if="e.difficulty" class="pm-diff" :class="diffTone(e.difficulty)">{{ diffText(e.difficulty) }}</span></b>
+              <span v-if="e.description" class="pm-exam-desc">{{ e.description }}</span>
+              <span class="pm-exam-meta">
+                共 {{ e.questionCount || 0 }} 题（单选 {{ e.singleCount || 0 }} · 多选 {{ e.multiCount || 0 }} · 判断 {{ e.judgeCount || 0 }}）
+                · 满分 {{ e.fullScore != null ? e.fullScore : '--' }} 分
+                · 通过线 {{ e.passLine != null ? e.passLine : 0 }} 分
+                <template v-if="Number(e.duration) > 0"> · 限时 {{ e.duration }} 分钟</template>
+              </span>
+              <span v-if="e.contentBias" class="pm-exam-bias"><i class="el-icon-info" />内容偏向：{{ e.contentBias }}</span>
+            </div>
+            <el-button type="primary" size="small" icon="el-icon-caret-right" :loading="starting" @click="startPractice(e)">开始练习</el-button>
+          </div>
         </div>
       </section>
 
       <!-- ③ 自测记录 -->
       <section class="pm-card">
         <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">录</span><h3>理论自测记录</h3></div>
+          <div class="pm-title"><span class="pm-idx">录</span><h3>模拟练习记录</h3></div>
         </div>
         <div v-loading="loading" class="pm-table-wrap" style="padding-top:12px">
           <div v-if="!records.length && !loading" class="pm-empty">
             <i class="el-icon-tickets" />
-            <span>{{ isFormal ? '暂无转正前的模拟记录' : '还没有模拟记录，进入模块来一次自测吧' }}</span>
+            <span>{{ isFormal ? '暂无转正前的模拟记录' : '还没有模拟记录，选一套卷开始练习吧' }}</span>
           </div>
           <table v-else class="pm-table">
-            <thead><tr><th>时间</th><th>模块</th><th>考核</th><th>题数</th><th>正确率</th><th>操作</th></tr></thead>
+            <thead><tr><th>时间</th><th>套卷</th><th>题数</th><th>正确率</th><th>操作</th></tr></thead>
             <tbody>
               <tr v-for="row in pagedRecords" :key="row.id">
                 <td>{{ fmtTime(row.createTime) }}</td>
-                <td class="ellipsis">{{ row.moduleName || '—' }}</td>
                 <td class="ellipsis">{{ row.examName || '—' }}</td>
                 <td>{{ row.totalCount }} 题</td>
                 <td><b :class="rateTone(row)">{{ rateOf(row) }}%</b></td>
@@ -128,105 +112,11 @@
       </section>
     </template>
 
-    <!-- ================= 阶段二：模块内考核列表 ================= -->
-    <template v-else-if="stage === 'module'">
-      <header class="exam-heading">
-        <div>
-          <span class="eyebrow">PRACTICE MODULE</span>
-          <h1>{{ activeModule ? activeModule.name : '模块' }}</h1>
-          <p v-if="activeModule && activeModule.description">{{ activeModule.description }}</p>
-        </div>
-        <el-button size="medium" icon="el-icon-refresh" @click="loadModuleContent">刷新</el-button>
-      </header>
 
-      <!-- 理论模拟考核：一个模块下可以有多个考核 -->
-      <section class="pm-card">
-        <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">理</span><h3>理论模拟考核</h3></div>
-        </div>
-        <div v-if="contentLoading" class="pm-empty small"><i class="el-icon-loading" /><span>正在加载…</span></div>
-        <div v-else-if="!exams.length" class="pm-empty small"><i class="el-icon-document" /><span>本模块暂未发布理论模拟考核</span></div>
-        <div v-else class="pm-exams">
-          <div v-for="e in exams" :key="e.id" class="pm-exam">
-            <div class="pm-exam-l">
-              <b>{{ e.examName || '理论模拟自测' }}</b>
-              <span class="pm-exam-meta">
-                共 {{ e.questionCount || 0 }} 题（单选 {{ e.singleCount || 0 }} · 多选 {{ e.multiCount || 0 }} · 判断 {{ e.judgeCount || 0 }}）
-                · 满分 {{ e.fullScore != null ? e.fullScore : '--' }} 分
-                · 通过线 {{ e.passLine != null ? e.passLine : 0 }} 分
-                <template v-if="Number(e.duration) > 0"> · 限时 {{ e.duration }} 分钟</template>
-              </span>
-            </div>
-            <el-button v-if="!isFormal" type="primary" size="small" icon="el-icon-caret-right" :loading="starting" @click="startPractice(e)">开始自测</el-button>
-            <span v-else class="pm-hint">转正后仅可查看记录</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- 实操模拟题 -->
-      <section class="pm-card">
-        <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">实</span><h3>实操模拟题</h3></div>
-        </div>
-        <div v-if="contentLoading" class="pm-empty small"><i class="el-icon-loading" /><span>正在加载…</span></div>
-        <div v-else-if="!subjects.length" class="pm-empty small"><i class="el-icon-document" /><span>本模块暂未发布实操题</span></div>
-        <div v-else class="pm-qgrid" style="padding-top:14px">
-          <button v-for="(s, i) in subjects" :key="s.id" type="button" class="pm-qcard" @click="goSubjectDetail(s)">
-            <span class="pm-thumb">
-              <video v-if="firstImage(s) && isVideo(firstImage(s))" :src="baseApi + firstImage(s)" muted />
-              <img v-else-if="firstImage(s)" :src="baseApi + firstImage(s)" :alt="s.title">
-              <span v-else class="pm-thumb-ph" v-html="thumbSvg(i)" />
-            </span>
-            <span class="pm-qc-b">
-              <b>{{ s.title || '未命名实操题' }}</b>
-              <span class="pm-qc-f"><span>建议用时</span><b>{{ s.estimatedMinutes ? s.estimatedMinutes + ' 分钟' : '不限' }}</b></span>
-            </span>
-          </button>
-        </div>
-      </section>
-
-      <!-- 本模块自测记录：按模块过滤，并显示对应考核名称 -->
-      <section class="pm-card">
-        <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">录</span><h3>本模块自测记录</h3></div>
-        </div>
-        <div v-loading="contentLoading" class="pm-table-wrap" style="padding-top:12px">
-          <div v-if="!moduleRecords.length && !contentLoading" class="pm-empty">
-            <i class="el-icon-tickets" />
-            <span>还没有本模块的自测记录，选一个理论模拟考核开始吧</span>
-          </div>
-          <table v-else class="pm-table">
-            <thead><tr><th>时间</th><th>考核</th><th>题数</th><th>正确率</th><th>操作</th></tr></thead>
-            <tbody>
-              <tr v-for="row in pagedModuleRecords" :key="row.id">
-                <td>{{ fmtTime(row.createTime) }}</td>
-                <td class="ellipsis">{{ row.examName || '—' }}</td>
-                <td>{{ row.totalCount }} 题</td>
-                <td><b :class="rateTone(row)">{{ rateOf(row) }}%</b></td>
-                <td><el-button type="text" size="mini" @click="goRecordDetail(row)">查看详情</el-button></td>
-              </tr>
-            </tbody>
-          </table>
-          <el-pagination
-            v-if="moduleRecords.length > recordPageSize"
-            class="pm-pager"
-            background
-            layout="total, sizes, prev, pager, next, jumper"
-            :total="moduleRecords.length"
-            :current-page="moduleRecordPage"
-            :page-size="recordPageSize"
-            :page-sizes="[8, 10, 20, 50]"
-            @current-change="onModuleRecordPageChange"
-            @size-change="onModuleRecordPageSizeChange"
-          />
-        </div>
-      </section>
-    </template>
-
-    <!-- ================= 阶段三：作答 ================= -->
+    <!-- ================= 作答 ================= -->
     <template v-else-if="stage === 'exam'">
       <header class="exam-heading">
-        <div><span class="eyebrow">ANSWERING</span><h1>{{ bankName || '模拟考核' }}</h1><p>共 {{ questions.length }} 题</p></div>
+        <div><span class="eyebrow">ANSWERING</span><h1>{{ bankName || '模拟理论考核' }}</h1><p>共 {{ questions.length }} 题</p></div>
         <div class="exam-head-right">
           <div v-if="remainingSeconds > 0" class="countdown" :class="countdownTone">
             <i class="el-icon-alarm-clock" />
@@ -267,7 +157,7 @@
       </div>
     </template>
 
-    <!-- ================= 阶段四：交卷结果（含逐题回顾） ================= -->
+    <!-- ================= 交卷结果（含逐题回顾） ================= -->
     <template v-else>
       <div class="result-card">
         <div class="result-score">
@@ -308,7 +198,7 @@
         </div>
 
         <div class="result-actions">
-          <el-button size="medium" @click="goList">返回模块列表</el-button>
+          <el-button size="medium" @click="goList">返回套卷列表</el-button>
           <el-button v-if="!isFormal && currentExamId" type="primary" size="medium" @click="restartSameExam">再练一次</el-button>
         </div>
       </div>
@@ -319,9 +209,8 @@
 <script>
 import {
   startPractice, submitPractice, myPracticeRecords,
-  listPracticeSubjects, listPracticeExams
+  listPracticeExams
 } from '@/api/business/practice'
-import { listPublishedModules } from '@/api/business/practiceModule'
 import practiceMixin from './practice-mixin'
 import { mapGetters } from 'vuex'
 
@@ -330,25 +219,16 @@ export default {
   mixins: [practiceMixin],
   data() {
     return {
-      /** list 模块列表 / module 模块内考核 / exam 作答 / result 结果 */
+      /** list 套卷列表 / exam 作答 / result 结果 */
       stage: 'list',
       loading: false,
       contentLoading: false,
       records: [],
-      /** 模块列表（先选模块） */
-      modules: [],
-      activeModule: null,
-      /** 从实操题详情「返回」带回来的模块ID，等模块列表加载完再展开 */
-      pendingModuleId: null,
-      /** 当前模块下的理论考核与实操题 */
+      /** 本部门已发布的模拟理论考核套卷 */
       exams: [],
-      subjects: [],
-      /** 当前模块下的自测记录（按模块过滤，带考核名称） */
-      moduleRecords: [],
-      /** 记录列表分页（顶层「理论自测记录」与模块内「本模块自测记录」各一套页码，共用页长） */
+      /** 记录列表分页 */
       recordPage: 1,
       recordPageSize: 8,
-      moduleRecordPage: 1,
       bankId: null,
       bankName: '',
       questions: [],
@@ -382,10 +262,6 @@ export default {
     pagedRecords() {
       return this.pageSlice(this.records, this.recordPage, this.recordPageSize)
     },
-    /** 模块内「本模块自测记录」当前页 */
-    pagedModuleRecords() {
-      return this.pageSlice(this.moduleRecords, this.moduleRecordPage, this.recordPageSize)
-    },
     avgRate() {
       const s = this.rateSeries
       if (!s.length) return '--'
@@ -409,12 +285,8 @@ export default {
       if (!this.records.length) return null
       return this.records.slice().sort((a, b) => new Date(b.createTime || 0) - new Date(a.createTime || 0))[0]
     },
-    /** 模块汇总计数（模块接口已带 subjectCount / examCount） */
-    subjectTotal() {
-      return this.modules.reduce((n, m) => n + (Number(m.subjectCount) || 0), 0)
-    },
     examTotal() {
-      return this.modules.reduce((n, m) => n + (Number(m.examCount) || 0), 0)
+      return this.exams.length
     },
     /** 倒计时展示：≥1 小时用 HH:MM:SS，否则 MM:SS */
     countdownText() {
@@ -435,17 +307,12 @@ export default {
   created() {
     this.reload()
     const q = this.$route.query
-    const wantModuleId = !this.isFormal && q.moduleId ? Number(q.moduleId) : null
     const autoStart = !this.isFormal && q.start === '1'
     // 先清掉 query，避免刷新时重复触发
-    if (wantModuleId || autoStart) {
+    if (autoStart) {
       this.$router.replace({ path: this.$route.path })
     }
-    // 从实操题详情「返回」回来：等模块列表到位后直接展开该模块，恢复模块内内容
-    if (wantModuleId) {
-      this.pendingModuleId = wantModuleId
-    }
-    // 从回顾页「再练一次」跳回时自动按同一考核开考
+    // 从回顾页「再练一次」跳回时自动按同一套卷开考
     if (autoStart) {
       this.startPracticeById(q.examId ? Number(q.examId) : null)
     }
@@ -478,12 +345,10 @@ export default {
       return arr.slice(start, start + size)
     },
     onRecordPageChange(p) { this.recordPage = p },
-    onRecordPageSizeChange(size) { this.recordPageSize = size; this.recordPage = 1; this.moduleRecordPage = 1 },
-    onModuleRecordPageChange(p) { this.moduleRecordPage = p },
-    onModuleRecordPageSizeChange(size) { this.recordPageSize = size; this.recordPage = 1; this.moduleRecordPage = 1 },
+    onRecordPageSizeChange(size) { this.recordPageSize = size; this.recordPage = 1 },
     reload() {
       this.loadRecords()
-      if (!this.isFormal) this.loadModules()
+      if (!this.isFormal) this.loadPapers()
     },
     loadRecords() {
       this.loading = true
@@ -493,46 +358,13 @@ export default {
         this.recordPage = 1
       }).catch(() => { this.loading = false })
     },
-    /** 模块列表（含各模块下实操题/理论考核数量） */
-    loadModules() {
-      this.loading = true
-      listPublishedModules().then(res => {
-        this.modules = res.data || []
-        this.loading = false
-        this.openPendingModule()
-      }).catch(() => { this.loading = false; this.modules = [] })
-    },
-    /** 从实操题详情返回时，展开来源模块，恢复「模块内内容」 */
-    openPendingModule() {
-      const mid = this.pendingModuleId
-      if (!mid) return
-      this.pendingModuleId = null
-      const target = this.modules.filter(m => Number(m.id) === Number(mid))[0]
-      if (target) this.openModule(target)
-    },
-    /** 进入模块：拉该模块下的理论考核与实操题 */
-    openModule(m) {
-      this.activeModule = m
-      this.stage = 'module'
-      this.loadModuleContent()
-    },
-    loadModuleContent() {
-      if (!this.activeModule) return
-      const mid = this.activeModule.id
+    /** 本部门已发布的模拟理论考核套卷（无阶段层级，直接全量列出） */
+    loadPapers() {
       this.contentLoading = true
-      Promise.all([
-        listPracticeExams(mid).then(res => { this.exams = res.data || [] }).catch(() => { this.exams = [] }),
-        listPracticeSubjects(mid).then(res => { this.subjects = res.data || [] }).catch(() => { this.subjects = [] }),
-        myPracticeRecords(mid).then(res => { this.moduleRecords = res.data || [] }).catch(() => { this.moduleRecords = [] })
-      ]).then(() => { this.contentLoading = false; this.moduleRecordPage = 1 }).catch(() => { this.contentLoading = false })
-    },
-    backToModules() {
-      this.stage = 'list'
-      this.activeModule = null
-      this.exams = []
-      this.subjects = []
-      this.moduleRecords = []
-      this.loadRecords()
+      listPracticeExams().then(res => {
+        this.exams = res.data || []
+        this.contentLoading = false
+      }).catch(() => { this.exams = []; this.contentLoading = false })
     },
     rateOf(row) {
       const total = Number(row.totalCount) || 0
@@ -545,23 +377,14 @@ export default {
       if (rate >= 60) return 'mid'
       return 'poor'
     },
-    /** 实操题参考（referenceImages 存 JSON 数组） */
-    firstImage(subject) {
-      const list = this.parseAttachments(subject.referenceImages)
-      const first = list.length ? list[0] : null
-      if (!first) return ''
-      return typeof first === 'string' ? first : (first.url || '')
+    /** 套卷难易程度 */
+    diffText(d) {
+      return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[d] || ''
     },
-    /** 无参考时用内联 SVG 占位（与设计稿缩略图一致） */
-    thumbSvg(i) {
-      const layouts = [
-        '<svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="15" rx="8" fill="#d7e7fc"/><rect x="26" y="42" width="46" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="54" width="70" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="66" width="34" height="6" rx="3" fill="#cfe0fb"/></svg>',
-        '<svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="26" y="30" width="108" height="16" rx="8" fill="#d7e7fc"/><rect x="26" y="48" width="108" height="16" rx="8" fill="#cfe0fb"/><rect x="26" y="66" width="108" height="16" rx="8" fill="#e0ebfd"/></svg>',
-        '<svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="16" rx="8" fill="#e0ebfd"/><rect x="24" y="46" width="112" height="10" rx="4" fill="#cfe0fb"/><rect x="24" y="62" width="52" height="18" rx="4" fill="#dbe8fc"/><rect x="84" y="62" width="52" height="18" rx="4" fill="#e0ebfd"/></svg>'
-      ]
-      return layouts[i % layouts.length]
+    diffTone(d) {
+      return { EASY: 'easy', MEDIUM: 'mid', HARD: 'hard' }[d] || 'mid'
     },
-    /** 模块内某考核「开始自测」 */
+    /** 套卷「开始练习」 */
     startPractice(exam) {
       this.startPracticeById(exam ? exam.id : null)
     },
@@ -668,40 +491,27 @@ export default {
         }
       })
     },
-    /** 回到考核列表：模块内则回到「模块内容（本模块自测记录 + 理论模拟考核 + 实操题）」，否则回模块列表 */
+    /** 回到套卷列表 */
     backToExamList() {
-      this.stage = this.activeModule ? 'module' : 'list'
+      this.stage = 'list'
       this.loadRecords()
-      // 模块内还要刷新「本模块自测记录」，否则刚交的这次不会出现在模块页
-      if (this.activeModule) this.loadModuleContent()
+      this.loadPapers()
     },
     /** 进入独立的回顾页查看当次题目与作答 */
     goRecordDetail(row) {
       this.$router.push('/assessment/intern/mock-exam/record/' + row.id)
     },
-    /** 打开实操题详情页（带上来源模块，详情页「返回」才能回到模块内内容） */
-    goSubjectDetail(subject) {
-      const path = '/assessment/intern/practice-subject/' + subject.id
-      if (this.activeModule) {
-        this.$router.push({ path, query: { moduleId: String(this.activeModule.id) } })
-      } else {
-        this.$router.push(path)
-      }
-    },
     backToList() {
       this.$modal.confirm('退出后本次作答进度不会保存，确定退出吗？').then(() => {
         this.clearCountdown()
         this.remainingSeconds = 0
-        this.stage = this.activeModule ? 'module' : 'list'
+        this.stage = 'list'
         this.loadRecords()
-        if (this.activeModule) this.loadModuleContent()
+        this.loadPapers()
       }).catch(() => {})
     },
     goList() {
       this.stage = 'list'
-      this.activeModule = null
-      this.exams = []
-      this.subjects = []
       this.reload()
     },
     goBack() {
@@ -735,7 +545,7 @@ export default {
 @keyframes cd-blink { 50% { opacity: .55; } }
 
 /* ① 统计条 */
-.stat-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.stat-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .stat { min-width: 0; padding: 14px 15px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; }
 .stat > span { color: #8490a0; font-size: 12px; }
 .stat > b { display: block; margin: 9px 0 6px; color: #1d2939; font-size: 22px; font-weight: 600; }
@@ -766,51 +576,21 @@ export default {
 .pm-empty i { color: #b7c1cc; font-size: 32px; }
 .pm-empty span { font-size: 13px; }
 
-/* ② 模块卡片 */
-.pm-mods { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 14px; padding-top: 16px; }
-.pm-mod {
-  display: block; padding: 16px 16px 14px; text-align: left; background: #fff;
-  border: 1px solid #e7ecf3; border-radius: 10px; cursor: pointer;
-  transition: border-color .15s, box-shadow .15s, transform .15s;
-}
-.pm-mod:hover { border-color: #a9c8f7; box-shadow: 0 8px 20px rgba(23, 100, 245, .1); transform: translateY(-1px); }
-.pm-mod-top { display: flex; align-items: center; gap: 10px; }
-.pm-mod-ico {
-  display: inline-flex; flex: none; width: 34px; height: 34px; align-items: center; justify-content: center;
-  color: #1764f5; background: linear-gradient(135deg, #e8f1fd 0%, #dbe9ff 100%);
-  font-size: 15px; font-weight: 700; border-radius: 9px;
-}
-.pm-mod-name { color: #1d2939; font-size: 15px; font-weight: 600; }
-.pm-mod-desc {
-  display: block; margin: 10px 0 12px; min-height: 34px;
-  color: #98a2b3; font-size: 12px; line-height: 1.5;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.pm-mod-foot { display: flex; align-items: center; gap: 14px; padding-top: 11px; border-top: 1px dashed #edf0f4; color: #8490a0; font-size: 11.5px; }
-.pm-mod-foot b { color: #1764f5; font-size: 13px; }
-.pm-mod-go { margin-left: auto; color: #1764f5; }
-
-/* ③ 模块内理论考核列表 */
+/* ③ 套卷列表 */
 .pm-exams { padding-top: 6px; }
 .pm-exam { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 4px; border-bottom: 1px solid #edf0f4; }
 .pm-exam:last-child { border-bottom: 0; }
 .pm-exam-l { min-width: 0; }
 .pm-exam-l > b { display: block; margin-bottom: 6px; color: #1d2939; font-size: 14.5px; font-weight: 600; }
 .pm-exam-meta { color: #8490a0; font-size: 12px; }
+.pm-exam-desc { display: block; margin-bottom: 6px; color: #667085; font-size: 12.5px; line-height: 1.6; }
+.pm-diff { display: inline-block; padding: 1px 8px; margin-left: 8px; font-size: 11.5px; font-weight: 500; border-radius: 10px; vertical-align: 1px; }
+.pm-diff.easy { color: #067647; background: #ecfdf3; }
+.pm-diff.mid { color: #b54708; background: #fffaeb; }
+.pm-diff.hard { color: #b42318; background: #fef3f2; }
+.pm-exam-bias { display: block; margin-top: 6px; color: #475467; font-size: 12px; line-height: 1.6; }
+.pm-exam-bias i { margin-right: 4px; color: #1764f5; }
 
-/* ③ 实操题库卡片 */
-.pm-qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-.pm-qcard { padding: 0; overflow: hidden; text-align: left; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-.pm-qcard:hover { border-color: #a9c8f7; box-shadow: 0 6px 16px rgba(23, 100, 245, .08); }
-.pm-thumb { display: block; height: 104px; background: #f4f7fc; }
-.pm-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.pm-thumb video { width: 100%; height: 100%; object-fit: cover; background: #000; }
-.pm-thumb-ph { display: block; height: 100%; }
-.pm-thumb-ph ::v-deep svg { width: 100%; height: 100%; }
-.pm-qc-b { display: block; padding: 11px 13px 13px; }
-.pm-qc-b > b { display: block; color: #1d2939; font-size: 13px; font-weight: 600; line-height: 1.5; }
-.pm-qc-f { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; color: #98a2b3; font-size: 11.5px; }
-.pm-qc-f b { color: #1764f5; font-weight: 600; }
 
 /* 作答 / 结果（沿用既有实现） */
 .question-card { margin-bottom: 16px; padding: 20px 22px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; }
@@ -863,12 +643,10 @@ export default {
   .stat-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
-  .pm-mods { grid-template-columns: 1fr; }
   .pm-exam { align-items: flex-start; flex-direction: column; gap: 10px; }
 }
 @media (max-width: 640px) {
   .practice-page { padding: 16px 12px 40px; }
   .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pm-qgrid { grid-template-columns: 1fr; }
 }
 </style>

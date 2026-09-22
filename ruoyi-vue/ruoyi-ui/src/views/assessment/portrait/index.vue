@@ -31,7 +31,7 @@
               <p>虚线轴 = 未测评，不等于 0 分。</p>
             </div>
           </div>
-          <el-tag size="mini" type="warning" effect="plain">示例数据</el-tag>
+          <el-tag size="mini" type="info" effect="plain">待生成</el-tag>
         </div>
         <svg viewBox="0 0 240 230" class="radar-svg">
           <g fill="none" stroke="#eef1f6">
@@ -77,7 +77,7 @@
               <p>每个维度可追溯到来源表与样本量。</p>
             </div>
           </div>
-          <el-tag size="mini" type="warning" effect="plain">分值为示例数据</el-tag>
+          <el-tag size="mini" type="info" effect="plain">分值待生成</el-tag>
         </div>
         <el-table :data="dimRows" size="mini" class="dim-table">
           <el-table-column label="维度" width="90" prop="name" />
@@ -98,7 +98,7 @@
             <p class="review-text">"{{ review.text }}"</p>
             <p class="review-meta">— 导师 {{ review.mentor }} · {{ review.date }} · visible_scope = OPEN</p>
           </div>
-          <p class="review-note">visible_scope = ADMIN_ONLY 的评价由后端过滤，不会出现在实习生端。<em class="dsample">示例</em></p>
+          <p class="review-note">阶段评价来自 <code>stage_evaluation</code>（当前表为空）；<code>visible_scope = ADMIN_ONLY</code> 的评价由后端过滤，不会出现在实习生端。</p>
         </div>
       </section>
 
@@ -112,7 +112,7 @@
               <p>{{ cycles[0] }} 之前为历史归档周期；未测评维度画虚线。</p>
             </div>
           </div>
-          <el-tag size="mini" type="warning" effect="plain">示例数据</el-tag>
+          <el-tag size="mini" type="info" effect="plain">待生成</el-tag>
         </div>
         <svg viewBox="0 0 900 180" class="trend-svg">
           <g stroke="#eef1f6"><line x1="40" y1="30" x2="880" y2="30" /><line x1="40" y1="80" x2="880" y2="80" /><line x1="40" y1="130" x2="880" y2="130" /></g>
@@ -146,12 +146,11 @@ import { learningSummary } from '@/utils/learningPreview'
  *  - `GET /business/learning/courses` → 学习投入维度的样本量（学习单项数）
  *  - vuex getters：mentorName / protocolStatus / roles
  *
- * 示例数据（页面均打「示例数据」标记，对应后端缺口）：
- *  - 四维分值与综合值：`profile_snapshot` / `ability_dimension` 表存在但零 Java 层
- *  - 阶段评价原文：`evaluation`（visible_scope 须后端过滤 ADMIN_ONLY）
+ * ★ 2026-09-22 起：没有真数据的一律**留空**（不再用示例值 / 示例标）
+ *  - 四维分值与综合值：`profile_snapshot` / `ability_dimension` 表存在但**零 Java 层实现**、维度定义未拍板
+ *  - 阶段评价原文：`stage_evaluation` 当前 0 行（且 visible_scope='ADMIN_ONLY' 须后端过滤）
  *  - 多周期趋势：需周期归档接口
  */
-const DEMO_HOURS = 14.5
 
 export default {
   name: 'InternPortrait',
@@ -165,38 +164,34 @@ export default {
   computed: {
     ...mapGetters(['roles', 'mentorName', 'protocolStatus']),
     isFormal() { return this.roles.indexOf('FORMAL_TRAINEE') > -1 },
+    /**
+     * 能力四维（2026-09-22：**全部留空**，不再用假分）
+     * ⚠️ `profile_snapshot` / `ability_dimension` 表存在但**零 Java 层实现**、维度定义未拍板
+     * ⇒ 雷达只画虚线轴、维度明细显示「待生成」；维度与接口就绪后再接真。
+     */
     dims() {
-      if (this.isFormal) return [
-        { name: '学习投入', value: 92, note: '' },
-        { name: '理论掌握', value: 86, note: '' },
-        { name: '实践能力', value: 91, note: '' },
-        { name: '规范遵从', value: 88, note: '' }
-      ]
       return [
-        { name: '学习投入', value: 78, note: '' },
-        { name: '理论掌握', value: null, note: '待考核' },
-        { name: '实践能力', value: null, note: '待批阅' },
-        { name: '规范遵从', value: 88, note: '' }
+        { name: '学习投入', value: null, note: '待生成' },
+        { name: '理论掌握', value: null, note: '待生成' },
+        { name: '实践能力', value: null, note: '待生成' },
+        { name: '规范遵从', value: null, note: '待生成' }
       ]
     },
+    /** 维度明细：2026-09-22 起不再用假样本量（原来拿 29 / 14.5h 当兜底），样本量按真实值显示 */
     dimRows() {
-      const items = this.learningOverview.itemCount || 29
-      const rows = [
-        { name: '学习投入', value: this.dims[0].value, source: `study_record · ${items} 单项 / ${DEMO_HOURS}h`, status: '已生成', tag: 'success' },
-        { name: '理论掌握', value: this.dims[1].value, source: this.dims[1].value === null ? 'answer_sheet / assessment_result · 正式考核后生成' : 'answer_sheet / assessment_result · 已发布', status: this.dims[1].value === null ? '待考核' : '已生成', tag: this.dims[1].value === null ? 'info' : 'success' },
-        { name: '实践能力', value: this.dims[2].value, source: this.dims[2].value === null ? 'practical_submission · 待批阅' : 'practical_submission · 已批阅', status: this.dims[2].value === null ? '待批阅' : '已生成', tag: this.dims[2].value === null ? 'warning' : 'success' },
-        { name: '规范遵从', value: this.dims[3].value, source: Number(this.protocolStatus) === 1 ? 'agreement_signature（已签署）+ 按规范完成率' : 'agreement_signature（待签署）+ 按规范完成率', status: '已生成', tag: 'success' }
+      const items = this.learningOverview.itemCount || 0
+      const source = items > 0 ? `study_record · ${items} 个学习单项` : 'study_record · 尚无学习记录'
+      return [
+        { name: '学习投入', value: this.dims[0].value, source, status: '待生成', tag: 'info' },
+        { name: '理论掌握', value: this.dims[1].value, source: 'answer_sheet / assessment_result · 正式考核后生成', status: '待生成', tag: 'info' },
+        { name: '实践能力', value: this.dims[2].value, source: 'practical_submission · 实操批阅后生成', status: '待生成', tag: 'info' },
+        { name: '规范遵从', value: this.dims[3].value, source: Number(this.protocolStatus) === 1 ? 'agreement_signature（已签署）+ 按规范完成率' : 'agreement_signature（待签署）+ 按规范完成率', status: '待生成', tag: 'info' }
       ]
-      return rows
     },
     review() {
-      return {
-        text: this.isFormal
-          ? '培养周期内表现稳定，理论与实践均已达标，可胜任岗位基础工作。'
-          : '学习节奏稳定，基础理论与接口开发掌握扎实，建议加强数据访问与事务处理的动手量。',
-        mentor: this.mentorName || '待登记',
-        date: '2026-09-10'
-      }
+      // 阶段评价原文来自 `stage_evaluation`（当前 0 行，且 visible_scope='ADMIN_ONLY' 的须由后端过滤）
+      // ⇒ 2026-09-22 起不再用硬编码评价文本，留空由模板显示空态
+      return { text: null, mentor: this.mentorName || '待登记', date: null }
     },
     radarPoints() {
       const center = { x: 120, y: 100 }
@@ -251,10 +246,10 @@ export default {
       })
     },
     onCycleChange() {
-      this.$modal.msgInfo('历史周期为示例数据，周期归档接口就绪后联动')
+      this.$modal.msgInfo('历史周期需「周期归档」接口，当前仅展示本月')
     },
     exportPortrait() {
-      this.$modal.msgInfo('导出为示例功能，后端接口接入后可下载 PDF')
+      this.$modal.msgInfo('导出 PDF 需后端接口支持，当前未接入')
     }
   }
 }

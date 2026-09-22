@@ -13,9 +13,6 @@
         <p>只统计正式考核成绩，模拟自测不计入；通过后可提交转正申请，部门管理员审核通过即生效并发证。</p>
       </div>
       <div class="heading-actions">
-        <el-select v-model="demoStatus" size="small" class="demo-select" @change="onDemoStatusChange">
-          <el-option v-for="s in demoSampleOptions" :key="s.value" :label="'演示状态：' + s.label" :value="s.value" />
-        </el-select>
         <el-button size="small" icon="el-icon-refresh" :loading="loading" @click="loadAll">刷新</el-button>
       </div>
     </header>
@@ -80,10 +77,9 @@
             <span class="section-index">03</span>
             <div>
               <h2>得分对比</h2>
-              <p>我的综合分 vs 部门平均 vs 通过线。</p>
+              <p>我的综合分 vs 通过线（按业务要求不展示部门平均分）。</p>
             </div>
           </div>
-          <el-tag v-if="deptAvgIsSample" size="mini" type="warning" effect="plain">部门平均为示例数据</el-tag>
         </div>
         <div class="rg-body">
           <div class="vchart">
@@ -107,7 +103,7 @@
             <p>按知识模块统计理论题得分率，橙色为低于 60% 的短板模块。</p>
           </div>
         </div>
-        <el-tag v-if="demoMode" size="mini" type="warning" effect="plain">示例数据</el-tag>
+        <!-- 2026-09-22：薄弱模块数据待接入，已移除「示例数据」标（没有就空着） -->
       </div>
       <div v-if="weakModules.length" class="rg-body">
         <div class="hbar" v-for="m in weakModules" :key="m.module" :class="{ low: m.rate < 60 }">
@@ -138,7 +134,7 @@
             <p>资格齐备后提交；部门管理员审核通过即生效并发证（本决策跳过超管终审）。</p>
           </div>
         </div>
-        <el-tag size="mini" type="warning" effect="plain">演示态 · promotion_application 待后端</el-tag>
+        <el-tag size="mini" type="warning" effect="plain">promotion_application 待后端</el-tag>
       </div>
 
       <div class="promo-grid">
@@ -174,7 +170,7 @@
           <!-- 驳回原因 -->
           <div v-if="currentStatus === 'REJECTED'" class="reject-box">
             <b>驳回原因</b>
-            <p>{{ rejectReason }}</p>
+            <p>{{ rejectReason || '驳回原因需由后端转正申请接口返回（promotion_application 待实现）' }}</p>
           </div>
 
           <!-- 申请表单（未提交 / 已驳回可编辑） -->
@@ -199,7 +195,7 @@
                 @click="submitApplication"
               >{{ currentStatus === 'REJECTED' ? '重新提交转正申请' : '提交转正申请' }}</el-button>
             </div>
-            <p class="rg-note">提交后状态变为「待部门审核」，部门管理员终审通过即生效并发证；演示态下操作仅本地生效。</p>
+            <p class="rg-note">提交后状态变为「待部门审核」，部门管理员终审通过即生效并发证。当前接口（<code>promotion_application</code>）待后端实现，表单可填写预览但无法真正提交。</p>
           </div>
 
           <!-- 进行中 / 已通过的操作 -->
@@ -260,22 +256,12 @@ const DURATION_UNKNOW = '--'
 const PASS_LINE = 70
 
 /**
- * 模拟静态数据（后端接口就绪前用于撑起版面，页面上均打「示例」标记）
- *
- * 对应后端缺口：
- *  - 部门平均分：需 `answer_sheet` 按部门的聚合接口
+ * 后端缺口（相关数据一律留空，不用假数据撑版面）：
+ *  - 部门平均分：需 `answer_sheet` 按部门的聚合接口 —— **按业务要求不向实习生展示**
  *  - 薄弱模块分析：需按 `question.knowledge_point` 聚合得分率
- *  - 电子证书：`certificate` 表存在但无接口（证书展示统一在工作台底部「协议与证书」栏，本页不再呈现）
- *  - 转正申请单：`promotion_application` 零 Java 层（本页演示态本地闭环）
+ *  - 电子证书：`certificate` 表存在但无接口（证书展示统一在工作台底部「协议与证书」栏）
+ *  - 转正申请单：`promotion_application` 零 Java 层 ⇒ 表单可填但不可提交，状态按角色推导
  */
-const DEMO_DEPT_AVG = 74
-const DEMO_WEAK_MODULES = [
-  { module: '开发流程与代码交付规范', total: 8, correct: 4, rate: 50 },
-  { module: 'MySQL 与数据访问', total: 10, correct: 6, rate: 60 },
-  { module: 'Spring Boot 与接口开发', total: 12, correct: 9, rate: 75 },
-  { module: 'Java 语言与面向对象', total: 12, correct: 11, rate: 92 }
-]
-const DEMO_REJECT_REASON = '实操能力未达门槛（实操 58 分），建议延长培养期并补齐 Docker 部署相关课程后重新提交。'
 
 /**
  * 考核成绩与转正（实习生端）
@@ -286,8 +272,8 @@ const DEMO_REJECT_REASON = '实操能力未达门槛（实操 58 分），建议
  *  - `GET /business/learning/courses`               → 学习完成率（转正资格①）
  *  - vuex getters：protocolStatus（转正资格④）、roles、deptName
  *
- * 演示数据（打「演示态 / 示例」标记，后端就绪后替换）：
- *  - 部门平均分、薄弱模块、转正申请单状态机（证书展示已移到工作台底部）
+ * 留空项（无接口，一律不造假）：
+ *  - 部门平均分（按业务要求不向实习生展示）、薄弱模块、转正申请单状态机
  */
 export default {
   name: 'InternResult',
@@ -299,8 +285,7 @@ export default {
       dialogVisible: false,
       current: null,
       currentItems: [],
-      // 转正申请（演示态）
-      demoStatus: '',
+      // 转正申请（promotion_application 零 Java 层 ⇒ 本地表单，不提交）
       applyForm: { note: '', fileName: '' },
       formMeta: { submittedAt: '--' },
       submitting: false,
@@ -310,17 +295,8 @@ export default {
   computed: {
     ...mapGetters(['roles', 'protocolStatus', 'deptName']),
     isFormal() { return this.roles.indexOf('FORMAL_TRAINEE') > -1 },
-    demoSampleOptions() {
-      return [
-        { value: 'PASSED', label: '已通过（转正生效）' },
-        { value: 'PENDING', label: '待部门审核' },
-        { value: 'REJECTED', label: '已驳回' },
-        { value: 'UNSUBMITTED', label: '未提交' }
-      ]
-    },
-    /** 转正申请状态：默认按角色推导；演示下拉可强制切换 */
+    /** 转正申请状态：按角色推导（无 promotion_application 接口 ⇒ 只会是这两种） */
     currentStatus() {
-      if (this.demoStatus) return this.demoStatus
       return this.isFormal ? 'PASSED' : 'UNSUBMITTED'
     },
     promotionState() {
@@ -332,7 +308,7 @@ export default {
       }[this.currentStatus] || { label: '--', tone: 'gray' }
     },
     canEditForm() { return this.currentStatus === 'UNSUBMITTED' || this.currentStatus === 'REJECTED' },
-    rejectReason() { return DEMO_REJECT_REASON },
+    rejectReason() { return '' },
     learningProgress() { return this.learningOverview.progress === null ? 0 : this.learningOverview.progress },
     completedRequired() {
       const required = this.records.filter(r => Number(r.isRequired) === 1)
@@ -397,24 +373,22 @@ export default {
     latestPassLine() {
       return this.latest && this.latest.passLine != null ? this.latest.passLine : '--'
     },
+    /** 对比图：只显示「我的综合」与「通过线」（2026-09-22：按业务要求，部门平均分**不向实习生展示**） */
     compareBars() {
       const mine = Number(this.latestScores.total)
       const line = this.latestPassLine === '--' ? null : Number(this.latestPassLine)
-      const avg = DEMO_DEPT_AVG
-      const max = Math.max(mine || 0, line || 0, avg || 0, 100)
+      const max = Math.max(mine || 0, line || 0, 100)
       return [
         { label: '我的综合', tone: mine >= PASS_LINE ? 'g' : 'none', height: mine ? Math.round(mine / max * 100) : 0, display: mine ? String(mine) : '--' },
-        { label: '部门平均', tone: 'hi', height: Math.round(avg / max * 100), display: String(avg) },
         { label: '通过线', tone: 'o', height: line != null ? Math.round(line / max * 100) : 0, display: line != null ? String(line) : '--' }
       ]
     },
     compareNote() {
-      if (!this.latest) return '暂无正式考核记录，完成考核并发布成绩后此处显示对比数据；部门平均为示例值。'
-      return '部门平均分为示例数据，后端按部门聚合接口就绪后替换；综合分 = 理论 × 40% + 实操 × 60%，权重由批次规则决定。'
+      if (!this.latest) return '暂无正式考核记录，完成考核并发布成绩后此处显示对比数据。'
+      return '按业务要求，本页只展示你自己的成绩与通过线（综合分 = 理论 × 40% + 实操 × 60%，权重由批次规则决定）。'
     },
-    deptAvgIsSample() { return true },
-    demoMode() { return true },
-    weakModules() { return DEMO_WEAK_MODULES },
+    /** 薄弱模块：待接入「本人 × 章节得分率」接口（2026-09-22 起不再用示例数据，先留空） */
+    weakModules() { return [] },
     weakest() {
       if (!this.weakModules.length) return { module: '--', rate: 0 }
       return this.weakModules.reduce((min, m) => (m.rate < min.rate ? m : min), this.weakModules[0])
@@ -451,7 +425,7 @@ export default {
     },
     failCount() { return this.checklist.filter(i => !i.pass).length },
     canApply() { return this.failCount === 0 },
-    /** 申请状态时间线（四态演示） */
+    /** 申请状态时间线（按角色推导的两种状态） */
     timeline() {
       const status = this.currentStatus
       const submitted = this.formMeta.submittedAt
@@ -570,14 +544,9 @@ export default {
       this.currentItems = row._items || []
       this.dialogVisible = true
     },
-    onDemoStatusChange() {
-      if (this.currentStatus === 'PENDING' || this.currentStatus === 'PASSED') {
-        this.formMeta.submittedAt = parseTime(new Date(), '{y}-{m}-{d} {h}:{i}')
-      }
-    },
     onApplyFile(file) {
       this.applyForm.fileName = file.name || ''
-      this.$modal.msgSuccess('已选择附加材料：' + this.applyForm.fileName + '（演示态，未上传）')
+      this.$modal.msgSuccess('已选择附加材料：' + this.applyForm.fileName + '（未上传）')
     },
     submitApplication() {
       if (!this.canApply) {
@@ -588,17 +557,10 @@ export default {
         this.$modal.msgWarning('请先填写转正说明 / 阶段自评')
         return
       }
-      this.submitting = true
-      this.formMeta.submittedAt = parseTime(new Date(), '{y}-{m}-{d} {h}:{i}')
-      this.demoStatus = 'PENDING'
-      this.submitting = false
-      this.$modal.msgSuccess('转正申请已提交，等待部门管理员审核（演示态：promotion_application 接口就绪后真实提交）')
+      this.$modal.msgWarning('转正申请接口（promotion_application）尚未实现 —— 表单可填写预览，但当前无法真正提交')
     },
     withdrawApplication() {
-      this.$modal.confirm('确认撤回本次转正申请吗？撤回后可重新编辑并提交。').then(() => {
-        this.demoStatus = 'UNSUBMITTED'
-        this.$modal.msgSuccess('已撤回转正申请（演示态）')
-      }).catch(() => {})
+      this.$modal.msgWarning('转正申请接口（promotion_application）尚未实现 —— 无可撤回的申请')
     },
     /** 证书在工作台底部「协议与证书」栏，这里直接带去工作台 */
     goWorkspace() {

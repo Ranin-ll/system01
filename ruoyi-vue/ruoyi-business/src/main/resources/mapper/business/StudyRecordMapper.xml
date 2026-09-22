@@ -126,4 +126,21 @@
         WHERE sr.course_id = #{courseId} AND sr.user_id = #{userId}
         ORDER BY sr.id ASC
     </select>
+    <!--
+      本人近 N 天逐日学习时长（2026-09-22 新增）
+      · study_duration 单位为秒；只返回有记录的天，缺的天由前端补 0
+      · 用 last_study_time 分组（它是"最后一次学习时间"，跨天补学不会重复计）
+    -->
+    <select id="selectDailyDuration" resultType="java.util.LinkedHashMap">
+        SELECT DATE(last_study_time)  AS date,
+               SUM(study_duration)    AS seconds,
+               COUNT(1)               AS items
+        FROM study_record
+        WHERE user_id = #{userId}
+          AND last_study_time IS NOT NULL
+          AND last_study_time &gt;= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(last_study_time)
+        ORDER BY date ASC
+    </select>
+
 </mapper>

@@ -7,10 +7,13 @@
         <id     property="id"            column="id"             />
         <result property="bankName"      column="bank_name"      />
         <result property="bankType"      column="bank_type"      />
+        <result property="bankKind"      column="bank_kind"      />
+        <result property="practiceEnabled" column="practice_enabled" />
         <result property="deptId"        column="dept_id"        />
         <result property="description"   column="description"    />
         <result property="status"        column="status"         />
         <result property="questionCount" column="question_count" />
+        <result property="knowledgePointCount" column="knowledge_point_count" />
         <result property="createBy"      column="create_by"      />
         <result property="createTime"    column="create_time"    />
         <result property="updateTime"    column="update_time"    />
@@ -19,8 +22,11 @@
     </resultMap>
 
     <sql id="bankColumns">
-        b.id, b.bank_name, b.bank_type, b.dept_id, b.description, b.status,
+        b.id, b.bank_name, b.bank_type, b.bank_kind, b.practice_enabled, b.dept_id, b.description, b.status,
         (SELECT COUNT(1) FROM question q WHERE q.bank_id = b.id AND q.deleted = 0) AS question_count,
+        (SELECT COUNT(DISTINCT q.knowledge_point) FROM question q
+          WHERE q.bank_id = b.id AND q.deleted = 0
+            AND q.knowledge_point IS NOT NULL AND q.knowledge_point != '') AS knowledge_point_count,
         b.create_by, b.create_time, b.update_time, b.deleted,
         d.dept_name
     </sql>
@@ -47,6 +53,12 @@
             <if test="status != null and status != ''">
                 AND b.status = #{status}
             </if>
+            <if test="bankKind != null and bankKind != ''">
+                AND b.bank_kind = #{bankKind}
+            </if>
+            <if test="practiceEnabled != null">
+                AND b.practice_enabled = #{practiceEnabled}
+            </if>
         </where>
         ORDER BY b.create_time DESC
     </select>
@@ -64,8 +76,8 @@
     </select>
 
     <insert id="insertBank" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO question_bank (bank_name, bank_type, dept_id, description, status, question_count, create_by, create_time, update_time, deleted)
-        VALUES (#{bankName}, #{bankType}, #{deptId}, #{description}, #{status}, #{questionCount}, #{createBy}, #{createTime}, #{createTime}, #{deleted})
+        INSERT INTO question_bank (bank_name, bank_type, bank_kind, dept_id, description, status, question_count, create_by, create_time, update_time, deleted)
+        VALUES (#{bankName}, #{bankType}, #{bankKind}, #{deptId}, #{description}, #{status}, #{questionCount}, #{createBy}, #{createTime}, #{createTime}, #{deleted})
     </insert>
 
     <update id="updateBank">
@@ -74,6 +86,7 @@
             <if test="bankName != null">bank_name = #{bankName},</if>
             <if test="description != null">description = #{description},</if>
             <if test="status != null">status = #{status},</if>
+            <if test="practiceEnabled != null">practice_enabled = #{practiceEnabled},</if>
             <if test="questionCount != null">question_count = #{questionCount},</if>
             update_time = CURRENT_TIMESTAMP
         </set>
@@ -89,8 +102,9 @@
         FROM question_bank b
         LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
         WHERE b.deleted = 0
-          AND b.bank_type = 'PRACTICE'
+          AND b.bank_type IN ('PRACTICE', 'COMMON')
           AND b.dept_id = #{deptId}
+        ORDER BY CASE WHEN b.bank_type = 'PRACTICE' THEN 0 ELSE 1 END, b.id
         LIMIT 1
     </select>
 

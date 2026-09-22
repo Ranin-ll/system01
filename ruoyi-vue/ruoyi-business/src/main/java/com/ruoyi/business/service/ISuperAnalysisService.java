@@ -30,6 +30,9 @@ public interface ISuperAnalysisService {
     /** L1 部门详情：部门 KPI + 岗位分布 + 课程完成率 + 实习生明细（下钻入口）+ 全局对照 */
     DeptStatsVO deptStats(Long deptId);
 
+    /** L0 知识点热力：部门 × 知识点矩阵（真数据；前端 pivot 成部门行 × 知识点列） */
+    List<Map<String, Object>> knowledgeMatrix();
+
     /**
      * L3 个人档案：身份 + 逐学习项 + 逐任务（真数据），
      * 考核类与阶段评价为 {@code null}（本期不查，由前端示例填充）。
