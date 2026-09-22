@@ -155,7 +155,8 @@ function buildSuperSidebar(dbRoutes = []) {
     absGroup('/super/org', '组织与人员', 'peoples',
       ['org/organization', 'org/roles', 'org/accounts']),
     group('/super/ops', '培养运营', 'education',
-      ['ops/analysis', 'ops/courses', 'ops/course-admin', 'ops/bank-admin', 'ops/psubject-admin', 'ops/exams', 'ops/prep']),
+      // ★ 2026-09-22：'ops/psubject-admin'（实操题库）已下线 —— 题库管理内点实操题库即可进入维护
+      ['ops/analysis', 'ops/courses', 'ops/course-admin', 'ops/bank-admin', 'ops/exams', 'ops/prep']),
     // 「任务与通知」→「通知与督办」：多了「督办看板」，单项目录升级为分组。
     // 两个子项来自 notify / todo 两个前缀 → 必须用 absGroup（group 取末段会拼错）。
     absGroup('/super/notify', '通知与督办', 'message', ['notify', 'todo']),
