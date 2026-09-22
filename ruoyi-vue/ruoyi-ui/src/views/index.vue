@@ -91,8 +91,8 @@
               <polygon :points="radarPolygon" fill="#1764f5" fill-opacity="0.16" stroke="#1764f5" stroke-width="2" />
               <circle v-for="(p, i) in radarPoints" :key="i" :cx="p.x" :cy="p.y" r="3.4" :fill="p.measured ? '#1764f5' : '#fff'" :stroke="p.measured ? '#1764f5' : '#98a2b3'" stroke-width="1.6" />
               <g fill="#667085" font-size="11" text-anchor="middle"><text x="100" y="14">学习投入</text><text x="182" y="88">理论掌握</text><text x="18" y="88">规范遵从</text><text x="100" y="162">实践能力</text></g>
-              <text v-if="radarPoints[1] && !radarPoints[1].measured" x="182" y="102" fill="#98a2b3" font-size="9" text-anchor="middle">待考核</text>
-              <text v-if="radarPoints[2] && !radarPoints[2].measured" x="100" y="176" fill="#98a2b3" font-size="9" text-anchor="middle">待批阅</text>
+              <text v-if="radarPoints[1] && !radarPoints[1].measured" x="182" y="102" fill="#98a2b3" font-size="9" text-anchor="middle">待定义</text>
+              <text v-if="radarPoints[2] && !radarPoints[2].measured" x="100" y="176" fill="#98a2b3" font-size="9" text-anchor="middle">待定义</text>
             </svg>
             <div class="portrait-meta">
               <div v-for="dim in portraitDims" :key="dim.name" class="dim-row">
@@ -106,7 +106,7 @@
               </div>
             </div>
           </div>
-          <div class="note">未测评维度画空心点并标注去向（0 分 ≠ 未测评）。<em class="dsample">示例</em></div>
+          <div class="note">能力模型维度尚未定义（<code>ability_dimension</code> 为空）⇒ 此处留空，等维度定下来后再生成。</div>
         </section>
 
         <!-- 05 课程完成情况 -->
@@ -146,11 +146,17 @@
 
         <!-- 07 考核成绩 -->
         <section class="i2-card i2-span6">
-          <div class="panel-head"><div><span class="section-index">07</span><h2>考核成绩</h2></div><span class="card-hint">满分 100<em class="dsample">示例</em></span></div>
-          <div class="vchart">
-            <div v-for="b in examScoreBars" :key="b.label" class="vcol"><span class="bar" :class="b.score === null ? 'none' : 'g'" :style="{ height: (b.score === null ? 8 : b.score) + '%' }">{{ b.score === null ? '--' : b.score }}</span><span class="vcol-lb">{{ b.label }}</span></div>
+          <div class="panel-head"><div><span class="section-index">07</span><h2>考核成绩</h2></div><span class="card-hint">模拟自测按正确率折算 / 满分 100</span></div>
+          <div v-if="!hasExamScores" class="i2-empty">
+            <i class="el-icon-medal" /><strong>暂无考核成绩</strong>
+            <span>做过模拟自测或参加正式考核后，这里会显示你的成绩。</span>
           </div>
-          <div class="legend"><span><i style="background:#12b76a" />模拟自测（不计正式成绩）</span><span v-if="!isFormal"><i style="background:#f2f4f7" />正式考核未参加</span><span v-else><i style="background:#12b76a" />正式成绩已发布</span></div>
+          <template v-else>
+            <div class="vchart">
+              <div v-for="b in examScoreBars" :key="b.label" class="vcol"><span class="bar" :class="b.score === null ? 'none' : 'g'" :style="{ height: (b.score === null ? 8 : Math.max(b.score, 4)) + '%' }">{{ b.score === null ? '--' : b.score }}</span><span class="vcol-lb">{{ b.label }}</span></div>
+            </div>
+            <div class="legend"><span><i style="background:#12b76a" />模拟自测（不计正式成绩）</span><span><i style="background:#f2f4f7" />未参加 / 未出分</span></div>
+          </template>
         </section>
 
         <!-- 08 培养进度 -->
@@ -348,15 +354,20 @@ export default {
       const last = this.trendWeeks[this.trendWeeks.length - 1]
       return { x: Math.min(Math.max(last.x - 46, 8), 800), y: Math.max(last.y - 40, 8) }
     },
+    /**
+     * 能力画像维度（2026-09-22：**留空**，不再用假分）
+     * ⚠️ 依赖 `ability_dimension`（当前 0 行、维度定义未拍板）⇒ 不写死分数：
+     *    雷达只画空心点、各维度条显示「待定义」；维度定下来后再接真数据。
+     */
     portraitDims() {
-      if (this.isFormal) return [
-        { name: '学习投入', value: 92, note: '' }, { name: '理论掌握', value: 86, note: '' }, { name: '实践能力', value: 91, note: '' }, { name: '规范遵从', value: 88, note: '' }
-      ]
       return [
-        { name: '学习投入', value: 78, note: '' }, { name: '理论掌握', value: null, note: '待考核' }, { name: '实践能力', value: null, note: '待批阅' }, { name: '规范遵从', value: 88, note: '' }
+        { name: '学习投入', value: null, note: '待定义' },
+        { name: '理论掌握', value: null, note: '待定义' },
+        { name: '实践能力', value: null, note: '待定义' },
+        { name: '规范遵从', value: null, note: '待定义' }
       ]
     },
-    portraitCompleteness() { return this.isFormal ? 100 : 60 },
+    portraitCompleteness() { return 0 },
     radarPoints() {
       const center = { x: 100, y: 84 }
       const axes = [{ x: 100, y: 22 }, { x: 162, y: 84 }, { x: 100, y: 146 }, { x: 38, y: 84 }]
@@ -374,14 +385,29 @@ export default {
       const m = Math.max.apply(null, this.weeklyHours.map(w => w.hours))
       return m > 0 ? m : 1
     },
+    /**
+     * 考核成绩柱（2026-09-22 接真）
+     * · 模拟自测：本人最近 3 场（`practice_record`，正确率折算成百分制，便于与正式同轴）
+     * · 正式理论 / 实操：本人正式答卷各取最近一场的 final_score
+     * 没有记录的项 score=null ⇒ 模板画灰色空柱并显示「--」（不留假数）
+     */
     examScoreBars() {
-      if (this.isFormal) return [
-        { label: '自测 1', score: 90 }, { label: '自测 2', score: 88 }, { label: '自测 3', score: 94 }, { label: '正式理论', score: 86 }, { label: '正式实操', score: 91 }
-      ]
-      return [
-        { label: '自测 1', score: 86 }, { label: '自测 2', score: 80 }, { label: '自测 3', score: 92 }, { label: '正式理论', score: null }, { label: '正式实操', score: null }
-      ]
+      const bars = []
+      const recs = (this.practiceRecords || []).slice(-3)
+      recs.forEach((r, i) => {
+        const total = Number(r.totalCount) || 0
+        const sc = Number(r.score) || 0
+        bars.push({ label: '自测 ' + (i + 1), score: total > 0 ? Math.round(sc * 100 / total) : null })
+      })
+      const formals = (this.myFormalExams || []).filter(e => e.finalScore != null)
+      const theory = formals.filter(e => e.examType !== 'PRACTICAL').pop()
+      const practical = formals.filter(e => e.examType === 'PRACTICAL').pop()
+      bars.push({ label: '正式理论', score: theory ? Number(theory.finalScore) : null })
+      bars.push({ label: '正式实操', score: practical ? Number(practical.finalScore) : null })
+      return bars
     },
+    /** 是否有任何一项出了分（全为 null 时走空态，而不是画一排空柱） */
+    hasExamScores() { return this.examScoreBars.some(b => b.score !== null) },
     trainingSteps() {
       if (this.isFormal) return [
         { label: '签署保密协议', state: 'done', desc: '已完成签署' },
