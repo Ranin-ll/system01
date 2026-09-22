@@ -310,6 +310,15 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
     public int saveConfig(Long id, Exam params) {
         managerScopeDeptId();
         Exam exam = getAccessibleExam(id);
+        // ★ 正式考核一旦「已发布 / 待批改」，配置（组卷 / 实操题目 / 指定人员 / 时间窗）一律锁定：
+        //   与 updateExam 对「基本信息」的约束保持同一口径 —— 已发布还有答卷在跑，改配置会让
+        //   已发出的卷子与卷面满分/题目对不上。需要改动就走「停用后再改」或「删除后重新发布」。
+        //   模拟考核（PRACTICE）不计成绩、无答卷归属，保持可随时调整。
+        if (!"PRACTICE".equals(exam.getExamMode())
+                && !"DRAFT".equals(exam.getStatus()) && !"DISABLED".equals(exam.getStatus())) {
+            throw new ServiceException("考核已发布，配置已锁定，只能查看或删除后重新发布；"
+                    + "确需修改请先「停用」该考核");
+        }
         java.util.List<com.ruoyi.business.domain.ExamBankRule> incoming = collectBankRules(exam, params);
         if (incoming != null) {
             saveBankRules(id, incoming);
