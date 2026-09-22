@@ -243,10 +243,19 @@ function buildInternSidebar(roles = []) {
     ? [{
         path: '/assessment/intern/learning',
         component: Layout,
-        alwaysShow: true,
-        redirect: '/assessment/intern/learning/' + children[0].path,
-        meta: { title: '学习与考核', icon: 'education' },
-        children
+        // ★ 2026-09-22：去掉二级下拉 —— 点「学习与考核」直接进在线学习首页。
+        //   做法与下面「任务与通知」完全一致：**只留一个 path 为空串的子项**，
+        //   SidebarItem 的 hasOneShowingChild 会把它渲染成一条指向父级的单链接
+        //   （resolve('/assessment/intern/learning', '') 正好回到父路径）。
+        //   ⚠️ 必须**同时去掉 alwaysShow**，否则它会走「可展开目录」分支、下拉又回来了。
+        //   路由本身在 router/index.js 里没动（`/assessment/intern/learning` 已 redirect 到
+        //   `/assessment/intern/learning/courses`），页签栏由 shell.vue + INTERN_TABS 独立渲染，
+        //   所以去下拉**不影响**跳转与页签，只是侧栏少一层。
+        children: [{
+          path: '',
+          component: () => import('@/views/assessment/learning/shell'),
+          meta: { title: '学习与考核', icon: 'education' }
+        }]
       }]
     : []
 
