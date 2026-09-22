@@ -80,10 +80,9 @@
             <span class="section-index">03</span>
             <div>
               <h2>得分对比</h2>
-              <p>我的综合分 vs 部门平均 vs 通过线。</p>
+              <p>我的综合分 vs 通过线（按业务要求不展示部门平均分）。</p>
             </div>
           </div>
-          <el-tag v-if="deptAvgIsSample" size="mini" type="warning" effect="plain">部门平均为示例数据</el-tag>
         </div>
         <div class="rg-body">
           <div class="vchart">
@@ -107,7 +106,7 @@
             <p>按知识模块统计理论题得分率，橙色为低于 60% 的短板模块。</p>
           </div>
         </div>
-        <el-tag v-if="demoMode" size="mini" type="warning" effect="plain">示例数据</el-tag>
+        <!-- 2026-09-22：薄弱模块数据待接入，已移除「示例数据」标（没有就空着） -->
       </div>
       <div v-if="weakModules.length" class="rg-body">
         <div class="hbar" v-for="m in weakModules" :key="m.module" :class="{ low: m.rate < 60 }">
@@ -397,24 +396,22 @@ export default {
     latestPassLine() {
       return this.latest && this.latest.passLine != null ? this.latest.passLine : '--'
     },
+    /** 对比图：只显示「我的综合」与「通过线」（2026-09-22：按业务要求，部门平均分**不向实习生展示**） */
     compareBars() {
       const mine = Number(this.latestScores.total)
       const line = this.latestPassLine === '--' ? null : Number(this.latestPassLine)
-      const avg = DEMO_DEPT_AVG
-      const max = Math.max(mine || 0, line || 0, avg || 0, 100)
+      const max = Math.max(mine || 0, line || 0, 100)
       return [
         { label: '我的综合', tone: mine >= PASS_LINE ? 'g' : 'none', height: mine ? Math.round(mine / max * 100) : 0, display: mine ? String(mine) : '--' },
-        { label: '部门平均', tone: 'hi', height: Math.round(avg / max * 100), display: String(avg) },
         { label: '通过线', tone: 'o', height: line != null ? Math.round(line / max * 100) : 0, display: line != null ? String(line) : '--' }
       ]
     },
     compareNote() {
-      if (!this.latest) return '暂无正式考核记录，完成考核并发布成绩后此处显示对比数据；部门平均为示例值。'
-      return '部门平均分为示例数据，后端按部门聚合接口就绪后替换；综合分 = 理论 × 40% + 实操 × 60%，权重由批次规则决定。'
+      if (!this.latest) return '暂无正式考核记录，完成考核并发布成绩后此处显示对比数据。'
+      return '按业务要求，本页只展示你自己的成绩与通过线（综合分 = 理论 × 40% + 实操 × 60%，权重由批次规则决定）。'
     },
-    deptAvgIsSample() { return true },
-    demoMode() { return true },
-    weakModules() { return DEMO_WEAK_MODULES },
+    /** 薄弱模块：待接入「本人 × 章节得分率」接口（2026-09-22 起不再用示例数据，先留空） */
+    weakModules() { return [] },
     weakest() {
       if (!this.weakModules.length) return { module: '--', rate: 0 }
       return this.weakModules.reduce((min, m) => (m.rate < min.rate ? m : min), this.weakModules[0])

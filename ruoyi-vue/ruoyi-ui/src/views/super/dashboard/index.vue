@@ -35,7 +35,7 @@
           </div>
         </div>
         <div v-else class="s-empty"><i class="el-icon-data-analysis" /><span>暂无部门数据</span></div>
-        <p class="s-note">口径：<b>已通过审核</b>的报名记录（status = PASSED）按部门归集；<b>学习完成率 / 考核通过率</b>需跨部门聚合接口，暂以示例值展示并标注。</p>
+        <p class="s-note">口径：<b>已通过审核</b>的报名记录（status = PASSED）按部门归集。<b>学习完成率 / 考核通过率</b>不在本卡展示 —— 那两项已接真数据，见「培养分析看板」。</p>
       </section>
 
       <!-- 考核概览 -->
@@ -148,7 +148,8 @@ const COMPANY_ROOT_ID = 100 // 兜底：sys_dept 中 parentId=0 的公司根节�
  *  - /business/question-bank/list         题库（含题量）
  *  - /monitor/operlog/list                操作日志（最近动态）
  *
- * 示例数据（页面已标注）：部门学习完成率 / 考核通过率（需跨部门聚合接口，P3 排期）
+ * 不做的部分（如实说明，不留假数）：部门学习完成率 / 考核通过率不在本卡渲染
+ *   —— 这两项已在「培养分析看板」（/super/ops/analysis）接真数据。
  */
 export default {
   name: 'SuperDashboard',
