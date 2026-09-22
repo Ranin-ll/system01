@@ -59,6 +59,14 @@ public class InternAuthController {
     }
 
     /**
+     * 读取本人的签署凭证（含签名图）。未签署过返回 data=null。
+     */
+    @GetMapping("/agreement/signature")
+    public AjaxResult agreementSignature() {
+        return AjaxResult.success(internAuthService.getAgreementSignature(SecurityUtils.getUserId()));
+    }
+
+    /**
      * 签署当前生效的保密协议。
      */
     @PostMapping("/agreement/sign")

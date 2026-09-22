@@ -481,6 +481,26 @@
                 <el-input v-model="form.mentorPhone" maxlength="32" placeholder="选填" />
               </el-form-item>
             </el-col>
+            <el-col v-if="agreementSignature" :span="24">
+              <el-form-item label="签署凭证">
+                <div class="sign-receipt">
+                  <div class="sign-receipt-frame">
+                    <img v-if="signatureImage" :src="signatureImage" class="sign-receipt-img" alt="实习生本人签名" />
+                    <div v-else class="sign-receipt-text">
+                      <i class="el-icon-warning-outline" />
+                      历史文字式签署，未留存签名图：<code>{{ agreementSignature.signatureData || '（空）' }}</code>
+                    </div>
+                  </div>
+                  <div class="sign-receipt-meta">
+                    <span>凭证编号 <b>{{ agreementSignature.certificateNo || '—' }}</b></span>
+                    <span>协议版本 <b>{{ agreementSignature.versionNo || '—' }}</b></span>
+                    <span>签署方式 <b>{{ signModeLabel }}</b></span>
+                    <span>签署时间 <b>{{ formatSignTime(agreementSignature.signTime) }}</b></span>
+                    <span>签署 IP <b>{{ agreementSignature.signIp || '—' }}</b></span>
+                  </div>
+                </div>
+              </el-form-item>
+            </el-col>
           </el-row>
         </template>
         <el-alert v-else type="info" :closable="false" show-icon
@@ -605,6 +625,8 @@ export default {
       // ---- 表单 ----
       formVisible: false,
       formTitle: '新增人员',
+      // 当前编辑对象的签署凭证（含签名图 dataUrl）；由人员详情接口带出，未签署/新增时为 null
+      agreementSignature: null,
       form: this.emptyForm(),
       rules: {
         userName: [
@@ -663,6 +685,18 @@ export default {
     }
   },
   computed: {
+    /** 签名图：仅当留档的是 data:image 图片时才给 <img>；历史 TEXT 记录返回空串走降级文案 */
+    signatureImage() {
+      const data = this.agreementSignature && this.agreementSignature.signatureData
+      return data && /^data:image\//.test(data) ? data : ''
+    },
+    /** 签署方式中文名 */
+    signModeLabel() {
+      const mode = this.agreementSignature && this.agreementSignature.signMode
+      if (mode === 'MOUSE') return '鼠标 / 触控手写'
+      if (mode === 'TEXT') return '文字式（历史记录）'
+      return mode || '—'
+    },
     /** 「超级管理员」角色的 roleId（内置 admin 角色已软删，不会被列出来） */
     superRoleId() {
       const r = this.roleOptions.find(x => x.roleKey === 'SUPER_ADMIN')
@@ -988,19 +1022,26 @@ export default {
       }).then(res => this.handleUrgeResult(res)).catch(() => {})
     },
     // ---------------- 新增 / 修改 ----------------
+    /** 签署时间：后端下发 ISO 串，展示到秒 */
+    formatSignTime(value) {
+      return value ? String(value).replace('T', ' ').slice(0, 19) : '—'
+    },
     openAdd() {
       this.form = this.emptyForm()
+      this.agreementSignature = null
       this.formTitle = '新增人员'
       this.formVisible = true
       this.$nextTick(() => { this.$refs.form && this.$refs.form.clearValidate() })
     },
     openEdit(row) {
       this.form = this.emptyForm()
+      this.agreementSignature = null
       this.formTitle = '修改人员：' + (row.nickName || row.userName)
       this.formVisible = true
       this.$nextTick(() => { this.$refs.form && this.$refs.form.clearValidate() })
       getPersonnel(row.userId).then(res => {
         const d = res.data || {}
+        this.agreementSignature = d.agreementSignature || null
         this.form = {
           userId: d.userId,
           userName: d.userName || '',
@@ -1290,6 +1331,14 @@ export default {
   td i.el-icon-lock { margin-left: 4px; color: #98a2b3; }
 }
 .field-tip { margin-top: 3px; color: #98a2b3; font-size: 11px; line-height: 1.5; }
+/* 签署凭证：人员详情里展示实习生本人签名图与凭证信息 */
+.sign-receipt { width: 100%; }
+.sign-receipt-frame { display: flex; min-height: 110px; align-items: center; justify-content: center; padding: 8px; border: 1px dashed #d8e0eb; border-radius: 6px; background: #fcfdff; }
+.sign-receipt-img { max-width: 100%; max-height: 170px; object-fit: contain; }
+.sign-receipt-text { display: flex; align-items: center; gap: 6px; color: #b54708; font-size: 12px; }
+.sign-receipt-text code { padding: 2px 8px; border-radius: 4px; background: #f4f6f9; color: #344054; }
+.sign-receipt-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 9px; color: #8490a5; font-size: 12px; }
+.sign-receipt-meta b { color: #344054; font-weight: 600; }
 /* 看板：可点击的 KPI（待审注册 → 跳到注册申请页签） */
 .kpi-click { cursor: pointer; transition: border-color .15s; }
 .kpi-click:hover { border-color: #1764f5; }

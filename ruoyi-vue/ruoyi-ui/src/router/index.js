@@ -201,6 +201,14 @@ export const dynamicRoutes = [
         meta: { title: '能力画像', activeMenu: '/index' }
       },
       {
+        // 保密协议与签署凭证：工作台「保密协议」「签署凭证」两个入口的目标页。
+        // 此前两处 pill 都指向该路径但从未注册 → 点进去是空白/404。
+        path: 'agreements',
+        component: () => import('@/views/assessment/agreement/index'),
+        name: 'InternAgreement',
+        meta: { title: '保密协议与签署凭证', activeMenu: '/index' }
+      },
+      {
         // 旧路径兼容：考核记录已并入「学习与考核 · 考核成绩与转正」页签
         path: 'scores',
         redirect: '/assessment/intern/learning/result'

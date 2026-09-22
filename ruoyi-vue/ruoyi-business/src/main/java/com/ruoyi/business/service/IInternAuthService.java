@@ -20,5 +20,10 @@ public interface IInternAuthService {
 
     Map<String, Object> getAgreementStatus(Long userId);
 
+    /**
+     * 读取某人的签署凭证（含签名图）。未签署过返回 null。
+     */
+    Map<String, Object> getAgreementSignature(Long userId);
+
     Map<String, Object> signAgreement(Long userId, AgreementSignBody body);
 }

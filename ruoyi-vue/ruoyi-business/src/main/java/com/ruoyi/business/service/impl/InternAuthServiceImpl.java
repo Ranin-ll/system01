@@ -149,6 +149,22 @@ public class InternAuthServiceImpl implements IInternAuthService {
     }
 
     @Override
+    public Map<String, Object> getAgreementSignature(Long userId) {
+        Map<String, Object> row = internAuthMapper.selectLatestAgreementSignature(userId);
+        if (row == null) {
+            return null;
+        }
+        // 拷一份再加工，别就地改 Mapper 返回的集合
+        Map<String, Object> result = new LinkedHashMap<>(row);
+        // 给签署记录一个可展示、可核对的凭证编号（「签署凭证」页用）
+        Object id = result.get("id");
+        if (id instanceof Number) {
+            result.put("certificateNo", "RG-AG-" + String.format("%06d", ((Number) id).longValue()));
+        }
+        return result;
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> signAgreement(Long userId, AgreementSignBody body) {
         if (body == null || !Boolean.TRUE.equals(body.getConfirmed())
