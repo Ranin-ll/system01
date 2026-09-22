@@ -70,9 +70,15 @@
             <span class="idx g">4</span>
             <h3>培养漏斗</h3>
           </div>
-          <span class="hint-text">真实数据 · sys_user.user_status</span>
+          <span class="hint-text">真实数据 · sys_user.user_status · <b>点阶段 → 实习生管理</b></span>
         </div>
-        <div v-for="row in funnel" :key="row.key" class="dhbar">
+        <div
+          v-for="row in funnel"
+          :key="row.key"
+          class="dhbar clickable"
+          :title="'查看「' + row.label + '」的人员明细'"
+          @click="go('/department/people/students')"
+        >
           <div class="dhbar-head">
             <span class="dhbar-name">{{ row.label }}</span>
             <span class="dhbar-meta">{{ row.value }} 人</span>
@@ -95,11 +101,18 @@
           </div>
           <span class="hint-text">
             {{ internCount }} 名实习生 · 按完成率分档
-      <!-- 2026-09-22：本卡数据待接入，已移除「示例」标（没有就不显示假数） -->
+            <template v-if="!studyDist.length">· 数据待接入</template>
+            <template v-else>· <b>点柱子 → 实习生管理</b></template>
           </span>
         </div>
         <div class="dvcols">
-          <div v-for="col in studyDist" :key="col.label" class="dvcol">
+          <div
+            v-for="col in studyDist"
+            :key="col.label"
+            class="dvcol clickable"
+            :title="'查看「' + col.label + '」的人员明细'"
+            @click="go('/department/people/students')"
+          >
             <div class="dvcol-bar" :class="col.tone" :style="{ height: col.pct + '%' }" />
             <span class="dvcol-x">{{ col.label }}</span>
           </div>
@@ -157,11 +170,16 @@
             <h3>最薄弱知识点 Top5</h3>
           </div>
           <span class="hint-text">
-            本部门整体
-      <!-- 2026-09-22：本卡数据待接入，已移除「示例」标（没有就不显示假数） -->
+            本部门整体 · <b>点任一行 → 题库管理</b>
           </span>
         </div>
-        <div v-for="row in weakPoints" :key="row.name" class="dhbar">
+        <div
+          v-for="row in weakPoints"
+          :key="row.name"
+          class="dhbar clickable"
+          :title="'查看知识点「' + row.name + '」所在题库'"
+          @click="go('/department/study/banks')"
+        >
           <div class="dhbar-head">
             <span class="dhbar-name">{{ row.name }}</span>
             <span class="dhbar-meta"><b :class="row.tone">{{ row.rate }}%</b></span>
@@ -171,10 +189,11 @@
           </div>
         </div>
         <p class="dsec-note">
-          错误率 = 本部门实习生错题数 ÷ 该知识点被考次数。点击带知识点筛选跳进「题库管理」，便于直接补题 / 改题。
+          错误率 = 本部门实习生错题数 ÷ 该知识点被考次数。点任一行跳进「题库管理」，便于直接补题 / 改题。
         </p>
         <p class="dsec-note" style="color:#b54708">
-          需后端把 <code>knowledge_point</code> 快照进明细表并出聚合接口（P0-1）。
+          需后端把 <code>knowledge_point</code> 快照进明细表并出聚合接口（P0-1）；超管端已有同口径
+          <code>knowledge-matrix</code> 可复用，接上即可显示。
         </p>
       </div>
 
@@ -185,12 +204,19 @@
             <span class="idx g">8</span>
             <h3>最近动态</h3>
           </div>
-          <span class="hint-text">真实数据 · 注册申请 / 考核发布</span>
+          <span class="hint-text">真实数据 · 注册申请 / 考核发布 · <b>点任一条 → 对应处理页</b></span>
         </div>
         <div v-if="activities.length" class="dkv">
-          <div v-for="(item, i) in activities" :key="i">
+          <div
+            v-for="(item, i) in activities"
+            :key="i"
+            class="clickable"
+            :title="item.to ? ('前往：' + item.to) : ''"
+            @click="go(item.to)"
+          >
             <span>{{ item.time }}</span>
             <strong style="font-size:12.5px;font-weight:500">{{ item.text }}</strong>
+            <i v-if="item.to" class="el-icon-arrow-right jump-inline" />
           </div>
         </div>
         <div v-else class="dempty small">
@@ -356,20 +382,20 @@ export default {
       const list = []
       this.exams.forEach(e => {
         if (e.publishedAt) {
-          list.push({ ts: new Date(e.publishedAt).getTime(), time: this.fmtDate(e.publishedAt), text: '发布考核「' + e.examName + '」' })
+          list.push({ ts: new Date(e.publishedAt).getTime(), time: this.fmtDate(e.publishedAt), text: '发布考核「' + e.examName + '」', to: '/department/study/exam' })
         } else if (e.createTime) {
-          list.push({ ts: new Date(e.createTime).getTime(), time: this.fmtDate(e.createTime), text: '创建考核草稿「' + e.examName + '」' })
+          list.push({ ts: new Date(e.createTime).getTime(), time: this.fmtDate(e.createTime), text: '创建考核草稿「' + e.examName + '」', to: '/department/study/exam' })
         }
       })
       this.roster.forEach(row => {
         const ts = row.updateTime || row.createTime
         if (!ts) return
         if (row.status === 'PASSED') {
-          list.push({ ts: new Date(ts).getTime(), time: this.fmtDate(ts), text: '通过注册申请（' + row.realName + '）' })
+          list.push({ ts: new Date(ts).getTime(), time: this.fmtDate(ts), text: '通过注册申请（' + row.realName + '）', to: row.userId ? ('/department/people/profile/' + row.userId) : '/department/people/students' })
         } else if (row.status === 'REJECTED') {
-          list.push({ ts: new Date(ts).getTime(), time: this.fmtDate(ts), text: '驳回注册申请（' + row.realName + '）' })
+          list.push({ ts: new Date(ts).getTime(), time: this.fmtDate(ts), text: '驳回注册申请（' + row.realName + '）', to: '/department/people/register-review' })
         } else {
-          list.push({ ts: new Date(ts).getTime(), time: this.fmtDate(ts), text: '提交注册申请（' + row.realName + '）' })
+          list.push({ ts: new Date(ts).getTime(), time: this.fmtDate(ts), text: '提交注册申请（' + row.realName + '）', to: '/department/people/register-review' })
         }
       })
       return list.sort((a, b) => b.ts - a.ts).slice(0, 6)
@@ -421,8 +447,14 @@ export default {
       if (d.toDateString() === yest.toDateString()) return '昨天 ' + p(d.getHours()) + ':' + p(d.getMinutes())
       return p(d.getMonth() + 1) + '-' + p(d.getDate())
     },
+    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    go(path, query) {
+      if (!path) return
+      if (!this.$router.resolve(path).route.matched.length) return
+      this.$router.push(query ? { path, query } : path).catch(() => {})
+    },
     goTodo(item) {
-      if (item.to) this.$router.push(item.to)
+      this.go(item.to)
     },
     goScores() {
       this.$router.push('/department/study/scores')
@@ -447,4 +479,18 @@ code { padding: 1px 5px; color: #344054; font-size: 11.5px; background: #f2f4f7;
   .didentity .facts { flex-wrap: wrap; gap: 14px 0; }
   .didentity .fact { padding: 0 14px; }
 }
+
+/* ==================== 2026-09-22：卡片内元素可点（与超管端统一 affordance） ====================
+   ★ 只加视觉与鼠标态；跳转走 go()，目标路由不存在时不动（不给死链）。 */
+.dhbar.clickable { padding: 6px 8px; margin-right: -8px; margin-left: -8px; border-radius: 8px; cursor: pointer; transition: background .15s; }
+.dhbar.clickable:hover { background: #f7fbff; }
+.dhbar.clickable:hover .dhbar-name { color: #1764f5; }
+.dvcol.clickable { cursor: pointer; transition: filter .15s; }
+.dvcol.clickable:hover { filter: brightness(1.06); }
+.dvcol.clickable:hover .dvcol-x { color: #1764f5; }
+.dkv > div.clickable { display: flex; align-items: center; gap: 6px; padding: 5px 8px; margin: 0 -8px; border-radius: 8px; cursor: pointer; transition: background .15s; }
+.dkv > div.clickable:hover { background: #f7fbff; }
+.dkv > div.clickable:hover strong { color: #1764f5; }
+.jump-inline { margin-left: auto; color: #98a2b3; font-size: 12px; opacity: 0; transition: opacity .15s, color .15s; }
+.dkv > div.clickable:hover .jump-inline { color: #1764f5; opacity: 1; }
 </style>

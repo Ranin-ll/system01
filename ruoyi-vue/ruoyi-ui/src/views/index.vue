@@ -25,7 +25,7 @@
     <template v-if="isIntern">
       <!-- 01 身份条 -->
       <section class="i2-card">
-        <div class="panel-head"><div><span class="section-index">01</span><h2>我的身份</h2></div><span class="card-hint">入职天数按账号创建时间计算</span></div>
+        <div class="panel-head"><div><span class="section-index">01</span><h2>我的身份</h2></div><span class="card-hint">入职天数按账号创建时间计算</span><el-button type="text" @click="go('/assessment/intern/portrait')">查看画像 ›</el-button></div>
         <div class="identity">
           <span class="big-ph">{{ (nickName || '实').charAt(0) }}</span>
           <div class="who"><b>{{ nickName || '实习生' }}</b><p>{{ isFormal ? '正式实习生' : '预备实习生' }} · {{ deptName || '所属部门' }} · {{ mentorText }}</p></div>
@@ -53,7 +53,7 @@
         <section class="i2-card i2-span8">
           <div class="panel-head">
             <div><span class="section-index">03</span><h2>学习时长趋势</h2></div>
-            <span class="card-hint">近 14 天 / 小时</span>
+            <el-button type="text" @click="go('/assessment/intern/learning')">在线学习 ›</el-button>
           </div>
           <div v-if="!hasDailyData" class="i2-empty">
             <i class="el-icon-time" /><strong>暂无学习时长记录</strong>
@@ -127,7 +127,7 @@
         <section class="i2-card i2-span6">
           <div class="panel-head">
             <div><span class="section-index">06</span><h2>学习时长分布</h2></div>
-            <span class="card-hint">近 14 天 / 小时</span>
+            <el-button type="text" @click="go('/assessment/intern/learning')">在线学习 ›</el-button>
           </div>
           <div v-if="!hasDailyData" class="i2-empty">
             <i class="el-icon-time" /><strong>暂无学习时长记录</strong>
@@ -146,7 +146,7 @@
 
         <!-- 07 考核成绩 -->
         <section class="i2-card i2-span6">
-          <div class="panel-head"><div><span class="section-index">07</span><h2>考核成绩</h2></div><span class="card-hint">模拟自测按正确率折算 / 满分 100</span></div>
+          <div class="panel-head"><div><span class="section-index">07</span><h2>考核成绩</h2></div><el-button type="text" @click="go('/assessment/intern/learning/result')">成绩与转正 ›</el-button></div>
           <div v-if="!hasExamScores" class="i2-empty">
             <i class="el-icon-medal" /><strong>暂无考核成绩</strong>
             <span>做过模拟自测或参加正式考核后，这里会显示你的成绩。</span>
@@ -161,7 +161,7 @@
 
         <!-- 08 培养进度 -->
         <section class="i2-card i2-span6">
-          <div class="panel-head"><div><span class="section-index">08</span><h2>培养进度</h2></div><span class="card-hint">4 步</span></div>
+          <div class="panel-head"><div><span class="section-index">08</span><h2>培养进度</h2></div><el-button type="text" @click="go('/assessment/intern/learning/result')">成绩与转正 ›</el-button></div>
           <div class="steps">
             <div v-for="(s, i) in trainingSteps" :key="s.label" class="step" :class="s.state">
               <span class="mark">{{ s.state === 'done' ? '✓' : i + 1 }}</span>
@@ -591,7 +591,12 @@ export default {
     openLearningCourse(course) {
       this.go('/assessment/intern/learning/course/' + course.id)
     },
-    go(path) { this.$router.push(path) },
+    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    go(path, query) {
+      if (!path) return
+      if (!this.$router.resolve(path).route.matched.length) return
+      this.$router.push(query ? { path, query } : path).catch(() => {})
+    },
     openRecord(record) {
       // 未生成/待处理的记录不跳转，先说明原因，避免点进空页面。
       if (record.tone === 'is-idle' || record.tone === 'is-pending') {

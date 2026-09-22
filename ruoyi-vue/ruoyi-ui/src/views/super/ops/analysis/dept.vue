@@ -32,14 +32,16 @@
     </div>
 
     <template v-else>
-      <!-- KPI 4 -->
+      <!-- KPI 4（全部可点：落对应模块页 / 人员列表） -->
       <div v-loading="loading" class="s-kpis kpi4">
-        <div class="s-kpi">
+        <div class="s-kpi link" title="查看：人员与账号 · 人员列表" @click="goPeople">
+          <i class="jump el-icon-top-right" />
           <div class="lb"><i class="dot" style="background:#1764f5" />在培实习生</div>
           <div class="vl">{{ num(dept.internCount) }}<small>人</small></div>
           <div class="ft">已转正 {{ num(dept.formalCount) }} 人</div>
         </div>
-        <div class="s-kpi">
+        <div class="s-kpi link" title="查看：课程与题库总览" @click="go('/super/ops/courses')">
+          <i class="jump el-icon-top-right" />
           <div class="lb"><i class="dot" style="background:#12b76a" />学习达标率</div>
           <div class="vl">{{ dept.learnRate === null || dept.learnRate === undefined ? '--' : dept.learnRate }}<small v-if="dept.learnRate !== null && dept.learnRate !== undefined">%</small></div>
           <div class="ft">
@@ -47,14 +49,16 @@
             <template v-else>本部门暂无学习记录</template>
           </div>
         </div>
-        <div class="s-kpi">
+        <div class="s-kpi link" title="查看：督办看板" @click="go('/super/todo')">
+          <i class="jump el-icon-top-right" />
           <div class="lb"><i class="dot" style="background:#f79009" />任务完成率</div>
           <div class="vl">{{ dept.taskDoneRate === null || dept.taskDoneRate === undefined ? '--' : dept.taskDoneRate }}<small v-if="dept.taskDoneRate !== null && dept.taskDoneRate !== undefined">%</small></div>
           <div class="ft" :class="{ warn: num(dept.taskOverdue) > 0 }">
             {{ num(dept.taskDone) }}/{{ num(dept.taskTotal) }} 已交 · 逾期 {{ num(dept.taskOverdue) }}
           </div>
         </div>
-        <div class="s-kpi">
+        <div class="s-kpi link" title="查看：人员与账号 · 人员列表" @click="goPeople">
+          <i class="jump el-icon-top-right" />
           <div class="lb"><i class="dot" style="background:#667085" />培养卡点</div>
           <div class="vl">{{ num(blockers.statusConflict) }}<small>人</small></div>
           <div class="ft" :class="{ warn: num(blockers.statusConflict) > 0 }">
@@ -105,10 +109,16 @@
         <section class="s-card s-c6">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx g">岗</span><h3>岗位分布</h3></div>
-            <span class="hint">本部门在培实习生</span>
+            <span class="hint">本部门在培实习生 · 点任一行 → 人员列表</span>
           </div>
           <div v-if="!(dept.positions || []).length" class="s-empty"><i class="el-icon-user" /><span>本部门暂无在培实习生</span></div>
-          <div v-for="p in dept.positions" :key="String(p.positionId)" class="s-hbar">
+          <div
+            v-for="p in dept.positions"
+            :key="String(p.positionId)"
+            class="s-hbar link"
+            :title="'查看「' + (p.positionName || '未设岗位') + '」的人员明细'"
+            @click="goPeople"
+          >
             <span class="nm" :title="p.positionName || '未设岗位'">{{ p.positionName || '未设岗位' }}</span>
             <span class="track"><i :style="{ width: posWidth(p.cnt) + '%' }" /></span>
             <span class="pc">{{ p.cnt }} 人</span>
@@ -124,7 +134,7 @@
         <section class="s-card s-c7">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx">课</span><h3>本部门课程完成率</h3></div>
-            <span class="hint">只列本部门岗位对应的课程 · 门槛 {{ num(dept.learnThreshold) }}</span>
+            <span class="hint">只列本部门岗位对应的课程 · 门槛 {{ num(dept.learnThreshold) }} · 点任一行 → 课程与题库总览</span>
           </div>
           <div v-if="!(dept.courses || []).length" class="s-empty"><i class="el-icon-reading" /><span>该岗位下暂无课程</span></div>
           <table v-else class="s-tbl">
@@ -133,8 +143,14 @@
                 <th class="ctr" style="width:76px">已学人数</th><th style="width:150px">平均进度</th></tr>
             </thead>
             <tbody>
-              <tr v-for="c in dept.courses" :key="c.courseId">
-                <td class="nm">{{ c.courseName }}</td>
+              <tr
+                v-for="c in dept.courses"
+                :key="c.courseId"
+                class="row-link"
+                :title="'查看课程：' + c.courseName"
+                @click="go('/super/ops/courses')"
+              >
+                <td class="nm">{{ c.courseName }} <i class="el-icon-arrow-right drill" /></td>
                 <td><span class="s-badge" :class="courseCls(c.status)">{{ courseLabel(c.status) }}</span></td>
                 <td class="ctr">{{ c.isRequired ? '是' : '否' }}</td>
                 <td class="ctr">
@@ -160,11 +176,17 @@
         <section class="s-card s-c5">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx o">弱</span><h3>本部门薄弱知识点 Top5</h3></div>
-            <!-- 2026-09-22：薄弱知识点已接真数据（dept-stats.knowledge），示例标已移除 -->
+            <span class="hint">点任一行 → 题库管理（知识点归属）</span>
           </div>
           <div v-if="!weakPoints.length" class="s-empty"><i class="el-icon-data-analysis" /><span>本部门暂无逐题明细</span></div>
-          <div v-for="k in weakPoints" :key="k.point" class="s-hbar low">
-            <span class="nm" :title="k.point">{{ k.point }}</span>
+          <div
+            v-for="k in weakPoints"
+            :key="k.point"
+            class="s-hbar low link"
+            :title="'查看知识点「' + k.point + '」所在题库'"
+            @click="go('/super/ops/bank-admin')"
+          >
+            <span class="nm">{{ k.point }}</span>
             <span class="track"><i :style="{ width: Math.max(k.rate, 1) + '%' }" /></span>
             <span class="pc">{{ k.correct }}/{{ k.items }}</span>
           </div>
@@ -313,11 +335,18 @@ export default {
       return { WAIT_AUDIT: '', PRE_TRAINEE: 'blue', PENDING_PROMOTE: 'warn', FORMAL_TRAINEE: 'ok' }[stage] || ''
     },
     /** 下钻到个人档案 */
-    goIntern(userId) {
-      const path = '/super/ops/analysis/intern/' + userId
-      // 不给死链：目标路由不存在时不动（本项目铁律）
+    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    go(path, query) {
+      if (!path) return
       if (!this.$router.resolve(path).route.matched.length) return
-      this.$router.push(path).catch(() => {})
+      this.$router.push(query ? { path, query } : path).catch(() => {})
+    },
+    /** 人员类下钻统一落「人员与账号 · 人员列表」 */
+    goPeople() {
+      this.go('/super/org/accounts', { tab: 'people' })
+    },
+    goIntern(userId) {
+      this.go('/super/ops/analysis/intern/' + userId)
     },
     load() {
       this.loading = true
@@ -399,4 +428,23 @@ export default {
 @media (max-width: 1280px) {
   .kpi4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ==================== 2026-09-22：全卡片可点（与 L0 统一 affordance） ====================
+   ★ 只加视觉与鼠标态；跳转走 go() / goPeople() / goIntern()，目标路由不存在时不动（不给死链）。 */
+.link { position: relative; cursor: pointer; transition: background .15s, box-shadow .15s, border-color .15s; }
+.link:hover { background: #f7fbff; }
+.s-kpi.link:hover { border-color: #cfe0fb; box-shadow: 0 2px 10px rgba(23, 100, 245, .12); }
+.s-kpi .jump {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: #98a2b3;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity .15s, color .15s;
+}
+.s-kpi.link:hover .jump { color: $blue; opacity: 1; }
+.s-hbar.link:hover { background: #f7fbff; border-radius: 6px; }
+.s-tbl tbody tr.row-link .drill { color: $blue; font-size: 11px; opacity: 0; }
+.s-tbl tbody tr.row-link:hover .drill { opacity: 1; }
 </style>
