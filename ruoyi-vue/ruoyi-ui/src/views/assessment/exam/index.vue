@@ -281,11 +281,13 @@ export default {
       const matched = name.match(/(\d{4}Q\d)|(第[一二三四五六七八九十\d]+[期批场])/)
       return matched ? matched[0] : name
     },
-    /** 场次状态机：已通过 / 待批阅 / 进行中 / 已截止 / 已结束 / 未解锁 */
+    /** 场次状态机：已通过 / 待批阅 / 上次未完成 / 进行中 / 已截止 / 已结束 / 未解锁 */
     decorateSession(session) {
-      // 作答中(IN_PROGRESS)的答卷视为「未提交」：答题时离开/刷新页面不保留进度、不交卷，
-      // 遗留的 IN_PROGRESS 答卷不计入「已参加」，回到列表仍显示「开始考试」（后端 startExam 会作废重开）。
+      // 作答中(IN_PROGRESS)的答卷不算「已参加」（没有成绩可看），但它**不是垃圾**：
+      // 2026-09-22 起后端 startExam 对它是**续答同一份** ⇒ 列表要明确显示「上次未完成 · 继续作答」，
+      // 而不是含糊的「开始考试」（用户会以为要从头再来）。
       const sheets = session.exams.map(e => e.sheet).filter(s => s && s.status !== 'IN_PROGRESS')
+      const inProgress = session.exams.some(e => e.sheet && e.sheet.status === 'IN_PROGRESS')
       const published = sheets.filter(s => s.status === 'PUBLISHED')
       // 「已通过」必须等本场次**所有**环节都出分且都通过：
       // 只看 published 会让"一个环节已发布通过、另一个还在批阅"的场次提前显示已通过，
@@ -306,6 +308,7 @@ export default {
       let state
       if (passed) state = { label: '已通过', tone: 'good', cardTone: 'done', badgeTone: 'ok' }
       else if (attended && pending) state = { label: '待批阅', tone: 'warn', cardTone: '', badgeTone: 'warn' }
+      else if (running && inProgress) state = { label: '上次未完成', tone: 'warn', cardTone: 'running', badgeTone: 'warn' }
       else if (running) state = { label: '进行中', tone: 'info', cardTone: 'running', badgeTone: 'info' }
       else if (expired) state = { label: '已截止', tone: 'muted', cardTone: '', badgeTone: 'muted' }
       else if (attended) state = { label: '已结束', tone: 'muted', cardTone: '', badgeTone: 'muted' }
@@ -330,7 +333,9 @@ export default {
       else if (attended) footText = published.length
         ? '已出分 ' + published.length + '/' + sheets.length + ' 项 · 得分合计 ' + scored
         : '已完成 ' + sheets.length + ' 项考核'
-      else if (running) footText = this.remainTimes === null ? '进行中' : '剩余次数 ' + this.remainTimes + ' 次'
+      else if (running) footText = inProgress
+        ? '上次作答未提交，进度已保存'
+        : (this.remainTimes === null ? '进行中' : '剩余次数 ' + this.remainTimes + ' 次')
       else if (expired) footText = '已过截止时间'
       else footText = '未解锁'
 
@@ -340,11 +345,12 @@ export default {
         attended,
         passed,
         running,
+        inProgress,
         expired,
         assignedOnly,
         windowText: deadlineRaw ? this.fmtDeadline(deadlineRaw) : '不限',
         footText,
-        action: this.buildAction(session, { passed, running, attended, openExam, expired })
+        action: this.buildAction(session, { passed, running, attended, openExam, expired, inProgress })
       })
     },
     buildAction(session, ctx) {
@@ -356,7 +362,13 @@ export default {
       if (ctx.expired) return { label: '已截止', primary: false, disabled: true, run: () => {} }
       // 【临时】停用资质审核门槛（学习进度≥70% + 保密协议），开放考试入口；提交前请还原为 qualified 判断
       if (ctx.openExam) {
-        return { label: '开始考试', primary: true, disabled: false, run: () => this.goAnswering(ctx.openExam) }
+        // 已有 IN_PROGRESS 答卷 ⇒ 文案说「继续作答」（后端 startExam 会续答同一份，不会重开）
+        return {
+          label: ctx.inProgress ? '继续作答' : '开始考试',
+          primary: true,
+          disabled: false,
+          run: () => this.goAnswering(ctx.openExam)
+        }
       }
       if (ctx.running) return { label: '查看成绩', primary: false, disabled: false, run: () => this.goResult(session) }
       return { label: '未开始', primary: false, disabled: true, run: () => {} }
@@ -366,6 +378,10 @@ export default {
       if (exam.sheet && exam.sheet.status === 'PUBLISHED') {
         return (exam.sheet.passFlag === 1 ? '已通过 ' : '未通过 ') + exam.sheet.finalScore + ' 分'
       }
+      // IN_PROGRESS ≠ 批阅中：答卷还没交，谈不上批阅（2026-09-22 起可续答）
+      if (exam.sheet && exam.sheet.status === 'IN_PROGRESS') {
+        return this.isExpired(exam) ? '作答中 · 已超时' : '作答中 · 未提交'
+      }
       if (exam.sheet) return '批阅中'
       if (exam.status === 'PUBLISHED') return this.isExpired(exam) ? '已截止' : '已开放 · 可参加'
       return '未发布'
@@ -373,6 +389,7 @@ export default {
     stageTone(exam) {
       if (!exam) return 'muted'
       if (exam.sheet && exam.sheet.status === 'PUBLISHED') return exam.sheet.passFlag === 1 ? 'good' : 'warn'
+      if (exam.sheet && exam.sheet.status === 'IN_PROGRESS') return 'info'
       if (exam.sheet) return 'warn'
       if (exam.status !== 'PUBLISHED') return 'muted'
       return this.isExpired(exam) ? 'muted' : 'info'
