@@ -107,9 +107,10 @@
                 </div>
 
                 <div class="s-q-upload" :class="{ ok: !!subjectFiles[s.subjectItemId] }">
+                  <!-- ★ 不能加 :limit="1"：auto-upload=false 时第二选择会被 limit 静默吞掉（不弹 exceed 提示、
+                       文件列表又隐藏）→ 用户点「重新上传」完全没反应。改为每次 on-change 覆盖最新文件。 -->
                   <el-upload
                     :auto-upload="false"
-                    :limit="1"
                     :show-file-list="false"
                     accept="*"
                     :on-change="file => onSubjectItemFile(s, file)"
@@ -368,12 +369,17 @@ export default {
       this.startCountdown(Number(data.remainingSeconds) || 0)
       this.startAutoSave()
     },
-    /** 从上传路径里取一个可读的文件名（后端存的是 `/profile/upload/2026/09/22/uuid_原名`） */
+    /**
+     * 从上传路径里还原一个可读的文件名。
+     * 后端 `FileUploadUtils.extractFilename` 的命名是 **`{原basename}_{Seq}.{ext}`**
+     * （Seq = `yyyyMMddHHmmssA###`，见 `Seq.getId(uploadSeqType)`）——
+     * ★ 原名在**前**、流水号在**后**，所以必须剥**尾部**那一段；
+     *   早先按「uuid_原名」写成就取第一个 `_` 之后，会把原名丢掉、只显示流水号。
+     */
     fileNameOf(path) {
-      const seg = String(path || '').split('/').pop() || ''
-      const decoded = decodeURIComponent(seg)
-      const i = decoded.indexOf('_')
-      return i > -1 ? decoded.slice(i + 1) : decoded
+      const seg = decodeURIComponent(String(path || '').split('/').pop() || '')
+      const m = seg.match(/^(.*)_\d{14}A\d+(\.[^.]+)?$/)
+      return m ? m[1] + (m[2] || '') : seg
     },
     fmtClock(d) {
       const pad = n => (n < 10 ? '0' + n : '' + n)
