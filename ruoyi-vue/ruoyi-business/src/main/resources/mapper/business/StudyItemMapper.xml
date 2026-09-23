@@ -21,6 +21,7 @@
         <result property="fileSize" column="file_size" />
         <result property="fileExt" column="file_ext" />
         <result property="completionThreshold" column="completion_threshold" />
+        <result property="mediaSeconds" column="media_seconds" />
         <result property="courseId" column="course_id" />
     </resultMap>
 
@@ -28,7 +29,7 @@
         SELECT si.id, si.chapter_id, si.item_title, si.item_intro, si.item_type, si.content_url,
                si.duration, si.is_required, si.completion_rule, si.quiz_json,
                si.sort_no, si.create_time, si.update_time, si.deleted,
-               si.file_name, si.file_size, si.file_ext, si.completion_threshold
+               si.file_name, si.file_size, si.file_ext, si.completion_threshold, si.media_seconds
         FROM study_item si
         INNER JOIN course_chapter cc ON cc.id = si.chapter_id
         WHERE cc.course_id = #{courseId} AND cc.deleted = 0 AND si.deleted = 0
@@ -39,7 +40,7 @@
         SELECT si.id, si.chapter_id, si.item_title, si.item_intro, si.item_type, si.content_url,
                si.duration, si.is_required, si.completion_rule, si.quiz_json,
                si.sort_no, si.create_time, si.update_time, si.deleted,
-               si.file_name, si.file_size, si.file_ext, si.completion_threshold
+               si.file_name, si.file_size, si.file_ext, si.completion_threshold, si.media_seconds
         FROM study_item si
         INNER JOIN course_chapter cc ON cc.id = si.chapter_id
         WHERE si.id = #{id} AND cc.course_id = #{courseId} AND si.deleted = 0
@@ -50,7 +51,7 @@
         SELECT si.id, si.chapter_id, cc.course_id, si.item_title, si.item_intro, si.item_type, si.content_url,
                si.duration, si.is_required, si.completion_rule, si.quiz_json,
                si.sort_no, si.create_time, si.update_time, si.deleted,
-               si.file_name, si.file_size, si.file_ext, si.completion_threshold
+               si.file_name, si.file_size, si.file_ext, si.completion_threshold, si.media_seconds
         FROM study_item si
         INNER JOIN course_chapter cc ON cc.id = si.chapter_id AND cc.deleted = 0
         INNER JOIN course c ON c.id = cc.course_id AND c.deleted = 0 AND c.status = 'PUBLISHED'

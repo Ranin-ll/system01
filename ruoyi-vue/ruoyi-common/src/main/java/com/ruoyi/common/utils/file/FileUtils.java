@@ -140,18 +140,38 @@ public class FileUtils
      */
     public static boolean checkAllowDownload(String resource)
     {
+        return checkAllowDownload(resource, null);
+    }
+
+    /**
+     * 是否允许下载：默认白名单 + 调用方额外放行的扩展名。
+     *
+     * <p>为什么需要额外放行：{@code DEFAULT_ALLOWED_EXTENSION} 里没有 exe / 7z / iso /
+     * apk 这类课程附件，而课程资料是允许上传它们的 —— 只改上传白名单会导致
+     * 「传得上去、下载失败」（下载接口判非法 → 异常被吞 → 200 + 空 body → 前端存出 0 字节文件）。</p>
+     *
+     * @param resource        资源路径（数据库里的 content_url，形如 /profile/upload/...）
+     * @param extraExtensions 额外放行的扩展名数组，可为 null
+     */
+    public static boolean checkAllowDownload(String resource, String[] extraExtensions)
+    {
         // 禁止目录上跳级别
         if (StringUtils.contains(resource, ".."))
         {
             return false;
         }
 
-        // 检查允许下载的文件规则
-        if (ArrayUtils.contains(MimeTypeUtils.DEFAULT_ALLOWED_EXTENSION, FileTypeUtils.getFileType(resource)))
+        String fileType = FileTypeUtils.getFileType(resource);
+        // 检查默认允许下载的文件规则
+        if (ArrayUtils.contains(MimeTypeUtils.DEFAULT_ALLOWED_EXTENSION, fileType))
         {
             return true;
         }
-
+        // 调用方额外放行的扩展名（如课程附件：安装包、压缩包、镜像）
+        if (extraExtensions != null && ArrayUtils.contains(extraExtensions, fileType))
+        {
+            return true;
+        }
         // 不在允许下载的文件规则
         return false;
     }

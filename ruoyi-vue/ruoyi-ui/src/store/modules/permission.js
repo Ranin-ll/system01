@@ -4,7 +4,6 @@ import { getRouters } from '@/api/menu'
 import Layout from '@/layout/index'
 import ParentView from '@/components/ParentView'
 import InnerLink from '@/layout/components/InnerLink'
-import { visibleInternTabs } from '@/utils/internTabs'
 
 const permission = {
   state: {
@@ -143,8 +142,13 @@ function buildSuperSidebar(dbRoutes = []) {
   }
 
   // 原生系统三项（系统管理 / 系统监控 / 系统工具）直接透传 DB 菜单
+  //
+  // ⚠️ 必须**剥掉前导斜杠**再比对：后端 SysMenuServiceImpl.getRouterPath 对「一级目录」
+  // （parentId=0 且 menu_type=M 且非外链）会自动补 '/'，实测 getRouters 下发的是
+  // '/system' '/monitor' '/tool' 而不是 'system'。2026-09-22 前这里按无斜杠比较，
+  // 导致 systemDirs 恒为空 —— 超管（含内置 admin）侧栏一直看不到这三项，与权限表无关。
   const systemDirs = dbRoutes.filter(route =>
-    ['system', 'monitor', 'tool'].indexOf(route.path) > -1)
+    ['system', 'monitor', 'tool'].indexOf(String(route.path || '').replace(/^\//, '')) > -1)
 
   return [
     single('/super', 'dashboard'),
@@ -214,65 +218,44 @@ function buildDeptAdminSidebar() {
   ].filter(Boolean))
 }
 
-// 实习生端一级目录（设计稿 V1.2，2026-09-17 起加第三项）：
-//   ① 工作台  ② 学习与考核  ③ 任务与通知
+// 实习生端一级目录（设计稿 V1.2，2026-09-17 起加第三项：
+//   ① 工作台  ② 学习与考核  ③ 任务与通知；
+//   2026-09-23 起**删掉「任务与通知」**并把「学习与考核」收成单入口 —— 只留两项：
+//   ① 工作台  ② 学习与考核）
 //
 // 为什么在 store 里手搓，而不直接用后端菜单树（/getRouters）：
 // 后端菜单树是给管理端用的，「学习考核」目录下还挂着部门运营 / 考核认证管理 /
 // 系统运营等实习生用不到的目录，直接透传会让实习生侧栏出现一堆无用层级。
-// 这里显式声明三项目录，只影响侧栏渲染（sidebarRouters 仅用于展示），
+// 这里显式声明目录，只影响侧栏渲染（sidebarRouters 仅用于展示），
 // 真正参与路由匹配的仍是 dynamicRoutes + 后端菜单生成的 rewriteRoutes。
 //
-// 「消息中心」有**两个入口**：顶栏铃铛（未读红点，见 layout/components/Navbar.vue）
-// 与侧栏一级「任务与通知」（复用 constantRoutes 的 `/messages` 路由，该页含
-// 「通知 / 我的任务」两个页签）。侧栏文案叫「任务与通知」，页面标题仍是「消息中心」——
-// 侧栏是入口，页面是容器。
+// 「消息中心」不再占侧栏位：入口只保留顶栏铃铛（未读红点，见 layout/components/Navbar.vue），
+// 页面仍是 constantRoutes 的 `/messages`（含「通知 / 我的任务」两个页签），路由与页面都没删。
 function buildInternSidebar(roles = []) {
   // ① 工作台：沿用 constantRoutes 的首页路由（affix，刷新后仍能定位）
   const dashboard = constantRoutes.filter(route => !route.hidden && route.path === '')
 
-  // ② 学习与考核：复用 dynamicRoutes 里的页签子树，按角色裁剪可见页签
-  const internRoot = dynamicRoutes.find(route => route.path === '/assessment/intern')
-  const shell = internRoot && internRoot.children.find(child => child.path === 'learning')
-  const visibleNames = visibleInternTabs(roles).map(tab => tab.name)
-  const children = (shell ? shell.children : [])
-    .filter(child => !child.hidden && visibleNames.indexOf(child.name) > -1)
-    .map(child => Object.assign({}, child))
+  // ② 学习与考核：**单入口，无二级菜单**（2026-09-23 起）
+  //
+  // 原先这里把 5 个页签摊成二级菜单（在线学习 / 备考资料 / 模拟考核 / 正式考核 /
+  // 考核成绩与转正）。这些子页现已合并进 all.vue 单页并按顺序堆叠，
+  // 侧栏只保留一个入口，点进去就是那一页。
+  //
+  // 子项 path 必须是空串：SidebarItem 用 path.resolve(basePath, childPath) 拼链接，
+  // resolve('/assessment/intern/learning', '') 正好回到路径本身；若写成相对段
+  // （如 'courses'）会被拼成 /assessment/intern/learning/courses，虽然那条有重定向
+  // 兜底，但 :index 与 $route.path 对不上，侧栏高亮会丢。
+  const learning = [{
+    path: '/assessment/intern/learning',
+    component: Layout,
+    meta: { title: '学习与考核', icon: 'education' },
+    children: [{
+      path: '',
+      meta: { title: '学习与考核', icon: 'education' }
+    }]
+  }]
 
-  const learning = children.length
-    ? [{
-        path: '/assessment/intern/learning',
-        component: Layout,
-        // ★ 2026-09-22：去掉二级下拉 —— 点「学习与考核」直接进在线学习首页。
-        //   做法与下面「任务与通知」完全一致：**只留一个 path 为空串的子项**，
-        //   SidebarItem 的 hasOneShowingChild 会把它渲染成一条指向父级的单链接
-        //   （resolve('/assessment/intern/learning', '') 正好回到父路径）。
-        //   ⚠️ 必须**同时去掉 alwaysShow**，否则它会走「可展开目录」分支、下拉又回来了。
-        //   路由本身在 router/index.js 里没动（`/assessment/intern/learning` 已 redirect 到
-        //   `/assessment/intern/learning/courses`），页签栏由 shell.vue + INTERN_TABS 独立渲染，
-        //   所以去下拉**不影响**跳转与页签，只是侧栏少一层。
-        children: [{
-          path: '',
-          component: () => import('@/views/assessment/learning/shell'),
-          meta: { title: '学习与考核', icon: 'education' }
-        }]
-      }]
-    : []
-
-  // ③ 任务与通知：单链接，复用 constantRoutes 的 /messages。
-  //    子项 path 保持空串 —— SidebarItem 用 path.resolve(basePath, childPath) 拼链接，
-  //    resolve('/messages', '') 正好回到 /messages；若写成相对段（如 'tasks'）会被拼成
-  //    /messages/tasks 而 404（README：单项目录必须让子项解析回目录路径本身）。
-  //    只覆盖 meta.title：侧栏显示「任务与通知」，页面内的标题仍由页面自己决定。
-  const messageCenter = constantRoutes
-    .filter(route => !route.hidden && route.path === '/messages')
-    .map(route => Object.assign({}, route, {
-      children: (route.children || []).map(child => Object.assign({}, child, {
-        meta: Object.assign({}, child.meta, { title: '任务与通知' })
-      }))
-    }))
-
-  return dashboard.concat(learning).concat(messageCenter)
+  return dashboard.concat(learning)
 }
 
 // 遍历后台传来的路由字符串，转换为组件对象

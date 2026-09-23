@@ -3,11 +3,7 @@
     <div class="exam-breadcrumb">
       <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回</el-button>
       <span>/</span>
-      <b>模拟考核</b>
-      <template v-if="fromModuleId">
-        <span>/</span>
-        <b>{{ moduleLabel }}</b>
-      </template>
+      <b>模拟实操考核</b>
       <span>/</span>
       <b>实操题详情</b>
     </div>
@@ -92,14 +88,6 @@ export default {
     }
   },
   computed: {
-    /** 来源模块（从模块内实操题卡片进来时携带 ?moduleId=），用于返回模块内内容 */
-    fromModuleId() {
-      const v = this.$route.query.moduleId
-      return v == null || v === '' ? null : String(v)
-    },
-    moduleLabel() {
-      return (this.subject && this.subject.moduleName) || '当前模块'
-    },
     images() {
       return this.subject ? this.parseAttachments(this.subject.referenceImages) : []
     },
@@ -155,16 +143,11 @@ export default {
       return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[v] || '中等'
     },
     /**
-     * 返回上一级：从模块内进来时回到「模拟考核 › 该模块」的模块内容页，
-     * 否则回落到「模拟考核」模块列表。不再跳转到已下线的独立「实操题库」页。
+     * 返回上一级：回到「模拟实操考核」清单页。
+     * （2026-09-23 模拟考核去掉模块层级后不再带 ?moduleId= 回模块内内容。）
      */
     goBack() {
-      const mid = this.fromModuleId
-      if (mid) {
-        this.$router.push({ path: '/assessment/intern/learning/mock', query: { moduleId: mid } })
-      } else {
-        this.$router.push('/assessment/intern/learning/mock')
-      }
+      this.$router.push('/assessment/intern/learning/mock/practice')
     }
   }
 }

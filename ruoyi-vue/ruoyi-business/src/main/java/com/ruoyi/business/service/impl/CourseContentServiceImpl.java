@@ -18,6 +18,7 @@ import com.ruoyi.common.constant.Constants;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.file.FileUploadUtils;
+import com.ruoyi.common.utils.file.MimeTypeUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -43,9 +44,17 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
 
     // 章节检测（QUIZ）已下线：学习单项只保留 文档 / 视频
     private static final Set<String> ITEM_TYPES = new HashSet<>(Arrays.asList("DOC", "VIDEO"));
-    private static final String[] DOCUMENT_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "txt", "xls", "xlsx", "zip"};
+    /**
+     * 「文档 / 附件」类资料的允许扩展名 = {@link MimeTypeUtils#COURSE_ASSET_EXTENSION}（单一数据源）。
+     * ⚠️ 上传白名单必须与下载放行一致（`CommonController.resourceDownload` 引用同一个常量），
+     * 否则会出现「传得上去、下载回来 0 字节」。
+     * 同步项：前端 `views/business/course/index.vue` 的 itemAccept 与大小文案、
+     * `application.yml` 的 multipart / upload 上限（默认值按 3GB 配的）。
+     */
+    private static final String[] DOCUMENT_EXTENSIONS = MimeTypeUtils.COURSE_ASSET_EXTENSION;
     private static final String[] VIDEO_EXTENSIONS = {"mp4", "avi", "rmvb", "webm", "mov"};
-    private static final long DOCUMENT_MAX_SIZE = 50 * 1024 * 1024L;
+    /** 文档 / 附件类单文件上限：3GB（安装包、镜像可能很大） */
+    private static final long DOCUMENT_MAX_SIZE = 3L * 1024 * 1024 * 1024;
     private static final long VIDEO_MAX_SIZE = 500 * 1024 * 1024L;
 
     private final CourseChapterMapper chapterMapper;
@@ -247,7 +256,7 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
     }
 
     @Override
-    public String uploadAsset(Long itemId, MultipartFile file) {
+    public String uploadAsset(Long itemId, MultipartFile file, Integer mediaSeconds) {
         if (file == null || file.isEmpty()) throw new ServiceException("请选择要上传的文件");
         StudyItem item = getAccessibleItem(itemId);
         CourseChapter chapter = getAccessibleChapter(item.getChapterId());
@@ -264,6 +273,12 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
             item.setFileSize(file.getSize());
             item.setFileExt(FileUploadUtils.getExtension(file).toLowerCase());
             item.setUpdateTime(new Date());
+            // 视频真实时长（秒）：探测到就把「预计时长」一并校正成真实长度，
+            // 否则列表里写 10 分钟、视频其实 35 秒，进度也算不对。
+            if (video && mediaSeconds != null && mediaSeconds > 0) {
+                item.setMediaSeconds(mediaSeconds);
+                item.setDuration(Math.max(1, (int) Math.ceil(mediaSeconds / 60.0)));
+            }
             if (item.getCompletionThreshold() == null && "VIDEO".equals(item.getItemType())) item.setCompletionThreshold(100);
             if (itemMapper.updateById(item) != 1) throw new ServiceException("学习资料更新失败");
             deleteStoredAssetAfterCommit(oldPath);
@@ -384,6 +399,9 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         // 章节检测已下线：不再写入测试内容（历史数据的 quiz_json 保持原样，不再使用）
         target.setQuizJson(null);
         target.setCompletionThreshold("VIDEO".equals(source.getItemType()) ? (source.getCompletionThreshold() == null ? 100 : source.getCompletionThreshold()) : null);
+        // 视频真实时长（秒）：管理端上传时探测写入；非视频资料一律置空
+        target.setMediaSeconds("VIDEO".equals(source.getItemType()) && source.getMediaSeconds() != null
+                ? Math.max(0, source.getMediaSeconds()) : null);
     }
 
     private void clearAssetFields(StudyItem item) {
@@ -391,6 +409,8 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         item.setFileName(null);
         item.setFileSize(null);
         item.setFileExt(null);
+        // 换了文件/换了类型，旧的真实时长就不再适用（等新文件上传时重新探测）
+        item.setMediaSeconds(null);
     }
 
     private void deleteStoredAssetAfterCommit(String contentUrl) {

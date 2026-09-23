@@ -273,11 +273,13 @@ export default {
       const n = Number(v)
       return isNaN(n) ? '—' : Math.round(n * 10) / 10
     },
+    /** 返回「正式考核」栏（2026-09-23 起正式考核是学习与考核页里的分节，直接带锚点定位） */
     goBack() {
-      this.$router.push('/assessment/intern/learning/exam')
+      this.$router.push({ path: '/assessment/intern/learning', hash: '#sec-exam' })
     },
+    /** 去「考核成绩与转正」栏看全部成绩 */
     goAll() {
-      this.$router.push('/assessment/intern/learning/result')
+      this.$router.push({ path: '/assessment/intern/learning', hash: '#sec-result' })
     }
   }
 }

@@ -91,8 +91,9 @@ public class CourseContentController {
     @PreAuthorize("@ss.hasPermi('business:course:edit')")
     @Log(title = "课程资料上传", businessType = BusinessType.INSERT)
     @PostMapping("/items/{itemId}/asset")
-    public AjaxResult uploadAsset(@PathVariable Long itemId, @RequestParam("file") MultipartFile file) {
-        String path = courseContentService.uploadAsset(itemId, file);
+    public AjaxResult uploadAsset(@PathVariable Long itemId, @RequestParam("file") MultipartFile file,
+                                  @RequestParam(value = "mediaSeconds", required = false) Integer mediaSeconds) {
+        String path = courseContentService.uploadAsset(itemId, file, mediaSeconds);
         AjaxResult result = AjaxResult.success();
         result.put("url", path);
         result.put("originalFilename", file.getOriginalFilename());

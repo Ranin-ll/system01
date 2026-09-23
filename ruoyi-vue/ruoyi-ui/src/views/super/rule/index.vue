@@ -70,6 +70,52 @@
         </div>
       </section>
 
+      <!-- ⑤ 转正要求（按部门设置） -->
+      <section class="s-card s-c7">
+        <div class="s-card-h">
+          <div class="tt"><span class="s-idx">转</span><h3>转正要求（按部门设置）</h3></div>
+          <span class="s-badge ok">演示态 · localStorage</span>
+        </div>
+        <el-form label-width="150px" size="small">
+          <el-form-item label="目标部门">
+            <el-select v-model="promotionDeptId" placeholder="选择部门" clearable style="width:300px" @change="onPromotionDeptChange">
+              <el-option :value="''" label="全局默认值（未单独设置的部门）" />
+              <el-option v-for="d in depts" :key="d.deptId" :value="d.deptId" :label="d.deptName" />
+            </el-select>
+            <span class="s-badge blue" style="margin-left:8px">{{ promotionDeptId ? '按部门' : '全局默认' }}</span>
+          </el-form-item>
+          <el-form-item label="学习完成率门槛">
+            <el-input-number v-model="promotionRule.studyRateMin" :min="0" :max="100" :step="5" controls-position="right" style="width:130px" />
+            <span class="unit">%</span>
+          </el-form-item>
+          <el-form-item label="正式考核通过次数">
+            <el-input-number v-model="promotionRule.examPassTimes" :min="1" :max="10" controls-position="right" style="width:130px" />
+            <span class="unit">次</span>
+          </el-form-item>
+          <el-form-item>
+            <el-button size="small" type="primary" icon="el-icon-check" :loading="promotionSaving" @click="savePromotionRule">
+              保存{{ promotionDeptId ? '本部门' : '全局默认' }}转正要求
+            </el-button>
+          </el-form-item>
+        </el-form>
+        <table v-if="promotionOverrides.length" class="s-tbl" style="margin-top:8px">
+          <thead><tr><th>部门</th><th style="width:140px">学习完成率门槛</th><th style="width:150px">正式考核通过</th><th style="width:130px">操作</th></tr></thead>
+          <tbody>
+            <tr v-for="o in promotionOverrides" :key="o.deptId">
+              <td class="nm">{{ o.deptName }}</td>
+              <td>{{ o.studyRateMin }}%</td>
+              <td>{{ o.examPassTimes }} 次</td>
+              <td><el-button type="text" size="mini" @click="removePromotionOverride(o)">删除（恢复全局）</el-button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-else class="s-empty"><i class="el-icon-office-building" /><span>尚未对任何部门单独设置，全部沿用全局默认值</span></div>
+        <p class="s-note">
+          部门管理员也可在本部门「实习转正审核」页设置本部门规则，两处读写同一份
+          <code>promotion-rule-{deptId}</code>；实习生端按所属部门读取，部门未单独设置时回退「全局默认值」。
+        </p>
+      </section>
+
       <!-- ② 协议模板与版本 -->
       <section class="s-card s-c5">
         <div class="s-card-h">
@@ -245,6 +291,7 @@
  *    因此本页改的是「默认值」，尚未影响新发布批次 —— 页面已如实标注。
  */
 import { getRuleConfig, updateRuleConfig, listAgreementTemplates, publishAgreementTemplate } from '@/api/business/rule'
+import { listDept } from '@/api/system/dept'
 
 export default {
   name: 'SuperRules',
@@ -257,7 +304,13 @@ export default {
       original: {},
       templates: [],
       tplDialog: false,
-      newTpl: { agreementName: '保密协议', versionNo: '', effectiveTime: '', fileUrl: '', content: '' }
+      newTpl: { agreementName: '保密协议', versionNo: '', effectiveTime: '', fileUrl: '', content: '' },
+      // 转正要求（按部门设置，演示态 localStorage）
+      depts: [],
+      promotionDeptId: '',
+      promotionRule: { studyRateMin: 0, examPassTimes: 1 },
+      promotionOverrides: [],
+      promotionSaving: false
     }
   },
   computed: {
@@ -280,6 +333,7 @@ export default {
   methods: {
     loadAll() {
       this.loading = true
+      this.loadDepts()
       Promise.all([
         getRuleConfig().then(res => {
           const d = res.data || {}
@@ -302,6 +356,73 @@ export default {
         this.$message.success(res.msg || '已保存')
         this.loadAll()
       }).catch(() => {}).finally(() => { this.saving = false })
+    },
+    loadDepts() {
+      return listDept({ status: '0' }).then(res => {
+        this.depts = (res.data || []).filter(d => d.parentId !== 0)
+        this.rebuildPromotionOverrides()
+        this.onPromotionDeptChange()
+      }).catch(() => {
+        this.depts = []
+        this.rebuildPromotionOverrides()
+        this.onPromotionDeptChange()
+      })
+    },
+    rebuildPromotionOverrides() {
+      this.promotionOverrides = this.depts.map(d => {
+        try {
+          const raw = localStorage.getItem('promotion-rule-' + d.deptId)
+          if (raw) {
+            const c = JSON.parse(raw)
+            return {
+              deptId: d.deptId,
+              deptName: d.deptName,
+              studyRateMin: Number(c.studyRateMin != null ? c.studyRateMin : 0),
+              examPassTimes: Number(c.examPassTimes != null ? c.examPassTimes : 1)
+            }
+          }
+        } catch (e) { /* 忽略解析失败 */ }
+        return null
+      }).filter(Boolean)
+    },
+    promotionRuleKey() {
+      return this.promotionDeptId ? ('promotion-rule-' + this.promotionDeptId) : 'promotion-rule'
+    },
+    onPromotionDeptChange() {
+      const key = this.promotionRuleKey()
+      try {
+        const raw = localStorage.getItem(key)
+        if (raw) {
+          const c = JSON.parse(raw)
+          this.promotionRule = {
+            studyRateMin: Number(c.studyRateMin != null ? c.studyRateMin : 0),
+            examPassTimes: Number(c.examPassTimes != null ? c.examPassTimes : 1)
+          }
+          return
+        }
+      } catch (e) { /* 忽略 */ }
+      this.promotionRule = { studyRateMin: 0, examPassTimes: 1 }
+    },
+    savePromotionRule() {
+      const key = this.promotionRuleKey()
+      this.promotionSaving = true
+      try {
+        localStorage.setItem(key, JSON.stringify(this.promotionRule))
+        this.$message.success('已保存' + (this.promotionDeptId ? '本部门' : '全局默认') + '转正要求')
+        this.rebuildPromotionOverrides()
+      } catch (e) {
+        this.$message.error('保存失败：本地存储不可用')
+      }
+      this.promotionSaving = false
+    },
+    removePromotionOverride(o) {
+      try {
+        localStorage.removeItem('promotion-rule-' + o.deptId)
+        this.rebuildPromotionOverrides()
+        this.$message.success('已恢复「' + o.deptName + '」为全局默认值')
+      } catch (e) {
+        this.$message.error('删除失败')
+      }
     },
     openTplDialog() {
       this.newTpl = { agreementName: '保密协议', versionNo: '', effectiveTime: '', fileUrl: '', content: '' }

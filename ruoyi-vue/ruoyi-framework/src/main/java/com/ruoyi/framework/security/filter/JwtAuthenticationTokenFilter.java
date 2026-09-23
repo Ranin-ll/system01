@@ -81,6 +81,7 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter
                 || "/getRouters".equals(uri)
                 || "/logout".equals(uri)
                 || "/business/auth/agreement".equals(uri)
+                || "/business/auth/agreement/signature".equals(uri)
                 || "/business/auth/agreement/sign".equals(uri));
     }
 

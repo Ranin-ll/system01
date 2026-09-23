@@ -38,6 +38,29 @@ public class MimeTypeUtils
             // pdf
             "pdf" };
 
+    /**
+     * 课程资料「文档 / 附件」类允许的扩展名（2026-09-23 扩充）。
+     *
+     * <p>课程要能给实习生下发交付工具安装包、环境压缩包，所以除了文档格式，
+     * 还放开了压缩包、安装包与镜像。</p>
+     *
+     * <p>⚠️ 这份清单是**上传 + 下载的共用口径**：
+     * {@code CourseContentServiceImpl.DOCUMENT_EXTENSIONS} 直接引用它，
+     * {@code CommonController.resourceDownload} 也把它作为 DEFAULT 白名单之外的额外放行项。
+     * 两边必须一致 —— 否则会出现「传得上去、下载回来却是 0 字节、文件名变成 undefined」
+     * （下载接口判非法后异常被吞，响应停在 200 + 空 body）。</p>
+     */
+    public static final String[] COURSE_ASSET_EXTENSION = {
+            // 文档
+            "pdf", "doc", "docx", "ppt", "pptx", "txt", "xls", "xlsx",
+            // 压缩包
+            "zip", "7z", "rar", "tar", "gz", "tgz",
+            // 安装包
+            "exe", "msi", "dmg", "pkg", "deb", "rpm",
+            // 镜像与其它
+            "iso", "apk", "jar", "war", "bin", "sh"
+    };
+
     public static String getExtension(String prefix)
     {
         switch (prefix)

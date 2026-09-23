@@ -19,6 +19,17 @@ export default {
   msgWarning(content) {
     Message.warning(content)
   },
+  /**
+   * 信息提示（= Element 的 Message.info，与上面的 msg 等价）。
+   * ⚠ 历史坑：全仓有多处代码写的是 `$modal.msgInfo(...)`，但本插件最初只提供 `msg`，
+   * 调用到就抛 `TypeError: this.$modal.msgInfo is not a function`。
+   * 该异常发生在事件回调里，会**中断回调后续的全部代码**——
+   * 典型后果就是管理员「选了视频文件却发不出上传请求」（异常在 on-change/on-exceed 里被抛出）。
+   * 这里补上别名兜底，避免任何一处漏改再次把功能打哑。
+   */
+  msgInfo(content) {
+    Message.info(content)
+  },
   // 弹出提示
   // ⚠ 必须 return：MessageBox.alert 返回 Promise，调用方常写 `$modal.alert(x).then/catch(...)`。
   // 不 return 会得到 undefined，链式调用直接抛
