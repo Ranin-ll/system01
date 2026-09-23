@@ -25,7 +25,7 @@
     <template v-if="isIntern">
       <!-- 01 身份条 -->
       <section class="i2-card">
-        <div class="panel-head"><div><span class="section-index">01</span><h2>我的身份</h2></div><span class="card-hint">入职天数暂无接口，为示例数据</span></div>
+        <div class="panel-head"><div><span class="section-index">01</span><h2>我的身份</h2></div><span class="card-hint">入职天数按账号创建时间计算</span></div>
         <div class="identity">
           <span class="big-ph">{{ (nickName || '实').charAt(0) }}</span>
           <div class="who"><b>{{ nickName || '实习生' }}</b><p>{{ isFormal ? '正式实习生' : '预备实习生' }} · {{ deptName || '所属部门' }} · {{ mentorText }}</p></div>
@@ -33,7 +33,7 @@
             <div class="fact"><span>保密协议</span><b :class="Number(protocolStatus) === 1 ? 'ok' : 'warn'">{{ Number(protocolStatus) === 1 ? '已签署' : '待签署' }}</b></div>
             <div class="fact"><span>培养阶段</span><b>{{ isFormal ? '正式 · 已转正' : '预备 → 待转正' }}</b></div>
             <div class="fact"><span>距考核门槛</span><b :class="learningGap ? 'warn' : 'ok'">{{ learningGap ? '还差 ' + learningGap + '%' : '已达到' }}</b></div>
-            <div class="fact"><span>入职天数</span><b>{{ onboardDays }} 天</b></div>
+            <div class="fact"><span>入职天数</span><b>{{ onboardDays === null ? '—' : onboardDays + ' 天' }}</b></div>
           </div>
         </div>
       </section>
@@ -41,36 +41,17 @@
       <!-- 02 六个 KPI -->
       <div class="kpi-grid">
         <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#1764f5" />必修完成率</div><div class="kpi-vl">{{ learningProgress }}<small>%</small></div><div class="bar-mini"><i :style="{ width: learningProgress + '%' }" /></div><div class="kpi-ft" :class="learningGap ? 'warn' : 'up'">{{ learningGap ? '距 70% 门槛还差 ' + learningGap + '%' : '已达到考核门槛' }}</div></div>
-        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#12b76a" />累计学习时长</div><div class="kpi-vl">{{ studyHoursTotal }}<small>小时</small></div><div class="kpi-ft up">本周 +2.3h，节奏稳定<em class="dsample">示例</em></div></div>
+        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#12b76a" />累计学习时长</div><div class="kpi-vl">{{ studyHoursTotal === null ? '--' : studyHoursTotal }}<small v-if="studyHoursTotal !== null">小时</small></div><div class="kpi-ft">按周聚合接口就绪后显示，当前不计假数</div></div>
         <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#7a5af8" />已完成单项</div><div class="kpi-vl">{{ learningOverview.completedItems }}<small>/ {{ learningOverview.itemCount }}</small></div><div class="kpi-ft">覆盖 {{ learningOverview.courseCount }} 门已发布课程</div></div>
         <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f79009" />待完成课程</div><div class="kpi-vl">{{ pendingCourses.length }}<small>门</small></div><div class="kpi-ft" :class="pendingRequiredCount ? 'warn' : ''">其中必修 {{ pendingRequiredCount }} 门</div></div>
-        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f04438" />模拟正确率</div><div class="kpi-vl">{{ mockAccuracy }}<small>%</small></div><div class="kpi-ft up">最近 3 次均 80%+<em class="dsample">示例</em></div></div>
-        <div class="kpi hl"><div class="kpi-lb"><i class="kpi-dot" style="background:#1764f5" />能力综合值</div><div class="kpi-vl">{{ isFormal ? 88 : '--' }}</div><div class="bar-mini"><i class="o" :style="{ width: portraitCompleteness + '%' }" /></div><div class="kpi-ft">完整度 {{ portraitCompleteness }}%{{ isFormal ? '' : '，待考核后生成' }}<em class="dsample">示例</em></div></div>
+        <div class="kpi"><div class="kpi-lb"><i class="kpi-dot" style="background:#f04438" />模拟正确率</div><div class="kpi-vl">{{ mockAccuracy === null ? '--' : mockAccuracy }}<small v-if="mockAccuracy !== null">%</small></div><div class="kpi-ft">{{ practiceRecords.length ? '基于本人 ' + practiceRecords.length + ' 次模拟记录' : '暂无模拟记录' }}</div></div>
+        <div class="kpi hl"><div class="kpi-lb"><i class="kpi-dot" style="background:#1764f5" />能力综合值</div><div class="kpi-vl">--</div><div class="bar-mini"><i class="o" :style="{ width: portraitCompleteness + '%' }" /></div><div class="kpi-ft">能力模型维度待定义后生成（当前不计假数）</div></div>
       </div>
 
       <div class="i2-grid">
-        <!-- 03 学习完成率趋势（70% 考核门槛虚线） -->
-        <section class="i2-card i2-span8">
-          <div class="panel-head"><div><span class="section-index">03</span><h2>学习完成率趋势</h2></div><span class="card-hint">近 6 周<em class="dsample">示例</em></span></div>
-          <svg viewBox="0 0 900 210" class="trend-svg">
-            <g stroke="#eef1f6" stroke-width="1"><line x1="46" y1="20" x2="880" y2="20" /><line x1="46" y1="60" x2="880" y2="60" /><line x1="46" y1="100" x2="880" y2="100" /><line x1="46" y1="140" x2="880" y2="140" /><line x1="46" y1="180" x2="880" y2="180" /></g>
-            <g fill="#98a2b3" font-size="11" text-anchor="end"><text x="38" y="24">100%</text><text x="38" y="64">75%</text><text x="38" y="104">50%</text><text x="38" y="144">25%</text><text x="38" y="184">0%</text></g>
-            <line x1="46" y1="68" x2="880" y2="68" stroke="#f79009" stroke-width="1.5" stroke-dasharray="6 5" />
-            <text x="50" y="62" fill="#b54708" font-size="11">考核门槛 70%</text>
-            <path :d="trendArea" fill="#e8f1fd" opacity="0.9" />
-            <polyline :points="trendPolyline" fill="none" stroke="#1764f5" stroke-width="2.5" stroke-linejoin="round" />
-            <g fill="#fff" stroke="#1764f5" stroke-width="2.5"><circle v-for="w in trendWeeks" :key="w.label" :cx="w.x" :cy="w.y" r="4" /></g>
-            <rect :x="trendBadge.x" :y="trendBadge.y" width="92" height="26" rx="6" fill="#1764f5" />
-            <text :x="trendBadge.x + 46" :y="trendBadge.y + 17" fill="#fff" font-size="12" text-anchor="middle">本周 {{ learningProgress }}%</text>
-            <g fill="#98a2b3" font-size="11" text-anchor="middle"><text v-for="w in trendWeeks" :key="'lb-' + w.label" :x="w.x" y="200">{{ w.label }}</text></g>
-          </svg>
-          <div class="legend"><span><i style="background:#1764f5" />实际完成率</span><span><i style="background:#f79009" />考核门槛 70%</span></div>
-          <div class="note">口径：本人岗位全部已发布必修课程的完成率简单平均，与「在线学习」列表同源；本周为真实数据，历史 6 周为示例。</div>
-        </section>
-
-        <!-- 04 能力画像雷达 -->
-        <section class="i2-card i2-span4">
-          <div class="panel-head"><div><span class="section-index">04</span><h2>能力画像</h2></div><el-button type="text" @click="go('/assessment/intern/portrait')">详情 ›</el-button></div>
+        <!-- 03 能力画像雷达（原「学习时长趋势」卡已按要求删除，2026-09-23） -->
+        <section class="i2-card i2-span6">
+          <div class="panel-head"><div><span class="section-index">03</span><h2>能力画像</h2></div><el-button type="text" @click="go('/assessment/intern/portrait')">详情 ›</el-button></div>
           <div class="portrait">
             <svg viewBox="0 0 200 190" class="radar-svg">
               <g fill="none" stroke="#eef1f6"><polygon points="100,22 162,84 100,146 38,84" /><polygon points="100,46 135,84 100,122 65,84" /><polygon points="100,70 108,84 100,98 92,84" /></g>
@@ -78,8 +59,8 @@
               <polygon :points="radarPolygon" fill="#1764f5" fill-opacity="0.16" stroke="#1764f5" stroke-width="2" />
               <circle v-for="(p, i) in radarPoints" :key="i" :cx="p.x" :cy="p.y" r="3.4" :fill="p.measured ? '#1764f5' : '#fff'" :stroke="p.measured ? '#1764f5' : '#98a2b3'" stroke-width="1.6" />
               <g fill="#667085" font-size="11" text-anchor="middle"><text x="100" y="14">学习投入</text><text x="182" y="88">理论掌握</text><text x="18" y="88">规范遵从</text><text x="100" y="162">实践能力</text></g>
-              <text v-if="radarPoints[1] && !radarPoints[1].measured" x="182" y="102" fill="#98a2b3" font-size="9" text-anchor="middle">待考核</text>
-              <text v-if="radarPoints[2] && !radarPoints[2].measured" x="100" y="176" fill="#98a2b3" font-size="9" text-anchor="middle">待批阅</text>
+              <text v-if="radarPoints[1] && !radarPoints[1].measured" x="182" y="102" fill="#98a2b3" font-size="9" text-anchor="middle">待定义</text>
+              <text v-if="radarPoints[2] && !radarPoints[2].measured" x="100" y="176" fill="#98a2b3" font-size="9" text-anchor="middle">待定义</text>
             </svg>
             <div class="portrait-meta">
               <div v-for="dim in portraitDims" :key="dim.name" class="dim-row">
@@ -93,12 +74,12 @@
               </div>
             </div>
           </div>
-          <div class="note">未测评维度画空心点并标注去向（0 分 ≠ 未测评）。<em class="dsample">示例</em></div>
+          <div class="note">能力模型维度尚未定义（<code>ability_dimension</code> 为空）⇒ 此处留空，等维度定下来后再生成。</div>
         </section>
 
-        <!-- 05 课程完成情况 -->
+        <!-- 04 课程完成情况 -->
         <section class="i2-card i2-span6">
-          <div class="panel-head"><div><span class="section-index">05</span><h2>课程完成情况</h2></div><span class="card-hint">按完成率排序</span></div>
+          <div class="panel-head"><div><span class="section-index">04</span><h2>课程完成情况</h2></div><span class="card-hint">按完成率排序</span></div>
           <div v-loading="learningLoading">
             <button v-for="c in courseBars" :key="c.id" type="button" class="hbar" :class="c.cls" @click="openLearningCourse(c)">
               <span class="nm">{{ c.courseName }}</span>
@@ -110,27 +91,24 @@
           <div class="note">绿色为已完成，橙色为低于 50% 的短板课程；点击行可直达课程。</div>
         </section>
 
-        <!-- 06 学习时长分布 -->
+        <!-- 05 考核成绩 -->
         <section class="i2-card i2-span6">
-          <div class="panel-head"><div><span class="section-index">06</span><h2>学习时长分布</h2></div><span class="card-hint">近 6 周 / 小时<em class="dsample">示例</em></span></div>
-          <div class="vchart">
-            <div v-for="w in weeklyHours" :key="w.label" class="vcol"><span class="bar" :class="{ hi: w.hours >= 2.3 }" :style="{ height: Math.round(w.hours / weeklyHoursMax * 100) + '%' }">{{ w.hours }}</span><span class="vcol-lb">{{ w.label }}</span></div>
+          <div class="panel-head"><div><span class="section-index">05</span><h2>考核成绩</h2></div><span class="card-hint">模拟自测按正确率折算 / 满分 100</span></div>
+          <div v-if="!hasExamScores" class="i2-empty">
+            <i class="el-icon-medal" /><strong>暂无考核成绩</strong>
+            <span>做过模拟自测或参加正式考核后，这里会显示你的成绩。</span>
           </div>
-          <div class="legend"><span><i style="background:#1764f5" />当周学习时长</span><span>累计 {{ studyHoursTotal }} 小时</span></div>
+          <template v-else>
+            <div class="vchart">
+              <div v-for="b in examScoreBars" :key="b.label" class="vcol"><span class="bar" :class="b.score === null ? 'none' : 'g'" :style="{ height: (b.score === null ? 8 : Math.max(b.score, 4)) + '%' }">{{ b.score === null ? '--' : b.score }}</span><span class="vcol-lb">{{ b.label }}</span></div>
+            </div>
+            <div class="legend"><span><i style="background:#12b76a" />模拟自测（不计正式成绩）</span><span><i style="background:#f2f4f7" />未参加 / 未出分</span></div>
+          </template>
         </section>
 
-        <!-- 07 考核成绩 -->
+        <!-- 06 培养进度 -->
         <section class="i2-card i2-span6">
-          <div class="panel-head"><div><span class="section-index">07</span><h2>考核成绩</h2></div><span class="card-hint">满分 100<em class="dsample">示例</em></span></div>
-          <div class="vchart">
-            <div v-for="b in examScoreBars" :key="b.label" class="vcol"><span class="bar" :class="b.score === null ? 'none' : 'g'" :style="{ height: (b.score === null ? 8 : b.score) + '%' }">{{ b.score === null ? '--' : b.score }}</span><span class="vcol-lb">{{ b.label }}</span></div>
-          </div>
-          <div class="legend"><span><i style="background:#12b76a" />模拟自测（不计正式成绩）</span><span v-if="!isFormal"><i style="background:#f2f4f7" />正式考核未参加</span><span v-else><i style="background:#12b76a" />正式成绩已发布</span></div>
-        </section>
-
-        <!-- 08 培养进度 -->
-        <section class="i2-card i2-span6">
-          <div class="panel-head"><div><span class="section-index">08</span><h2>培养进度</h2></div><span class="card-hint">4 步</span></div>
+          <div class="panel-head"><div><span class="section-index">06</span><h2>培养进度</h2></div><span class="card-hint">4 步</span></div>
           <div class="steps">
             <div v-for="(s, i) in trainingSteps" :key="s.label" class="step" :class="s.state">
               <span class="mark">{{ s.state === 'done' ? '✓' : i + 1 }}</span>
@@ -139,9 +117,9 @@
           </div>
         </section>
 
-        <!-- 09 下一步做什么 -->
+        <!-- 07 下一步做什么 -->
         <section class="i2-card i2-span8">
-          <div class="panel-head"><div><span class="section-index">09</span><h2>下一步做什么</h2></div><span class="card-hint">按紧急度排序</span></div>
+          <div class="panel-head"><div><span class="section-index">07</span><h2>下一步做什么</h2></div><span class="card-hint">按紧急度排序</span></div>
           <div v-for="item in internTodos" :key="item.title" class="todo">
             <span class="tdot" :class="item.tone" />
             <div class="tx"><b>{{ item.title }}</b><span>{{ item.description }}</span></div>
@@ -149,9 +127,9 @@
           </div>
         </section>
 
-        <!-- 10 公告 -->
+        <!-- 08 公告 -->
         <section class="i2-card i2-span4">
-          <div class="panel-head"><div><span class="section-index">10</span><h2>公告</h2></div><el-button type="text" @click="go(messagePath)">全部 ›</el-button></div>
+          <div class="panel-head"><div><span class="section-index">08</span><h2>公告</h2></div><el-button type="text" @click="go(messagePath)">全部 ›</el-button></div>
           <button v-for="a in announcements" :key="a.id" type="button" class="notice" @click="go(messagePath)">
             <b>{{ a.title }}<em v-if="a.isTop" class="dsample">置顶</em></b>
             <span>{{ a.publishTime || a.createTime }}</span>
@@ -161,7 +139,9 @@
         </section>
       </div>
 
-      <!-- 11 协议与证书条 -->
+      <!-- 11 协议与证书条 —— 工作台的**最后一条**（说明文字挪到它上面，
+           保证这条本身是页面最底部的元素） -->
+      <div class="note band-note">电子证书统一在此查看与下载（考核成绩与转正页不重复展示）；未生成的记录点击不跳空页，而是提示生成条件。</div>
       <section class="record-band" aria-label="协议与证书">
         <span class="record-band-label">协议与证书：</span>
         <button
@@ -178,7 +158,6 @@
           <em>{{ record.status }}</em>
         </button>
       </section>
-      <div class="note band-note">电子证书统一在此查看与下载（考核成绩与转正页不重复展示）；未生成的记录点击不跳空页，而是提示生成条件。</div>
     </template>
 
     <template v-else>
@@ -208,6 +187,9 @@
 import { mapGetters } from 'vuex'
 import { listLearningCourses } from '@/api/business/learning'
 import { listAnnouncements } from '@/api/business/message'
+import { myPracticeRecords } from '@/api/business/practice'
+import { myExamList } from '@/api/business/exam'
+import { getUserProfile } from '@/api/system/user'
 import { formatLearningDuration, learningSummary } from '@/utils/learningPreview'
 
 export default {
@@ -218,7 +200,11 @@ export default {
       previewCourses: [],
       learningOverview: { progress: null, courseCount: 0, completedCourses: 0, learningCourses: 0, completedItems: 0, itemCount: 0, lastStudyTime: '尚未开始' },
       /** 工作台「公告位」：当前有效公告（最多 3 条，置顶优先），来自 /business/message/announcements */
-      announcements: []
+      announcements: [],
+      /** 考核类真数据（2026-09-22 起接真 —— 这几块原先都是硬编码示例值） */
+      practiceRecords: [],
+      myFormalExams: [],
+      entryDate: null
     }
   },
   computed: {
@@ -235,9 +221,33 @@ export default {
     learningProgress() { return this.learningOverview.progress === null ? 0 : this.learningOverview.progress },
     learningGap() { return Math.max(0, 70 - this.learningProgress) },
     // —— 设计稿 i2 新增：无后端接口的块一律示例数据并在界面标注「示例」，不用 0 占位 ——
-    onboardDays() { return 107 },
-    studyHoursTotal() { return 14.5 },
-    mockAccuracy() { return this.isFormal ? 92 : 86 },
+    /**
+     * 入职天数：由 /system/user/profile 的 createTime 算（2026-09-22 起为真值）
+     * 取不到日期 → null，模板显示「—」（不留假数）
+     */
+    onboardDays() {
+      if (!this.entryDate) return null
+      const t = new Date(String(this.entryDate).replace(/-/g, '/')).getTime()
+      if (isNaN(t)) return null
+      return Math.max(0, Math.floor((Date.now() - t) / 86400000))
+    },
+    /** 累计学习时长：仍缺「按周聚合学习时长」的后端接口（本轮未接，模板显示「—」，不再用 14.5 这类假数） */
+    studyHoursTotal() { return null },
+    /**
+     * 模拟正确率：本人全部模拟记录的 correct / total 汇总（2026-09-22 起为真值）
+     * 无记录 → null（模板显「--」）
+     */
+    mockAccuracy() {
+      const list = this.practiceRecords || []
+      let ok = 0
+      let all = 0
+      list.forEach(r => {
+        ok += Number(r.correctCount || 0)
+        all += Number(r.totalCount || 0)
+      })
+      if (!all) return null
+      return Math.round(ok * 1000 / all) / 10
+    },
     pendingCourses() { return this.previewCourses.filter(course => course.progress < 100) },
     pendingRequiredCount() { return this.pendingCourses.filter(course => Number(course.isRequired) === 1).length },
     courseBars() {
@@ -245,30 +255,20 @@ export default {
         cls: course.progress === 100 ? 'done' : (course.progress < 50 ? 'low' : '')
       }))
     },
-    trendWeeks() {
-      const labels = ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', '本周']
-      const xs = [60, 190, 320, 450, 580, 710, 840]
-      const values = [8, 22, 36, 45, 52, 56, this.learningProgress]
-      return labels.map((label, i) => ({ label, value: values[i], x: xs[i], y: Math.round(180 - values[i] * 1.6) }))
-    },
-    trendPolyline() { return this.trendWeeks.map(w => w.x + ',' + w.y).join(' ') },
-    trendArea() {
-      const weeks = this.trendWeeks
-      return 'M' + weeks[0].x + ',180 L' + weeks.map(w => w.x + ',' + w.y).join(' L') + ' L' + weeks[weeks.length - 1].x + ',180 Z'
-    },
-    trendBadge() {
-      const last = this.trendWeeks[this.trendWeeks.length - 1]
-      return { x: Math.min(Math.max(last.x - 46, 8), 800), y: Math.max(last.y - 40, 8) }
-    },
+    /**
+     * 能力画像维度（2026-09-22：**留空**，不再用假分）
+     * ⚠️ 依赖 `ability_dimension`（当前 0 行、维度定义未拍板）⇒ 不写死分数：
+     *    雷达只画空心点、各维度条显示「待定义」；维度定下来后再接真数据。
+     */
     portraitDims() {
-      if (this.isFormal) return [
-        { name: '学习投入', value: 92, note: '' }, { name: '理论掌握', value: 86, note: '' }, { name: '实践能力', value: 91, note: '' }, { name: '规范遵从', value: 88, note: '' }
-      ]
       return [
-        { name: '学习投入', value: 78, note: '' }, { name: '理论掌握', value: null, note: '待考核' }, { name: '实践能力', value: null, note: '待批阅' }, { name: '规范遵从', value: 88, note: '' }
+        { name: '学习投入', value: null, note: '待定义' },
+        { name: '理论掌握', value: null, note: '待定义' },
+        { name: '实践能力', value: null, note: '待定义' },
+        { name: '规范遵从', value: null, note: '待定义' }
       ]
     },
-    portraitCompleteness() { return this.isFormal ? 100 : 60 },
+    portraitCompleteness() { return 0 },
     radarPoints() {
       const center = { x: 100, y: 84 }
       const axes = [{ x: 100, y: 22 }, { x: 162, y: 84 }, { x: 100, y: 146 }, { x: 38, y: 84 }]
@@ -278,18 +278,29 @@ export default {
       })
     },
     radarPolygon() { return this.radarPoints.map(p => p.x + ',' + p.y).join(' ') },
-    weeklyHours() {
-      return [{ label: 'W1', hours: 1.2 }, { label: 'W2', hours: 1.8 }, { label: 'W3', hours: 2.6 }, { label: 'W4', hours: 1.6 }, { label: 'W5', hours: 1.1 }, { label: '本周', hours: 2.3 }]
-    },
-    weeklyHoursMax() { return Math.max.apply(null, this.weeklyHours.map(w => w.hours)) },
+    /**
+     * 考核成绩柱（2026-09-22 接真）
+     * · 模拟自测：本人最近 3 场（`practice_record`，正确率折算成百分制，便于与正式同轴）
+     * · 正式理论 / 实操：本人正式答卷各取最近一场的 final_score
+     * 没有记录的项 score=null ⇒ 模板画灰色空柱并显示「--」（不留假数）
+     */
     examScoreBars() {
-      if (this.isFormal) return [
-        { label: '自测 1', score: 90 }, { label: '自测 2', score: 88 }, { label: '自测 3', score: 94 }, { label: '正式理论', score: 86 }, { label: '正式实操', score: 91 }
-      ]
-      return [
-        { label: '自测 1', score: 86 }, { label: '自测 2', score: 80 }, { label: '自测 3', score: 92 }, { label: '正式理论', score: null }, { label: '正式实操', score: null }
-      ]
+      const bars = []
+      const recs = (this.practiceRecords || []).slice(-3)
+      recs.forEach((r, i) => {
+        const total = Number(r.totalCount) || 0
+        const sc = Number(r.score) || 0
+        bars.push({ label: '自测 ' + (i + 1), score: total > 0 ? Math.round(sc * 100 / total) : null })
+      })
+      const formals = (this.myFormalExams || []).filter(e => e.finalScore != null)
+      const theory = formals.filter(e => e.examType !== 'PRACTICAL').pop()
+      const practical = formals.filter(e => e.examType === 'PRACTICAL').pop()
+      bars.push({ label: '正式理论', score: theory ? Number(theory.finalScore) : null })
+      bars.push({ label: '正式实操', score: practical ? Number(practical.finalScore) : null })
+      return bars
     },
+    /** 是否有任何一项出了分（全为 null 时走空态，而不是画一排空柱） */
+    hasExamScores() { return this.examScoreBars.some(b => b.score !== null) },
     trainingSteps() {
       if (this.isFormal) return [
         { label: '签署保密协议', state: 'done', desc: '已完成签署' },
@@ -358,7 +369,10 @@ export default {
     internRecords() {
       const signed = Number(this.protocolStatus) === 1
       const certified = this.isFormal
-      const items = [
+      // 注：「签署凭证」这一项已按需求删除（2026-09-23），协议与证书条只留两项。
+      // 签名图本身没有丢 —— 点「保密协议」进 /assessment/intern/agreements，
+      // 那一页右侧的「签署凭证」卡片仍然展示本人手写签名、凭证编号与签署时间。
+      return [
         {
           key: 'agreement',
           label: '保密协议',
@@ -378,18 +392,6 @@ export default {
           tip: certified ? '证书已生成，可在线查看与下载（考核成绩与转正页也有一句去向指引）' : '考核通过并经部门管理员审批转正后生成电子证书'
         }
       ]
-      if (signed) {
-        items.push({
-          key: 'signature',
-          label: '签署凭证',
-          icon: 'el-icon-document-checked',
-          status: '可查看',
-          tone: 'is-ready',
-          path: '/assessment/intern/agreements',
-          tip: '查看本次签署的时间、终端与凭证编号'
-        })
-      }
-      return items
     },
     adminTodos() { return this.isDeptAdmin ? [{ title: '注册申请待审核', description: '5 条本部门申请等待处理', status: '待审核', tag: 'warning', tone: 'orange', path: '/assessment/department/register-review' }, { title: '草稿课程待完善', description: '补充章节和学习资料后即可发布', status: '待处理', tag: 'primary', tone: 'blue', path: '/assessment/department/courses' }, { title: '实践考核待批阅', description: '8 份提交物等待人工确认', status: '待批阅', tag: 'danger', tone: 'red', path: '/assessment/department/grading' }, { title: '阶段评价待补充', description: '3 名实习生画像信息待完善', status: '待处理', tag: 'primary', tone: 'blue', path: '/assessment/department/students' }] : [{ title: '本期考核安排待确认', description: '跨部门考试范围与时间需要复核', status: '待处理', tag: 'warning', tone: 'orange', path: '/assessment/manage/schedule' }, { title: '角色权限变更检查', description: '核对四类业务角色菜单范围', status: '检查中', tag: 'primary', tone: 'blue', path: '/assessment/system/role-permission' }, { title: '异常培养记录', description: '3 条记录需要管理员关注', status: '异常', tag: 'danger', tone: 'red', path: '/assessment/system/audit-log' }] },
     adminScope() { return this.isDeptAdmin ? [{ label: '预备实习生', value: '12 人', hint: '学习考核中' }, { label: '正式实习生', value: '6 人', hint: '保留历史档案' }, { label: '待分配导师', value: '3 人', hint: '审核后补充' }, { label: '学习达标', value: '14 人', hint: '可参加考核' }] : [{ label: '交付部门', value: '15 人', hint: '实施实习生' }, { label: '开发部门', value: '18 人', hint: '开发实习生' }, { label: '设计部门', value: '12 人', hint: '设计实习生' }, { label: '质检 / 建模', value: '23 人', hint: '两部门合计' }] },
@@ -398,12 +400,33 @@ export default {
   created() {
     this.loadLearningPreview()
     this.loadAnnouncements()
+    this.loadExamStats()
   },
   activated() {
     this.loadLearningPreview()
     this.loadAnnouncements()
+    this.loadExamStats()
   },
   methods: {
+    /**
+     * 工作台考核类真数据（2026-09-22 起接真 —— 这三个接口都是实习生端现成的，无需新后端）
+     * · 模拟正确率：/business/practice/my  本人逐场记录（correct_count / total_count 汇总）
+     * · 考核成绩  ：/business/answer-sheet/my?examMode=FORMAL  本人正式答卷
+     * · 入职天数  ：/system/user/profile 的 createTime（取不到就显示「—」，不留假数）
+     */
+    loadExamStats() {
+      if (!this.isIntern) return
+      myPracticeRecords().then(res => {
+        this.practiceRecords = res.data || res.rows || []
+      }).catch(() => { this.practiceRecords = [] })
+      myExamList('FORMAL').then(res => {
+        this.myFormalExams = res.data || []
+      }).catch(() => { this.myFormalExams = [] })
+      getUserProfile().then(res => {
+        const u = (res && res.data) || {}
+        this.entryDate = u.createTime || null
+      }).catch(() => { this.entryDate = null })
+    },
     /** 工作台公告位：任何人可见（公示），不写已读、不计未读红点 */
     loadAnnouncements() {
       listAnnouncements().then(res => {
@@ -560,10 +583,15 @@ export default {
 .notice b { display: block; color: #344054; font-size: 13px; }
 .notice span { display: block; margin-top: 4px; overflow: hidden; color: #98a2b3; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .notice:hover b { color: #1764f5; }
-.band-note { margin-top: 8px; }
+.band-note { margin: 14px 0 0; }
 @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }.i2-span8, .i2-span4, .i2-span6 { grid-column: span 12; }.facts { gap: 16px; } }
 @media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.identity { align-items: flex-start; flex-direction: column; }.facts { width: 100%; justify-content: space-between; }.portrait { flex-direction: column; }.hbar .nm { width: 110px; } }
 @media (max-width: 1000px) { .entry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.identity-facts { gap: 16px; } }
 @media (max-width: 760px) { .workspace-page { padding: 14px; }.workspace-head, .identity-band { align-items: flex-start; flex-direction: column; }.metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.workspace-grid, .records-grid { grid-template-columns: 1fr; }.learning-dashboard-body { grid-template-columns: 1fr; }.learning-summary-panel { min-height: 0; }.identity-facts { width: 100%; justify-content: space-between; }.entry-grid, .entry-grid.three-columns { grid-template-columns: 1fr; }.task-row { align-items: flex-start; flex-wrap: wrap; padding: 12px 0; }.task-row > div { min-width: calc(100% - 22px); }.task-row .el-button { margin-left: 19px; }.dashboard-course-intro { white-space: normal; line-height: 1.5; } }
 @media (max-width: 440px) { .metric-grid { grid-template-columns: 1fr; }.head-actions { width: 100%; }.head-actions .el-button { flex: 1; }.identity-facts { align-items: flex-start; flex-direction: column; gap: 10px; }.identity-facts div { display: flex; width: 100%; justify-content: space-between; }.identity-facts span { margin: 0; } }
+/* 无数据空态（2026-09-22：能接真数据的接真，接不到就空着，不留假数） */
+.i2-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 46px 14px; text-align: center; }
+.i2-empty i { color: #d0d5dd; font-size: 30px; }
+.i2-empty strong { color: #1d2939; font-size: 14px; }
+.i2-empty span { color: #8490a0; font-size: 12.5px; line-height: 1.7; }
 </style>

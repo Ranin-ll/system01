@@ -70,69 +70,16 @@
             </tbody>
           </table>
         </div>
-        <p class="rg-note">模拟自测成绩不在此表统计（见「模拟考核」页）；历史场次成绩长期保留。</p>
+        <p class="rg-note">模拟自测成绩不在此表统计（见「模拟理论考核」页）；历史场次成绩长期保留。</p>
       </section>
 
-      <!-- ③ 得分对比 -->
-      <section class="rg-card">
-        <div class="section-heading">
-          <div>
-            <span class="section-index">03</span>
-            <div>
-              <h2>得分对比</h2>
-              <p>我的综合分 vs 部门平均 vs 通过线。</p>
-            </div>
-          </div>
-          <el-tag v-if="deptAvgIsSample" size="mini" type="warning" effect="plain">部门平均为示例数据</el-tag>
-        </div>
-        <div class="rg-body">
-          <div class="vchart">
-            <div v-for="bar in compareBars" :key="bar.label" class="vcol">
-              <span class="bar" :class="bar.tone" :style="{ height: Math.max(bar.height, 8) + '%' }">{{ bar.display }}</span>
-              <span class="vcol-lb">{{ bar.label }}</span>
-            </div>
-          </div>
-          <p class="rg-note">{{ compareNote }}</p>
-        </div>
-      </section>
     </div>
 
-    <!-- ④ 薄弱模块分析 -->
-    <section class="rg-card">
-      <div class="section-heading">
-        <div>
-          <span class="section-index">04</span>
-          <div>
-            <h2>薄弱模块分析</h2>
-            <p>按知识模块统计理论题得分率，橙色为低于 60% 的短板模块。</p>
-          </div>
-        </div>
-        <el-tag v-if="demoMode" size="mini" type="warning" effect="plain">示例数据</el-tag>
-      </div>
-      <div v-if="weakModules.length" class="rg-body">
-        <div class="hbar" v-for="m in weakModules" :key="m.module" :class="{ low: m.rate < 60 }">
-          <span class="nm">{{ m.module }}</span>
-          <span class="track"><i :style="{ width: m.rate + '%' }" /></span>
-          <span class="pc">{{ m.rate }}%</span>
-        </div>
-        <p class="rg-note">
-          共 {{ weakModules.length }} 个模块 · 最弱模块 <b>{{ weakest.module }}</b>（{{ weakest.rate }}%），建议优先补强。
-        </p>
-      </div>
-      <div v-else class="rg-body">
-        <div class="empty-state small">
-          <i class="el-icon-data-analysis" />
-          <strong>暂无法生成模块分析</strong>
-          <span>需要后端按知识点提供得分率统计接口（实习生账号无权读取题库知识点）。</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ⑤ 转正申请 -->
+    <!-- ③ 转正申请 -->
     <section class="rg-card promo-card">
       <div class="section-heading">
         <div>
-          <span class="section-index">05</span>
+          <span class="section-index">03</span>
           <div>
             <h2>转正申请</h2>
             <p>资格齐备后提交；部门管理员审核通过即生效并发证（本决策跳过超管终审）。</p>
@@ -188,7 +135,10 @@
               placeholder="请填写转正说明 / 阶段自评（将随申请提交给部门管理员）"
             />
             <div class="apply-row">
-              <el-upload :auto-upload="false" :limit="1" :show-file-list="true" accept="*" :on-change="onApplyFile">
+              <!-- action 是 el-upload 的必填 prop，但这里 auto-upload=false 且只用
+                   on-change 取文件，根本不会发起上传请求；补个占位值消掉控制台警告。
+                   合并「学习与考核」单页后，这段在合并页里也会渲染，警告会更显眼。 -->
+              <el-upload action="#" :auto-upload="false" :limit="1" :show-file-list="true" accept="*" :on-change="onApplyFile">
                 <el-button size="small" icon="el-icon-paperclip">附加材料（可选）</el-button>
               </el-upload>
               <el-button
@@ -340,7 +290,10 @@ export default {
     },
     /** 场次 / 环节成绩（真实） */
     detailRows() {
-      const rows = this.records.slice(0, 8).map(row => {
+      // 只取**真有答卷**的记录：未参加 / 未出分的场次由下面的循环单独补成「未参加 · 作答中」。
+      // 以前这里没过滤，records 里 sheetId 为 null 的占位项会同时进两个循环 ——
+      // 表里同一场次出现两行（一行假「未通过」+ 一行「未参加」），且 key 退化成 'rnull' 相互重复。
+      const rows = this.records.filter(row => row.sheetId != null).slice(0, 8).map(row => {
         const passed = row.passFlag === 1
         return {
           key: 'r' + row.sheetId,
@@ -635,7 +588,8 @@ export default {
 .overview-metrics strong.muted { color: #98a2b3; }
 .overview-metrics strong.pass { color: #067647; }
 
-.rg-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 14px; }
+/* 只剩「成绩明细」一张卡（原 ③ 得分对比 / ④ 薄弱模块分析 已于 2026-09-23 删除）→ 单列 */
+.rg-grid { display: block; }
 .rg-card { margin-bottom: 14px; padding: 18px 20px 20px; background: #fff; border: 1px solid #e7ecf3; border-radius: 8px; }
 .rg-grid .rg-card { margin-bottom: 14px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #edf0f4; }

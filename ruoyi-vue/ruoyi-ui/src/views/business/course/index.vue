@@ -188,7 +188,7 @@
                 <div v-for="item in chapter.items" :key="item.id" class="resource-row">
                   <button v-if="canEditContent(currentCourse)" type="button" class="drag-handle resource-drag-handle" title="拖拽调整资料顺序"><i class="el-icon-rank" /></button>
                   <span class="resource-icon" :class="item.itemType.toLowerCase()"><i :class="resourceIcon(item.itemType)" /></span>
-                  <div class="resource-info"><strong>{{ item.itemTitle }}</strong><small v-if="item.itemIntro" class="resource-intro">{{ item.itemIntro }}</small><span>{{ resourceTypeLabel(item.itemType) }} · {{ item.duration || 0 }} 分钟 · {{ completionRuleLabel(item.completionRule) }}</span><small class="resource-file-state" :class="item.fileName || item.contentUrl ? 'is-bound' : 'is-missing'"><i :class="item.fileName || item.contentUrl ? 'el-icon-paperclip' : 'el-icon-warning-outline'" /> {{ item.fileName || '待上传文件' }}</small></div>
+                  <div class="resource-info"><strong>{{ item.itemTitle }}</strong><small v-if="item.itemIntro" class="resource-intro">{{ item.itemIntro }}</small><span>{{ resourceTypeLabel(item.itemType) }} · {{ item.mediaSeconds ? mediaSecondsText(item.mediaSeconds) : (item.duration || 0) + ' 分钟' }} · {{ completionRuleLabel(item.completionRule) }}</span><small class="resource-file-state" :class="item.fileName || item.contentUrl ? 'is-bound' : 'is-missing'"><i :class="item.fileName || item.contentUrl ? 'el-icon-paperclip' : 'el-icon-warning-outline'" /> {{ item.fileName || '待上传文件' }}</small></div>
                   <div v-if="canEditContent(currentCourse)" class="resource-actions"><el-button type="text" size="mini" @click="openItemDialog(chapter, item)">编辑</el-button><el-button type="text" size="mini" class="danger-text" @click="removeItem(chapter, item)">删除</el-button></div>
                 </div>
               </draggable>
@@ -224,7 +224,7 @@
           </el-upload>
           <div v-if="itemForm.fileName" class="selected-file">
             <i class="el-icon-paperclip" />
-            <div><strong>{{ itemForm.fileName }}</strong><span>{{ fileSizeText(itemForm.fileSize) }} · {{ assetUploadLabel() }}</span></div>
+            <div><strong>{{ itemForm.fileName }}</strong><span>{{ fileSizeText(itemForm.fileSize) }} · {{ assetUploadLabel() }}<template v-if="itemForm.mediaSeconds"> · 实测时长 {{ mediaSecondsText(itemForm.mediaSeconds) }}</template></span></div>
             <el-button type="text" size="mini" class="danger-text" :disabled="assetUploadState === 'UPLOADING'" @click="clearAsset">移除</el-button>
           </div>
           <div v-if="assetUploadState !== 'IDLE' && assetUploadState !== 'READY'" class="asset-upload-progress">
@@ -780,8 +780,13 @@ export default {
     openItemDialog(chapter, item) {
       if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
       this.activeChapterId = chapter.id
-      this.itemForm = item ? Object.assign({}, item, { pendingAsset: null }) : { id: undefined, itemTitle: '', itemIntro: '', itemType: 'DOC', duration: 10, completionRule: 'SCROLL_END', isRequired: 1, completionThreshold: 100, fileName: '', fileSize: 0, fileExt: '', assetStatus: 'UNBOUND', pendingAsset: null }
+      this.itemForm = item ? Object.assign({}, item, { pendingAsset: null }) : { id: undefined, itemTitle: '', itemIntro: '', itemType: 'DOC', duration: 10, completionRule: 'SCROLL_END', isRequired: 1, completionThreshold: 100, fileName: '', fileSize: 0, fileExt: '', mediaSeconds: null, assetStatus: 'UNBOUND', pendingAsset: null }
       this.itemDialogOpen = true
+      // 清掉上一次留在 el-upload 里的选择：它的 fileList 不会随弹窗关闭自动清空，
+      // 残留会让下次「选择文件」直接命中 limit=1 的 on-exceed，文件永远选不上。
+      this.$nextTick(() => {
+        if (this.$refs.assetUpload) this.$refs.assetUpload.clearFiles()
+      })
     },
     handleItemTypeChange(type) {
       this.itemForm.completionRule = type === 'VIDEO' ? 'PLAY_TO_END' : 'SCROLL_END'
@@ -790,6 +795,54 @@ export default {
       this.itemForm.fileExt = ''
       this.itemForm.assetStatus = 'UNBOUND'
       this.itemForm.pendingAsset = null
+      // 换类型后旧文件的真实时长也不再适用
+      this.itemForm.mediaSeconds = null
+      // 切换文档/视频后旧文件已失效，同步清掉 el-upload 的 fileList，否则选新文件会被 limit=1 挡住。
+      if (this.$refs.assetUpload) this.$refs.assetUpload.clearFiles()
+    },
+    /**
+     * 读视频文件的真实时长（秒）。2026-09-23 加：
+     * 「预计时长」是人工填的估值，常与真实片长对不上（实测资料写 10 分钟、视频只有 35 秒），
+     * 而后端算学习进度必须要真实秒数 —— 否则短片看完也到不了 100%（见 LearningServiceImpl）。
+     */
+    probeVideoSeconds(file) {
+      return new Promise(resolve => {
+        if (!file) return resolve(null)
+        const url = (window.URL || window.webkitURL).createObjectURL(file)
+        const video = document.createElement('video')
+        let settled = false
+        const done = value => {
+          if (settled) return
+          settled = true
+          try { (window.URL || window.webkitURL).revokeObjectURL(url) } catch (e) { /* 忽略 */ }
+          resolve(value)
+        }
+        video.preload = 'metadata'
+        video.muted = true
+        video.onloadedmetadata = () => done(isFinite(video.duration) && video.duration > 0 ? Math.round(video.duration) : null)
+        video.onerror = () => done(null)
+        window.setTimeout(() => done(null), 8000)
+        video.src = url
+      })
+    },
+    /** 选中视频后把真实时长写进表单，并把「预计时长」校正成真实长度 */
+    applyMediaDuration(raw) {
+      if (!raw || !this.itemForm || this.itemForm.itemType !== 'VIDEO') return
+      const name = raw.name
+      this.probeVideoSeconds(raw).then(seconds => {
+        // 探测是异步的：如果用户已经换了别的文件/关了弹窗，就别再往回写
+        if (!seconds || !this.itemForm || this.itemForm.fileName !== name) return
+        this.itemForm.mediaSeconds = seconds
+        this.itemForm.duration = Math.max(1, Math.ceil(seconds / 60))
+      })
+    },
+    mediaSecondsText(seconds) {
+      const value = Math.round(Number(seconds || 0))
+      if (!value) return ''
+      if (value < 60) return value + ' 秒'
+      const minutes = Math.floor(value / 60)
+      const rest = value % 60
+      return rest ? minutes + ' 分 ' + rest + ' 秒' : minutes + ' 分钟'
     },
     handleAssetChange(file) {
       if (!file || !file.raw) return
@@ -800,9 +853,19 @@ export default {
       this.itemForm.fileExt = nameParts.length > 1 ? nameParts.pop().toLowerCase() : ''
       this.itemForm.assetStatus = 'LOCAL_ONLY'
       this.itemForm.pendingAsset = raw
+      this.applyMediaDuration(raw)
     },
-    handleAssetExceed() {
-      this.$modal.msgInfo('如需更换资料，请先移除当前文件后再选择')
+    handleAssetExceed(files) {
+      // el-upload 的 limit=1：已有选中文件时再选就走到这里。
+      // ⚠ 历史问题（2026-09-23 修）：这里原来只弹一句 $modal.msgInfo（该方法当时不存在 → 直接抛 TypeError），
+      // 文件被丢弃且回调中断 → 表现为「选了文件却发不出上传请求」。
+      // 另外 el-upload 内部 fileList 不随弹窗关闭清空，第二次进来选文件必然命中这里。
+      // 现在改为：清掉旧选择、用新文件直接替换。
+      const raw = files && files[0]
+      if (this.$refs.assetUpload) this.$refs.assetUpload.clearFiles()
+      if (!raw) return this.$modal.msgWarning('如需更换资料，请先移除当前文件后再选择')
+      this.handleAssetChange({ raw })
+      this.$modal.msgWarning('已替换为新选择的文件，保存资料后开始上传')
     },
     clearAsset() {
       this.itemForm.fileName = ''

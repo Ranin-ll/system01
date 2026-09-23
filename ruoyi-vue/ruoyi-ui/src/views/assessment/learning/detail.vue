@@ -25,44 +25,32 @@
     <section v-if="!previewFailed" class="course-hero">
       <div class="hero-mark" :class="course.courseType === 'PRACTICE' ? 'practice' : 'theory'"><i :class="course.courseType === 'PRACTICE' ? 'el-icon-video-play' : 'el-icon-document'" /></div>
       <div class="hero-copy">
-        <div class="hero-tags"><span>{{ course.courseType === 'PRACTICE' ? '视频实操课程' : '文档理论课程' }}</span><el-tag size="mini" :type="course.isRequired === 1 ? 'danger' : 'info'" effect="plain">{{ course.isRequired === 1 ? '必修' : '选修' }}</el-tag></div>
         <h1>{{ course.courseName }}</h1>
         <p>{{ course.intro }}</p>
-        <div class="hero-meta"><span><i class="el-icon-user" /> {{ course.positionName }}</span><span><i class="el-icon-menu" /> {{ course.chapterCount }} 个章节</span><span><i class="el-icon-time" /> {{ formatDuration(course.duration) }}</span></div>
+        <div class="hero-meta"><span><i class="el-icon-user" /> {{ course.positionName }}</span><span><i class="el-icon-menu" /> {{ course.itemCount }} 个学习单项</span></div>
       </div>
       <div v-if="isPreview" class="hero-progress"><span>预览模式</span><strong>—</strong><small class="preview-note">不统计进度</small></div>
       <div v-else class="hero-progress"><span>课程完成率</span><strong>{{ course.progress }}%</strong><el-progress :percentage="course.progress" :show-text="false" :color="progressColor(course.progress)" /></div>
       <el-button type="primary" size="small" icon="el-icon-right" @click="startNext">{{ currentItem ? actionText(currentItem) : '开始学习' }}</el-button>
     </section>
 
-    <section v-if="!previewFailed" class="course-toolbar">
-      <div class="course-tabs">
-        <button v-for="tab in tabs" :key="tab.value" type="button" :class="{ active: itemFilter === tab.value }" @click="itemFilter = tab.value">{{ tab.label }} <em>{{ tab.count }}</em></button>
-      </div>
-      <el-button type="text" icon="el-icon-sort" @click="toggleChapters">{{ allExpanded ? '收起全部' : '展开全部' }}</el-button>
-    </section>
-
     <section v-if="!previewFailed" class="detail-layout">
+      <!-- 课程目录：不分章节层级，直接把该课程的全部学习单项平铺成一列（2026-09-23 改） -->
       <aside class="chapter-sidebar">
         <div class="sidebar-title"><strong>课程目录</strong><span>{{ course.completedItems }}/{{ course.itemCount }} 已完成</span></div>
-        <el-collapse v-model="activeChapters">
-          <el-collapse-item v-for="(chapter, index) in visibleChapters" :key="chapter.id" :name="chapter.id">
-            <template slot="title">
-              <div class="chapter-title"><span class="chapter-number">{{ String(index + 1).padStart(2, '0') }}</span><span class="chapter-copy"><span class="chapter-name">{{ chapter.chapterName }}</span><span v-if="chapter.chapterIntro" class="chapter-intro">{{ chapter.chapterIntro }}</span></span><small>{{ chapterCompleted(chapter) }}/{{ chapter.items.length }}</small></div>
-            </template>
-            <button v-for="item in filteredItems(chapter)" :key="item.id" type="button" class="item-link" :class="{ selected: currentItem && currentItem.id === item.id }" @click="selectItem(item, chapter)">
-              <span class="item-status" :class="item.status.toLowerCase()"><i :class="itemIcon(item)" /></span>
-              <span class="item-link-copy"><b>{{ item.itemTitle }}</b><small>{{ item.itemType === 'VIDEO' ? '视频' : '文档' }} · {{ formatDuration(item.duration) }}</small></span>
-              <span class="item-state">{{ itemState(item) }}</span>
-            </button>
-          </el-collapse-item>
-        </el-collapse>
+        <div class="sidebar-items">
+          <button v-for="row in sidebarItems" :key="row.item.id" type="button" class="item-link" :class="{ selected: currentItem && currentItem.id === row.item.id }" @click="selectItem(row.item, row.chapter)">
+            <span class="item-status" :class="row.item.status.toLowerCase()"><i :class="itemIcon(row.item)" /></span>
+            <span class="item-link-copy"><b>{{ row.item.itemTitle }}</b><small>{{ itemDurationText(row.item) }}</small></span>
+            <span class="item-state">{{ itemState(row.item) }}</span>
+          </button>
+        </div>
       </aside>
 
       <main class="study-area">
         <div v-if="currentItem" class="study-card">
           <div class="study-card-head">
-            <div><span class="study-kicker">{{ currentChapter.chapterName }} / {{ itemTypeLabel(currentItem) }}</span><h2>{{ currentItem.itemTitle }}</h2></div>
+            <div><span class="study-kicker">{{ itemTypeLabel(currentItem) }}</span><h2>{{ currentItem.itemTitle }}</h2></div>
             <div class="head-actions">
               <el-button v-if="currentItem.itemType === 'DOC' && currentItem.contentUrl" size="mini" icon="el-icon-download" @click="downloadAsset(currentItem)">下载资料</el-button>
               <el-tag :type="currentItem.status === 'DONE' ? 'success' : currentItem.status === 'IN_PROGRESS' ? 'primary' : 'info'" size="mini">{{ itemState(currentItem) }}</el-tag>
@@ -115,11 +103,15 @@
           </div>
           <div v-else-if="currentItem.itemType === 'VIDEO'" class="video-wrap">
             <div class="video-stage">
-              <video v-if="currentItem.contentUrl" :key="currentItem.id" ref="courseVideo" class="course-video" controls controlsList="nodownload" :data-item-id="currentItem.id" :src="assetUrl(currentItem)" @timeupdate="handleVideoTimeUpdate" @pause="saveVideoProgress" @ended="completeVideo" />
+              <!-- 视频三条学习约束（2026-09-23）：
+                   · 进度不落库 → 每次进来都从头播（selectItem 里 videoProgress 归 0）；
+                   · 不允许拖动 → seeking 事件里把进度拽回「已连续看到的最远点」；
+                   · 定时防挂机 → play 后启动计时，到点暂停并弹「继续学习」确认。 -->
+              <video v-if="currentItem.contentUrl" :key="currentItem.id" ref="courseVideo" class="course-video" controls controlsList="nodownload" :data-item-id="currentItem.id" :src="assetUrl(currentItem)" @play="startIdleGuard" @timeupdate="handleVideoTimeUpdate" @seeking="guardVideoSeek" @pause="saveVideoProgress" @ended="completeVideo" />
               <div v-else class="video-placeholder"><i class="el-icon-warning-outline" /><strong>视频文件暂未上传</strong><span>请联系部门管理员补充该课程资料。</span></div>
             </div>
             <div v-if="currentItem.itemIntro" class="item-intro-panel"><span><i class="el-icon-document" /> 本节简介</span><p>{{ currentItem.itemIntro }}</p></div>
-            <div class="video-status"><span><i class="el-icon-time" /> 最近播放进度 {{ videoProgress }}%</span><span v-if="videoProgress >= completionThreshold" class="reader-ready"><i class="el-icon-success" /> 已满足完成条件</span></div>
+            <div class="video-status"><span><i class="el-icon-time" /> 本次播放进度 {{ videoProgress }}%</span><span v-if="videoProgress >= completionThreshold" class="reader-ready"><i class="el-icon-success" /> 已满足完成条件</span></div>
           </div>
           <div v-else class="download-panel">
             <i class="el-icon-document" />
@@ -135,8 +127,6 @@
         <div v-else class="study-empty"><i class="el-icon-reading" /><strong>请选择一个学习单项</strong><span>从左侧课程目录开始学习。</span></div>
       </main>
     </section>
-
-    <section class="detail-note"><i class="el-icon-info" /><span>学习记录会按单项自动保存；文档支持在线学习与下载，阅读到末尾后确认完成；视频需达到完成进度后才能标记完成。</span><el-button type="text" @click="comingSoon">学习规则</el-button></section>
   </div>
 </template>
 
@@ -159,7 +149,6 @@ export default {
       currentItem: null,
       currentChapter: {},
       activeChapters: [],
-      itemFilter: 'ALL',
       readerProgress: 0,
       readerReachedEnd: false,
       docxPreviewLoading: false,
@@ -169,6 +158,14 @@ export default {
       videoProgress: 0,
       videoPlaying: false,
       videoTimer: null,
+      /** 防挂机确认的秒级计时器（play 后启动，切项/销毁时清掉） */
+      videoGuardTimer: null,
+      /** 本轮「实际播放」累计秒数：暂停时不累加，所以暂停多久都不会重置倒计时 */
+      videoGuardElapsed: 0,
+      /** 防挂机确认间隔（秒）—— 连续播放满这个时长就暂停并要求确认 */
+      videoGuardSeconds: 300,
+      /** 本次连续观看到达的最远秒数：拖动进度条时用它当「不可逾越的墙」 */
+      videoMaxWatched: 0,
       saveState: '进度已保存',
       saving: false,
       progressTimer: null,
@@ -192,19 +189,17 @@ export default {
     previewFailed() {
       return this.isPreview && this.previewError !== ''
     },
-    tabs() {
-      const items = flattenItems(this.course)
-      return [
-        { label: '全部', value: 'ALL', count: items.length },
-        { label: '文档', value: 'DOC', count: items.filter(item => item.itemType === 'DOC').length },
-        { label: '视频', value: 'VIDEO', count: items.filter(item => item.itemType === 'VIDEO').length }
-      ]
-    },
-    visibleChapters() {
-      return this.course.chapters.filter(chapter => this.filteredItems(chapter).length)
-    },
-    allExpanded() {
-      return this.activeChapters.length === this.visibleChapters.length && this.visibleChapters.length > 0
+    /**
+     * 课程目录（左栏）的数据源：把各章节下的学习单项**拉平成一列**。
+     * 行里带上所属章节 —— 点选时仍要它回填 currentChapter（进度回流用），
+     * 只是不再把章节当成分组标题渲染出来。
+     */
+    sidebarItems() {
+      const rows = []
+      this.course.chapters.forEach(chapter => {
+        this.filteredItems(chapter).forEach(item => rows.push({ item, chapter }))
+      })
+      return rows
     },
     previousItem() {
       const items = flattenItems(this.course)
@@ -216,9 +211,7 @@ export default {
       const index = items.findIndex(item => this.currentItem && item.id === this.currentItem.id)
       return index > -1 && index < items.length - 1 ? items[index + 1] : null
     },
-    videoTimeLabel() {
-      return this.videoProgress >= 100 ? '已完成' : Math.round(this.videoProgress * 0.8) + ' / 80 分钟'
-    },
+    // 已删除 videoTimeLabel：没人引用，而且里面写死了「80 分钟」，接上去就是错数据（2026-09-23）
     completionThreshold() {
       return Number((this.currentItem && this.currentItem.completionThreshold) || 100)
     }
@@ -294,11 +287,9 @@ export default {
         this.$modal.msgError('无法预览该课程：' + this.previewError)
       })
     },
+    /** 左栏平铺后的单项来源：不再按类型筛选，章节下有什么就出什么 */
     filteredItems(chapter) {
-      return chapter.items.filter(item => this.itemFilter === 'ALL' || item.itemType === this.itemFilter)
-    },
-    chapterCompleted(chapter) {
-      return chapter.items.filter(item => item.status === 'DONE').length
+      return chapter.items || []
     },
     selectItem(item, chapter) {
       this.stopVideo()
@@ -313,7 +304,9 @@ export default {
       this.docxPreviewError = ''
       this.pptxPreviewLoading = false
       this.pptxPreviewError = ''
-      this.videoProgress = item.itemType === 'VIDEO' ? Number(item.progress || 0) : 0
+      // 视频不记忆播放位置：每次点开都从头开始（2026-09-23）
+      this.videoProgress = 0
+      this.videoMaxWatched = 0
       // 预览模式不改状态：没有「某个人」在学习，应当保持实习生打开前的干净样子（未开始）
       if (!this.isPreview && item.status === 'NOT_STARTED') {
         item.status = 'IN_PROGRESS'
@@ -322,9 +315,6 @@ export default {
       this.saveProgress(false, item)
       if (this.canDocxPreview(item)) this.$nextTick(() => this.loadDocxPreview(item))
       if (this.canPptxPreview(item)) this.$nextTick(() => this.loadPptxPreview(item))
-    },
-    toggleChapters() {
-      this.activeChapters = this.allExpanded ? [] : this.visibleChapters.map(chapter => chapter.id)
     },
     itemIcon(item) {
       if (item.status === 'DONE') return 'el-icon-check'
@@ -344,6 +334,24 @@ export default {
     },
     formatDuration(minutes) {
       return formatLearningDuration(minutes)
+    },
+    /** 秒数 -> 「35 秒」/「1 分 20 秒」/「12 分钟」 */
+    mediaSecondsText(seconds) {
+      const value = Math.round(Number(seconds || 0))
+      if (!value) return ''
+      if (value < 60) return value + ' 秒'
+      const minutes = Math.floor(value / 60)
+      const rest = value % 60
+      return rest ? minutes + ' 分 ' + rest + ' 秒' : minutes + ' 分钟'
+    },
+    /**
+     * 侧栏时长文案：视频优先显示**文件真实时长**（mediaSeconds，上传时探测写入），
+     * 没有真实时长才退回人工填的「预计时长」—— 之前两者对不上（写 10 分钟、实际 35 秒）。
+     */
+    itemDurationText(item) {
+      if (item.itemType !== 'VIDEO') return '文档'
+      const seconds = Number(item.mediaSeconds || 0)
+      return '视频 · ' + (seconds > 0 ? this.mediaSecondsText(seconds) : this.formatDuration(item.duration))
     },
     progressColor(progress) {
       return progress === 100 ? '#23966f' : progress > 0 ? '#2878c7' : '#aab4c0'
@@ -374,12 +382,17 @@ export default {
       this.videoPlaying = false
       if (this.videoTimer) window.clearInterval(this.videoTimer)
       this.videoTimer = null
+      this.stopIdleGuard()
     },
+    /**
+     * 视频回写：**不再上报播放进度**（2026-09-23 起）——
+     * 只保留「最近学习时间 / 已学时长」，这样学习时长统计照常，但下次进来仍从头播。
+     * progress 字段由 saveProgress 统一按 0（未完成）/100（完成）写。
+     */
     saveVideoProgress(event) {
       const video = event && event.target
       const itemId = Number(video && video.dataset.itemId)
       if (!this.currentItem || this.currentItem.itemType !== 'VIDEO' || itemId !== Number(this.currentItem.id)) return
-      this.currentItem.progress = this.videoProgress
       this.currentItem.lastStudyTime = this.nowText()
       this.currentItem.studyDuration = Math.max(Number(this.currentItem.studyDuration || 0), Math.round(video.currentTime || 0))
       this.queueProgressSave(this.currentItem)
@@ -389,7 +402,52 @@ export default {
       const itemId = Number(video.dataset.itemId)
       if (!this.currentItem || itemId !== Number(this.currentItem.id) || !video.duration) return
       this.videoProgress = Math.max(this.videoProgress, Math.min(100, Math.round(video.currentTime / video.duration * 100)))
+      // 记录「连续看到的最远点」，供 guardVideoSeek 判断是否被往前拖
+      this.videoMaxWatched = Math.max(this.videoMaxWatched, Number(video.currentTime) || 0)
       this.saveVideoProgress(event)
+    },
+    /**
+     * 禁止拖动进度条：往前拖（跳过没看过的内容）一律拽回「已连续看到的最远点」；
+     * 往回拖（重看已看过的部分）不拦。+1s 容差是给播放器自身的时间抖动留的。
+     */
+    guardVideoSeek(event) {
+      const video = event.target
+      if (!video) return
+      const limit = this.videoMaxWatched
+      if (Number(video.currentTime) > limit + 1) {
+        video.currentTime = limit
+        this.$modal.msgWarning('学习过程中不允许拖动进度条')
+      }
+    },
+    /** 开始播放就启动防挂机计时；已在计时则不动（避免「暂停再播」把倒计时清零） */
+    startIdleGuard() {
+      if (this.videoGuardTimer) return
+      this.videoGuardElapsed = 0
+      this.videoGuardTimer = window.setInterval(this.tickIdleGuard, 1000)
+    },
+    /**
+     * 每秒检查一次：**只有视频确实在播放时才累计**，暂停多久都不算。
+     * 累计满 videoGuardSeconds 就暂停并弹确认框 —— confirmOnly 没有取消/关闭出口，
+     * 不点「继续学习」视频就一直停着（也就没有进度、不能标记完成）。
+     */
+    tickIdleGuard() {
+      const video = this.$refs.courseVideo
+      if (!video || video.paused || video.ended) return
+      this.videoGuardElapsed += 1
+      if (this.videoGuardElapsed < this.videoGuardSeconds) return
+      this.videoGuardElapsed = 0
+      video.pause()
+      this.$modal.confirmOnly('请确认你仍在学习中，点击「继续学习」视频才会继续播放。', '继续学习')
+        .then(() => {
+          const element = this.$refs.courseVideo
+          if (element) element.play()
+        })
+        .catch(() => {})
+    },
+    stopIdleGuard() {
+      if (this.videoGuardTimer) window.clearInterval(this.videoGuardTimer)
+      this.videoGuardTimer = null
+      this.videoGuardElapsed = 0
     },
     completeVideo() {
       this.videoProgress = 100
@@ -444,8 +502,16 @@ export default {
       if (this.isPreview) return Promise.resolve(false)
       this.saving = Boolean(completed)
       const isCurrentItem = () => this.currentItem && Number(this.currentItem.id) === Number(item.id)
+      /**
+       * 视频提交的进度（2026-09-23 改回真实百分比）：
+       * 之前为了「不落库播放位置」让视频恒提交 0，结果后端那条「每秒最多涨 2%」的防作弊钳制
+       * 把结束时的 100% 拉回中间值（实测停在 61%），短片当场判不完 —— 就是这个 bug。
+       * 播放位置不落库**不靠** progress 字段保证：是 selectItem 里把 videoProgress 归零、
+       * 且从不把 item.progress 写回 video.currentTime，所以每次进来依旧从头播。
+       */
+      const videoPercent = isCurrentItem() ? Number(this.videoProgress || 0) : Number(item.progress || 0)
       const payload = {
-        progress: Number(item.itemType === 'VIDEO' && isCurrentItem() ? this.videoProgress : item.progress || 0),
+        progress: Number(item.itemType === 'VIDEO' ? (completed ? 100 : videoPercent) : (item.progress || 0)),
         studyDuration: Number(item.studyDuration || 0),
         readConfirm: item.itemType === 'DOC' && isCurrentItem() ? (this.readerReachedEnd ? 1 : 0) : (item.readConfirm ? 1 : 0),
         completed: Boolean(completed)
@@ -597,10 +663,8 @@ export default {
         }
         return
       }
-      this.$router.push('/assessment/intern/learning')
-    },
-    comingSoon() {
-      this.$modal.msgInfo('功能开发中')
+      // 实习生端：回「学习与考核」页的**在线学习**栏（本页是从那里的课程卡片进来的）
+      this.$router.push({ path: '/assessment/intern/learning', hash: '#sec-learning' })
     }
   }
 }
@@ -631,24 +695,32 @@ export default {
 .hero-mark { display: flex; width: 68px; height: 68px; flex: 0 0 68px; align-items: center; justify-content: center; color: #fff; font-size: 30px; }
 .hero-mark.theory { background: #23966f; }.hero-mark.practice { background: #2878c7; }
 .hero-copy { min-width: 0; flex: 1; }
-.hero-tags { display: flex; align-items: center; gap: 8px; color: #2878c7; font-size: 11px; }
+/* .hero-tags（课程名上方的「文档理论课程 / 必修」行）已按需求移除（2026-09-23） */
 .hero-copy h1 { margin: 7px 0 6px; color: #1d2939; font-size: 22px; font-weight: 600; }
 .hero-copy p { margin: 0 0 10px; overflow: hidden; color: #667085; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .hero-meta { display: flex; flex-wrap: wrap; gap: 16px; color: #8490a0; font-size: 11px; }
 .hero-meta i { margin-right: 3px; }
 .hero-progress { width: 120px; flex: 0 0 120px; }.hero-progress span, .hero-progress strong { display: block; }.hero-progress span { margin-bottom: 5px; color: #8490a0; font-size: 11px; }.hero-progress strong { margin-bottom: 6px; color: #1d2939; font-size: 21px; font-weight: 600; }
-.course-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #e4e9f0; background: #fff; }
-.course-tabs { display: flex; gap: 26px; }.course-tabs button { position: relative; padding: 16px 0 13px; border: 0; color: #8490a0; background: transparent; cursor: pointer; font-size: 13px; }.course-tabs button.active { color: #1764f5; font-weight: 600; }.course-tabs button.active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: #1764f5; content: ''; }.course-tabs em { margin-left: 4px; color: #98a2b3; font-size: 11px; font-style: normal; }
+.sidebar-items { padding: 8px 8px 14px; }
 .detail-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: 560px; background: #fff; box-shadow: 0 1px 3px rgba(16, 24, 40, .04); }
 .chapter-sidebar { border-right: 1px solid #e4e9f0; }.sidebar-title { display: flex; align-items: center; justify-content: space-between; padding: 18px 18px 14px; border-bottom: 1px solid #edf0f4; }.sidebar-title strong { color: #344054; font-size: 14px; }.sidebar-title span { color: #98a2b3; font-size: 11px; }
-.chapter-sidebar ::v-deep .el-collapse { border-top: 0; }.chapter-sidebar ::v-deep .el-collapse-item__header { height: auto; min-height: 54px; padding: 0 14px; border-bottom: 1px solid #f0f2f5; color: #344054; line-height: 1.4; }.chapter-sidebar ::v-deep .el-collapse-item__wrap { border-bottom: 1px solid #edf0f4; }.chapter-sidebar ::v-deep .el-collapse-item__content { padding: 0 10px 9px; }
-.chapter-title { display: flex; width: calc(100% - 18px); align-items: center; gap: 8px; }.chapter-number { color: #1764f5; font-size: 10px; font-weight: 700; }.chapter-copy { min-width: 0; flex: 1; }.chapter-name, .chapter-intro { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.chapter-name { font-size: 12px; }.chapter-intro { margin-top: 3px; color: #98a2b3; font-size: 10px; }.chapter-title small { color: #98a2b3; font-size: 10px; }
+/* 左栏已改为「不分章节、平铺单项」，原 el-collapse / .chapter-title 系列样式随之移除（2026-09-23） */
 .item-link { display: flex; width: 100%; align-items: center; gap: 8px; padding: 10px 7px; border: 0; color: #667085; text-align: left; background: transparent; cursor: pointer; }.item-link:hover, .item-link.selected { background: #f2f7ff; }.item-link.selected .item-link-copy b { color: #1764f5; }.item-status { display: flex; width: 23px; height: 23px; flex: 0 0 23px; align-items: center; justify-content: center; color: #98a2b3; border-radius: 50%; background: #f0f2f5; font-size: 12px; }.item-status.done { color: #fff; background: #23966f; }.item-status.in_progress { color: #fff; background: #2878c7; }.item-link-copy { min-width: 0; flex: 1; }.item-link-copy b, .item-link-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.item-link-copy b { color: #475467; font-size: 11px; font-weight: 500; }.item-link-copy small { margin-top: 3px; color: #98a2b3; font-size: 10px; }.item-state { flex: 0 0 auto; color: #98a2b3; font-size: 10px; }
 .study-area { min-width: 0; padding: 20px 24px 24px; background: #fbfcfe; }.study-card { min-height: 510px; border: 1px solid #e4e9f0; background: #fff; }.study-card-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid #edf0f4; }.study-kicker { color: #2878c7; font-size: 11px; }.study-card-head h2 { margin: 6px 0 0; color: #1d2939; font-size: 17px; font-weight: 600; }
 .reader-wrap, .video-wrap { padding: 18px 20px; }.document-reader { display: flex; height: min(70vh, 760px); min-height: 560px; flex-direction: column; overflow: hidden; border: 1px solid #e1e6ed; background: #f2f4f7; }.docx-reader { overflow-y: auto; }.pptx-reader { align-items: center; justify-content: center; background: #202733; }.document-frame { display: block; width: 100%; min-height: 0; flex: 1; border: 0; background: #fff; }.document-end { flex: 0 0 auto; margin: 0 16px; padding: 11px 0; border-top: 1px dashed #ccd5df; color: #23966f; font-size: 12px; text-align: center; }.docx-content, .pptx-content { width: 100%; min-height: 100%; }.docx-content { background: #e9edf2; }.pptx-content { display: flex; align-items: center; justify-content: center; overflow: hidden; background: #202733; }.document-preview-state { display: flex; min-height: 100%; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #667085; background: #f8fafc; text-align: center; }.document-preview-state > i { color: #2878c7; font-size: 38px; }.document-preview-state strong { color: #344054; font-size: 15px; }.document-preview-state span { max-width: 80%; font-size: 11px; }.document-preview-state.is-error > i { color: #d97706; }.docx-content ::v-deep .docx-wrapper { min-height: 100%; padding: 24px 12px; background: #e9edf2; }.docx-content ::v-deep .docx-wrapper > section.docx { max-width: calc(100% - 24px); margin: 0 auto 18px; box-shadow: 0 2px 8px rgba(16, 24, 40, .12); }.pptx-content ::v-deep > div { margin: auto; }.download-panel { display: flex; min-height: 520px; align-items: center; justify-content: center; flex-direction: column; gap: 10px; border: 1px solid #e1e6ed; background: #f8fafc; color: #667085; text-align: center; }.download-panel > i { color: #4d91ce; font-size: 42px; }.download-panel strong { max-width: 80%; overflow: hidden; color: #344054; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }.download-panel span { font-size: 11px; }.study-card-head .head-actions { display: flex; align-items: center; gap: 8px; flex: none; }.download-panel-actions { display: flex; align-items: center; gap: 10px; }.reader-status, .video-status { display: flex; align-items: center; justify-content: space-between; padding-top: 11px; color: #8490a0; font-size: 11px; }.reader-ready { color: #23966f; }.reader-ready i { margin-right: 3px; }
 .item-intro-panel { margin-top: 12px; padding: 13px 15px; border-left: 3px solid #2878c7; background: #f7faff; }.item-intro-panel span { color: #2878c7; font-size: 12px; font-weight: 600; }.item-intro-panel i { margin-right: 5px; }.item-intro-panel p { margin: 7px 0 0; color: #5f6f82; font-size: 12px; line-height: 1.7; white-space: pre-wrap; }
-.video-stage { display: grid; width: 100%; aspect-ratio: 16 / 9; align-items: stretch; overflow: hidden; background: #111827; }.course-video { display: block; width: 100%; height: 100%; background: #111827; object-fit: contain; }.video-placeholder { display: flex; height: 100%; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #d8e2ef; text-align: center; }.video-placeholder i { color: #e7b76d; font-size: 43px; }.video-placeholder strong { font-size: 16px; font-weight: 500; }.video-placeholder span { color: #9caec2; font-size: 11px; }.video-status { padding: 11px 0 0; }
-.study-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 20px; border-top: 1px solid #edf0f4; }.study-footer > div:first-child { display: flex; flex-wrap: wrap; gap: 12px; color: #98a2b3; font-size: 11px; }.save-state { color: #23966f; }.save-state i { margin-right: 3px; }.study-actions { display: flex; gap: 7px; }.study-empty { display: flex; height: 420px; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #98a2b3; }.study-empty i { color: #b7c1cc; font-size: 34px; }.study-empty strong { color: #667085; font-size: 14px; font-weight: 500; }.study-empty span { font-size: 12px; }.detail-note { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 12px 16px; border: 1px solid #dbeafe; color: #667085; background: #f5f9ff; font-size: 11px; }.detail-note > i { color: #2878c7; font-size: 15px; }.detail-note span { flex: 1; }.detail-note .el-button { padding: 0; font-size: 11px; }
+/* 播放器窗口按视频自身比例自适应（2026-09-23 修）：
+   旧写法 `.video-stage{aspect-ratio:16/9; overflow:hidden}` + `.course-video{width:100%;height:100%}`
+   对手机竖屏视频会整个塌掉 —— grid 项的 `min-height:auto` 会取视频固有高度，
+   行被撑到 1575px 而容器只有 16:9 的 498px → `overflow:hidden` 把画面和控制条一起裁掉
+   （实测 1080x1920 的视频被裁掉 1077px，进度条完全看不到）。
+   现在容器只做「居中」，不再锁比例也不再裁切；视频宽高都留 auto，只用 max-width/max-height 兜住，
+   比例由视频自己带（竖屏就变窄高，横屏自然占满宽度）。黑底只给视频本体，
+   这样竖屏时两侧不会出现"大黑框里一条窄视频"的观感。 */
+.video-stage { display: flex; width: 100%; align-items: center; justify-content: center; }
+.course-video { display: block; width: auto; height: auto; min-width: 0; min-height: 0; max-width: 100%; max-height: min(70vh, 760px); background: #000; object-fit: contain; }
+.video-placeholder { display: flex; width: 100%; min-height: 420px; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #d8e2ef; background: #111827; text-align: center; }.video-placeholder i { color: #e7b76d; font-size: 43px; }.video-placeholder strong { font-size: 16px; font-weight: 500; }.video-placeholder span { color: #9caec2; font-size: 11px; }.video-status { padding: 11px 0 0; }
+.study-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 20px; border-top: 1px solid #edf0f4; }.study-footer > div:first-child { display: flex; flex-wrap: wrap; gap: 12px; color: #98a2b3; font-size: 11px; }.save-state { color: #23966f; }.save-state i { margin-right: 3px; }.study-actions { display: flex; gap: 7px; }.study-empty { display: flex; height: 420px; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #98a2b3; }.study-empty i { color: #b7c1cc; font-size: 34px; }.study-empty strong { color: #667085; font-size: 14px; font-weight: 500; }.study-empty span { font-size: 12px; }
 @media (max-width: 900px) { .course-hero { flex-wrap: wrap; }.hero-copy { min-width: calc(100% - 86px); }.hero-progress { margin-left: 86px; }.detail-layout { grid-template-columns: 270px minmax(0, 1fr); } }
-@media (max-width: 700px) { .course-detail-page { padding: 16px 12px 28px; }.course-hero { align-items: flex-start; padding: 18px; }.hero-mark { width: 52px; height: 52px; flex-basis: 52px; font-size: 23px; }.hero-copy { min-width: calc(100% - 70px); }.hero-copy h1 { font-size: 18px; }.hero-copy p { white-space: normal; line-height: 1.5; }.hero-progress { width: calc(100% - 70px); margin-left: 70px; }.course-hero > .el-button { width: 100%; }.course-toolbar { padding: 0 12px; }.course-tabs { gap: 18px; }.detail-layout { display: block; }.chapter-sidebar { border-right: 0; border-bottom: 1px solid #e4e9f0; }.chapter-sidebar ::v-deep .el-collapse-item__content { max-height: 220px; overflow-y: auto; }.study-area { padding: 12px; }.study-card-head { padding: 14px; }.reader-wrap, .video-wrap { padding: 12px; }.document-reader { height: min(65vh, 640px); min-height: 460px; }.download-panel { min-height: 420px; }.document-sheet { padding: 24px 20px 32px; }.study-footer { align-items: flex-start; flex-direction: column; padding: 14px; }.study-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }.detail-note .el-button { display: none; } }
+@media (max-width: 700px) { .course-detail-page { padding: 16px 12px 28px; }.course-hero { align-items: flex-start; padding: 18px; }.hero-mark { width: 52px; height: 52px; flex-basis: 52px; font-size: 23px; }.hero-copy { min-width: calc(100% - 70px); }.hero-copy h1 { font-size: 18px; }.hero-copy p { white-space: normal; line-height: 1.5; }.hero-progress { width: calc(100% - 70px); margin-left: 70px; }.course-hero > .el-button { width: 100%; }.detail-layout { display: block; }.chapter-sidebar { border-right: 0; border-bottom: 1px solid #e4e9f0; }.study-area { padding: 12px; }.study-card-head { padding: 14px; }.reader-wrap, .video-wrap { padding: 12px; }.document-reader { height: min(65vh, 640px); min-height: 460px; }.video-placeholder { min-height: 300px; }.download-panel { min-height: 420px; }.document-sheet { padding: 24px 20px 32px; }.study-footer { align-items: flex-start; flex-direction: column; padding: 14px; }.study-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; } }
 </style>

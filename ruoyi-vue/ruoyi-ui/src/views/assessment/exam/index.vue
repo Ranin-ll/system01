@@ -1,12 +1,12 @@
 <template>
   <div class="exam-page">
     <div class="exam-breadcrumb">
-      <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回工作台</el-button>
+      <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回学习与考核</el-button>
       <span>/</span>
       <b>{{ isFormal ? '考核记录' : '正式考核' }}</b>
     </div>
 
-    <!-- 阶段一：发布信息 + 考核场次 + 备考资料 + 资格校验 -->
+    <!-- 阶段一：发布信息 + 考核场次 + 备考资料（③ 资格校验卡已移除 2026-09-23） + 考核记录 -->
     <template v-if="stage === 'list'">
       <header class="exam-heading">
         <div>
@@ -68,46 +68,6 @@
           </div>
         </div>
       </section>
-
-      <!-- ③ 备考资料 -->
-      <section v-if="!isFormal" class="pm-card">
-        <div class="pm-head">
-          <div class="pm-title"><span class="pm-idx">资</span><h3>备考资料</h3></div>
-          <el-button size="mini" icon="el-icon-notebook-2" @click="goGuide">打开备考资料页</el-button>
-        </div>
-        <div class="file-row">
-          <span class="file-tag">PDF</span>
-          <div class="file-name"><b>考试指南与考核规则</b><span>备考资料统一在「备考资料」页签查看与下载</span></div>
-          <el-button size="mini" plain @click="goGuide">前往查看</el-button>
-        </div>
-      </section>
-
-      <!-- ④ 资格校验 -->
-      <div v-if="!isFormal" class="trip-grid">
-        <section class="pm-card">
-          <div class="pm-head compact">
-            <div class="pm-title"><span class="pm-idx warn">4</span><h3>资格校验</h3></div>
-            <span class="session-badge" :class="qualified ? 'ok' : 'warn'">{{ qualified ? '已通过' : '未通过' }}</span>
-          </div>
-          <div class="chk-list">
-            <div class="chk">
-              <span class="mark" :class="learningProgress >= 70 ? 'ok' : 'no'">{{ learningProgress >= 70 ? '✓' : '!' }}</span>
-              <span>必修完成率 ≥ 70%</span>
-              <b :class="learningProgress >= 70 ? 'good' : 'warn'">当前 {{ learningProgress }}%</b>
-            </div>
-            <div class="chk">
-              <span class="mark" :class="Number(protocolStatus) === 1 ? 'ok' : 'no'">{{ Number(protocolStatus) === 1 ? '✓' : '!' }}</span>
-              <span>保密协议已签署</span>
-              <b>{{ Number(protocolStatus) === 1 ? '已签署' : '待签署' }}</b>
-            </div>
-            <div class="chk">
-              <span class="mark ok">✓</span>
-              <span>剩余考试次数</span>
-              <b>{{ remainTimes }} 次<em class="dsample">示例</em></b>
-            </div>
-          </div>
-        </section>
-      </div>
 
       <!-- 历史场次（已参加的考核；通过与否都可查看详情） -->
       <section v-if="isFormal || recordExams.length || sessions.length === 0" class="pm-card">
@@ -263,7 +223,7 @@
         <div class="done-icon"><i class="el-icon-success" /></div>
         <h2>作答完成</h2>
         <p>{{ examType === 'PRACTICAL' ? '你的作答文件已提交，管理员批阅后会发布成绩。' : '你的答卷已提交，成绩已自动判定，请返回考核列表查看结果。' }}</p>
-        <el-button type="primary" size="medium" @click="goBack">返回首页</el-button>
+        <el-button type="primary" size="medium" @click="goHome">返回首页</el-button>
       </div>
     </template>
   </div>
@@ -325,7 +285,13 @@ export default {
     recordExams() {
       return this.exams.filter(exam => exam.sheet && exam.sheet.status !== 'IN_PROGRESS')
     },
-    examMode() { return this.$route.name === 'InternMockExam' ? 'PRACTICE' : 'FORMAL' },
+    /**
+     * 正式考核固定走 FORMAL 语境。
+     * 历史遗留：本组件当年被「模拟考核」复用，靠 `$route.name === 'InternMockExam'` 区分；
+     * 2026-09-23 模拟考核已拆成独立页面（practice/theory.vue、practice/practical.vue），
+     * 这里改成常量，避免以后路由改名导致静默走错分支（formal 的标题/接口口径都会跟着错）。
+     */
+    examMode() { return 'FORMAL' },
     progress() {
       const answered = this.answers.filter(a => {
         if (Array.isArray(a)) return a.length > 0
@@ -337,6 +303,12 @@ export default {
     uploadedCount() {
       return this.subjectItems.filter(s => !!this.subjectFiles[s.subjectItemId]).length
     },
+    /**
+     * 资质口径（学习进度门槛 + 保密协议）。
+     * ⚠ 页面上那块「资格校验」卡已于 2026-09-23 按需求移除，所以这里看起来「没人用」——
+     * 但 buildAction 里「临时停用资质门槛」的注释明确要求提交前还原为 qualified 判断，
+     * 因此这几个 computed / protocolStatus getter 刻意保留，别当死代码删掉。
+     */
     learningProgress() { return this.learningOverview.progress === null ? 0 : this.learningOverview.progress },
     learningGap() { return Math.max(0, 70 - this.learningProgress) },
     qualified() { return this.learningProgress >= 70 && Number(this.protocolStatus) === 1 },
@@ -734,13 +706,21 @@ export default {
     goResult(session) {
       const ids = ((session && session.exams) || []).map(e => e.examId).filter(id => id != null)
       if (!ids.length) {
-        this.$router.push('/assessment/intern/learning/result')
+        // 没有可下钻的场次时直接去「考核成绩与转正」栏（本页就在学习与考核页里，带锚点跳）
+        this.$router.push({ path: '/assessment/intern/learning', hash: '#sec-result' })
         return
       }
       this.$router.push({ path: '/assessment/intern/learning/exam-result', query: { exams: ids.join(',') } })
     },
-    goGuide() { this.$router.push('/assessment/intern/learning/guide') },
+    /**
+     * 返回上一级：「学习与考核」页的**正式考核**栏。
+     * （本组件就是那一栏，面包屑被 all.vue 隐藏；以前写的是工作台 —— 二级页不该跳过上层回首页。）
+     */
     goBack() {
+      this.$router.push({ path: '/assessment/intern/learning', hash: '#sec-exam' })
+    },
+    /** 交卷完成后的「返回首页」：这里确实是回工作台，不是返回上一级 */
+    goHome() {
       this.$router.push('/index')
     },
     handleBeforeUnload(e) {
@@ -826,24 +806,14 @@ export default {
 .pm-empty { display: flex; min-height: 150px; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: #98a2b3; }
 .pm-empty i { color: #b7c1cc; font-size: 32px; }
 .pm-empty span { font-size: 13px; }
-.dsample { display: inline-block; margin-left: 5px; padding: 0 5px; color: #b54708; background: #fff4e5; font-size: 10px; font-style: normal; line-height: 15px; border-radius: 8px; }
 .file-row { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding: 13px 15px; background: #fafcff; border: 1px solid #e9eff7; border-radius: 6px; }
 .file-tag { flex: none; padding: 4px 8px; color: #1764f5; background: #e2ecff; font-size: 11px; border-radius: 4px; }
 .file-name { flex: 1; min-width: 0; }
 .file-name b { display: block; color: #1d2939; font-size: 13.5px; }
 .file-name span { display: block; margin-top: 4px; color: #98a2b3; font-size: 11.5px; }
-
-/* 资格校验 */
-.trip-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-.trip-grid .pm-card { margin-bottom: 0; }
-.chk-list { display: grid; gap: 10px; margin-top: 14px; }
-.chk { display: flex; align-items: center; gap: 8px; color: #475467; font-size: 12.5px; }
-.chk b { margin-left: auto; color: #1d2939; font-weight: 600; }
-.chk b.good { color: #067647; }
-.chk b.warn { color: #b54708; }
-.chk .mark { display: inline-flex; width: 18px; height: 18px; flex: none; align-items: center; justify-content: center; color: #98a2b3; background: #f2f4f7; font-size: 11px; border-radius: 50%; }
-.chk .mark.ok { color: #fff; background: #12b76a; }
-.chk .mark.no { color: #fff; background: #f79009; }
+/* 「③ 资格校验」卡已按需求从本页移除（2026-09-23），
+   原 .trip-grid / .chk-list / .chk* / .dsample 样式随之清理；
+   资质门槛本身早已在 buildAction 里临时停用（见那里的注释），所以这里只是去掉展示。 */
 .kv-list { display: grid; gap: 9px; margin-top: 14px; }
 .kv-list .row { display: flex; align-items: center; justify-content: space-between; color: #667085; font-size: 12.5px; }
 .kv-list .row b { color: #1d2939; font-weight: 600; }
@@ -904,7 +874,6 @@ export default {
 
 @media (max-width: 1200px) {
   .session-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .trip-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
   .exam-page { padding: 16px 12px 40px; }

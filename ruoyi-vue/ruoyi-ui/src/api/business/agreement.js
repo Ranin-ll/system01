@@ -14,3 +14,11 @@ export function signCurrentAgreement(data) {
     data
   })
 }
+
+// 本人的签署凭证（含签名图 dataUrl）。未签署过返回 data = null。
+export function getMyAgreementSignature() {
+  return request({
+    url: '/business/auth/agreement/signature',
+    method: 'get'
+  })
+}

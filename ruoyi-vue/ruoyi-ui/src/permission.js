@@ -5,22 +5,25 @@ import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { getToken } from '@/utils/auth'
 import { isRelogin } from '@/utils/request'
-import { FORMAL_INTERN_BLOCKED_PATHS } from '@/utils/internTabs'
 
 NProgress.configure({ showSpinner: false })
 
 const whiteList = ['/login', '/register']
 
+// 正式实习生（转正后）被关闭的入口路径 —— **前缀匹配**。
+// 备考资料 + 两个模拟考核（模拟理论 / 模拟实操，由 /learning/mock 前缀覆盖）对其关闭；
+// 模拟考核是「预备期」的功能，转正后只留历史记录可查。
+// ⚠️ 正式考核不在名单里：它 2026-09-23 已回到合并页当一栏（/assessment/intern/learning#sec-exam），
+//    转正后照样要参加，拦了会把人弹回工作台。
 const formalInternBlockedPaths = [
+  '/assessment/intern/learning/guide',
+  '/assessment/intern/learning/mock',
   '/assessment/intern/practice',
   '/assessment/intern/study-guide',
-  '/assessment/intern/theory-exam',
+  '/assessment/intern/theory-exam'
   // 实操题详情页（/assessment/intern/practice-subject/:id）已被上面的
   // /assessment/intern/practice 前缀覆盖，无需重复声明；
   // 原独立「实操题库」列表页（/assessment/intern/practice-subject）已删除。
-  // 「学习与考核」页签化后，备考资料 / 模拟考核的新地址挪到了 /learning 之下，
-  // 上面几条旧前缀已拦不到，必须单独列出（见 utils/internTabs.js）。
-  ...FORMAL_INTERN_BLOCKED_PATHS
 ]
 
 function isIntern() {

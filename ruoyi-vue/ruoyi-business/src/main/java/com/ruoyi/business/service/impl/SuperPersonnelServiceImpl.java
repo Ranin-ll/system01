@@ -47,6 +47,9 @@ public class SuperPersonnelServiceImpl implements ISuperPersonnelService {
     @Autowired
     private com.ruoyi.system.service.ISysUserService userService;
 
+    @Autowired
+    private com.ruoyi.business.service.IInternAuthService internAuthService;
+
     /** 人员与账号的维护仅超管可做 */
     private void requireSuperAdmin() {
         Long uid = SecurityUtils.getUserId();
@@ -76,7 +79,10 @@ public class SuperPersonnelServiceImpl implements ISuperPersonnelService {
         if (detail == null) {
             throw new ServiceException("人员不存在或已删除");
         }
-        return detail;
+        // 附上该实习生的签署凭证（含签名图）；未签署时为 null —— 超管档案页要能看到真实签名
+        Map<String, Object> result = new java.util.LinkedHashMap<>(detail);
+        result.put("agreementSignature", internAuthService.getAgreementSignature(userId));
+        return result;
     }
 
     @Override

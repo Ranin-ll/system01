@@ -1,7 +1,7 @@
 <template>
   <div class="guide-page">
     <div class="guide-breadcrumb">
-      <span>学习与考核</span>
+      <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回学习与考核</el-button>
       <span>/</span>
       <b>备考资料</b>
     </div>
@@ -162,14 +162,25 @@ export default {
         return
       }
       triggerDownload(this.baseApi, url, (item && (item.materialName || item.name)) || '')
+    },
+    /**
+     * 返回来源页：「学习与考核」的**考核入口卡栏**（本页就是从那张「备考资料」卡进来的）。
+     * 本页是二级页，不该跳过上层直接回工作台。
+     */
+    goBack() {
+      this.$router.push({ path: '/assessment/intern/learning', hash: '#sec-entries' })
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.guide-page { min-height: 100%; padding: 0 0 40px; color: #283544; }
-.guide-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #98a2b3; font-size: 12px; }
+/* 本页 2026-09-23 从「学习与考核」里拆回独立页：原来它是当合并页的子分节写的，
+   顶部与左右都没有内边距（由 all.vue 统一提供），独立成页后标题和白卡直接贴住视口边缘。
+   这里补齐与「模拟理论考核 / 模拟实操考核 / 正式考核」几页同款的内边距与底色。 */
+.guide-page { min-height: 100%; padding: 24px 26px 60px; color: #283544; background: #f5f7fa; }
+.guide-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: #98a2b3; font-size: 12px; }
+.guide-breadcrumb .el-button { padding: 0; color: #1764f5; font-size: 12px; }
 .guide-breadcrumb b { color: #475467; font-weight: 500; }
 .guide-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 18px; }
 .eyebrow { color: #2878c7; font-size: 11px; letter-spacing: .08em; }
@@ -202,7 +213,7 @@ export default {
 .file-preview-tip i { font-size: 48px; color: #c3cdd9; display: block; margin-bottom: 12px; }
 .file-preview-tip p { margin: 0 0 16px; font-size: 13px; }
 @media (max-width: 700px) {
-  .guide-page { padding-bottom: 28px; }
+  .guide-page { padding: 16px 12px 32px; }
   .guide-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
   .guide-heading h1 { font-size: 24px; }
   .guide-panel { padding: 18px 14px; }

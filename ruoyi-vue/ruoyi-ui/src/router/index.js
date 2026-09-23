@@ -111,86 +111,106 @@ export const dynamicRoutes = [
     roles: ['PRE_TRAINEE', 'FORMAL_TRAINEE'],
     children: [
       {
-        // 「学习与考核」页签壳：承载 5 个页签子路由（在线学习 / 备考资料 / 模拟考核 / 正式考核 / 考核成绩与转正）
+        // 「学习与考核」单页（2026-09-23 由「页签壳 + 5 个子页」合并而来）
+        //
+        // 现状（2026-09-23 二次调整）：本页只堆叠「在线学习 → 考核入口卡栏 →
+        // 考核成绩与转正」三段（顺序见 utils/internTabs.js）；备考资料 / 模拟考核 /
+        // 正式考核已拉回独立页面，本页只保留横排入口卡。侧栏仍只留一个入口。
         path: 'learning',
-        component: () => import('@/views/assessment/learning/shell'),
-        name: 'InternLearningShell',
-        redirect: '/assessment/intern/learning/courses',
-        meta: { title: '学习与考核', activeMenu: '/assessment/intern/learning' },
-        children: [
-          {
-            path: 'courses',
-            component: () => import('@/views/assessment/learning/index'),
-            name: 'InternLearning',
-            meta: { title: '在线学习', activeMenu: '/assessment/intern/learning', tab: 'InternLearning' }
-          },
-          {
-            path: 'guide',
-            component: () => import('@/views/assessment/guide/index'),
-            name: 'InternGuide',
-            meta: { title: '备考资料', activeMenu: '/assessment/intern/learning', tab: 'InternGuide' }
-          },
-          {
-            path: 'mock',
-            component: () => import('@/views/assessment/practice/index'),
-            name: 'InternMockExam',
-            meta: { title: '模拟考核', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
-          },
-          {
-            path: 'exam',
-            component: () => import('@/views/assessment/exam/index'),
-            name: 'InternLearningExam',
-            meta: { title: '正式考核', activeMenu: '/assessment/intern/learning', tab: 'InternLearningExam' }
-          },
-          {
-            // 单场考核结果：?exams=16,17 —— 只展示点击那一场（一个场次可能含理论+实操两个环节）
-            path: 'exam-result',
-            component: () => import('@/views/assessment/exam/result'),
-            name: 'InternExamResult',
-            meta: { title: '单场考核结果', activeMenu: '/assessment/intern/learning', tab: 'InternLearningExam' }
-          },
-          {
-            path: 'result',
-            component: () => import('@/views/assessment/result/index'),
-            name: 'InternResult',
-            meta: { title: '考核成绩与转正', activeMenu: '/assessment/intern/learning', tab: 'InternResult' }
-          }
-        ]
+        component: () => import('@/views/assessment/learning/all'),
+        name: 'InternLearningAll',
+        meta: { title: '学习与考核', activeMenu: '/assessment/intern/learning' }
+      },
+      // ---------------------------------------------------------------------
+      // 路径兼容（2026-09-23 下午调整后）：
+      //   · learning/guide                     → 独立页「备考资料」
+      //   · learning/mock/{theory|practice}    → 独立页「模拟理论考核」「模拟实操考核」
+      //   · learning/exam                      → **回到合并页分节**（正式考核在学习与考核页里自成栏）
+      //   · learning/courses|result            → 重定向到合并页对应分节；
+      //   · 用函数式 redirect 是为了**保留 query** —— 成绩页的 ?examId=（消息中心
+      //     跳转）、模拟考核回顾页「再练一次」的 ?start=1[&examId=] 都依赖它。
+      // ---------------------------------------------------------------------
+      {
+        path: 'learning/courses',
+        redirect: to => ({ path: '/assessment/intern/learning', query: to.query, hash: '#sec-learning' })
+      },
+      {
+        // 备考资料：2026-09-23 从合并页拉回为独立页（合并页只留入口卡）
+        path: 'learning/guide',
+        component: () => import('@/views/assessment/guide/index'),
+        name: 'InternGuide',
+        meta: { title: '备考资料', activeMenu: '/assessment/intern/learning' }
+      },
+      {
+        // 旧「模拟考核」总入口 → 默认落到模拟理论考核（保留 query 供「再练一次」）
+        path: 'learning/mock',
+        redirect: to => ({ path: '/assessment/intern/learning/mock/theory', query: to.query })
+      },
+      {
+        // 模拟理论考核：清单（列表）+ 自测 + 记录，2026-09-23 由原「模拟考核」拆出并去掉模块层级
+        path: 'learning/mock/theory',
+        component: () => import('@/views/assessment/practice/theory'),
+        name: 'InternMockTheory',
+        meta: { title: '模拟理论考核', activeMenu: '/assessment/intern/learning' }
+      },
+      {
+        // 模拟实操考核：实操模拟题卡片，2026-09-23 由原「模拟考核 › 模块 › 实操题」拆出
+        path: 'learning/mock/practice',
+        component: () => import('@/views/assessment/practice/practical'),
+        name: 'InternMockPractical',
+        meta: { title: '模拟实操考核', activeMenu: '/assessment/intern/learning' }
+      },
+      {
+        // 正式考核：2026-09-23 下午回到合并页当一栏（不再独立成页）
+        path: 'learning/exam',
+        redirect: to => ({ path: '/assessment/intern/learning', query: to.query, hash: '#sec-exam' })
+      },
+      {
+        path: 'learning/result',
+        redirect: to => ({ path: '/assessment/intern/learning', query: to.query, hash: '#sec-result' })
+      },
+      {
+        // 下钻页：单场考核结果 ?exams=16,17 —— 只展示点击那一场
+        // （一个场次可能含理论+实操两个环节）。它不是页签，保留为独立路由。
+        path: 'learning/exam-result',
+        component: () => import('@/views/assessment/exam/result'),
+        name: 'InternExamResult',
+        meta: { title: '单场考核结果', activeMenu: '/assessment/intern/learning' }
       },
       {
         path: 'learning/course/:courseId',
         component: () => import('@/views/assessment/learning/detail'),
         name: 'InternLearningCourse',
-        meta: { title: '课程学习', activeMenu: '/assessment/intern/learning', tab: 'InternLearning' }
+        meta: { title: '课程学习', activeMenu: '/assessment/intern/learning' }
       },
       {
-        // 旧路径兼容：备考资料已并入「学习与考核」页签
+        // 旧路径兼容：备考资料已拉回为独立页 /assessment/intern/learning/guide
         path: 'study-guide',
-        redirect: '/assessment/intern/learning/guide'
+        redirect: to => ({ path: '/assessment/intern/learning/guide', query: to.query })
       },
       {
+        // 旧路径兼容：顶层「参与考核」→ 学习与考核页的「正式考核」栏。
+        // 工作台「参加 9 月正式考核 → 查看」等入口都指这里；正式考核 2026-09-23 已回到合并页当一栏。
         path: 'exam',
-        component: () => import('@/views/assessment/exam/index'),
-        name: 'InternExam',
-        meta: { title: '参与考核', activeMenu: '/index' }
+        redirect: to => ({ path: '/assessment/intern/learning', query: to.query, hash: '#sec-exam' })
       },
       {
-        // 旧路径兼容：模拟考核已并入「学习与考核」页签。
+        // 旧路径兼容：模拟考核总入口 → 模拟理论考核。
         // 用函数式 redirect 保留 query —— record.vue 的「再练一次」依赖 ?start=1 触发自动抽题。
         path: 'mock-exam',
-        redirect: to => ({ path: '/assessment/intern/learning/mock', query: to.query })
+        redirect: to => ({ path: '/assessment/intern/learning/mock/theory', query: to.query })
       },
       {
         path: 'mock-exam/record/:recordId(\\d+)',
         component: () => import('@/views/assessment/practice/record'),
         name: 'InternMockExamRecord',
-        meta: { title: '模拟考核回顾', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+        meta: { title: '模拟考核回顾', activeMenu: '/assessment/intern/learning' }
       },
       {
         path: 'practice-subject/:id(\\d+)',
         component: () => import('@/views/assessment/practice/subjectDetail'),
         name: 'InternPracticeSubjectDetail',
-        meta: { title: '实操题详情', activeMenu: '/assessment/intern/learning', tab: 'InternMockExam' }
+        meta: { title: '实操题详情', activeMenu: '/assessment/intern/learning' }
       },
       {
         // 能力画像详情（工作台「能力画像 · 详情」下钻，设计稿 i9）。
@@ -201,9 +221,17 @@ export const dynamicRoutes = [
         meta: { title: '能力画像', activeMenu: '/index' }
       },
       {
-        // 旧路径兼容：考核记录已并入「学习与考核 · 考核成绩与转正」页签
+        // 保密协议与签署凭证：工作台「保密协议」「签署凭证」两个入口的目标页。
+        // 此前两处 pill 都指向该路径但从未注册 → 点进去是空白/404。
+        path: 'agreements',
+        component: () => import('@/views/assessment/agreement/index'),
+        name: 'InternAgreement',
+        meta: { title: '保密协议与签署凭证', activeMenu: '/index' }
+      },
+      {
+        // 旧路径兼容：考核记录已并入「学习与考核」单页的 05 段
         path: 'scores',
-        redirect: '/assessment/intern/learning/result'
+        redirect: to => ({ path: '/assessment/intern/learning', query: to.query, hash: '#sec-result' })
       }
     ]
   },
