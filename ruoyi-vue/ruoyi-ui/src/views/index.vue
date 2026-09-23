@@ -667,7 +667,12 @@ export default {
     openLearningCourse(course) {
       this.go('/assessment/intern/learning/course/' + course.id)
     },
-    go(path) { this.$router.push(path) },
+    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    go(path, query) {
+      if (!path) return
+      if (!this.$router.resolve(path).route.matched.length) return
+      this.$router.push(query ? { path, query } : path).catch(() => {})
+    },
     openRecord(record) {
       // 未生成/待处理的记录不跳转，先说明原因，避免点进空页面。
       if (record.tone === 'is-idle' || record.tone === 'is-pending') {

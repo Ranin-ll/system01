@@ -1,5 +1,5 @@
 <template>
-  <div class="dept-page">
+  <div v-loading="loading" class="dept-page">
     <div class="dept-breadcrumb">
       人员管理 <span>/</span> <b>实习转正审核</b>
     </div>
@@ -11,7 +11,7 @@
         <p>把「预备实习生」变成「正式实习生」的审批台。左列表 + 右决策页，核心是资格核对清单 —— 每项都有明确的数据依据。</p>
       </div>
       <div class="dept-heading-actions">
-        <span class="dsample">演示数据 · promotion_application 待后端</span>
+        <span class="dsample">名单真实 · 资格项待接入</span>
       </div>
     </div>
 
@@ -99,7 +99,7 @@
         <template v-if="current">
           <div class="dcard-h">
             <div class="tt"><span class="idx">审</span><h3>审核详情 · {{ current.name }}</h3></div>
-            <span class="hint-text">提交时间 {{ current.submittedAt }}</span>
+            <span class="hint-text">{{ current.submittedAt ? '提交时间 ' + current.submittedAt : '尚未提交转正申请' }}</span>
           </div>
 
           <div class="dcallout" :class="current.verdict.tone === 'green' ? 'ok' : (current.verdict.tone === 'red' ? 'warn' : 'warn')" style="margin-bottom:12px">
@@ -111,8 +111,8 @@
 
           <div class="dfg2" style="margin-bottom:14px">
             <div v-for="item in current.checklist" :key="item.key" class="dchk">
-              <span class="box" :class="item.pass ? 'sw' : 'fail'">
-                <i :class="item.pass ? 'el-icon-check' : 'el-icon-close'" />
+              <span class="box" :class="item.pass === null ? 'pend' : (item.pass ? 'sw' : 'fail')">
+                <i :class="item.pass === null ? 'el-icon-more' : (item.pass ? 'el-icon-check' : 'el-icon-close')" />
               </span>
               <span v-html="item.text" />
             </div>
@@ -125,7 +125,8 @@
               <div><span>加权综合分</span><strong>{{ fmtScore(current.total) }} <small>理论60% 实操40%</small></strong></div>
               <div>
                 <span>通过线</span>
-                <strong :style="{ color: current.passed ? '#067647' : '#b42318' }">
+                <strong v-if="current.passed === null" style="color:#98a2b3">≥ {{ passLine }} · 待判定</strong>
+                <strong v-else :style="{ color: current.passed ? '#067647' : '#b42318' }">
                   ≥ {{ passLine }} · {{ current.passed ? '已过' : '未过' }}
                 </strong>
               </div>
@@ -140,16 +141,17 @@
                   <div class="dhbar-fill" :class="d.barTone" :style="{ width: d.value + '%' }" />
                 </div>
               </div>
+              <p v-if="!current.dimensions.length" class="dsec-note">四维能力待生成（需 profile_snapshot 聚合接口）。</p>
             </div>
           </div>
 
           <div class="dfield">
             <label>部门管理员评价 · 优势</label>
-            <div class="dinp">{{ current.good }}</div>
+            <div class="dinp">{{ current.good || '—' }}</div>
           </div>
           <div class="dfield">
             <label>待提升 / 改进建议</label>
-            <div class="dinp">{{ current.improve }}</div>
+            <div class="dinp">{{ current.improve || '—' }}</div>
           </div>
 
           <!-- 状态流转 -->
@@ -369,7 +371,7 @@ export default {
         id: c.id,
         name: c.name,
         position: c.position,
-        summary: c.status === 'PENDING' ? c.summary : ('处理时间 ' + (c.decidedAt || '—')),
+        summary: c.summary,
         verdict: c.verdict,
         dotTone: c.verdict.dot
       }))
@@ -464,10 +466,7 @@ export default {
         '确认审批通过',
         { confirmButtonText: '确认通过', cancelButtonText: '取消', type: 'warning' }
       ).then(() => {
-        target.status = 'PASSED'
-        target.decidedAt = this.now()
-        target.verdict = { text: '资格齐备', tone: 'green', dot: 'g' }
-        this.$message.success('已通过「' + target.name + '」的转正审批（演示态：promotion_application 接口待补）')
+        this.$message.warning('转正审批接口（promotion_application）尚未实现 —— 当前仅支持查看，未做任何变更')
       }).catch(() => {})
     },
     reject() {
@@ -478,18 +477,9 @@ export default {
         cancelButtonText: '取消',
         inputType: 'textarea',
         inputPlaceholder: '例如：学习完成率 66% 未达 70% 门槛，建议继续培养一周期。'
-      }).then(({ value }) => {
-        target.status = 'REJECTED'
-        target.decidedAt = this.now()
-        target.rejectReason = value
-        target.verdict = { text: '已驳回', tone: 'gray', dot: '' }
-        this.$message.warning('已驳回「' + target.name + '」的转正申请（演示态）')
+      }).then(() => {
+        this.$message.warning('驳回接口（promotion_application）尚未实现 —— 当前仅支持查看，未做任何变更')
       }).catch(() => {})
-    },
-    now() {
-      const d = new Date()
-      const p = n => (n < 10 ? '0' + n : '' + n)
-      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
     }
   }
 }
@@ -511,6 +501,7 @@ export default {
 .dchk .box { display: inline-flex; width: 18px; height: 18px; flex: none; align-items: center; justify-content: center; margin-top: 1px; font-size: 11px; border-radius: 5px; }
 .dchk .box.sw { color: #fff; background: #12b76a; }
 .dchk .box.fail { color: #fff; background: #f04438; }
+.dchk .box.pend { color: #fff; background: #d0d5dd; }
 
 /* 表单域 */
 .dfield { margin-top: 12px; }

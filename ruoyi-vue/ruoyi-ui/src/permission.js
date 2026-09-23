@@ -68,7 +68,7 @@ function protectedTarget(to) {
     return '/index'
   }
   if (store.getters.roles.indexOf('FORMAL_TRAINEE') > -1 && formalInternBlockedPaths.some(path => to.path.indexOf(path) === 0)) {
-    Message.warning('你已转为正式实习生，备考、模拟考核和正式考核入口已关闭，历史记录仍可查看')
+    Message.warning('你已转为正式实习生，备考、模拟理论考核和正式考核入口已关闭，历史记录仍可查看')
     return '/index'
   }
   return ''

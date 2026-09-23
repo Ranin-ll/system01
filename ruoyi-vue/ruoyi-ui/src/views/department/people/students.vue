@@ -21,7 +21,7 @@
         <div class="dkpi-label">
           <span class="d" :style="{ background: item.color }" />
           {{ item.label }}
-          <span v-if="item.sample" class="dsample">示例</span>
+          <!-- 2026-09-22：不再打「示例」标（没有的指标一律显示 --） -->
         </div>
         <div class="dkpi-val">{{ item.value }}<small>人</small></div>
         <div class="dkpi-sub" :class="item.tone">{{ item.hint }}</div>
@@ -71,10 +71,10 @@
             <th>岗位</th>
             <th>培养状态</th>
             <th>导师</th>
-            <th>保密协议 <span class="dsample">示例</span></th>
-            <th>学习完成率 <span class="dsample">示例</span></th>
-            <th>模拟正确率 <span class="dsample">示例</span></th>
-            <th>正式考核 <span class="dsample">示例</span></th>
+            <th>保密协议</th>
+            <th>学习完成率</th>
+            <th>模拟正确率</th>
+            <th>正式考核</th>
             <th>最近活跃</th>
             <th style="width:170px">操作</th>
           </tr>
@@ -93,16 +93,10 @@
               <span v-if="row.mentorName">{{ row.mentorName }}</span>
               <span v-else class="muted">未分配</span>
             </td>
-            <td>
-              <span class="dbadge" :class="row.demo.protocol ? 'green' : 'red'">
-                {{ row.demo.protocol ? '已签' : '未签' }}
-              </span>
-            </td>
-            <td>{{ row.demo.studyRate }}%</td>
-            <td>{{ row.demo.practiceRate }}%</td>
-            <td>
-              <span class="dbadge" :class="examTone(row.demo.examKey)">{{ row.demo.examText }}</span>
-            </td>
+            <td><span class="muted">--</span></td>
+            <td><span class="muted">--</span></td>
+            <td><span class="muted">--</span></td>
+            <td><span class="muted">--</span></td>
             <td class="muted">{{ fmtDate(row.updateTime || row.createTime) }}</td>
             <td>
               <div class="acts">
@@ -142,14 +136,15 @@
         <i class="el-icon-success" />
         <span>
           表格里「姓名 / 岗位 / 培养状态 / 导师 / 最近活跃」<b>已接真实接口</b>（<code>register_application</code> + <code>sys_user</code>）。
-          带「示例」标记的 4 列需要后端出批量聚合接口，人数多时尤其必要。
+          「保密协议 / 学习完成率 / 模拟正确率 / 正式考核」4 列需后端出<b>批量聚合接口</b>，
+          当前<b>留空显示「--」</b>（不再用随机示例值）。
         </span>
       </div>
       <div class="dcallout warn c6" style="margin:0">
         <i class="el-icon-warning-outline" />
         <span>
           4 个统计卡中，前 3 个来自 <code>sys_user.user_status</code> <b>可真实</b>；
-          「已发证」需要 <code>certificate</code> 表有 Java 层，<b>本期先用示例数据并打标记</b>。
+          「已发证」需要 <code>certificate</code> 表有 Java 层，<b>当前未展示该状态</b>（不做假数据）。
         </span>
       </div>
     </div>
@@ -168,26 +163,6 @@ const STATUS_MAP = {
   ARCHIVED: { text: '已归档', tone: 'gray' }
 }
 
-/** 无聚合接口的列：按行 ID 生成稳定的演示值（不随渲染变化） */
-function demoOf(id) {
-  const seed = (id || 1) * 9301 % 233280
-  const r1 = Math.round((seed / 233280) * 60) + 35
-  const r2 = Math.round(((seed * 7) % 233280) / 233280 * 55) + 40
-  const pick = (seed * 13) % 3
-  const exams = [
-    { examKey: 'PASS', examText: '已通过' },
-    { examKey: 'PENDING', examText: '待批阅' },
-    { examKey: 'NONE', examText: '未参加' }
-  ]
-  return {
-    protocol: seed % 2 === 0,
-    studyRate: Math.min(r1, 100),
-    practiceRate: Math.min(r2, 100),
-    examKey: exams[pick].examKey,
-    examText: exams[pick].examText
-  }
-}
-
 export default {
   name: 'DeptStudents',
   data() {
@@ -202,7 +177,7 @@ export default {
     interns() {
       return this.roster
         .filter(row => row.status === 'PASSED')
-        .map(row => Object.assign({}, row, { demo: demoOf(row.id) }))
+        // 2026-09-22：不再注入随机示例字段（原 row.demo 的 4 列已改为留空显示「--」）
     },
     kpis() {
       const by = key => this.interns.filter(r => r.userStatus === key).length
@@ -213,7 +188,7 @@ export default {
         { key: 'all', label: '在册实习生', value: this.interns.length, hint: '本部门 ' + this.positionOptions.length + ' 个岗位', color: '#1764f5' },
         { key: 'pre', label: '预备实习中', value: pre, hint: 'PRE_TRAINEE', color: '#1764f5' },
         { key: 'promoting', label: '转正审核中', value: promoting, hint: '已推荐待终审', tone: 'warn', color: '#f79009' },
-        { key: 'formal', label: '已转正', value: formal, hint: '转正即生效并自动发证', tone: 'ok', color: '#12b76a', sample: true }
+        { key: 'formal', label: '已转正', value: formal, hint: '转正即生效并自动发证', tone: 'ok', color: '#12b76a' }
       ]
     },
     positionOptions() {
@@ -297,9 +272,6 @@ export default {
     },
     statusMeta(status) {
       return STATUS_MAP[status] || { text: status || '—', tone: 'gray' }
-    },
-    examTone(key) {
-      return { PASS: 'green', PENDING: 'orange', NONE: 'gray' }[key] || 'gray'
     },
     fmtDate(value) {
       if (!value) return '—'

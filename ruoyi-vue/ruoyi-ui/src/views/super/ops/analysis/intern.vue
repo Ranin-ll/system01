@@ -13,7 +13,7 @@
         <h1>{{ user.nickName || user.userName || '个人档案' }}</h1>
         <p>
           培养状态进度 · 学习进度（逐项）· 任务交付 · 模拟与正式考核 · 知识点掌握 · 阶段评价。
-          <strong>学习与任务为实时真数据</strong>；<strong>考核类为示例</strong>（题库与考核模块待同事分支合并）。
+          <strong>除「阶段评价」（表为空）外，全部为实时真数据</strong>。
         </p>
       </div>
       <div class="s-head-actions">
@@ -54,6 +54,7 @@
           <div class="s-card-h">
             <div class="tt"><span class="s-idx p">⓪</span><h3>培养状态进度</h3></div>
             <span class="hint">阶段判定：以角色为主、user_status 为辅</span>
+            <el-button class="hd-link" type="text" size="mini" @click="goPeople">人员与账号 ›</el-button>
           </div>
           <div class="tl">
             <div v-for="(n, i) in timeline" :key="n.key" class="tn" :class="n.cls">
@@ -96,6 +97,7 @@
           <div class="s-card-h">
             <div class="tt"><span class="s-idx g">①</span><h3>学习进度（逐项）</h3></div>
             <span class="hint">{{ study.length }} 项 · 门槛 {{ num(threshold) }}</span>
+            <el-button class="hd-link" type="text" size="mini" @click="go('/super/ops/courses')">课程与题库总览 ›</el-button>
           </div>
           <div v-if="!study.length" class="s-empty"><i class="el-icon-reading" /><span>暂无学习记录</span></div>
           <table v-else class="s-tbl">
@@ -105,7 +107,7 @@
                 <th class="ctr" style="width:62px">读确认</th><th class="ctr" style="width:66px">状态</th></tr>
             </thead>
             <tbody>
-              <tr v-for="s in study" :key="s.recordId">
+              <tr v-for="s in study" :key="s.recordId" class="row-link" title="查看：课程与题库总览" @click="go('/super/ops/courses')">
                 <td>
                   <b>{{ s.itemTitle || ('单项 #' + s.itemId) }}</b>
                   <div class="n1">{{ s.courseName || '（无课程）' }}</div>
@@ -140,6 +142,7 @@
           <div class="s-card-h">
             <div class="tt"><span class="s-idx o">④</span><h3>任务交付（逐任务）</h3></div>
             <span class="hint">{{ tasks.length }} 个 · 逾期 {{ num(user.taskOverdue) }}</span>
+            <el-button class="hd-link" type="text" size="mini" @click="go('/super/todo')">督办看板 ›</el-button>
           </div>
           <div v-if="!tasks.length" class="s-empty"><i class="el-icon-tickets" /><span>暂无任务</span></div>
           <table v-else class="s-tbl">
@@ -148,7 +151,7 @@
                 <th class="ctr" style="width:88px">审核</th><th class="ctr" style="width:70px">提交</th></tr>
             </thead>
             <tbody>
-              <tr v-for="t in tasks" :key="t.assignmentId">
+              <tr v-for="t in tasks" :key="t.assignmentId" class="row-link" title="查看：督办看板" @click="go('/super/todo')">
                 <td>
                   <b>{{ t.taskName || ('任务 #' + t.taskId) }}</b>
                   <div class="n1">截止 {{ fmtDate(t.deadline) }}</div>
@@ -176,11 +179,12 @@
         <section class="s-card s-c5">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx">②</span><h3>模拟考核（逐场）</h3></div>
-            <span class="s-badge warn">示例数据 · 待分支合并</span>
+            <span class="hint">{{ practice.length }} 场</span>
+            <el-button class="hd-link" type="text" size="mini" @click="go('/super/ops/prep')">模拟备考管理 ›</el-button>
           </div>
           <div v-if="!practice.length" class="s-empty"><i class="el-icon-tickets" /><span>暂无模拟考核记录</span></div>
           <template v-else>
-            <div v-for="(p, i) in practice" :key="i" class="s-hbar">
+            <div v-for="(p, i) in practice" :key="i" class="s-hbar link" :title="'查看：模拟备考管理'" @click="go('/super/ops/prep')">
               <span class="nm">{{ p.date }}</span>
               <span class="track"><i :class="p.score >= 8 ? 'g' : (p.score >= 6 ? '' : 'r')" :style="{ width: clamp(p.score * 10) + '%' }" /></span>
               <span class="pc">{{ p.correct }}/{{ p.total }}</span>
@@ -196,11 +200,12 @@
         <section class="s-card s-c7">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx r">⑤</span><h3>知识点掌握（最弱在上）</h3></div>
-            <span class="s-badge warn">示例数据 · 待分支合并</span>
+            <span class="hint">{{ knowledge.length }} 个知识点</span>
+            <el-button class="hd-link" type="text" size="mini" @click="go('/super/ops/bank-admin')">题库管理 ›</el-button>
           </div>
           <div v-if="!knowledge.length" class="s-empty"><i class="el-icon-data-analysis" /><span>暂无逐题明细</span></div>
           <template v-else>
-            <div v-for="k in knowledge" :key="k.point" class="s-hbar" :class="{ low: k.rate < 50 }">
+            <div v-for="k in knowledge" :key="k.point" class="s-hbar link" :class="{ low: k.rate < 50 }" :title="'查看知识点「' + k.point + '」所在题库'" @click="go('/super/ops/bank-admin')">
               <span class="nm" :title="k.point">{{ k.point }}</span>
               <span class="track"><i :style="{ width: Math.max(k.rate, 1) + '%' }" /></span>
               <span class="pc">{{ k.correct }}/{{ k.items }}</span>
@@ -218,17 +223,42 @@
         <section class="s-card s-c6">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx">③</span><h3>正式考核</h3></div>
-            <span class="s-badge warn">示例 · 本人无记录</span>
+            <span class="s-badge" :class="{ warn: !formalList.length }">
+              {{ formalList.length ? formalList.length + ' 场' : '本人无记录' }}
+            </span>
+            <el-button class="hd-link" type="text" size="mini" @click="go('/super/ops/exams')">考核与成绩 ›</el-button>
           </div>
-          <div class="s-steps">
+          <div v-if="!formalList.length" class="s-steps">
             <div class="s-step">
               <span class="mark">—</span>
               <div class="txt">
                 <b class="mut">暂无本人正式考核记录</b>
-                <span>全库仅 1 张已发布答卷（属设计部门实习生，0 分未通过）。此处显示说明文案，<b>不留空白骨架</b>。</span>
+                <span>该实习生没有已提交的正式考核答卷 ⇒ 显示说明文案，<b>不留空白骨架、不编分</b>。有记录后此处逐场列出。</span>
               </div>
             </div>
           </div>
+          <template v-else>
+            <div
+              v-for="(f, i) in formalList"
+              :key="f.sheetId || i"
+              class="s-hbar link"
+              :title="'查看：' + f.examName"
+              @click="go('/super/ops/exams')"
+            >
+              <span class="nm">
+                {{ f.examName }}
+                <span class="n1">{{ f.examType === 'PRACTICAL' ? '实操' : '理论' }} · 通过线 {{ f.passLine }} · {{ f.submitTime || '未提交' }}</span>
+              </span>
+              <span class="track">
+                <i :class="Number(f.passFlag) === 1 ? 'g' : 'r'" :style="{ width: formalBarWidth(f) }" />
+              </span>
+              <span class="pc">{{ f.finalScore === null || f.finalScore === undefined ? '待判' : f.finalScore }}</span>
+            </div>
+            <p class="s-note">
+              共 {{ formalList.length }} 场 · 绿条 = 已通过（<code>pass_flag=1</code>）。
+              未判分 / 未发布显示「待判」，<b>不以 0 分占位</b>。
+            </p>
+          </template>
         </section>
 
         <section class="s-card s-c6">
@@ -270,12 +300,12 @@
  *   ★ 这两个查询补的是「超管读缺口」—— `/business/learning/**`、`/business/practice/**`
  *     的类级注解只放实习生角色；本模块另写只读路径，**没去动那两处的类级注解**。
  *
- * 示例（`_mock.js`）：模拟考核逐场 / 知识点掌握 / 正式考核
+ * ★ 2026-09-22 起「模拟考核逐场 / 知识点掌握 / 正式考核」也**是**真数据 ——
+ *   来自同一接口返回的 practice / knowledge / formal（原先由 _mock.js 填充，前提已失效）
  * 无数据：阶段评价（`stage_evaluation` 0 行）
  */
 import { getInternDetail } from '@/api/business/analysis'
 import DataTag from '@/components/DataTag'
-import { mockIntern, mockInternKnowledge, mockInternPractice } from './_mock'
 
 /** 阶段顺序（与后端 InternStageRow.stage 的取值一致） */
 const STAGE_ORDER = ['WAIT_AUDIT', 'PRE_TRAINEE', 'PENDING_PROMOTE', 'FORMAL_TRAINEE']
@@ -290,6 +320,10 @@ export default {
       user: {},
       study: [],
       tasks: [],
+      /** 考核类（2026-09-22 起为真数据） */
+      practiceList: [],
+      formalList: [],
+      knowledgeList: [],
       threshold: 70
     }
   },
@@ -339,18 +373,20 @@ export default {
       })
     },
 
-    /** 转正 gate：逐条勾选（学习/任务/协议为真数据；正式考试为示例；终审无数据） */
+    /** 转正 gate：逐条勾选（5 条**全部为真数据**；「部门终审」因 promotion_application 无表 ⇒ 恒未通过） */
     gate() {
       const th = Number(this.threshold || 70)
       const total = Number(this.user.learnTotal || 0)
       const done = Number(this.user.learnDone || 0)
       const learnRate = total > 0 ? done * 100 / total : 0
-      const formalPassed = mockIntern(this.userId).formalPassed
+      // 真数据：取该人最近一场正式考核的通过标志（无记录 → undefined，表示未参加）
+      const lastFormal = this.formalList.length ? this.formalList[this.formalList.length - 1] : null
+      const formalPassed = lastFormal ? Number(lastFormal.passFlag) : undefined
       const rows = [
         { key: 'learn', label: '学习达标（≥ ' + th + '）',
           ok: total > 0 && learnRate >= th, mock: false,
           text: total > 0 ? (done + '/' + total + ' 项达标，达标率 ' + Math.round(learnRate) + '%') : '暂无学习记录' },
-        { key: 'formal', label: '正式考试通过', ok: formalPassed === 1, mock: true,
+        { key: 'formal', label: '正式考试通过', ok: formalPassed === 1, mock: false,
           text: formalPassed === undefined || formalPassed === null ? '无本人考核记录' : (formalPassed === 1 ? '已通过' : '未通过') },
         { key: 'task', label: '任务无逾期', ok: Number(this.user.taskOverdue || 0) === 0, mock: false,
           text: Number(this.user.taskOverdue || 0) > 0 ? ('逾期 ' + this.user.taskOverdue + ' 个') : '无逾期' },
@@ -365,10 +401,9 @@ export default {
       }))
     },
 
-    /** 模拟考核（示例）：按分数升序，便于看趋势 */
+    /** 模拟考核逐场（真数据）：按时间升序，便于看趋势 */
     practice() {
-      const list = mockInternPractice(this.userId)
-      return list.map(p => Object.assign({}, p))
+      return (this.practiceList || []).map(p => Object.assign({}, p))
     },
     practiceAvg() {
       if (!this.practice.length) return '--'
@@ -376,9 +411,9 @@ export default {
       return Math.round(s / this.practice.length * 100) / 100
     },
 
-    /** 知识点（示例）：题次 >= 2、按正确率升序（最弱在上） */
+    /** 知识点掌握（真数据）：题次 >= 2、按正确率升序（最弱在上） */
     knowledge() {
-      return mockInternKnowledge(this.userId)
+      return (this.knowledgeList || [])
         .filter(k => k.items >= 2)
         .map(k => Object.assign({}, k, { rate: Math.round(k.correct * 100 / k.items) }))
         .sort((a, b) => a.rate - b.rate)
@@ -393,6 +428,22 @@ export default {
     }
   },
   methods: {
+    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    go(path, query) {
+      if (!path) return
+      if (!this.$router.resolve(path).route.matched.length) return
+      this.$router.push(query ? { path, query } : path).catch(() => {})
+    },
+    /** 人员类下钻统一落「人员与账号 · 人员列表」 */
+    goPeople() {
+      this.go('/super/org/accounts', { tab: 'people' })
+    },
+    /** 正式考核条：终分按百分制画；无终分（未判/未发布）画 0，并配「待判」文案 */
+    formalBarWidth(f) {
+      const v = Number(f.finalScore)
+      if (f.finalScore === null || f.finalScore === undefined || isNaN(v)) return '0%'
+      return this.clamp(v) + '%'
+    },
     num(v) {
       return (v === null || v === undefined) ? 0 : v
     },
@@ -451,6 +502,9 @@ export default {
         this.user = d.user || {}
         this.study = d.study || []
         this.tasks = d.tasks || []
+        this.practiceList = d.practice || []
+        this.formalList = d.formal || []
+        this.knowledgeList = d.knowledge || []
         this.threshold = d.threshold || 70
       }).catch(err => {
         this.error = (err && err.message) ? err.message
@@ -588,4 +642,13 @@ export default {
 .s-hbar.low .track i { background: $orange; }
 
 .gate .mark { font-size: 12px; }
+
+/* ==================== 2026-09-22：全卡片可点（与 L0/L1 统一 affordance） ====================
+   ★ 只加视觉与鼠标态；跳转走 go() / goPeople()，目标路由不存在时不动（不给死链）。 */
+.link { position: relative; cursor: pointer; transition: background .15s; }
+.link:hover { background: #f7fbff; }
+.s-hbar.link:hover { border-radius: 6px; }
+.s-tbl tbody tr.row-link { cursor: pointer; }
+.s-tbl tbody tr.row-link:hover { background: #f7fbff; }
+.hd-link { padding: 0; color: $blue; font-size: 12px; }
 </style>

@@ -92,7 +92,12 @@
               WHERE ai.answer_sheet_id = s.id) AS totalFullScore,
             <!-- 已批题数 = 已人工打分的题数（实操批阅进度） -->
             (SELECT COUNT(1) FROM answer_sheet_item ai
-              WHERE ai.answer_sheet_id = s.id AND ai.manual_score IS NOT NULL) AS gradedCount
+              WHERE ai.answer_sheet_id = s.id AND ai.manual_score IS NOT NULL) AS gradedCount,
+            <!-- 第 N 次：同人同场按答卷 id 升序的序号（未应考为 NULL → 前端显「—」） -->
+            CASE WHEN s.id IS NULL THEN NULL ELSE (
+                SELECT COUNT(1) FROM answer_sheet x
+                WHERE x.exam_id = s.exam_id AND x.user_id = s.user_id AND x.id &lt;= s.id
+            ) END AS retakeSeq
         FROM sys_user u
         LEFT JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
         LEFT JOIN answer_sheet s ON s.user_id = u.user_id AND s.exam_id = #{examId}
@@ -160,6 +165,7 @@
         <result property="stemSnapshot" column="stem_snapshot"/>
         <result property="fullScore"   column="full_score"/>
         <result property="stem"          column="stem"           />
+        <result property="knowledgePoint" column="knowledge_point"/>
         <result property="answer"        column="answer"         />
         <result property="attachmentUrl" column="attachment_url" />
         <result property="optionsJson"   column="options_json"   />
@@ -177,6 +183,8 @@
                i.user_answer, i.is_correct, i.ai_score, i.manual_score, i.manual_comment,
                i.manual_user_id, i.manual_time, i.stem_snapshot, i.full_score,
                COALESCE(i.stem_snapshot, q.stem, si.title)            AS stem,
+               <!-- 知识点/章节：L2 按章节算得分率（实操题为空） -->
+               q.knowledge_point,
                q.answer,
                q.options_json,
                q.attachment_url,

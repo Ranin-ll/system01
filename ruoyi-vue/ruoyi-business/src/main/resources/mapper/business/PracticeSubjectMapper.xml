@@ -7,6 +7,10 @@
         <id     property="id"               column="id"                />
         <result property="deptId"           column="dept_id"           />
         <result property="moduleId"         column="module_id"         />
+        <result property="bankId"           column="bank_id"           />
+        <result property="suggestScore"     column="suggest_score"     />
+        <result property="chapter"          column="chapter"           />
+        <result property="bankName"         column="bank_name"         />
         <result property="title"            column="title"             />
         <result property="direction"        column="direction"         />
         <result property="directionDesc"    column="direction_desc"    />
@@ -30,7 +34,8 @@
     </resultMap>
 
     <sql id="subjectColumns">
-        s.id, s.dept_id, s.module_id, s.title, s.direction, s.direction_desc, s.difficulty,
+        s.id, s.dept_id, s.module_id, s.bank_id, s.title, s.direction, s.direction_desc, s.difficulty,
+        s.suggest_score, s.chapter,b.bank_name,
         s.estimated_minutes, s.deliverables, s.dev_constraints, s.submit_format,
         s.naming_rule, s.reference_images, s.sort_no,
         s.content, s.attachments_json, s.status,
@@ -42,6 +47,7 @@
     <sql id="subjectJoins">
         LEFT JOIN sys_dept d ON d.dept_id = s.dept_id AND d.del_flag = '0'
         LEFT JOIN practice_module m ON m.id = s.module_id AND m.deleted = 0
+        LEFT JOIN question_bank b ON b.id = s.bank_id AND b.deleted = 0
     </sql>
 
     <select id="selectSubjectList" resultMap="PracticeSubjectResult">
@@ -58,6 +64,12 @@
             </if>
             <if test="moduleId != null">
                 AND s.module_id = #{moduleId}
+            </if>
+            <if test="bankId != null">
+                AND s.bank_id = #{bankId}
+            </if>
+            <if test="chapter != null and chapter != ''">
+                AND s.chapter = #{chapter}
             </if>
             <if test="status != null">
                 AND s.status = #{status}
@@ -100,11 +112,11 @@
 
     <insert id="insertSubject" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO practice_subject
-            (dept_id, module_id, title, direction, direction_desc, difficulty, estimated_minutes,
+            (dept_id, module_id, bank_id, title, direction, direction_desc, difficulty, suggest_score, chapter, estimated_minutes,
              deliverables, dev_constraints, submit_format, naming_rule, reference_images,
              sort_no, content, attachments_json, status, create_by, create_time, update_time, deleted)
         VALUES
-            (#{deptId}, #{moduleId}, #{title}, #{direction}, #{directionDesc}, #{difficulty}, #{estimatedMinutes},
+            (#{deptId}, #{moduleId}, #{bankId}, #{title}, #{direction}, #{directionDesc}, #{difficulty}, #{suggestScore}, #{chapter}, #{estimatedMinutes},
              #{deliverables}, #{devConstraints}, #{submitFormat}, #{namingRule}, #{referenceImages},
              #{sortNo}, #{content}, #{attachmentsJson}, #{status}, #{createBy}, NOW(), NOW(), 0)
     </insert>
@@ -113,6 +125,9 @@
         UPDATE practice_subject
         <set>
             <if test="moduleId != null">module_id = #{moduleId},</if>
+            <if test="bankId != null">bank_id = #{bankId},</if>
+            <if test="suggestScore != null">suggest_score = #{suggestScore},</if>
+            <if test="chapter != null">chapter = #{chapter},</if>
             <if test="title != null">title = #{title},</if>
             <if test="direction != null">direction = #{direction},</if>
             <if test="directionDesc != null">direction_desc = #{directionDesc},</if>
