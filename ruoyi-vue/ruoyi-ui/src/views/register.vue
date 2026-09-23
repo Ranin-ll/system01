@@ -15,7 +15,7 @@
       <el-form-item prop="password"><el-input v-model="registerForm.password" type="password" show-password placeholder="登录密码" auto-complete="off"><svg-icon slot="prefix" icon-class="password" class="el-input__icon input-icon" /></el-input></el-form-item>
       <el-form-item prop="confirmPassword"><el-input v-model="registerForm.confirmPassword" type="password" show-password placeholder="确认密码" auto-complete="off" @keyup.enter.native="handleRegister"><svg-icon slot="prefix" icon-class="password" class="el-input__icon input-icon" /></el-input></el-form-item>
       <el-form-item prop="realName"><el-input v-model="registerForm.realName" placeholder="真实姓名" auto-complete="off"><svg-icon slot="prefix" icon-class="user" class="el-input__icon input-icon" /></el-input></el-form-item>
-      <el-form-item prop="idCard"><el-input v-model="registerForm.idCard" placeholder="身份证号" auto-complete="off"><svg-icon slot="prefix" icon-class="validCode" class="el-input__icon input-icon" /></el-input></el-form-item>
+      <el-form-item prop="idCard"><el-input v-model="registerForm.idCard" placeholder="身份证号" auto-complete="off" @input="onIdCardInput"><svg-icon slot="prefix" icon-class="validCode" class="el-input__icon input-icon" /></el-input></el-form-item>
       <el-form-item prop="positionId"><el-select v-model="registerForm.positionId" placeholder="选择意向岗位" filterable class="full-width"><el-option v-for="position in positions" :key="position.id" :label="position.positionName" :value="position.id"><span>{{ position.positionName }}</span><small class="position-code">{{ position.positionCode }}</small></el-option></el-select></el-form-item>
       <div v-if="selectedPosition" class="dept-match"><span class="dept-match-label">自动匹配部门</span><strong>{{ selectedPosition.deptName || '待配置' }}</strong><span v-if="selectedPosition.deptName" class="dept-match-tip">提交后由该部门管理员审核</span></div>
       <el-form-item><el-date-picker v-model="registerForm.expectedEntryDate" type="date" value-format="yyyy-MM-dd" placeholder="预计入职日期（可选）" class="full-width" /></el-form-item>
@@ -121,21 +121,32 @@ import BrandLogo from '@/components/BrandLogo'
  */
 const DUPLICATE_REGISTER_HINT = /账号已存在|手机号已注册|已提交过注册|需使用原申请密码|原申请账号数据不存在/
 
+/**
+ * 「身份证号已被占用」的后端文案。
+ * ⚠️ 刻意与 DUPLICATE_REGISTER_HINT 不重叠 —— 这种情况**绝不能**去探审核进度：
+ * 该身份证挂在**别人的账号**下，把它的审核状态展示出来就是隐私泄露。
+ * 命中后只做一件事：把文案落到「身份证号」字段的行内错误上。
+ */
+const IDCARD_TAKEN_HINT = /身份证号已被其他账号使用|身份证号已注册|身份证号已被使用/
+
 export default {
   name: 'Register',
   components: { BrandLogo },
   data() {
     const equalToPassword = (rule, value, callback) => { if (this.registerForm.password !== value) callback(new Error('两次输入的密码不一致')); else callback() }
     const validateCode = (rule, value, callback) => { if (this.captchaEnabled && !value) callback(new Error('请输入验证码')); else callback() }
+    /* 身份证号被占用：由提交后的后端文案回填，用户一改动该字段就自动撤销 */
+    const validateIdCardConflict = (rule, value, callback) => { if (this.idCardConflict) callback(new Error(this.idCardConflict)); else callback() }
     return {
       codeUrl: '', positions: [], loading: false, captchaEnabled: false,
+      idCardConflict: '',
       registerForm: { username: '', password: '', confirmPassword: '', realName: '', idCard: '', positionId: null, expectedEntryDate: '', code: '', uuid: '' },
       registerRules: {
         username: [{ required: true, trigger: 'blur', message: '请输入手机号作为个人登录账号' }, { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的11位手机号', trigger: 'blur' }],
         password: [{ required: true, trigger: 'blur', message: '请输入登录密码' }, { min: 5, max: 20, message: '密码长度必须介于 5 和 20 之间', trigger: 'blur' }],
         confirmPassword: [{ required: true, trigger: 'blur', message: '请再次输入密码' }, { validator: equalToPassword, trigger: 'blur' }],
         realName: [{ required: true, trigger: 'blur', message: '请输入真实姓名' }],
-        idCard: [{ required: true, trigger: 'blur', message: '请输入身份证号' }, { pattern: /^(\d{15}|\d{17}[\dXx])$/, message: '请输入正确的身份证号', trigger: 'blur' }],
+        idCard: [{ required: true, trigger: 'blur', message: '请输入身份证号' }, { pattern: /^(\d{15}|\d{17}[\dXx])$/, message: '请输入正确的身份证号', trigger: 'blur' }, { validator: validateIdCardConflict, trigger: 'change' }],
         positionId: [{ required: true, message: '请选择意向岗位', trigger: 'change' }],
         code: [{ validator: validateCode, trigger: 'change' }]
       },
@@ -171,6 +182,12 @@ export default {
   methods: {
     getCode() { getCodeImg().then(res => { this.captchaEnabled = res.captchaEnabled === undefined ? true : res.captchaEnabled; if (this.captchaEnabled) { this.codeUrl = 'data:image/gif;base64,' + res.img; this.registerForm.uuid = res.uuid } }) },
     getPositions() { getRegisterPositions().then(res => { this.positions = res.data || [] }) },
+    /** 用户一改身份证号就把「已被占用」的报错撤掉，免得改完了旧错误还挂着 */
+    onIdCardInput() {
+      if (!this.idCardConflict) return
+      this.idCardConflict = ''
+      this.$nextTick(() => { this.$refs.registerForm.clearValidate('idCard') })
+    },
     handleRegister() {
       this.$refs.registerForm.validate(valid => {
         if (!valid) return
@@ -185,9 +202,17 @@ export default {
           code: this.registerForm.code,
           uuid: this.registerForm.uuid
         }
-        register(payload).then(res => { this.$alert('<p>注册申请已提交。</p><p>申请编号：<strong>' + res.data + '</strong></p><p>审核通过后即可使用手机号登录。</p>', '申请提交成功', { dangerouslyUseHTMLString: true, type: 'success' }).then(() => this.$router.push('/login')).catch(() => {}) }).catch(err => {
+        register(payload).then(res => { this.$alert('<p>注册申请已提交。</p><p>申请编号：<strong>' + res.data + '</strong></p><p>审核通过后即可使用手机号登录。</p>', '申请提交成功', { dangerouslyUseHTMLString: true, type: 'success' }).then(() => this.$router.push('/login')).catch(() => {})         }).catch(err => {
           this.loading = false
           if (this.captchaEnabled) this.getCode()
+          const msg = (err && err.message) || ''
+          // 身份证号被别的账号占用：只落到「身份证号」字段的行内错误上。
+          // ⚠️ 这里**不能**走 explainDuplicateRegister —— 那会把别人账号的审核进度展示出来。
+          if (IDCARD_TAKEN_HINT.test(msg)) {
+            this.idCardConflict = msg
+            this.$nextTick(() => { this.$refs.registerForm.validateField('idCard') })
+            return
+          }
           this.explainDuplicateRegister(payload.username, payload.password, err)
         })
       })

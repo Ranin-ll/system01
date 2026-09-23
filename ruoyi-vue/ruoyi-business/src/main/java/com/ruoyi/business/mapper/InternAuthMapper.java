@@ -69,6 +69,18 @@ public interface InternAuthMapper {
     @Select("SELECT dept_id FROM dept_position WHERE position_id = #{positionId} AND status = 1 LIMIT 1")
     Long selectDeptIdByPositionId(@Param("positionId") Long positionId);
 
+    /**
+     * 统计该身份证号是否已被**其他登录账号**占用（>0 即占用）。
+     *
+     * 同时查「申请单」与「账号」两处：注册会同时写这两张表，任一命中都算占用。
+     * 之所以要传本账号并把 `login_account != 本账号` 作为条件，是为了放行
+     * 「同一个账号自己的申请单」—— 例如被驳回后重新提交（沿用原手机号）时，
+     * 库里本来就有该身份证，不能因此把自己拦掉。
+     */
+    @Select("SELECT (SELECT COUNT(1) FROM register_application WHERE id_card = #{idCard} AND login_account != #{loginAccount})"
+            + " + (SELECT COUNT(1) FROM sys_user WHERE id_card = #{idCard} AND user_name != #{loginAccount} AND del_flag = '0')")
+    int countOtherAccountByIdCard(@Param("idCard") String idCard, @Param("loginAccount") String loginAccount);
+
     @Update("UPDATE sys_user SET position_id = #{positionId}, user_status = #{userStatus}, expected_entry_date = #{expectedEntryDate,jdbcType=DATE}, id_card = #{idCard} WHERE user_id = #{userId}")
     int updateRegistrationProfile(@Param("userId") Long userId, @Param("positionId") Long positionId,
             @Param("userStatus") String userStatus, @Param("expectedEntryDate") Date expectedEntryDate,
