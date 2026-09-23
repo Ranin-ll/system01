@@ -129,7 +129,11 @@
         </el-table-column>
         <el-table-column label="操作" width="230" align="center">
           <template slot-scope="scope">
-            <el-button type="text" size="mini" icon="el-icon-s-management" @click.stop="goDetail(scope.row)">管理题目</el-button>
+            <!-- ★ 2026-09-22：实操题库的入口文案改直白 —— 点进去维护的是「实操题 + 参考图/附件」，
+                 原来统一写「管理题目」，管理员不容易找到补素材的地方。 -->
+            <el-button type="text" size="mini" icon="el-icon-s-management" @click.stop="goDetail(scope.row)">
+              {{ (scope.row.bankKind || 'THEORY') === 'PRACTICAL' ? '管理实操题' : '管理题目' }}
+            </el-button>
             <el-button v-hasPermi="['business:bank:edit']" type="text" size="mini" icon="el-icon-edit" @click.stop="handleEditBank(scope.row)">编辑</el-button>
             <el-button v-hasPermi="['business:bank:remove']" type="text" size="mini" icon="el-icon-delete" class="danger-text" @click.stop="handleDeleteBank(scope.row)">删除</el-button>
           </template>
