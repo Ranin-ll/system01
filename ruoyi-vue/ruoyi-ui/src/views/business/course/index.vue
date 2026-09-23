@@ -231,7 +231,7 @@
             <el-progress :percentage="assetUploadProgress" :status="assetUploadState === 'SUCCESS' ? 'success' : assetUploadState === 'ERROR' ? 'exception' : undefined" :stroke-width="7" />
             <span :class="'upload-' + assetUploadState.toLowerCase()">{{ assetUploadMessage }}</span>
           </div>
-          <span class="form-tip">支持 {{ itemForm.itemType === 'VIDEO' ? 'MP4、WebM、MOV，单文件不超过 500MB' : 'PDF、DOCX、PPTX、TXT、ZIP，单文件不超过 50MB' }}。文件上传到服务器资源目录，数据库保存访问路径和文件元数据。</span>
+          <span class="form-tip">支持 {{ itemForm.itemType === 'VIDEO' ? 'MP4、WebM、MOV，单文件不超过 500MB' : '文档（PDF / Word / Excel / PPT / TXT）、压缩包（ZIP / 7Z / RAR / TAR / GZ）、安装包（EXE / MSI / DMG / PKG / DEB / RPM）、镜像与其它（ISO / APK / JAR / WAR / BIN / SH），单文件不超过 3GB' }}。文件上传到服务器资源目录，数据库保存访问路径和文件元数据。</span>
         </el-form-item>
       </el-form>
       <div slot="footer"><el-button @click="itemDialogOpen = false">取消</el-button><el-button type="primary" :loading="itemSubmitting" @click="saveItem">保存资料</el-button></div>
@@ -433,7 +433,10 @@ export default {
       return this.recordStatusFilter === 'ALL' ? records : records.filter(item => item.status === this.recordStatusFilter)
     },
     itemAccept() {
-      return this.itemForm.itemType === 'VIDEO' ? '.mp4,.webm,.mov' : '.pdf,.doc,.docx,.ppt,.pptx,.txt,.zip'
+      // 文档类 = 文档 + 压缩包 + 安装包 + 镜像/其它（与后端 CourseContentServiceImpl.DOCUMENT_EXTENSIONS 保持一致）
+      return this.itemForm.itemType === 'VIDEO'
+        ? '.mp4,.webm,.mov'
+        : '.pdf,.doc,.docx,.ppt,.pptx,.txt,.xls,.xlsx,.zip,.7z,.rar,.tar,.gz,.tgz,.exe,.msi,.dmg,.pkg,.deb,.rpm,.iso,.apk,.jar,.war,.bin,.sh'
     }
   },
   components: { draggable },
@@ -880,7 +883,9 @@ export default {
       const value = Number(size || 0)
       if (!value) return '大小待上传后计算'
       if (value < 1024 * 1024) return Math.max(1, Math.round(value / 1024)) + ' KB'
-      return (value / 1024 / 1024).toFixed(1) + ' MB'
+      // 附件上限已放开到 3GB，超过 1GB 用 GB 显示，避免出现 3072.0 MB 这种读不出来的数字
+      if (value < 1024 * 1024 * 1024) return (value / 1024 / 1024).toFixed(1) + ' MB'
+      return (value / 1024 / 1024 / 1024).toFixed(2) + ' GB'
     },
     saveItem() {
       if (!this.canEditContent(this.currentCourse)) return this.comingSoon()

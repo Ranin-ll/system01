@@ -82,7 +82,7 @@
           <span class="section-index">03</span>
           <div>
             <h2>转正申请</h2>
-            <p>资格齐备后提交；部门管理员审核通过即生效并发证（本决策跳过超管终审）。</p>
+            <p>转正要求由部门管理员设置；资格齐备后提交，部门管理员审核通过即生效并发证。</p>
           </div>
         </div>
         <el-tag size="mini" type="warning" effect="plain">演示态 · promotion_application 待后端</el-tag>
@@ -100,7 +100,7 @@
             </div>
           </div>
           <p class="rg-note">
-            <template v-if="canApply">四项均满足，可以提交转正申请。</template>
+            <template v-if="canApply">各项要求均已满足，可以提交转正申请。</template>
             <template v-else>仍有 {{ failCount }} 项未满足，提交按钮已置灰；补齐后自动开放。</template>
           </p>
         </div>
@@ -206,7 +206,7 @@ import { parseTime } from '@/utils/ruoyi'
 import { mapGetters } from 'vuex'
 
 const DURATION_UNKNOW = '--'
-/** 转正门槛（与部门端 promotion.vue 的 PASS_LINE 保持一致） */
+/** 考核综合分着色阈值（死代码 compareBars 在用，原 ③ 得分对比分节于 2026-09-23 删除） */
 const PASS_LINE = 70
 
 /**
@@ -254,11 +254,13 @@ export default {
       applyForm: { note: '', fileName: '' },
       formMeta: { submittedAt: '--' },
       submitting: false,
+      // 转正要求由部门管理员设置；后端 promotion_rule 接口就绪前用本地默认值
+      promotionConfig: { studyRateMin: 0, examPassTimes: 1 },
       learningOverview: { progress: null, courseCount: 0, completedCourses: 0, learningCourses: 0, completedItems: 0, itemCount: 0, lastStudyTime: '尚未开始' }
     }
   },
   computed: {
-    ...mapGetters(['roles', 'protocolStatus', 'deptName']),
+    ...mapGetters(['roles', 'protocolStatus', 'deptName', 'deptId']),
     isFormal() { return this.roles.indexOf('FORMAL_TRAINEE') > -1 },
     demoSampleOptions() {
       return [
@@ -284,9 +286,15 @@ export default {
     canEditForm() { return this.currentStatus === 'UNSUBMITTED' || this.currentStatus === 'REJECTED' },
     rejectReason() { return DEMO_REJECT_REASON },
     learningProgress() { return this.learningOverview.progress === null ? 0 : this.learningOverview.progress },
-    completedRequired() {
-      const required = this.records.filter(r => Number(r.isRequired) === 1)
-      return { done: required.filter(r => r.progress === 100).length, total: required.length }
+    /** 已通过的正式考核场次（一场考核的所有已出分环节均通过，计为通过一场） */
+    passedExamCount() {
+      const byExam = {}
+      this.records.forEach(r => {
+        if (r.sheetId == null || r.finalScore == null) return
+        if (!byExam[r.examId]) byExam[r.examId] = { passed: true }
+        if (r.passFlag !== 1) byExam[r.examId].passed = false
+      })
+      return Object.values(byExam).filter(e => e.passed).length
     },
     /** 场次 / 环节成绩（真实） */
     detailRows() {
@@ -372,27 +380,23 @@ export default {
       if (!this.weakModules.length) return { module: '--', rate: 0 }
       return this.weakModules.reduce((min, m) => (m.rate < min.rate ? m : min), this.weakModules[0])
     },
-    /** 转正资格核对清单（三项真实 + 一项来自考核成绩） */
+    /** 转正资格核对清单（由部门管理员设置要求；无「必修项」概念） */
     checklist() {
       const signed = Number(this.protocolStatus) === 1
-      return [
+      const rateMin = Number(this.promotionConfig.studyRateMin || 0)
+      const passTimes = Number(this.promotionConfig.examPassTimes || 1)
+      const items = [
         {
           key: 'study',
-          pass: this.learningProgress >= PASS_LINE,
-          label: '学习完成率 ≥ ' + PASS_LINE + '%',
+          pass: this.learningProgress >= rateMin,
+          label: '学习完成率 ≥ ' + rateMin + '%',
           value: '当前 ' + this.learningProgress + '%'
         },
         {
           key: 'exam',
-          pass: Number(this.latestScores.total) >= 60,
-          label: '正式考核已通过',
-          value: this.latestScores.total === '--' ? '暂无成绩' : '综合 ' + this.latestScores.total + ' 分'
-        },
-        {
-          key: 'required',
-          pass: this.completedRequired.total > 0 && this.completedRequired.done === this.completedRequired.total,
-          label: '无未完成必修项',
-          value: this.completedRequired.total ? this.completedRequired.done + ' / ' + this.completedRequired.total + ' 门' : '--'
+          pass: this.passedExamCount >= passTimes,
+          label: '正式考核已通过 ' + passTimes + ' 次',
+          value: '当前 ' + this.passedExamCount + ' 次'
         },
         {
           key: 'protocol',
@@ -401,6 +405,7 @@ export default {
           value: signed ? '已签署' : '待签署'
         }
       ]
+      return items
     },
     failCount() { return this.checklist.filter(i => !i.pass).length },
     canApply() { return this.failCount === 0 },
@@ -431,7 +436,28 @@ export default {
   methods: {
     loadAll() {
       this.loading = true
+      this.loadPromotionConfig()
       Promise.all([this.loadExams(), this.loadLearning()]).then(() => { this.loading = false }).catch(() => { this.loading = false })
+    },
+    /** 读取部门管理员设置的转正要求（后端 promotion_rule 就绪前用本地演示配置） */
+    loadPromotionConfig() {
+      const load = function (key) {
+        try {
+          const saved = localStorage.getItem(key)
+          if (saved) {
+            const c = JSON.parse(saved)
+            return {
+              studyRateMin: Number(c.studyRateMin != null ? c.studyRateMin : 0),
+              examPassTimes: Number(c.examPassTimes != null ? c.examPassTimes : 1)
+            }
+          }
+        } catch (e) { /* 忽略 */ }
+        return null
+      }
+      // 优先本部门规则，其次全局默认，最后内置默认
+      const deptRule = this.deptId ? load('promotion-rule-' + this.deptId) : null
+      const globalRule = load('promotion-rule')
+      this.promotionConfig = deptRule || globalRule || { studyRateMin: 0, examPassTimes: 1 }
     },
     loadExams() {
       return myExamList('FORMAL').then(res => {

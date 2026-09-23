@@ -18,6 +18,7 @@ import com.ruoyi.common.constant.Constants;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.file.FileUploadUtils;
+import com.ruoyi.common.utils.file.MimeTypeUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -43,9 +44,17 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
 
     // 章节检测（QUIZ）已下线：学习单项只保留 文档 / 视频
     private static final Set<String> ITEM_TYPES = new HashSet<>(Arrays.asList("DOC", "VIDEO"));
-    private static final String[] DOCUMENT_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "txt", "xls", "xlsx", "zip"};
+    /**
+     * 「文档 / 附件」类资料的允许扩展名 = {@link MimeTypeUtils#COURSE_ASSET_EXTENSION}（单一数据源）。
+     * ⚠️ 上传白名单必须与下载放行一致（`CommonController.resourceDownload` 引用同一个常量），
+     * 否则会出现「传得上去、下载回来 0 字节」。
+     * 同步项：前端 `views/business/course/index.vue` 的 itemAccept 与大小文案、
+     * `application.yml` 的 multipart / upload 上限（默认值按 3GB 配的）。
+     */
+    private static final String[] DOCUMENT_EXTENSIONS = MimeTypeUtils.COURSE_ASSET_EXTENSION;
     private static final String[] VIDEO_EXTENSIONS = {"mp4", "avi", "rmvb", "webm", "mov"};
-    private static final long DOCUMENT_MAX_SIZE = 50 * 1024 * 1024L;
+    /** 文档 / 附件类单文件上限：3GB（安装包、镜像可能很大） */
+    private static final long DOCUMENT_MAX_SIZE = 3L * 1024 * 1024 * 1024;
     private static final long VIDEO_MAX_SIZE = 500 * 1024 * 1024L;
 
     private final CourseChapterMapper chapterMapper;

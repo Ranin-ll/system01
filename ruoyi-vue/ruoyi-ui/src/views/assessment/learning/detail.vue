@@ -90,12 +90,13 @@
               <div v-show="!pptxPreviewLoading && !pptxPreviewError" ref="pptxReader" class="pptx-content" />
             </div>
             <div v-else class="download-panel">
-              <i :class="currentItem.fileExt === 'zip' ? 'el-icon-folder-opened' : 'el-icon-document'" />
+              <i :class="isArchive(currentItem) ? 'el-icon-folder-opened' : (isInstaller(currentItem) ? 'el-icon-download' : 'el-icon-document')" />
               <strong>{{ currentItem.fileName || currentItem.itemTitle }}</strong>
-              <span>{{ currentItem.fileExt === 'zip' ? 'ZIP 压缩资料请下载后查看（下载后即可确认完成阅读）' : '该格式不支持在线预览，可下载后用本地软件打开' }}</span>
+              <span>{{ offlineHint(currentItem) }}</span>
               <div class="download-panel-actions">
                 <el-button type="primary" plain icon="el-icon-download" @click="downloadAsset(currentItem)">下载资料</el-button>
-                <el-button v-if="currentItem.contentUrl" plain icon="el-icon-view" @click="openAsset(currentItem)">新窗口查看</el-button>
+                <!-- 「新窗口查看」只对浏览器能直接显示的类型给出：exe/zip 这类点开也只会触发下载，摆出来是误导 -->
+                <el-button v-if="currentItem.contentUrl && canOpenInBrowser(currentItem)" plain icon="el-icon-view" @click="openAsset(currentItem)">新窗口查看</el-button>
               </div>
             </div>
             <div v-if="currentItem.itemIntro" class="item-intro-panel"><span><i class="el-icon-document" /> 本节简介</span><p>{{ currentItem.itemIntro }}</p></div>
@@ -556,6 +557,31 @@ export default {
     canPptxPreview(item) {
       return String(item.fileExt || '').toLowerCase() === 'pptx' && Boolean(item.contentUrl)
     },
+    /** 压缩包类（决定图标与提示口径） */
+    isArchive(item) {
+      return ['zip', '7z', 'rar', 'tar', 'gz', 'tgz', 'iso'].indexOf(String((item && item.fileExt) || '').toLowerCase()) > -1
+    },
+    /** 安装包类 */
+    isInstaller(item) {
+      return ['exe', 'msi', 'dmg', 'pkg', 'deb', 'rpm', 'apk'].indexOf(String((item && item.fileExt) || '').toLowerCase()) > -1
+    },
+    /**
+     * 浏览器能不能直接显示这个格式 —— 决定要不要给「新窗口查看」按钮。
+     * exe / zip / xls / doc 这类点开只会触发下载（后端给的是 attachment），
+     * 摆一个「查看」按钮纯属误导，所以这些类型只留「下载资料」。
+     */
+    canOpenInBrowser(item) {
+      const ext = String((item && item.fileExt) || '').toLowerCase()
+      return ['pdf', 'txt', 'csv', 'json', 'xml', 'md', 'log', 'html', 'htm',
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
+        'mp4', 'webm', 'ogg', 'mp3', 'wav'].indexOf(ext) > -1
+    },
+    /** 不能在线预览时的说明文案（按类型说清下一步怎么做） */
+    offlineHint(item) {
+      if (this.isArchive(item)) return '压缩包请下载后解压查看（下载即可确认完成本项）'
+      if (this.isInstaller(item)) return '安装包请下载后在本地运行安装（下载即可确认完成本项）'
+      return '该格式不支持在线预览，请下载后用本地软件打开（下载即可确认完成本项）'
+    },
     loadDocxPreview(item) {
       if (!this.canDocxPreview(item)) return
       const itemId = Number(item.id)
@@ -641,7 +667,9 @@ export default {
      */
     downloadAsset(item) {
       if (!item || !item.contentUrl) return this.$modal.msgWarning('资料文件暂未上传')
-      this.$download.resource(item.contentUrl)
+      // 第二个参数是「兜底文件名」：下载接口没回 download-filename 头时用它，
+      // 免得浏览器存出一个名叫 undefined 的空文件。
+      this.$download.resource(item.contentUrl, item.fileName || item.itemTitle)
       const previewable = this.canInlinePreview(item) || this.canDocxPreview(item) || this.canPptxPreview(item)
       if (!previewable) {
         this.readerReachedEnd = true
