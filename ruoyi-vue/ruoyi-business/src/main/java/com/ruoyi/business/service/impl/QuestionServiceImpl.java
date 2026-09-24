@@ -4,10 +4,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ruoyi.business.domain.AnswerSubmitBody;
 import com.ruoyi.business.domain.Question;
-import com.ruoyi.business.domain.QuestionBank;
 import com.ruoyi.business.domain.QuestionImportResult;
 import com.ruoyi.business.domain.QuestionImportRow;
-import com.ruoyi.business.mapper.QuestionBankMapper;
 import com.ruoyi.business.mapper.QuestionMapper;
 import com.ruoyi.business.service.IQuestionService;
 import com.ruoyi.common.exception.ServiceException;
@@ -26,21 +24,22 @@ import java.util.Map;
 /**
  * 题目Service实现
  *
- * 数据范围控制（与题库/课程模块一致）：
- * - 超级管理员：查看全部题目，并可维护任一部门题库中的题目。
- * - 部门管理员：查看并管理本部门题库下的题目。
- * - 实习生：仅查看本部门题库，用于参与考核。
+ * 数据范围控制：
+ * - 超级管理员：查看全部题目，并可维护任一部门的题目。
+ * - 部门管理员：查看并管理本部门的题目。
+ * - 实习生：仅查看本部门题目，用于参与考核。
+ *
+ * ★ 2026-09-23 起：题目不再挂「题库」，直接按 dept_id 归属部门。
+ * 一个部门 = 一个理论题池；理论考试按知识点从中抽题。
  */
 @Service
 public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> implements IQuestionService {
 
     private final QuestionMapper questionMapper;
-    private final QuestionBankMapper questionBankMapper;
     private final ObjectMapper objectMapper;
 
-    public QuestionServiceImpl(QuestionMapper questionMapper, QuestionBankMapper questionBankMapper, ObjectMapper objectMapper) {
+    public QuestionServiceImpl(QuestionMapper questionMapper, ObjectMapper objectMapper) {
         this.questionMapper = questionMapper;
-        this.questionBankMapper = questionBankMapper;
         this.objectMapper = objectMapper;
     }
 
@@ -61,8 +60,15 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     @Override
     public int insertQuestion(Question question) {
-        managerScopeDeptId();
-        checkBankAccessible(question.getBankId());
+        Long deptId = managerScopeDeptId();
+        if (deptId == null) {
+            // 超管：题目归属由入参指定（前端在超管端提供「所属部门」选择）
+            deptId = question.getDeptId();
+        }
+        if (deptId == null) {
+            throw new ServiceException("请选择题目所属部门");
+        }
+        question.setDeptId(deptId);
         question.setCreateBy(SecurityUtils.getUsername());
         question.setStatus(question.getStatus() == null ? 1 : question.getStatus());
         if ("SUBJECT".equals(question.getQtype())) {
@@ -90,8 +96,8 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         if ("SUBJECT".equals(question.getQtype())) {
             question.setIsSubjective(1);
         }
-        // 不允许通过通用编辑接口篡改题库归属、删除标志或创建信息。
-        question.setBankId(null);
+        // 不允许通过通用编辑接口篡改部门归属、删除标志或创建信息。
+        question.setDeptId(null);
         question.setDeleted(null);
         question.setCreateBy(null);
         question.setCreateTime(null);
@@ -114,9 +120,8 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     }
 
     @Override
-    public QuestionImportResult importQuestions(Long bankId, List<QuestionImportRow> rows) {
-        managerScopeDeptId();
-        checkBankAccessible(bankId);
+    public QuestionImportResult importQuestions(Long deptId, List<QuestionImportRow> rows) {
+        Long target = resolveDeptId(deptId);
 
         QuestionImportResult result = new QuestionImportResult();
         if (rows == null || rows.isEmpty()) {
@@ -131,7 +136,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         for (QuestionImportRow row : rows) {
             rowNum++;
             try {
-                Question question = convertRow(row, bankId, importBatch);
+                Question question = convertRow(row, target, importBatch);
                 question.setQuestionNo(importBatch + "-" + rowNum);
                 questionMapper.insertQuestion(question);
                 result.setSuccess(result.getSuccess() + 1);
@@ -144,10 +149,10 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     }
 
     @Override
-    public List<QuestionImportRow> exportRows(Long bankId) {
-        checkBankAccessible(bankId);
+    public List<QuestionImportRow> exportRows(Long deptId) {
+        Long target = resolveDeptId(deptId);
         Question query = new Question();
-        query.setBankId(bankId);
+        query.setDeptId(target);
         List<Question> list = selectQuestionList(query);
         List<QuestionImportRow> rows = new ArrayList<>();
         for (Question q : list) {
@@ -229,13 +234,12 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     }
 
     @Override
-    public List<Question> previewQuestions(Long bankId, Integer limit) {
-        Long scopeDeptId = currentScopeDeptId();
-        checkBankAccessibleForScope(bankId, scopeDeptId);
+    public List<Question> previewQuestions(Long deptId, Integer limit) {
+        Long target = resolveDeptId(deptId);
         int size = (limit == null || limit <= 0) ? 10 : limit;
-        List<Question> questions = questionMapper.selectQuestionsForExam(bankId, scopeDeptId, size);
+        List<Question> questions = questionMapper.selectQuestionsForExam(target, null, size);
         // 实操题（主观题）全部返回，供实习生上传文件作答
-        List<Question> subjectQuestions = questionMapper.selectSubjectQuestions(bankId, scopeDeptId, null);
+        List<Question> subjectQuestions = questionMapper.selectSubjectQuestions(target, null, null);
         questions.addAll(subjectQuestions);
         // 抽题结果不返回答案和解析，防止作弊；实操题附件保留。
         for (Question q : questions) {
@@ -247,11 +251,10 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     @Override
     public Map<String, Object> submitAnswers(AnswerSubmitBody body) {
-        if (body == null || body.getBankId() == null) {
-            throw new ServiceException("请指定题库");
+        if (body == null) {
+            throw new ServiceException("提交内容不能为空");
         }
         Long scopeDeptId = currentScopeDeptId();
-        checkBankAccessibleForScope(body.getBankId(), scopeDeptId);
 
         List<AnswerSubmitBody.AnswerItem> answers = body.getAnswers();
         if (answers == null || answers.isEmpty()) {
@@ -317,7 +320,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     }
 
     /** 将导入行转换为题目实体。 */
-    private Question convertRow(QuestionImportRow row, Long bankId, String importBatch) throws Exception {
+    private Question convertRow(QuestionImportRow row, Long deptId, String importBatch) throws Exception {
         String stem = trim(row.getStem());
         if (stem.isEmpty()) {
             throw new Exception("题干不能为空");
@@ -335,7 +338,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         List<Map<String, String>> options = buildOptions(qtype, row, answer);
 
         Question question = new Question();
-        question.setBankId(bankId);
+        question.setDeptId(deptId);
         question.setQtype(qtype);
         question.setStem(stem);
         question.setOptionsJson(objectMapper.writeValueAsString(options));
@@ -493,18 +496,21 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         return question;
     }
 
-    private void checkBankAccessible(Long bankId) {
-        checkBankAccessibleForScope(bankId, currentScopeDeptId());
-    }
-
-    private void checkBankAccessibleForScope(Long bankId, Long scopeDeptId) {
-        if (bankId == null) {
-            throw new ServiceException("请指定所属题库");
+    /**
+     * 解析操作目标部门。
+     *
+     * <p>部门账号 / 实习生 → <b>强制本部门</b>（忽略入参，防越权，也让老前端不用改）；
+     * 超级管理员 → 用入参指定的部门（不传则报错）。</p>
+     */
+    private Long resolveDeptId(Long deptId) {
+        Long scope = currentScopeDeptId();
+        if (scope != null) {
+            return scope;
         }
-        QuestionBank bank = questionBankMapper.selectBankById(bankId, scopeDeptId);
-        if (bank == null) {
-            throw new ServiceException("题库不存在或无权访问");
+        if (deptId == null) {
+            throw new ServiceException("请指定部门");
         }
+        return deptId;
     }
 
     private boolean isGlobalReadOnly() {

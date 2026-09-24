@@ -8,7 +8,7 @@
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>模拟备考管理</h1>
-        <p>备考资料 / <b>模拟理论考核</b>（<b>直接建套卷</b>，每套可用<b>不同的题型配比</b>并标注<b>难易程度</b>与<b>题目内容偏向</b>；抽题来源限定<b>理论题库的模拟库与通用库</b>，发布后实习生可重复练习）/ <b>模拟实操题库</b>（勾选后实习生可浏览题目）。</p>
+        <p>备考资料 / <b>模拟理论考核</b>（<b>直接建套卷</b>，每套可配<b>不同的知识点配比</b>并标注<b>难易程度</b>与<b>题目内容偏向</b>；抽题从<b>本部门理论题池</b>按知识点抽取，发布后实习生可重复练习）/ <b>模拟实操题</b>（不再分模块/阶段，<b>启用即可见</b>，直接在页签内维护）。</p>
       </div>
       <div class="dept-heading-actions">
         <el-button size="small" icon="el-icon-refresh" @click="reloadAll">刷新</el-button>
@@ -30,60 +30,24 @@
 
     <!-- ============ 页签 1 · 备考资料 ============ -->
     <template v-if="activeTab === 'material'">
-      <!-- 总览（真实数据：来自已加载的资料列表） -->
-      <div class="prep-kpi-row">
-        <div v-for="k in materialKpis()" :key="k.label" class="prep-kpi-card" :class="k.tone">
-          <span class="prep-kpi-icon"><i :class="k.icon" /></span>
-          <span class="prep-kpi-body">
-            <span class="prep-kpi-value">{{ k.value }}<small>{{ k.unit }}</small></span>
-            <span class="prep-kpi-label">{{ k.label }}</span>
-          </span>
-        </div>
-      </div>
-
       <div class="dgrid">
         <div class="dcard c5">
           <div class="dcard-h">
-            <div class="tt"><span class="idx">传</span><h3>{{ editingId ? '编辑资料' : '上传资料' }}</h3></div>
-            <el-button v-if="editingId" size="mini" type="text" @click="resetForm">取消编辑</el-button>
+            <div class="tt"><span class="idx">传</span><h3>{{ editingId ? '替换资料' : '上传备考资料' }}</h3></div>
+            <el-button v-if="editingId" size="mini" type="text" @click="resetForm">取消替换</el-button>
           </div>
-          <div class="ddrop" @click="pickFile">
-            <i class="el-icon-upload" />
-            <b>{{ form.fileName || '点击选择文件' }}</b>
+          <div class="ddrop" :class="{ 'is-busy': saving }" @click="pickFile">
+            <i :class="saving ? 'el-icon-loading' : 'el-icon-upload'" />
+            <b>{{ saving ? '正在上传…' : (editingId ? '点击选择新文件，将直接替换并发布' : '点击选择文件，选完即发布') }}</b>
             <small>支持 PDF / Word / PPT / 视频 / 图片 / 压缩包</small>
           </div>
           <input ref="fileInput" type="file" class="d-hidden-input" @change="onFileChange" />
-          <div class="dfg2" style="margin-top:14px">
-            <div class="dfield">
-              <label>资料名称 <b>*</b></label>
-              <el-input v-model="form.name" size="small" placeholder="例如：2026Q3 考试指南" />
-            </div>
-            <div class="dfield">
-              <label>资料类型</label>
-              <el-select v-model="form.type" size="small" style="width:100%">
-                <el-option label="文档 DOCUMENT" value="DOCUMENT" />
-                <el-option label="视频 VIDEO" value="VIDEO" />
-                <el-option label="模拟题入口 MOCK_ENTRY" value="MOCK_ENTRY" />
-              </el-select>
-            </div>
-            <div class="dfield">
-              <label>适用岗位</label>
-              <el-select v-model="form.position" size="small" style="width:100%" placeholder="请选择岗位">
-                <el-option v-for="p in positionOptions" :key="p.id" :label="p.positionName" :value="p.id" />
-              </el-select>
-            </div>
-            <div class="dfield">
-              <label>版本号</label>
-              <el-input v-model="form.version" size="small" placeholder="v1.0" />
-            </div>
-          </div>
-          <div class="dfield">
-            <label>简介</label>
-            <el-input v-model="form.intro" type="textarea" :rows="3" size="small" placeholder="本季度正式考核范围、题型分布与注意事项。" />
-          </div>
-          <div class="dbtn-row right" style="margin-top:16px">
-            <el-button size="small" :loading="saving" @click="saveMaterial(false)">{{ editingId ? '保存修改' : '存为草稿' }}</el-button>
-            <el-button size="small" type="primary" :loading="saving" @click="saveMaterial(true)">{{ editingId ? '保存并发布' : '上传并发布' }}</el-button>
+          <!-- 仅当本部门绑定多个岗位时才需要选；当前各科室均为 1:1，默认不出现 -->
+          <div v-if="needPickPosition" class="dfield" style="margin-top:14px">
+            <label>适用岗位 <b>*</b></label>
+            <el-select v-model="form.position" size="small" style="width:100%" placeholder="请选择岗位">
+              <el-option v-for="p in positionOptions" :key="p.id" :label="p.positionName" :value="p.id" />
+            </el-select>
           </div>
         </div>
 
@@ -94,11 +58,6 @@
           </div>
           <div class="prep-filter">
             <el-input v-model="materialFilter.keyword" size="mini" clearable prefix-icon="el-icon-search" placeholder="搜索资料名称" style="width:190px" />
-            <el-select v-model="materialFilter.type" size="mini" clearable placeholder="全部类型" style="width:136px">
-              <el-option label="文档" value="DOCUMENT" />
-              <el-option label="视频" value="VIDEO" />
-              <el-option label="模拟题入口" value="MOCK_ENTRY" />
-            </el-select>
             <el-select v-model="materialFilter.status" size="mini" clearable placeholder="全部状态" style="width:124px">
               <el-option label="已发布" value="PUBLISHED" />
               <el-option label="草稿" value="DRAFT" />
@@ -112,18 +71,14 @@
               <tr>
                 <th>资料名称</th>
                 <th style="width:96px">类型</th>
-                <th style="width:96px">适用岗位</th>
-                <th style="width:60px">版本</th>
-                <th style="width:74px">状态</th>
-                <th style="width:150px">操作</th>
+                <th style="width:80px">状态</th>
+                <th style="width:180px">操作</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="row in filteredMaterials()" :key="row.id">
                 <td><span class="strong">{{ row.materialName }}</span></td>
                 <td><span class="dbadge" :class="typeTone(row.materialType)">{{ typeText(row.materialType) }}</span></td>
-                <td>{{ row.positionName || '-' }}</td>
-                <td>{{ row.versionNo || '-' }}</td>
                 <td><span class="dbadge" :class="row.status === 'PUBLISHED' ? 'green' : 'gray'">{{ statusText(row.status) }}</span></td>
                 <td>
                   <div class="acts">
@@ -141,7 +96,7 @@
                 </td>
               </tr>
               <tr v-if="!filteredMaterials().length && !materialLoading">
-                <td colspan="6" class="d-empty">{{ materials.length ? '当前筛选条件下没有匹配的资料' : '暂无备考资料，请在左侧填写并上传。' }}</td>
+                <td colspan="4" class="d-empty">{{ materials.length ? '当前筛选条件下没有匹配的资料' : '暂无备考资料，选择文件即可上传。' }}</td>
               </tr>
             </tbody>
           </table>
@@ -149,9 +104,9 @@
       </div>
     </template>
 
-    <!-- ============ 页签 3 · 模拟实操题库（管理员勾选开放 + 题目预览）============ -->
+    <!-- ============ 页签 3 · 模拟实操题（直接在页签内维护，不再跳独立页）============ -->
     <template v-if="activeTab === 'pbank'">
-      <practice-bank-picker />
+      <practice-subject :embedded="true" />
     </template>
 
     <!-- ============ 页签 2 · 模拟理论考核（套卷列表，无阶段层级） ============ -->
@@ -346,17 +301,21 @@ function emptyPaperForm() {
   return { id: null, examName: '', description: '', difficulty: '', contentBias: '' }
 }
 
-import PracticeBankPicker from '@/views/business/practiceBank/PracticeBankPicker'
+import PracticeSubject from '@/views/business/practiceSubject/index'
+import { isSuperAdminRole } from '@/utils/permission'
 
 export default {
   name: 'DeptPrep',
   components: {
-    PracticeBankPicker },
+    PracticeSubject },
   data() {
     return {
-      activeTab: (this.$route.query && this.$route.query.tab === 'module') ? 'module' : 'material',
+      // ★ 2026-09-23：支持 ?tab=material|module|pbank 直达（页签切换也会回写 URL，刷新不丢页签）
+      activeTab: (function (t) {
+        return ['material', 'module', 'pbank'].indexOf(t) > -1 ? t : 'material'
+      })(this.$route.query && this.$route.query.tab),
       // === 2026-09-21 改版新增：列表筛选（纯前台过滤，不改接口）===
-      materialFilter: { keyword: '', type: '', status: '' },
+      materialFilter: { keyword: '', status: '' },
       // ---- 备考资料（真实后端） ----
       materials: [],
       materialLoading: false,
@@ -365,10 +324,11 @@ export default {
       previewVisible: false,
       previewFile: null,
       /**
-       * 备考资料表单（name/type/position/version/intro/fileName/fileUrl）
+       * 上传表单（2026-09-23 极简版）：只需选文件。
+       * 资料名称取文件名、类型按扩展名判定、适用岗位取本部门岗位 —— 全部自动，无需填写。
        */
       form: {
-        name: '', type: 'DOCUMENT', position: '', version: 'v1.0', intro: '', fileName: '', fileUrl: ''
+        position: '', fileName: '', fileUrl: ''
       },
       examFilter: { keyword: '', status: '', difficulty: '' },
       // ---- 模拟理论考核（套卷，无阶段层级） ----
@@ -385,14 +345,11 @@ export default {
   },
   computed: {
     ...mapGetters(['roles']),
-    isSuperAdmin() {
-      return this.roles.indexOf('SUPER_ADMIN') > -1
-    },
     tabs() {
       return [
         { key: 'material', label: '备考资料', count: this.materials.length },
         { key: 'module', label: '模拟理论考核', count: this.exams.length || '' },
-        { key: 'pbank', label: '模拟实操题库' }
+        { key: 'pbank', label: '模拟实操题' }
       ]
     },
     baseApi() {
@@ -409,9 +366,26 @@ export default {
     previewSupportText() {
       return PREVIEW_SUPPORT_TEXT
     },
+    /** 本部门绑定多个岗位时才需要用户选（1:1 时自动用唯一那个，页面不出现下拉） */
+    needPickPosition() {
+      return this.positionOptions.length > 1
+    },
+  },
+  watch: {
+    /**
+     * 外部链接 / 旧书签（`?tab=pbank`，例如原「模拟实操题库」独立页的重定向）落到本页时同步页签。
+     * 同一组件被路由复用时 `data()` 不会重跑，只靠初始化会停在旧页签。
+     * 不会死循环：switchTab 回写的 tab 与当前一致，query 不变即不触发。
+     */
+    '$route.query.tab'(t) {
+      const k = ['material', 'module', 'pbank'].indexOf(t) > -1 ? t : 'material'
+      if (k !== this.activeTab) this.switchTab(k)
+    }
   },
   created() {
-    if (this.isSuperAdmin) this.loadDepartments()
+    // ★ 2026-09-23 修：原先这里会 `if (this.isSuperAdmin) this.loadDepartments()`，
+    //   但组件里**从来没有 loadDepartments 方法**（旧版超管端部门筛选的残留）⇒ 超管打开本页必报
+    //   `this.loadDepartments is not a function`。该筛选入口早已下线，直接删掉调用。
     this.reloadAll()
   },
   methods: {
@@ -421,28 +395,18 @@ export default {
       const kw = (f.keyword || '').trim().toLowerCase()
       return (this.materials || []).filter(r => {
         if (kw && String(r.materialName || '').toLowerCase().indexOf(kw) === -1) return false
-        if (f.type && r.materialType !== f.type) return false
         if (f.status && r.status !== f.status) return false
         return true
       })
     },
     resetMaterialFilter() {
-      this.materialFilter = { keyword: '', type: '', status: '' }
+      this.materialFilter = { keyword: '', status: '' }
     },
-    materialKpis() {
-      const list = this.materials || []
-      const published = list.filter(m => m.status === 'PUBLISHED').length
-      const positions = new Set(list.map(m => m.positionName || '未设置岗位'))
-      return [
-        { label: '资料总数', value: list.length, unit: '份', icon: 'el-icon-folder-opened', tone: '' },
-        { label: '已发布', value: published, unit: '份', icon: 'el-icon-circle-check', tone: 'tone-green' },
-        { label: '待发布 / 已停用', value: list.length - published, unit: '份', icon: 'el-icon-edit-outline', tone: 'tone-orange' },
-        { label: '覆盖岗位', value: positions.size, unit: '个', icon: 'el-icon-office-building', tone: 'tone-purple' }
-      ]
-    },
-
     switchTab(key) {
       this.activeTab = key
+      // 回写 ?tab=，刷新 / 分享链接都能停在同一个页签
+      const q = Object.assign({}, this.$route.query, { tab: key })
+      this.$router.replace({ path: this.$route.path, query: q }).catch(() => {})
       if (key === 'module' && !this.exams.length) this.loadExamTab()
     },
 
@@ -476,71 +440,82 @@ export default {
     onFileChange(e) {
       const file = e.target.files && e.target.files[0]
       if (!file) return
+      // 岗位先定下来再传文件，避免传完才发现没岗位可选
+      if (!this.resolvePosition()) return
       const formData = new FormData()
       formData.append('file', file)
       this.saving = true
       uploadFile(formData).then(res => {
         this.form.fileUrl = res.fileName || ''
         this.form.fileName = file.name
-        this.saving = false
-        this.$modal.msgSuccess('附件上传成功')
-      }).catch(() => { this.saving = false })
+        return this.submitMaterial()
+      }).catch(() => {}).finally(() => { this.saving = false })
     },
-    /** 保存（publish=false 存草稿 / true 发布）；编辑态「保存修改」不改动现有状态 */
-    saveMaterial(publish) {
-      if (!this.form.name || !this.form.name.trim()) {
-        this.$modal.msgWarning('请填写资料名称')
-        return
+    /** 适用岗位：本部门只绑 1 个时自动用；多个时须先在下拉里选；0 个则拦下并提示 */
+    resolvePosition() {
+      if (this.form.position) return this.form.position
+      if (this.positionOptions.length === 1) {
+        this.form.position = this.positionOptions[0].id
+        return this.form.position
       }
-      if (!this.form.position) {
-        this.$modal.msgWarning('请选择适用岗位')
-        return
-      }
+      this.$modal.msgWarning(this.positionOptions.length
+        ? '请先选择适用岗位'
+        : '本部门尚未绑定岗位，无法上传备考资料')
+      return null
+    },
+    /** 资料名称 = 文件名去掉扩展名 */
+    materialNameFromFile(fileName) {
+      const base = String(fileName || '').split('/').pop()
+      const name = base.replace(/\.[^.]+$/, '')
+      return name || base || '未命名资料'
+    },
+    /** 资料类型按扩展名判定：视频后缀 → VIDEO，其余 → DOCUMENT */
+    materialTypeFromFile(fileName) {
+      const ext = String(fileName || '').split('.').pop().toLowerCase()
+      return ['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'flv', 'wmv', 'mpeg', 'mpg'].indexOf(ext) > -1
+        ? 'VIDEO' : 'DOCUMENT'
+    },
+    /** 入库（新增或替换）并直接发布 */
+    submitMaterial() {
+      const position = this.resolvePosition()
+      if (!position) return Promise.resolve()
       if (!this.form.fileUrl) {
-        this.$modal.msgWarning('请先上传附件')
-        return
+        this.$modal.msgWarning('请先选择文件')
+        return Promise.resolve()
       }
+      const fileName = this.form.fileName || this.form.fileUrl
       const payload = {
-        materialName: this.form.name.trim(),
-        materialType: this.form.type || 'DOCUMENT',
-        positionId: this.form.position,
-        summary: this.form.intro || '',
+        materialName: this.materialNameFromFile(fileName),
+        materialType: this.materialTypeFromFile(fileName),
+        positionId: position,
+        summary: '',
         fileUrl: this.form.fileUrl,
-        versionNo: this.form.version || ''
+        versionNo: '',
+        status: 'PUBLISHED'
       }
-      if (publish) {
-        payload.status = 'PUBLISHED'
-      } else if (!this.editingId) {
-        payload.status = 'DRAFT'
-      }
+      if (this.editingId) payload.id = this.editingId
       this.saving = true
+      const replaced = !!this.editingId
       const done = () => {
         this.saving = false
-        this.$modal.msgSuccess(publish ? '已发布' : '已保存')
+        this.$modal.msgSuccess(replaced ? '已替换并发布' : '上传成功，已发布')
         this.resetForm()
         this.loadMaterials()
       }
       const fail = () => { this.saving = false }
-      if (this.editingId) {
-        payload.id = this.editingId
-        updateMaterial(payload).then(done).catch(fail)
-      } else {
-        addMaterial(payload).then(done).catch(fail)
-      }
+      return (replaced ? updateMaterial(payload) : addMaterial(payload)).then(done).catch(fail)
     },
     editMaterial(row) {
+      // 「替换」= 只换文件；名称/类型仍按新文件名自动重算，岗位沿用原资料
       this.editingId = row.id
-      this.form.name = row.materialName || ''
-      this.form.type = row.materialType || 'DOCUMENT'
       this.form.position = row.positionId
-      this.form.version = row.versionNo || ''
-      this.form.intro = row.summary || ''
-      this.form.fileUrl = row.fileUrl || ''
-      this.form.fileName = row.fileUrl ? String(row.fileUrl).split('/').pop() : ''
+      this.form.fileUrl = ''
+      this.form.fileName = ''
+      this.$modal.msgSuccess('已切到替换模式，选择新文件即可完成替换')
     },
     resetForm() {
       this.editingId = null
-      this.form = { name: '', type: 'DOCUMENT', position: '', version: 'v1.0', intro: '', fileName: '', fileUrl: '' }
+      this.form = { position: '', fileName: '', fileUrl: '' }
     },
     previewMaterial(row) {
       const url = resolveFileUrl(row)
@@ -636,7 +611,7 @@ export default {
       if (!row || !row.id) return
       // 套卷配置页有两套前缀（部门端 /department/study/paper-config、超管端 /super/ops/paper-config），
       // 按角色分流 —— 否则超管会被跳到部门端路由而 404
-      const base = (this.$store.getters.roles || []).indexOf('SUPER_ADMIN') > -1
+      const base = isSuperAdminRole(this.roles) || isSuperAdminRole()
         ? '/super/ops/paper-config/'
         : '/department/study/paper-config/'
       this.$router.push(base + row.id)

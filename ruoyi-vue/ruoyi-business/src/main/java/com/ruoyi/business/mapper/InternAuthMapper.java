@@ -99,6 +99,18 @@ public interface InternAuthMapper {
             @Param("status") String status, @Param("mentorName") String mentorName,
             @Param("mentorPhone") String mentorPhone);
 
+    /**
+     * 只改培养状态与账号状态，<b>不碰导师字段</b>（2026-09-23 新增）。
+     *
+     * <p>为什么需要它：导师已抽成独立主表（{@code mentor}），由「实习生管理页」
+     * 分配。审核通过时**不再**填写导师，若继续走 {@link #updateAuditProfile} 并传
+     * {@code null}，会把实习生身上可能已存在的导师信息**误清空**。</p>
+     */
+    @Update("UPDATE sys_user SET user_status = #{userStatus}, status = #{status}, update_time = NOW() "
+            + "WHERE user_id = #{userId}")
+    int updateAuditStatus(@Param("userId") Long userId, @Param("userStatus") String userStatus,
+            @Param("status") String status);
+
     @Select("SELECT id, agreement_name AS agreementName, version_no AS versionNo, content "
             + "FROM agreement_template WHERE status = 'EFFECTIVE' "
             + "ORDER BY effective_time DESC, id DESC LIMIT 1")

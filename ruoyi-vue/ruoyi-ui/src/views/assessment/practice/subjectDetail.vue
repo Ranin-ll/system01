@@ -4,10 +4,6 @@
       <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回</el-button>
       <span>/</span>
       <b>模拟考核</b>
-      <template v-if="fromModuleId">
-        <span>/</span>
-        <b>{{ moduleLabel }}</b>
-      </template>
       <span>/</span>
       <b>实操题详情</b>
     </div>
@@ -54,7 +50,6 @@
             <h3 class="p-title">{{ subject.title || '未命名实操题' }}</h3>
 
             <div class="info2">
-              <div><span>所属模块</span><b>{{ subject.moduleName || '未归属模块' }}</b></div>
               <div><span>建议用时</span><b>{{ subject.estimatedMinutes ? subject.estimatedMinutes + ' 分钟' : '不限' }}</b></div>
               <div><span>难度</span><b>{{ difficultyText(subject.difficulty) }}</b></div>
               <div><span>发布时间</span><b>{{ fmtTime(subject.updateTime || subject.createTime) }}</b></div>
@@ -92,14 +87,6 @@ export default {
     }
   },
   computed: {
-    /** 来源模块（从模块内实操题卡片进来时携带 ?moduleId=），用于返回模块内内容 */
-    fromModuleId() {
-      const v = this.$route.query.moduleId
-      return v == null || v === '' ? null : String(v)
-    },
-    moduleLabel() {
-      return (this.subject && this.subject.moduleName) || '当前模块'
-    },
     images() {
       return this.subject ? this.parseAttachments(this.subject.referenceImages) : []
     },
@@ -155,16 +142,11 @@ export default {
       return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[v] || '中等'
     },
     /**
-     * 返回上一级：从模块内进来时回到「模拟考核 › 该模块」的模块内容页，
-     * 否则回落到「模拟考核」模块列表。不再跳转到已下线的独立「实操题库」页。
+     * 返回上一级：回到「模拟考核 › 实操题」列表（★ 2026-09-23 起模拟实操题不再分模块，
+     * 没有模块内内容页可回）。不再跳转到已下线的独立「实操题库」页。
      */
     goBack() {
-      const mid = this.fromModuleId
-      if (mid) {
-        this.$router.push({ path: '/assessment/intern/learning/mock', query: { moduleId: mid } })
-      } else {
-        this.$router.push('/assessment/intern/learning/mock')
-      }
+      this.$router.push('/assessment/intern/learning/mock')
     }
   }
 }

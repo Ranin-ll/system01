@@ -159,24 +159,10 @@
             </tr>
           </tbody>
         </table>
-        <p class="dsec-note">
-          送达数 = 命中该条范围的有效账号数；已读数来自 <code>notice_read</code>。
-          实习生读完后两端<b>同时</b>变化 —— 不会出现「这边显示已读、那边还红着」。
-          点「未读名单」可看具体是谁没读（未读排前）。
-          <b>按实习生筛选</b>后，列表只留他能收到的通知，并直接给出他本人的已读状态 ——
-          回答「我到底有没有通知到张三」只需一步。
-        </p>
       </div>
     </div>
 
-    <div class="dcallout" style="margin-top:16px">
-      <i class="el-icon-success" />
-      <span>
-        <b>已接后端</b>：发送走 <code>POST /business/message</code>，列表走 <code>GET /business/message/sent</code>，
-        收件人走 <code>GET /business/message/{id}/recipients</code>，撤回走 <code>POST /business/message/{id}/revoke</code>。
-        范围与「公告」的强校验在<b>后端</b>：部门管理员只能发本部门 / 本部门岗位 / 本部门人员。
-      </span>
-    </div>
+    
 
     <!-- 未读名单 -->
     <el-dialog :title="'收件人清单 · ' + (cur && cur.title || '')" :visible.sync="rcpVisible" width="620px" append-to-body>

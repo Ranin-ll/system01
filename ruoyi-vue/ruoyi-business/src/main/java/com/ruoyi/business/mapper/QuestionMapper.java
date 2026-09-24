@@ -9,29 +9,32 @@ import java.util.List;
 
 /**
  * 题目Mapper
+ *
+ * ★ 2026-09-23 起：题目直接按部门（dept_id）归属，不再关联「题库」。
+ * 一个部门 = 一个理论题池；理论考试按知识点（knowledge_point）从中抽题。
  */
 @Mapper
 public interface QuestionMapper extends BaseMapper<Question> {
 
-    /** 查询题目列表（按题库 + 部门数据范围过滤） */
+    /** 查询题目列表（按部门数据范围过滤；超管可按 deptId 再筛） */
     List<Question> selectQuestionList(Question question);
 
     /** 按数据范围查询单个题目。scopeDeptId 为空表示全局范围。 */
     Question selectQuestionById(@Param("id") Long id, @Param("scopeDeptId") Long scopeDeptId);
 
-    /** 按题库随机抽取题目（用于实习生考核）。 */
-    List<Question> selectQuestionsForExam(@Param("bankId") Long bankId,
+    /** 按部门题池随机抽取客观题（不限题型）。 */
+    List<Question> selectQuestionsForExam(@Param("deptId") Long deptId,
                                           @Param("scopeDeptId") Long scopeDeptId,
                                           @Param("limit") Integer limit);
 
-    /** 按题库 + 题型随机抽取题目（SINGLE/MULTI/JUDGE）。 */
-    List<Question> selectQuestionsByType(@Param("bankId") Long bankId,
+    /** 按部门题池 + 题型随机抽取客观题（SINGLE/MULTI/JUDGE）。 */
+    List<Question> selectQuestionsByType(@Param("deptId") Long deptId,
                                          @Param("scopeDeptId") Long scopeDeptId,
                                          @Param("qtype") String qtype,
                                          @Param("limit") Integer limit);
 
-    /** 查询题库下的实操题（主观题，实习生需上传文件作答）。limit 为抽取数量，传 0 或 null 表示全部。 */
-    List<Question> selectSubjectQuestions(@Param("bankId") Long bankId,
+    /** 查询部门题池下的实操题（主观题，实习生需上传文件作答）。limit 为抽取数量，传 0 或 null 表示全部。 */
+    List<Question> selectSubjectQuestions(@Param("deptId") Long deptId,
                                           @Param("scopeDeptId") Long scopeDeptId,
                                           @Param("limit") Integer limit);
 

@@ -22,7 +22,7 @@
       <section class="s-card s-c8">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx">组</span><h3>部门 · 绑定岗位 · 在培人数</h3></div>
-          <span class="hint">真实数据：sys_dept + position + dept_position + sys_user + register_application</span>
+          
         </div>
         <div v-loading="loading">
           <table v-if="rows.length" class="s-tbl">
@@ -47,13 +47,7 @@
           </table>
           <div v-else class="s-empty"><i class="el-icon-office-building" /><span>暂无部门数据</span></div>
         </div>
-        <p class="s-note">
-          部门取 <code>sys_dept</code> 中公司根节点（<code>parentId = 0</code>）下的 5 个培养部门。
-          <b>绑定岗位 · 在培人数 · 待审核</b> 均取自接口 <code>/business/position/dept-bindings</code>：
-          绑定以权威表 <code>dept_position</code> 为准（后端课程可见性用的就是它），两个人数由该接口用 SQL 直接计算
-          （在培 = <code>user_status</code> 处于预备 / 正式 / 待转正；待审核 = <code>register_application.status</code> 为 WAIT_AUDIT）。
-          取不到时退回报名记录，此时「在培人数」显示 <b>—</b> 而非 0。悬停状态徽标可看本条实际来源。
-        </p>
+        
       </section>
 
       <section class="s-card s-c4">
@@ -84,9 +78,7 @@
         <div class="s-grid">
           <div class="s-c6">
             <div class="s-steps">
-              <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>一个部门可以绑定多个岗位</b><span>由 <code>dept_position</code> 维护 —— 如「开发部门」可同时挂「开发实习生」与「初级开发实习生」</span></div></div>
-              <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>一个岗位只能属于一个部门</b><span>唯一索引 <code>uk_position</code> 兜底 —— 注册只选岗位、由岗位反查部门，跨部门会让归属不确定</span></div></div>
-              <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>岗位决定培养内容范围</b><span>课程、题库、模拟与正式考核均按岗位归属</span></div></div>
+                                          <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>岗位决定培养内容范围</b><span>课程、题库、模拟与正式考核均按岗位归属</span></div></div>
             </div>
           </div>
           <div class="s-c6">
@@ -126,12 +118,7 @@
           </tbody>
         </table>
         <div v-else class="s-empty"><i class="el-icon-office-building" /><span>暂无部门</span></div>
-        <p class="s-note">
-          部门取自 <code>sys_dept</code>（RuoYi 原生表）—— 与「系统管理 › 部门管理」是<b>同一份数据</b>，改哪边都一样、本页改完即时生效。
-          删除前请确认该部门下没有账号、也没有绑定岗位 —— 有的话后端会拒绝。
-          <b>新建部门后记得点右上角「新增绑定」给它配上岗位</b> —— 注册页没有部门字段，申请人选的是<b>岗位</b>；
-          没有岗位归属的部门，等于没人能注册进来。
-        </p>
+        
       </section>
     </div>
 
@@ -161,12 +148,7 @@
           </tbody>
         </table>
         <div v-else class="s-empty"><i class="el-icon-collection-tag" /><span>暂无岗位</span></div>
-        <p class="s-note">
-          岗位取自业务表 <code>position</code>（<b>不是</b> RuoYi 自带的 <code>sys_post</code>，两者互不影响）。
-          新增岗位后<b>务必先绑定部门</b>（点右上角「新增绑定」，在任何页签都能点）—— 未绑定的岗位<b>仍会出现在注册页的岗位下拉里</b>
-          （注册接口按 <code>LEFT JOIN</code> 取岗位），申请人要提交时才被拦下并提示「所选岗位尚未配置归属部门」。
-          绑定完成后，实习生注册与课程可见性才会真正用到这个岗位。
-        </p>
+        
       </section>
     </div>
       <!-- 新增「部门 ↔ 岗位」绑定（超管） -->
@@ -253,8 +235,8 @@ import { listRegister } from '@/api/business/register'
 
 /** 绑定来源的可读名（用于状态徽标的 title 提示） */
 const SOURCE_LABEL = {
-  dept_position: 'dept_position（配置表 · 权威，人数由后端 SQL 计算）',
-  register: 'register_application（报名记录 · 仅退路）',
+  dept_position: '来自部门-岗位配置（权威数据）',
+  register: '来自报名记录（备用来源）',
   none: '无来源'
 }
 

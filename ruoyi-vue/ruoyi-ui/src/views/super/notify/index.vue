@@ -55,12 +55,7 @@
           <el-select v-model="form.scopeId" size="small" placeholder="选择岗位" style="width:100%" @change="loadEstimate">
             <el-option v-for="p in positionOptions" :key="p.id" :label="p.positionName" :value="Number(p.id)" />
           </el-select>
-          <div class="tip">
-            岗位分两类：<b>实习生岗</b>（实施 / 开发 / 设计 / 质检 / 建模）
-            与<b>管理员岗</b>（各部门管理员）。
-            <b>部门管理员不占实习生岗</b>（<code>position_id</code> 为空），
-            所以要单独选「部门管理员」才会发给 TA 们。
-          </div>
+          
         </div>
 
         <div v-if="form.scopeType === 'USER'" class="field">
@@ -150,9 +145,7 @@
           </el-table-column>
         </el-table>
         <div v-if="!loading && !sent.length" class="empty">还没有发送过通知</div>
-        <div class="note">
-          送达数 = 命中该条范围的有效账号数；已读数来自 <code>notice_read</code>（与实习生端铃铛红点<b>同一张表</b>，不会出现「这边已读、那边还红着」）。
-        </div>
+        
       </section>
     </div>
 

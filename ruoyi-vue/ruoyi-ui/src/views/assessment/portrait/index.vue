@@ -98,7 +98,7 @@
             <p class="review-text">"{{ review.text }}"</p>
             <p class="review-meta">— 导师 {{ review.mentor }} · {{ review.date }} · visible_scope = OPEN</p>
           </div>
-          <p class="review-note">阶段评价来自 <code>stage_evaluation</code>（当前表为空）；<code>visible_scope = ADMIN_ONLY</code> 的评价由后端过滤，不会出现在实习生端。</p>
+          
         </div>
       </section>
 

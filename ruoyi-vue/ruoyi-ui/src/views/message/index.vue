@@ -204,11 +204,7 @@
           </div>
         </el-form-item>
       </el-form>
-      <div class="note">
-        附件先单独上传（只落盘），点「提交」时才和作业内容一起写入 <code>task_submission</code>
-        （重复提交走 <code>version + 1</code>），并<b>定向通知批阅人</b>。
-        逾期仍可提交，但会标记为逾期。
-      </div>
+      
       <span slot="footer">
         <el-button size="small" @click="submitVisible = false">取消</el-button>
         <el-button size="small" type="primary" :loading="submitting" @click="doSubmit">提交</el-button>

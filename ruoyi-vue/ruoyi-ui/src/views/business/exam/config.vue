@@ -73,6 +73,7 @@
 import { getExam, delExam, changeExamStatus } from '@/api/business/exam'
 import { mapGetters } from 'vuex'
 import ExamConfigCard from './components/ExamConfigCard'
+import { isSuperAdminRole } from '@/utils/permission'
 
 export default {
   name: 'ExamConfig',
@@ -85,7 +86,7 @@ export default {
   },
   computed: {
     ...mapGetters(['roles']),
-    isSuperAdmin() { return this.roles.indexOf('SUPER_ADMIN') > -1 },
+    isSuperAdmin() { return isSuperAdminRole(this.roles) },
     isPractice() { return this.exam && this.exam.examType === 'PRACTICAL' },
     statusLabel() {
       return { DRAFT: '待发布', PUBLISHED: '已发布', GRADING: '待批改', DISABLED: '已停用' }[this.exam && this.exam.status] || '—'

@@ -8,7 +8,7 @@
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>实习生管理</h1>
-        <p>本部门实习生花名册与统计下钻。花名册基础信息、培养状态、导师均为真实数据。</p>
+        <p>本部门实习生花名册与统计下钻。表格 9 列全部接真实数据（含保密协议 / 学习完成率 / 正式考核）。</p>
       </div>
       <div class="dept-heading-actions">
         <el-button size="small" @click="notReady('导出花名册')">导出</el-button>
@@ -73,47 +73,68 @@
             <th>导师</th>
             <th>保密协议</th>
             <th>学习完成率</th>
-            <th>模拟正确率</th>
-            <th>正式考核</th>
+            <th>正式考核次数</th>
             <th>最近活跃</th>
-            <th style="width:170px">操作</th>
+            <th style="width:210px">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in pagedRows" :key="row.id">
+          <tr v-for="row in pagedRows" :key="row.userId">
             <td>
-              <span class="strong">{{ row.realName }}</span>
-              <div v-if="row.loginAccount" class="sub-account">{{ row.loginAccount }}</div>
+              <span class="strong">{{ row.nickName }}</span>
+              <div v-if="row.userName" class="sub-account">{{ row.userName }}</div>
             </td>
             <td>{{ row.positionName || '—' }}</td>
             <td>
-              <span class="dbadge" :class="statusMeta(row.userStatus).tone">{{ statusMeta(row.userStatus).text }}</span>
+              <span class="dbadge" :class="statusMeta(row.stage).tone">{{ statusMeta(row.stage).text }}</span>
+              <div v-if="row.statusConflict" class="sub-account warn-txt">角色已发 · 状态待修正</div>
             </td>
             <td>
-              <span v-if="row.mentorName">{{ row.mentorName }}</span>
+              <span v-if="row.mentorName" class="strong-sm">{{ row.mentorName }}</span>
               <span v-else class="muted">未分配</span>
+              <div v-if="row.mentorPhone" class="sub-account">{{ row.mentorPhone }}</div>
             </td>
-            <td><span class="muted">--</span></td>
-            <td><span class="muted">--</span></td>
-            <td><span class="muted">--</span></td>
-            <td><span class="muted">--</span></td>
-            <td class="muted">{{ fmtDate(row.updateTime || row.createTime) }}</td>
+            <!-- 保密协议（sys_user.protocol_status，真数据） -->
+            <td>
+              <span class="dbadge" :class="row.protocolSigned === 1 ? 'green' : 'orange'">
+                {{ row.protocolSigned === 1 ? '已签' : '未签' }}
+              </span>
+            </td>
+            <!-- 学习完成率：本人学习项进度均值；无记录 → 「暂无课程」，不显示 0% -->
+            <td>
+              <template v-if="row.learnTotal">
+                <span class="strong-sm">{{ row.learnAvgProgress }}%</span>
+                <div class="sub-account">达标 {{ row.learnDone }}/{{ row.learnTotal }} 项</div>
+              </template>
+              <span v-else class="muted" title="该实习生尚无任何学习记录">暂无课程</span>
+            </td>
+            <!-- 正式考核：★ 主值展示【参加次数】；有结果时下带一行通过与否 -->
+            <td>
+              <template v-if="row.formalTimes">
+                <span class="strong-sm">{{ row.formalTimes }} 次</span>
+                <div class="sub-account" :class="row.formalPassed === 1 ? 'ok-txt' : 'warn-txt'">
+                  {{ row.formalPassed === 1 ? '已通过' : '未通过' }}
+                </div>
+              </template>
+              <span v-else class="muted">未参加</span>
+            </td>
+            <td class="muted">{{ fmtDate(row.loginDate || row.createTime) }}</td>
             <td>
               <div class="acts">
                 <el-button type="text" @click="openProfile(row)">查看档案</el-button>
                 <span class="sep">|</span>
-                <el-button v-if="row.userStatus === 'PENDING_PROMOTE'" type="text" @click="goPromotion(row)">审核转正</el-button>
-                <el-button v-else-if="!row.mentorName" type="text" @click="notReady('分配导师')">分配导师</el-button>
-                <el-button v-else type="text" @click="sendTask(row)">发任务</el-button>
+                <el-button v-if="row.stage === 'PENDING_PROMOTE'" type="text" @click="goPromotion(row)">审核转正</el-button>
+                <el-button v-if="row.mentorName" type="text" @click="openMentorDialog(row)">改导师</el-button>
+                <el-button v-else type="text" @click="openMentorDialog(row)">分配导师</el-button>
               </div>
             </td>
           </tr>
           <tr v-if="!filteredRows.length && !loading">
-            <td colspan="10">
+            <td colspan="9">
               <div class="dempty small">
                 <i class="el-icon-user" />
                 <strong>没有符合条件的实习生</strong>
-                <span>试着放宽筛选条件，或前往「注册审核」先通过注册申请。</span>
+                <span>试着放宽筛选条件；本页只显示当前部门名下的实习生与注册待审人员。</span>
               </div>
             </td>
           </tr>
@@ -132,28 +153,87 @@
 
     <!-- 数据说明 -->
     <div class="dgrid" style="margin-top:16px">
-      <div class="dcallout ok c6" style="margin:0">
-        <i class="el-icon-success" />
-        <span>
-          表格里「姓名 / 岗位 / 培养状态 / 导师 / 最近活跃」<b>已接真实接口</b>（<code>register_application</code> + <code>sys_user</code>）。
-          「保密协议 / 学习完成率 / 模拟正确率 / 正式考核」4 列需后端出<b>批量聚合接口</b>，
-          当前<b>留空显示「--」</b>（不再用随机示例值）。
-        </span>
-      </div>
-      <div class="dcallout warn c6" style="margin:0">
-        <i class="el-icon-warning-outline" />
-        <span>
-          4 个统计卡中，前 3 个来自 <code>sys_user.user_status</code> <b>可真实</b>；
-          「已发证」需要 <code>certificate</code> 表有 Java 层，<b>当前未展示该状态</b>（不做假数据）。
-        </span>
-      </div>
+      
+      
     </div>
+
+    <!-- ==================== 分配 / 更换导师（2026-09-23） ====================
+        导师已抽成独立 mentor 主表，由「导师管理」页维护；这里只做「选一位」。
+        下拉仅列出本部门**启用中**的导师（后端 /business/mentor/options 已按角色收窄范围）。 -->
+    <el-dialog
+      :title="mentorDialog.row && mentorDialog.row.mentorName ? '更换导师' : '分配导师'"
+      :visible.sync="mentorDialog.visible"
+      width="480px"
+      append-to-body
+      :close-on-click-modal="false"
+    >
+      <div v-if="mentorDialog.row" class="mentor-head">
+        <strong>{{ mentorDialog.row.nickName }}</strong>
+        <span class="muted"> · {{ mentorDialog.row.userName }}</span>
+        <div class="muted">
+          {{ mentorDialog.row.positionName || '岗位缺失' }}
+          <template v-if="mentorDialog.row.deptName"> · {{ mentorDialog.row.deptName }}</template>
+        </div>
+      </div>
+      <el-form label-width="82px" size="small">
+        <el-form-item label="当前导师">
+          <span v-if="mentorDialog.row && mentorDialog.row.mentorName">
+            {{ mentorDialog.row.mentorName }}
+            <span class="muted">（{{ mentorDialog.row.mentorPhone || '未留联系方式' }}）</span>
+          </span>
+          <span v-else class="muted">未分配</span>
+        </el-form-item>
+        <el-form-item label="选择导师" required>
+          <el-select
+            v-model="mentorDialog.mentorId"
+            filterable
+            clearable
+            placeholder="从导师库中选择"
+            style="width:100%"
+            :loading="mentorDialog.optionsLoading"
+          >
+            <el-option
+              v-for="m in mentorDialog.options"
+              :key="m.id"
+              :label="m.mentorName + '（' + (m.mentorPhone || '无联系方式') + '）'"
+              :value="m.id"
+            />
+          </el-select>
+          <div class="field-tip">
+            名单来自「导师管理」页配置的本部门启用中导师
+            <el-button type="text" size="mini" @click="goMentorManage">去导师管理</el-button>
+          </div>
+        </el-form-item>
+      </el-form>
+      <span slot="footer">
+        <el-button size="small" @click="mentorDialog.visible = false">取消</el-button>
+        <el-button
+          v-if="mentorDialog.row && mentorDialog.row.mentorName"
+          size="small"
+          type="danger"
+          plain
+          :loading="mentorDialog.submitting"
+          @click="clearMentor"
+        >解除关联</el-button>
+        <el-button size="small" type="primary" :loading="mentorDialog.submitting" @click="submitMentor">保存</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listRegister } from '@/api/business/register'
+// ★ 2026-09-23：花名册数据源由 `register_application` 换成**培养分析聚合接口**
+//   （GET /business/super/analysis/stage-progress，权限 business:bank:list，部门管理员持有）。
+//   原因：① 原口径只取「注册已通过」，与后端聚合口径（sys_user + 实习生角色）对不上
+//          —— 部门端只有 1 人 vs 实际 7 人；
+//        ② 「保密协议 / 学习完成率 / 正式考核」这几列的数据本来就在
+//           后端这一份聚合里（protocolSigned / learnTotal+learnDone+learnAvgProgress /
+//           formalPassed），不必再另做接口。
+//   该接口**不需要传部门参数**，范围从 token 取（超管=全部、部门管理员=本部门）。
+import { getStageProgress } from '@/api/business/analysis'
+import { getMentorOptions, assignInternMentor, clearInternMentor } from '@/api/business/mentor'
 
+// ★ 键用后端归一后的 `stage`（以角色为主、user_status 为辅），不再用原始 userStatus
 const STATUS_MAP = {
   WAIT_AUDIT: { text: '注册待审', tone: 'orange' },
   PRE_TRAINEE: { text: '预备实习中', tone: 'blue' },
@@ -169,23 +249,34 @@ export default {
     return {
       loading: false,
       roster: [],
+      mentorDialog: {
+        visible: false,
+        submitting: false,
+        optionsLoading: false,
+        row: null,
+        mentorId: undefined,
+        options: []
+      },
       query: { positionName: '', mentorName: '', status: 'ALL', entryRange: 'ALL', keyword: '', pageNum: 1, pageSize: 20 }
     }
   },
   computed: {
-    /** 花名册 = 注册申请已通过的人（注册待审归「注册审核」页处理） */
+    /**
+     * 花名册 = 后端培养分析聚合的逐人明细（与「培养状态 / 转正 gate」同一份口径）。
+     * ★ 2026-09-23 起**不再**过滤掉注册待审的人 —— 他们照样在本部门名下，
+     *   由「培养状态」列标出「注册待审」，避免两个页面人数对不上。
+     */
     interns() {
       return this.roster
-        .filter(row => row.status === 'PASSED')
-        // 2026-09-22：不再注入随机示例字段（原 row.demo 的 4 列已改为留空显示「--」）
     },
     kpis() {
-      const by = key => this.interns.filter(r => r.userStatus === key).length
+      const by = key => this.interns.filter(r => r.stage === key).length
+      const waiting = by('WAIT_AUDIT')
       const pre = by('PRE_TRAINEE')
       const promoting = by('PENDING_PROMOTE')
       const formal = by('FORMAL_TRAINEE')
       return [
-        { key: 'all', label: '在册实习生', value: this.interns.length, hint: '本部门 ' + this.positionOptions.length + ' 个岗位', color: '#1764f5' },
+        { key: 'all', label: '本部门人员', value: this.interns.length, hint: '含注册待审 ' + waiting + ' 人', color: '#1764f5' },
         { key: 'pre', label: '预备实习中', value: pre, hint: 'PRE_TRAINEE', color: '#1764f5' },
         { key: 'promoting', label: '转正审核中', value: promoting, hint: '已推荐待终审', tone: 'warn', color: '#f79009' },
         { key: 'formal', label: '已转正', value: formal, hint: '转正即生效并自动发证', tone: 'ok', color: '#12b76a' }
@@ -198,24 +289,24 @@ export default {
       return this.uniq(this.interns.map(r => r.mentorName))
     },
     statusTabs() {
-      const count = key => (key === 'ALL' ? this.interns.length : this.interns.filter(r => r.userStatus === key).length)
+      const count = key => (key === 'ALL' ? this.interns.length : this.interns.filter(r => r.stage === key).length)
       return [
         { key: 'ALL', label: '全部', count: count('ALL') },
+        { key: 'WAIT_AUDIT', label: '注册待审', count: count('WAIT_AUDIT') },
         { key: 'PRE_TRAINEE', label: '预备', count: count('PRE_TRAINEE') },
         { key: 'PENDING_PROMOTE', label: '审核中', count: count('PENDING_PROMOTE') },
-        { key: 'FORMAL_TRAINEE', label: '已转正', count: count('FORMAL_TRAINEE') },
-        { key: 'DISABLED', label: '已停用', count: count('DISABLED') }
+        { key: 'FORMAL_TRAINEE', label: '已转正', count: count('FORMAL_TRAINEE') }
       ]
     },
     filteredRows() {
       const q = this.query
       const kw = (q.keyword || '').trim().toLowerCase()
       return this.interns.filter(row => {
-        if (q.status !== 'ALL' && row.userStatus !== q.status) return false
+        if (q.status !== 'ALL' && row.stage !== q.status) return false
         if (q.positionName && row.positionName !== q.positionName) return false
         if (q.mentorName && row.mentorName !== q.mentorName) return false
         if (kw) {
-          const hay = ((row.realName || '') + ' ' + (row.loginAccount || '')).toLowerCase()
+          const hay = ((row.nickName || '') + ' ' + (row.userName || '')).toLowerCase()
           if (hay.indexOf(kw) < 0) return false
         }
         if (q.entryRange !== 'ALL') {
@@ -251,8 +342,10 @@ export default {
   methods: {
     loadRoster() {
       this.loading = true
-      listRegister({ pageNum: 1, pageSize: 200 }).then(res => {
-        this.roster = (res && res.rows) || []
+      // 培养分析聚合接口：一次拿到全部门逐人明细（含协议 / 学习 / 模拟 / 正式考核）
+      getStageProgress().then(res => {
+        const d = (res && res.data) || {}
+        this.roster = d.rows || []
       }).catch(() => {
         this.roster = []
       }).finally(() => {
@@ -290,8 +383,54 @@ export default {
     goPromotion(row) {
       this.$router.push({ path: '/department/people/promotion', query: { id: String(row.userId || row.id) } })
     },
-    sendTask(row) {
-      this.$router.push({ path: '/department/messages/tasks', query: { to: row.realName || '' } })
+    // ★ 2026-09-23：去掉「发任务」入口（该操作移到「任务与通知 › 任务管理」里做）
+    /** 打开「分配 / 更换导师」弹窗，并拉取本部门启用中的导师名单 */
+    openMentorDialog(row) {
+      this.mentorDialog.row = row
+      this.mentorDialog.mentorId = row.mentorId || undefined
+      this.mentorDialog.visible = true
+      this.mentorDialog.optionsLoading = true
+      getMentorOptions().then(res => {
+        this.mentorDialog.options = (res && res.data) || []
+      }).catch(() => {
+        this.mentorDialog.options = []
+      }).finally(() => {
+        this.mentorDialog.optionsLoading = false
+      })
+    },
+    submitMentor() {
+      const d = this.mentorDialog
+      if (!d.row) {
+        return
+      }
+      if (!d.mentorId) {
+        this.$message.warning('请先选择一位导师')
+        return
+      }
+      d.submitting = true
+      assignInternMentor({ userId: d.row.userId || d.row.id, mentorId: d.mentorId }).then(() => {
+        this.$message.success('导师已保存')
+        d.visible = false
+        this.loadRoster()
+      }).finally(() => {
+        d.submitting = false
+      })
+    },
+    clearMentor() {
+      const d = this.mentorDialog
+      this.$confirm('确认解除该实习生的导师关联？', '提示', { type: 'warning' }).then(() => {
+        d.submitting = true
+        return clearInternMentor({ userId: d.row.userId || d.row.id })
+      }).then(() => {
+        this.$message.success('已解除导师关联')
+        d.visible = false
+        this.loadRoster()
+      }).catch(() => {}).finally(() => {
+        d.submitting = false
+      })
+    },
+    goMentorManage() {
+      this.$router.push('/department/people/mentors')
     },
     notReady(action) {
       this.$message({ message: '「' + action + '」所需的接口尚未落地（见设计方案 §实施状态）', type: 'warning' })
@@ -310,6 +449,12 @@ export default {
 .dtbl .muted { color: #98a2b3; }
 .dtbl .sub-account { margin-top: 3px; color: #98a2b3; font-size: 11px; }
 .dtbl .acts .sep { color: #d0d5dd; }
+.dtbl .strong-sm { font-weight: 600; }
+.dtbl .warn-txt { color: #b54708; }
+.dtbl .ok-txt { color: #027a48; }
+.mentor-head { margin-bottom: 14px; color: #344054; }
+.mentor-head .muted { color: #98a2b3; font-size: 12px; }
+.field-tip { margin-top: 3px; color: #98a2b3; font-size: 11px; }
 .dkpi-val small { margin-left: 2px; color: #667085; font-size: 12px; font-weight: 400; }
 code { padding: 1px 5px; color: #344054; font-size: 11.5px; background: #f2f4f7; border-radius: 4px; }
 </style>

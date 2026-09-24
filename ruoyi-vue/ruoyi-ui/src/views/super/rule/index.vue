@@ -91,11 +91,7 @@
           </tbody>
         </table>
         <div v-else class="s-empty"><i class="el-icon-document" /><span>暂无协议模板</span></div>
-        <p class="s-note">
-          实习生首登「协议门」读的是<b>生效中</b>那一行；签署后 <code>sign_count + 1</code>，明细写入
-          <code>agreement_signature</code>（含版本号），工作台底部「签署凭证」可查。
-          <b>模板只增不改</b>：发布新版本会自动把旧版归档，历史签署记录保持原版本。
-        </p>
+        
       </section>
 
       <!-- ③ 证书模板 -->
@@ -122,13 +118,7 @@
             <el-input value="部门管理员（终审即发证）" disabled />
           </el-form-item>
         </el-form>
-        <p class="s-note">
-          证书在转正审批通过时按<b>编号规则</b>生成 <code>certificate.cert_no</code>。
-          实习生在工作台底部「电子证书」查看与下载。
-          <br/>
-          <b>说明：</b><code>certificate</code> 是<b>已发证书表</b>，只有 <code>template_url</code> 字段；
-          <b>没有证书模板表</b>，所以这里只维护「文件地址 + 编号规则」，模板排版在外部工具完成。
-        </p>
+        
       </section>
 
       <!-- ④ 异常预警规则 -->
@@ -186,10 +176,7 @@
             </tr>
           </tbody>
         </table>
-        <p class="s-note">
-          前三条阈值已入库并用于「全局工作台 → 异常预警」（<code>报名待审核</code> 已接本配置，其余两条判据增强待做）；
-          后两条的阈值可先配置，判据分别依赖「跨部门完成率聚合接口」与「考核截止时间比对」。
-        </p>
+        
         <div class="s-grid" style="margin-top:6px">
           <div class="s-c6">
             <div class="s-entry" @click="go('/super/audit')">

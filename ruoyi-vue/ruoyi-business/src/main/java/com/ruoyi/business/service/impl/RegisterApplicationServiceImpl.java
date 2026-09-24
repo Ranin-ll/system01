@@ -191,17 +191,19 @@ public class RegisterApplicationServiceImpl extends ServiceImpl<RegisterApplicat
         String fromStatus = app.getStatus();
         String toStatus;
         if ("PASS".equals(action)) {
-            if (mentorName == null || mentorName.trim().isEmpty()) {
-                throw new ServiceException("审核通过必须填写导师姓名");
-            }
-            if (mentorPhone == null || mentorPhone.trim().isEmpty()) {
-                throw new ServiceException("审核通过必须填写导师联系方式");
-            }
+            // ★ 2026-09-23：导师不再在审核时填写（已抽成独立 mentor 主表，
+            //   改由「实习生管理页」从导师库里选）。这里**不再校验、也不再写入**导师字段。
+            //   兼容：若老调用方仍传了导师，就照旧写一份冗余展示列；没传则完全不碰，
+            //   避免把实习生身上已有的导师信息误清空（见 updateAuditStatus 的注释）。
             toStatus = "PASSED";
             app.setStatus(toStatus);
-            // 导师只是实习生档案上的人工登记信息，不创建导师账号，也不绑定审核员。
-            if (internAuthMapper.updateAuditProfile(app.getUserId(), "PRE_TRAINEE", "0",
-                    mentorName.trim(), mentorPhone.trim()) != 1) {
+            boolean hasMentor = mentorName != null && !mentorName.trim().isEmpty()
+                    && mentorPhone != null && !mentorPhone.trim().isEmpty();
+            int updated = hasMentor
+                    ? internAuthMapper.updateAuditProfile(app.getUserId(), "PRE_TRAINEE", "0",
+                            mentorName.trim(), mentorPhone.trim())
+                    : internAuthMapper.updateAuditStatus(app.getUserId(), "PRE_TRAINEE", "0");
+            if (updated != 1) {
                 throw new ServiceException("审核通过失败：实习生账号不存在");
             }
         } else if ("REJECT".equals(action)) {

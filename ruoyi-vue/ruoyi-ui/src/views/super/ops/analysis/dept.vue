@@ -123,9 +123,7 @@
             <span class="track"><i :style="{ width: posWidth(p.cnt) + '%' }" /></span>
             <span class="pc">{{ p.cnt }} 人</span>
           </div>
-          <p class="s-note">
-            该部门绑定的岗位由 <code>dept_position</code> 维护（1:1）；<b>未设岗位</b> 表示账号上没填岗位。
-          </p>
+          
         </section>
       </div>
 
@@ -255,9 +253,7 @@
               </tr>
             </tbody>
           </table>
-          <p class="s-note">
-            ★ 「在培天数」自建档起算（库里**没有阶段流转日志**，所以这是近似值，不是"当前阶段停留天数"）。
-          </p>
+          
         </section>
       </div>
     </template>

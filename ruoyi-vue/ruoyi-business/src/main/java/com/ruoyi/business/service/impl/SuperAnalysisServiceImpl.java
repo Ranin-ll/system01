@@ -163,22 +163,28 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
 
     /** 给逐人明细补上阶段中文名（列表页与详情页共用同一份映射） */
     private List<InternStageRow> label(List<InternStageRow> rows) {
-        // 正式考试是否通过（2026-09-22 起为真数据）：一次批量查，避免逐人 N+1
+        // 正式考试是否通过 + 参加次数（2026-09-22 起为真数据）：一次批量查，避免逐人 N+1
+        // ★ 两者取自**同一份查询**（selectFormalPassedByUser 同时返回 passed 与 sheetCount），
+        //   保证「次数」与「通过与否」口径不会漂移。
         Map<Long, Integer> passedMap = new LinkedHashMap<>();
+        Map<Long, Integer> timesMap = new LinkedHashMap<>();
         for (Map<String, Object> m : analysisMapper.selectFormalPassedByUser(scopeDeptId())) {
             Object uid = m.get("userId");
             if (uid == null) {
                 continue;
             }
+            Long userId = Long.valueOf(String.valueOf(uid));
             Object p = m.get("passed");
-            passedMap.put(Long.valueOf(String.valueOf(uid)),
-                    p == null ? 0 : Integer.valueOf(String.valueOf(p)));
+            passedMap.put(userId, p == null ? 0 : Integer.valueOf(String.valueOf(p)));
+            Object c = m.get("sheetCount");
+            timesMap.put(userId, c == null ? 0 : Integer.valueOf(String.valueOf(c)));
         }
         for (InternStageRow r : rows) {
             String label = STAGE_LABELS.get(r.getStage());
             r.setStageLabel(label == null ? r.getStage() : label);
-            // 无正式答卷的人保持 null（前端显示「未参加」）—— 不伪装成「未通过」
+            // 无正式答卷的人保持 null（前端显示「未参加」）—— 不伪装成「未通过」/「0 次」
             r.setFormalPassed(r.getUserId() == null ? null : passedMap.get(r.getUserId()));
+            r.setFormalTimes(r.getUserId() == null ? null : timesMap.get(r.getUserId()));
         }
         return rows;
     }

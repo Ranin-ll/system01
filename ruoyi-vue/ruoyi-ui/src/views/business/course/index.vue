@@ -57,12 +57,6 @@
             <el-option v-for="position in positionOptions" :key="position.id" :label="position.positionName" :value="position.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="课程类型" prop="courseType">
-          <el-select v-model="queryParams.courseType" clearable placeholder="全部类型">
-            <el-option label="理论学习" value="THEORY" />
-            <el-option label="实操训练" value="PRACTICE" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="发布状态" prop="status">
           <el-select v-model="queryParams.status" clearable placeholder="全部状态">
             <el-option label="草稿" value="DRAFT" />
@@ -83,7 +77,7 @@
         <el-table-column label="课程" min-width="225">
           <template slot-scope="scope">
             <div class="course-cell">
-              <span class="course-cover" :class="courseTone(scope.row)"><i :class="scope.row.courseType === 'PRACTICE' ? 'el-icon-video-camera' : 'el-icon-reading'" /></span>
+              <span class="course-cover"><i class="el-icon-reading" /></span>
               <div>
                 <strong>{{ scope.row.courseName }}</strong>
                 <small>{{ scope.row.intro || '尚未填写课程简介' }}</small>
@@ -93,12 +87,6 @@
         </el-table-column>
         <el-table-column label="适用岗位" min-width="120">
           <template slot-scope="scope"><span class="position-text"><i class="el-icon-user" />{{ scope.row.positionName || positionName(scope.row.positionId) || '未设置' }}</span></template>
-        </el-table-column>
-        <el-table-column label="类型 / 要求" width="122" align="center">
-          <template slot-scope="scope">
-            <el-tag size="mini" :type="scope.row.courseType === 'PRACTICE' ? 'warning' : 'success'">{{ courseTypeLabel(scope.row.courseType) }}</el-tag>
-            <span class="required-label" :class="Number(scope.row.isRequired) === 1 ? 'required' : ''">{{ Number(scope.row.isRequired) === 1 ? '必修' : '选修' }}</span>
-          </template>
         </el-table-column>
         <el-table-column label="学习内容" width="110" align="center">
           <template slot-scope="scope">
@@ -145,12 +133,6 @@
             <el-option v-for="position in positionOptions" :key="position.id" :label="position.positionName" :value="position.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="课程类型" prop="courseType">
-          <el-radio-group v-model="courseForm.courseType"><el-radio label="THEORY">理论学习</el-radio><el-radio label="PRACTICE">实操训练</el-radio></el-radio-group>
-        </el-form-item>
-        <el-form-item label="课程要求" prop="isRequired">
-          <el-radio-group v-model="courseForm.isRequired"><el-radio :label="1">必修课程</el-radio><el-radio :label="0">选修课程</el-radio></el-radio-group>
-        </el-form-item>
         <el-form-item label="课程简介" prop="intro"><el-input v-model="courseForm.intro" type="textarea" :rows="4" maxlength="300" show-word-limit placeholder="说明课程目标、适用场景和完成要求" /></el-form-item>
       </el-form>
       <div slot="footer"><el-button @click="courseDialogOpen = false">取消</el-button><el-button type="primary" :loading="courseSubmitting" @click="submitCourse">保存课程</el-button></div>
@@ -160,8 +142,8 @@
       <template v-if="currentCourse">
         <div class="drawer-heading">
           <div class="drawer-heading-main">
-            <span class="drawer-cover" :class="courseTone(currentCourse)"><i :class="currentCourse.courseType === 'PRACTICE' ? 'el-icon-video-camera' : 'el-icon-reading'" /></span>
-            <div><span>课程内容</span><h3>{{ currentCourse.courseName }}</h3><p>{{ currentCourse.positionName || positionName(currentCourse.positionId) }} · {{ courseTypeLabel(currentCourse.courseType) }} · {{ Number(currentCourse.isRequired) === 1 ? '必修' : '选修' }}</p></div>
+            <span class="drawer-cover"><i class="el-icon-reading" /></span>
+            <div><span>课程内容</span><h3>{{ currentCourse.courseName }}</h3><p>{{ currentCourse.positionName || positionName(currentCourse.positionId) }}</p></div>
           </div>
           <el-button icon="el-icon-close" circle size="mini" @click="contentDrawerOpen = false" />
         </div>
@@ -343,14 +325,13 @@ export default {
       total: 0,
       courseList: [],
       positionOptions: clone(fallbackPositions),
-      queryParams: { pageNum: 1, pageSize: 10, courseName: undefined, positionId: undefined, courseType: undefined, status: undefined, publishDate: undefined },
+      queryParams: { pageNum: 1, pageSize: 10, courseName: undefined, positionId: undefined, status: undefined, publishDate: undefined },
       courseDialogOpen: false,
       courseDialogTitle: '',
       courseForm: {},
       courseRules: {
         courseName: [{ required: true, message: '请填写课程名称', trigger: 'blur' }],
-        positionId: [{ required: true, message: '请选择适用岗位', trigger: 'change' }],
-        courseType: [{ required: true, message: '请选择课程类型', trigger: 'change' }]
+        positionId: [{ required: true, message: '请选择适用岗位', trigger: 'change' }]
       },
       contentDrawerOpen: false,
       contentLoading: false,
@@ -491,14 +472,13 @@ export default {
       return rows.filter(item => item.deptName === this.deptName || item.positionName === positionName)
     },
     hasQuery() {
-      return Boolean(this.queryParams.courseName || this.queryParams.positionId || this.queryParams.courseType || this.queryParams.status || (this.queryParams.publishDate && this.queryParams.publishDate.length))
+      return Boolean(this.queryParams.courseName || this.queryParams.positionId || this.queryParams.status || (this.queryParams.publishDate && this.queryParams.publishDate.length))
     },
     matchesQuery(item) {
       const name = String(item.courseName || '').toLowerCase()
       const queryName = String(this.queryParams.courseName || '').toLowerCase()
       return (!queryName || name.indexOf(queryName) > -1) &&
         (!this.queryParams.positionId || String(item.positionId) === String(this.queryParams.positionId)) &&
-        (!this.queryParams.courseType || item.courseType === this.queryParams.courseType) &&
         (!this.queryParams.status || item.status === this.queryParams.status) &&
         this.matchesPublishDate(item)
     },
@@ -518,6 +498,9 @@ export default {
       this.getList()
     },
     resetCourseForm() {
+      // ★ courseType / isRequired 已从界面移除，但**必须继续提交**：
+      //   course.course_type 是 NOT NULL 且**无默认值**（不传会插入失败），is_required 默认 1。
+      //   新建统一给「理论学习 + 必修」；编辑沿用原值（handleUpdate 从行数据回填，不会覆盖）。
       this.courseForm = { id: undefined, courseName: '', positionId: undefined, courseType: 'THEORY', isRequired: 1, intro: '' }
       this.$nextTick(() => this.resetForm('courseForm'))
     },
@@ -950,11 +933,9 @@ export default {
       const position = this.positionOptions.find(item => String(item.id) === String(positionId))
       return position ? position.positionName : ''
     },
-    courseTypeLabel(type) { return type === 'PRACTICE' ? '实操训练' : '理论学习' },
     resourceTypeLabel(type) { return { DOC: '文档学习', VIDEO: '视频学习' }[type] || type },
     completionRuleLabel(rule) { return { SCROLL_END: '阅读确认', PLAY_TO_END: '观看完成' }[rule] || '完成学习' },
     resourceIcon(type) { return { DOC: 'el-icon-document', VIDEO: 'el-icon-video-camera' }[type] || 'el-icon-document' },
-    courseTone(course) { return course.courseType === 'PRACTICE' ? 'orange' : 'blue' },
     statusLabel(status) { return { DRAFT: '草稿', PUBLISHED: '已发布', DISABLED: '已停用' }[status] || status || '草稿' },
     statusTagType(status) { return { DRAFT: 'info', PUBLISHED: 'success', DISABLED: 'danger' }[status] || 'info' },
     recordStatusLabel(status) { return { NOT_STARTED: '未开始', IN_PROGRESS: '学习中', DONE: '已完成' }[status] || '未开始' },

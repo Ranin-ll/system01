@@ -27,8 +27,8 @@ public interface IPracticeSubjectService {
     /** 启用/停用 */
     int changeStatus(Long id, Integer status);
 
-    /** 实习生端：本部门已发布的实操题列表（moduleId 非空时只取该模块下的题） */
-    List<PracticeSubject> selectPublishedForIntern(Long moduleId);
+    /** 实习生端：本部门已发布的实操题列表（★ 2026-09-23 起不分模块） */
+    List<PracticeSubject> selectPublishedForIntern();
 
     /** 实习生端：本部门已发布的单条实操题详情（供独立详情页直链访问） */
     PracticeSubject selectPublishedDetailForIntern(Long id);

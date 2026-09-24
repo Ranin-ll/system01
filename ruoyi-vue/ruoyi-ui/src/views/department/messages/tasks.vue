@@ -236,25 +236,11 @@
             </tr>
           </tbody>
         </table>
-        <p class="dsec-note">
-          <b>发布 = 一个事务</b>：任务置为已发布 + <b>按发布对象展开分配</b>（本部门全体 / 该岗位全部 / 指定人员，写进 <code>task_assignment</code>，唯一键保证不重复）+ 定向通知到人。
-          只有「按岗位」发布的任务会绑定岗位（<code>position_id</code>）；按部门 / 按人发的任务不绑岗位，归属由发布人所属部门判定。
-          「分配/提交」= 分配人数 / 已提交人数；「待批」= 已提交但未批阅。
-        </p>
+        <p class="dsec-note">「分配/提交」= 分配人数 / 已提交人数；「待批」= 已提交但未批阅。</p>
       </div>
     </div>
 
-    <div class="dcallout" style="margin-top:16px">
-      <i class="el-icon-success" />
-      <span>
-        <b>本页只负责「建 / 发布 / 结束 / 催办」</b>。<b>点任务行任意位置可看任务详情</b>。
-        提交明细、批阅、任务资料、讨论区已移到
-        <router-link to="/department/messages/review" style="color:#1764f5">任务批阅</router-link> 页
-        —— 那里有完成情况统计，且全部内联，不再弹窗。
-        接口：<code>POST /business/task/save</code>、<code>POST /business/task/{id}/status</code>、
-        <code>GET /business/task/list</code>；<b>催办</b>走通知接口给未提交者发定向通知。
-      </span>
-    </div>
+    
 
     <!-- 任务详情：点任务行任意位置打开（操作列的按钮已 @click.stop，不会误触发）
          ⚠️ 本页「已逾期」的判定方法叫 overdue() 而不是 isOverdue()（那是 review.vue 的名字）。

@@ -153,7 +153,8 @@ function buildSuperSidebar(dbRoutes = []) {
     // 「部门管理员」页已于 2026-09-20 并入「督办看板」的「按人」视角（内容与看板同源）；
     // 路由保留并重定向到 /super/todo?view=people，侧栏不再单独列出 —— 本组回归纯「组织」语义。
     absGroup('/super/org', '组织与人员', 'peoples',
-      ['org/organization', 'org/roles', 'org/accounts']),
+      // 「导师管理」2026-09-23 新增（org/mentor），与部门端共用同一页面组件
+      ['org/organization', 'org/roles', 'org/accounts', 'org/mentor']),
     group('/super/ops', '培养运营', 'education',
       // ★ 2026-09-22：'ops/psubject-admin'（实操题库）已下线 —— 题库管理内点实操题库即可进入维护
       // ★ 顺序即侧栏顺序（group() 用 .map 保序，不走排序）：
@@ -206,11 +207,13 @@ function buildDeptAdminSidebar() {
 
   return dash.concat([
     group('/department/people', '人员管理', 'peoples',
-      ['people/register-review', 'people/students', 'people/promotion']),
+      // ★ 顺序即侧栏顺序（group 用 .map 保序，不走排序）
+      // 「导师管理」2026-09-23 新增，放在实习生管理之后、转正审核之前
+      ['people/register-review', 'people/students', 'people/mentors', 'people/promotion']),
     group('/department/study', '学习与考核管理', 'education',
-      ['study/courses', 'study/banks', 'study/prep', 'study/exam', 'study/scores']),
-    group('/department/messages', '任务与通知', 'message',
-      ['messages/tasks', 'messages/review', 'messages/notices'])
+      ['study/courses', 'study/banks', 'study/prep', 'study/exam', 'study/scores'])
+    // ★ 2026-09-23：「任务与通知」整组下线（用户口径：部门管理员只接收管理员通知，
+    //   通知入口统一走顶栏「消息中心」铃铛）。路由保留，避免旧链接 404。
   ].filter(Boolean))
 }
 

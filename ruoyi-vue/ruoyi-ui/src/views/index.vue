@@ -77,7 +77,7 @@
               <g fill="#98a2b3" font-size="11" text-anchor="middle"><text v-for="w in trendWeeks" :key="'lb-' + w.label" :x="w.x" y="200">{{ w.label }}</text></g>
             </svg>
             <div class="legend"><span><i style="background:#1764f5" />每日学习时长</span><span>近 14 天合计 {{ (dailySeries.reduce((s, d) => s + d.hours, 0)).toFixed(1) }} 小时</span></div>
-            <div class="note">口径：本人在每个自然日的学习时长之和（<code>study_record.study_duration</code> 按 <code>last_study_time</code> 归日）；没有学习的天记 0。</div>
+            
           </template>
         </section>
 
@@ -188,7 +188,7 @@
             <span>{{ a.publishTime || a.createTime }}</span>
           </button>
           <div v-if="!announcements.length" class="note">暂无公告</div>
-          <div v-else class="note">取自 <code>notice</code> 表有效公告（最多 3 条，置顶优先），接口 <code>/business/message/announcements</code>。</div>
+          
         </section>
       </div>
 
@@ -509,9 +509,9 @@ export default {
       }
       return items
     },
-    adminTodos() { return this.isDeptAdmin ? [{ title: '注册申请待审核', description: '5 条本部门申请等待处理', status: '待审核', tag: 'warning', tone: 'orange', path: '/assessment/department/register-review' }, { title: '草稿课程待完善', description: '补充章节和学习资料后即可发布', status: '待处理', tag: 'primary', tone: 'blue', path: '/assessment/department/courses' }, { title: '实践考核待批阅', description: '8 份提交物等待人工确认', status: '待批阅', tag: 'danger', tone: 'red', path: '/assessment/department/grading' }, { title: '阶段评价待补充', description: '3 名实习生画像信息待完善', status: '待处理', tag: 'primary', tone: 'blue', path: '/assessment/department/students' }] : [{ title: '本期考核安排待确认', description: '跨部门考试范围与时间需要复核', status: '待处理', tag: 'warning', tone: 'orange', path: '/assessment/manage/schedule' }, { title: '角色权限变更检查', description: '核对四类业务角色菜单范围', status: '检查中', tag: 'primary', tone: 'blue', path: '/assessment/system/role-permission' }, { title: '异常培养记录', description: '3 条记录需要管理员关注', status: '异常', tag: 'danger', tone: 'red', path: '/assessment/system/audit-log' }] },
+    adminTodos() { return this.isDeptAdmin ? [{ title: '注册申请待审核', description: '5 条本部门申请等待处理', status: '待审核', tag: 'warning', tone: 'orange', path: '/assessment/department/register-review' }, { title: '草稿课程待完善', description: '补充章节和学习资料后即可发布', status: '待处理', tag: 'primary', tone: 'blue', path: '/assessment/department/courses' }, { title: '阶段评价待补充', description: '3 名实习生画像信息待完善', status: '待处理', tag: 'primary', tone: 'blue', path: '/assessment/department/students' }] : [{ title: '本期考核安排待确认', description: '跨部门考试范围与时间需要复核', status: '待处理', tag: 'warning', tone: 'orange', path: '/assessment/manage/schedule' }, { title: '角色权限变更检查', description: '核对四类业务角色菜单范围', status: '检查中', tag: 'primary', tone: 'blue', path: '/assessment/system/role-permission' }, { title: '异常培养记录', description: '3 条记录需要管理员关注', status: '异常', tag: 'danger', tone: 'red', path: '/assessment/system/audit-log' }] },
     adminScope() { return this.isDeptAdmin ? [{ label: '预备实习生', value: '12 人', hint: '学习考核中' }, { label: '正式实习生', value: '6 人', hint: '保留历史档案' }, { label: '待分配导师', value: '3 人', hint: '审核后补充' }, { label: '学习达标', value: '14 人', hint: '可参加考核' }] : [{ label: '交付部门', value: '15 人', hint: '实施实习生' }, { label: '开发部门', value: '18 人', hint: '开发实习生' }, { label: '设计部门', value: '12 人', hint: '设计实习生' }, { label: '质检 / 建模', value: '23 人', hint: '两部门合计' }] },
-    adminEntries() { return this.isDeptAdmin ? [{ title: '注册审核', description: '审核本部门申请并登记导师', icon: 'el-icon-user', path: '/assessment/department/register-review' }, { title: '课程管理', description: '维护岗位课程、章节和学习资料', icon: 'el-icon-reading', path: '/assessment/department/courses' }, { title: '实习生管理', description: '查看培养状态与学习进度', icon: 'el-icon-s-custom', path: '/assessment/department/students' }, { title: '实习批阅', description: '复核实践提交并发布成绩', icon: 'el-icon-edit-outline', path: '/assessment/department/grading' }, { title: '消息中心', description: '查看业务通知与处理提醒', icon: 'el-icon-message', path: '/assessment/department/messages' }] : [{ title: '考核认证管理', description: '考试、课程、题库与批阅流程', icon: 'el-icon-finished', path: '/assessment/manage/overview' }, { title: '组织岗位', description: '五部门与岗位绑定关系', icon: 'el-icon-office-building', path: '/assessment/system/organization' }, { title: '角色权限', description: '四类业务角色权限边界', icon: 'el-icon-lock', path: '/assessment/system/role-permission' }, { title: '审计日志', description: '关键业务操作留痕', icon: 'el-icon-document', path: '/assessment/system/audit-log' }] }
+    adminEntries() { return this.isDeptAdmin ? [{ title: '注册审核', description: '审核本部门申请并登记导师', icon: 'el-icon-user', path: '/assessment/department/register-review' }, { title: '课程管理', description: '维护岗位课程、章节和学习资料', icon: 'el-icon-reading', path: '/assessment/department/courses' }, { title: '实习生管理', description: '查看培养状态与学习进度', icon: 'el-icon-s-custom', path: '/assessment/department/students' }, ] : [{ title: '考核认证管理', description: '考试、课程、题库与批阅流程', icon: 'el-icon-finished', path: '/assessment/manage/overview' }, { title: '组织岗位', description: '五部门与岗位绑定关系', icon: 'el-icon-office-building', path: '/assessment/system/organization' }, { title: '角色权限', description: '四类业务角色权限边界', icon: 'el-icon-lock', path: '/assessment/system/role-permission' }, { title: '审计日志', description: '关键业务操作留痕', icon: 'el-icon-document', path: '/assessment/system/audit-log' }] }
   },
   created() {
     this.loadLearningPreview()

@@ -86,7 +86,7 @@
                 <div class="dhbar-fill" :class="d.barTone" :style="{ width: (d.measured ? d.value : 0) + '%' }" />
               </div>
             </div>
-            <p v-if="!dimensions.length" class="dsec-note">能力维度待定义（<code>profile_snapshot</code> 无 Java 层实现）。</p>
+            <p v-if="!dimensions.length" class="dsec-note">能力维度待生成。</p>
           </div>
           <div class="c6">
             <div class="dcallout" style="padding:10px 12px;margin-bottom:10px">
@@ -96,14 +96,7 @@
                 实践能力←实操提交与评分；规范遵从←阶段评价 + 协议。
               </span>
             </div>
-            <div class="dcallout warn" style="padding:10px 12px;margin:0">
-              <i class="el-icon-warning-outline" />
-              <span>
-                <b>安全约束</b>：<code>stage_evaluation.visible_scope='ADMIN_ONLY'</code> 的评价
-                <b>只在管理端可见</b>，实习生端必须后端过滤。
-                未测评维度显示 <b>--</b>，不得用 0 分占位。
-              </span>
-            </div>
+            
           </div>
         </div>
       </div>
@@ -125,7 +118,7 @@
             <div class="dhbar-fill" :class="c.barTone" :style="{ width: c.rate + '%' }" />
           </div>
         </div>
-        <p v-if="!courses.length" class="dsec-note">暂无按课程维度的完成率（需后端聚合接口）。</p>
+        <p v-if="!courses.length" class="dsec-note">暂无按课程维度的完成率。</p>
       </div>
 
       <!-- 考核记录 -->
@@ -154,13 +147,7 @@
       </div>
     </div>
 
-    <div class="dcallout" style="margin-top:16px">
-      <i class="el-icon-info" />
-      <span>
-        本页与「超管端整体设计稿」的<b>个人全景档案是同款页面</b>，只有作用域不同
-        （部门管理员锁定本部门，超管可跨部门）——同一个页面、同一套数据，不需要做两份。
-      </span>
-    </div>
+    
   </div>
 </template>
 

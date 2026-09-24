@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.MentorMapper">
+
+    <!--
+      导师库（mentor） 2026-09-23
+      ★ 注意：本 mapper 的 SQL 里不要出现裸的小于号，注释里不要出现连续两个短横线，
+        否则 MyBatis 解析失败会导致整个后端起不来。
+    -->
+
+    <resultMap type="Mentor" id="MentorResult">
+        <id     property="id"           column="id"           />
+        <result property="mentorName"   column="mentor_name"  />
+        <result property="mentorPhone"  column="mentor_phone" />
+        <result property="deptId"       column="dept_id"      />
+        <result property="positionId"   column="position_id"  />
+        <result property="title"        column="title"        />
+        <result property="status"       column="status"       />
+        <result property="remark"       column="remark"       />
+        <result property="createBy"     column="create_by"    />
+        <result property="createTime"   column="create_time"  />
+        <result property="updateBy"     column="update_by"    />
+        <result property="updateTime"   column="update_time"  />
+        <result property="deleted"      column="deleted"      />
+        <result property="deptName"     column="dept_name"    />
+        <result property="positionName" column="position_name"/>
+        <result property="internCount"  column="intern_count" />
+    </resultMap>
+
+    <sql id="selectMentorVo">
+        SELECT m.id, m.mentor_name, m.mentor_phone, m.dept_id, m.position_id, m.title,
+               m.status, m.remark, m.create_by, m.create_time, m.update_by, m.update_time, m.deleted,
+               d.dept_name, p.position_name,
+               (SELECT COUNT(*) FROM sys_user u WHERE u.del_flag = '0' AND u.mentor_id = m.id) AS intern_count
+        FROM mentor m
+        LEFT JOIN sys_dept d ON d.dept_id = m.dept_id AND d.del_flag = '0'
+        LEFT JOIN position p ON p.id = m.position_id AND p.deleted = 0
+    </sql>
+
+    <select id="selectMentorList" resultMap="MentorResult">
+        <include refid="selectMentorVo"/>
+        <where>
+            m.deleted = 0
+            <if test="scopeDeptId != null">
+                AND m.dept_id = #{scopeDeptId}
+            </if>
+            <if test="q != null">
+                <if test="q.deptId != null">
+                    AND m.dept_id = #{q.deptId}
+                </if>
+                <if test="q.status != null and q.status != ''">
+                    AND m.status = #{q.status}
+                </if>
+                <if test="q.mentorName != null and q.mentorName != ''">
+                    AND m.mentor_name LIKE CONCAT('%', #{q.mentorName}, '%')
+                </if>
+                <if test="q.mentorPhone != null and q.mentorPhone != ''">
+                    AND m.mentor_phone LIKE CONCAT('%', #{q.mentorPhone}, '%')
+                </if>
+                <if test="q.keyword != null and q.keyword != ''">
+                    AND (m.mentor_name LIKE CONCAT('%', #{q.keyword}, '%')
+                         OR m.mentor_phone LIKE CONCAT('%', #{q.keyword}, '%'))
+                </if>
+            </if>
+        </where>
+        ORDER BY m.status ASC, m.dept_id ASC, m.id ASC
+    </select>
+
+    <select id="selectMentorOptions" resultMap="MentorResult">
+        SELECT m.id, m.mentor_name, m.mentor_phone, m.dept_id, m.title, m.status,
+               d.dept_name, m.position_id
+        FROM mentor m
+        LEFT JOIN sys_dept d ON d.dept_id = m.dept_id AND d.del_flag = '0'
+        <where>
+            m.deleted = 0 AND m.status = '0'
+            <if test="scopeDeptId != null">
+                AND m.dept_id = #{scopeDeptId}
+            </if>
+        </where>
+        ORDER BY m.dept_id ASC, m.id ASC
+    </select>
+
+    <select id="selectMentorById" resultMap="MentorResult">
+        <include refid="selectMentorVo"/>
+        WHERE m.id = #{id} AND m.deleted = 0
+        LIMIT 1
+    </select>
+
+</mapper>

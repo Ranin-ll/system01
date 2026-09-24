@@ -70,7 +70,7 @@
             <span class="idx g">4</span>
             <h3>培养漏斗</h3>
           </div>
-          <span class="hint-text">真实数据 · sys_user.user_status · <b>点阶段 → 实习生管理</b></span>
+          
         </div>
         <div
           v-for="row in funnel"
@@ -87,9 +87,6 @@
             <div class="dhbar-fill" :class="row.tone" :style="{ width: row.pct + '%' }" />
           </div>
         </div>
-        <p class="dsec-note">
-          漏斗口径 = <code>sys_user.user_status</code>：WAIT_AUDIT → PRE_TRAINEE → PENDING_PROMOTE → FORMAL_TRAINEE。
-        </p>
       </div>
 
       <!-- ============ ⑤ 学习进度分布 ============ -->
@@ -188,13 +185,6 @@
             <div class="dhbar-fill" :class="row.barTone" :style="{ width: row.rate + '%' }" />
           </div>
         </div>
-        <p class="dsec-note">
-          错误率 = 本部门实习生错题数 ÷ 该知识点被考次数。点任一行跳进「题库管理」，便于直接补题 / 改题。
-        </p>
-        <p class="dsec-note" style="color:#b54708">
-          需后端把 <code>knowledge_point</code> 快照进明细表并出聚合接口（P0-1）；超管端已有同口径
-          <code>knowledge-matrix</code> 可复用，接上即可显示。
-        </p>
       </div>
 
       <!-- ============ ⑧ 最近动态 ============ -->
@@ -227,13 +217,7 @@
     </div>
 
     <!-- 权限边界 -->
-    <div class="dcallout" style="margin-top:16px">
-      <i class="el-icon-info" />
-      <span>
-        <b>权限边界（不做的事）</b>：本页<b>不出现其他部门数据</b>，也不做「全公司排行」——
-        部门平均分仅对本部门范围计算，跨部门不可见。跨部门对比是超管端专属能力。
-      </span>
-    </div>
+    
   </div>
 </template>
 
@@ -319,9 +303,8 @@ export default {
         { key: 'audit', label: '待审核注册', value: this.summary.pendingCount, color: '#1764f5', hint: '本部门累计提交 ' + this.summary.totalCount + ' 条', to: '/department/people/register-review' },
         { key: 'grading', label: '待批阅答卷', value: this.pendingGrading, color: '#f79009', hint: this.exams.length ? '来自 ' + this.exams.length + ' 场考核' : '暂无待批阅', to: '/department/study/scores' },
         { key: 'promote', label: '待转正审批', value: this.pendingPromoteCount, color: '#7a5af8', hint: this.pendingPromoteCount ? '已推荐待终审' : '暂无待审批', to: '/department/people/promotion' },
-        { key: 'publish', label: '待发布考核', value: this.draftExams, color: '#12b76a', hint: this.draftExams ? '草稿待发布' : '暂无草稿', to: '/department/study/exam' },
-        { key: 'task', label: '进行中任务', value: null, color: '#f79009', hint: '待接入任务统计', to: '/department/messages/tasks' },
-        { key: 'unread', label: '未读消息', value: null, color: '#98a2b3', hint: '待接入消息统计', to: '/department/messages/notices' }
+        { key: 'publish', label: '待发布考核', value: this.draftExams, color: '#12b76a', hint: this.draftExams ? '草稿待发布' : '暂无草稿', to: '/department/study/exam' }
+        // ★ 2026-09-23：「进行中任务 / 未读消息」两张卡随「任务与通知」一起下线
       ]
     },
     todayTodo() {

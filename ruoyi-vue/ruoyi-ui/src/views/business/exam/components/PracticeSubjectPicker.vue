@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :visible="visible"
-    title="从实操题库选题"
+    title="从模拟实操题选题"
     width="920px"
     top="6vh"
     append-to-body
@@ -10,13 +10,13 @@
   >
     <p class="psp-tip">
       选中题目后会<b>复制成这场考核的题目清单</b>（题名 / 题干 / 考核要点 / 交付要求 / 参考图与附件一起带过去），
-      导入后仍可逐题改满分、单独补附件。题库里的题目本身不会被改动。
+      导入后仍可逐题改满分、单独补附件。题池里的题目本身不会被改动。
     </p>
 
     <div class="psp-body">
-      <!-- 左：题库 -->
+      <!-- 左：题源（★ 2026-09-23：实操题库概念退场，模拟实操题按部门归属，启用即可见） -->
       <aside class="psp-side" v-loading="bankLoading">
-        <div class="psp-side-head">实操题库<span>{{ banks.length }} 个</span></div>
+        <div class="psp-side-head">模拟实操题<span>{{ subjects.length }} 道</span></div>
         <div
           v-for="b in banks"
           :key="b.bankId"
@@ -29,7 +29,7 @@
         </div>
         <div v-if="!bankLoading && !banks.length" class="psp-empty small">
           <i class="el-icon-folder-opened" />
-          <p>本部门没有实操题库。可先到「题库管理 → 实操题库」新建并录入题目。</p>
+          <p>本部门还没有模拟实操题。可先到「模拟实操题库」页发布题目。</p>
         </div>
       </aside>
 
@@ -111,7 +111,6 @@
 </template>
 
 <script>
-import { listExamBankOptions } from '@/api/business/exam'
 import { listPracticeSubject } from '@/api/business/practiceSubject'
 
 function parseJsonList(v) {
@@ -167,18 +166,16 @@ export default {
       this.picked = {}
       this.scoreOf = {}
       this.bankLoading = true
-      // ⚠️ 不传 examMode：实操题库的用途可能是「模拟用(PRACTICE)」也可能是「通用(COMMON)」，
-      //    传 FORMAL 会被后端按用途过滤成 0 个库（实测：105 的实操库用途是 PRACTICE）。
-      listExamBankOptions(this.isSuperAdmin ? this.deptId : undefined, undefined, 'PRACTICAL').then(res => {
-        this.banks = (res.data || []).map(b => Object.assign({}, b, {
-          totalCount: Number(b.totalCount) || 0
-        }))
-        this.bankLoading = false
-        if (this.banks.length) this.pickBank(this.banks[0])
-      }).catch(() => {
-        this.bankLoading = false
-        this.banks = []
-      })
+      // ★ 2026-09-23：实操题库概念退场 —— 模拟实操题直接按 dept_id 归属部门，启用即可见。
+      //   题源固定为一条「本部门模拟实操题」，不再需要选题库（后端按数据范围返回本部门题目）。
+      this.banks = [{
+        bankId: this.isSuperAdmin ? (this.deptId || 0) : 0,
+        bankName: this.isSuperAdmin ? '所选部门模拟实操题' : '本部门模拟实操题',
+        bankType: 'PRACTICE',
+        totalCount: 0
+      }]
+      this.bankLoading = false
+      this.pickBank(this.banks[0])
     },
     pickBank(b) {
       this.current = b

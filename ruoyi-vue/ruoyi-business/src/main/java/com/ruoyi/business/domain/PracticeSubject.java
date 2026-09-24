@@ -27,10 +27,7 @@ public class PracticeSubject implements Serializable {
     /** 所属部门ID */
     private Long deptId;
 
-    /** 所属模块ID（practice_module.id）—— 模块是模拟考核的顶层分组 */
-    private Long moduleId;
-
-    /** 所属实操题库（question_bank.id，bank_kind=PRACTICAL）；可为空：只归题库不挂备考模块 */
+    /** 所属实操题库（question_bank.id，★ 已停用：题库概念退场，保留列不读写） */
     private Long bankId;
 
     /** 建议满分（挑进考核时带出默认分值） */
@@ -91,12 +88,6 @@ public class PracticeSubject implements Serializable {
 
     /** 所属部门名称（展示字段） */
     private String deptName;
-
-    /** 所属模块名称（展示字段） */
-    private String moduleName;
-
-    /** 所属实操题库名称（列表展示用） */
-    private String bankName;
 
     /** 当前登录账号的数据范围部门（仅供查询使用，不落库） */
     private Long scopeDeptId;
