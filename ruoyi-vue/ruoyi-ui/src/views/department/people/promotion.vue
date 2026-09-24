@@ -80,7 +80,6 @@
           <i class="el-icon-document-checked" />
           <strong>暂无记录</strong>
         </div>
-        <p class="dsec-note">列表行显示「资格齐备 / N 项待补 / 未达门槛」，让管理员一眼知道要不要点进去。</p>
       </div>
 
       <!-- 右：审核详情 -->
@@ -130,7 +129,7 @@
                   <div class="dhbar-fill" :class="d.barTone" :style="{ width: d.value + '%' }" />
                 </div>
               </div>
-              <p v-if="!current.dimensions.length" class="dsec-note">四维能力待生成（需 profile_snapshot 聚合接口）。</p>
+              <p v-if="!current.dimensions.length" class="dsec-note">四维能力待生成。</p>
             </div>
           </div>
 
@@ -151,11 +150,7 @@
             <span class="ar">→</span>
             <span class="nd">自动发证 · 转 FORMAL_TRAINEE</span>
           </div>
-          <p class="dsec-note">
-            驳回可重新提交。<b>本决策下 <code>SUPER_PENDING</code>（超管终审）被跳过</b>，审批即时生效：
-            证书由 <code>certificate</code> 生成，<code>sys_user.user_status</code> 直接置为 <code>FORMAL_TRAINEE</code>，
-            实习生端工作台底部证书标签随之点亮。
-          </p>
+          <p class="dsec-note">驳回可重新提交；审批通过后即时生效并自动发证。</p>
 
           <div class="dbtn-row">
             <el-button size="small" :disabled="current.status !== 'PENDING'" @click="reject()">驳回并说明原因</el-button>

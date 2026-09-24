@@ -43,7 +43,7 @@
           <div class="ft">有效章节 {{ num(sumChapter) }} 个 · 口径为课程统计值（<b>已过滤停用项</b>）</div>
         </div>
         <div class="s-kpi">
-          <div class="lb"><i class="dot" style="background:#12b76a" />题库</div>
+          <div class="lb"><i class="dot" style="background:#12b76a" />部门题池</div>
           <div class="vl">{{ num(banks.length) }}<small>个</small></div>
           <div class="ft">
             总题量 <b>{{ num(questionTotal) }}</b> 题
@@ -121,11 +121,7 @@
               </tr>
             </tbody>
           </table>
-          <p class="s-note">
-            ★ 口径：<b>章节 / 学习项</b>取自课程的 <code>chapterCount</code>/<code>itemCount</code>（后端已过滤停用项）；
-            <b>题库题量 / 知识点</b>为<b>实时统计</b>（见下方题库卡的口径说明）；<b>实操题 / 正式考核</b>按部门归属统计。<br />
-            ★ <b>题库按「部门」建，不按岗位</b>（<code>question.position_id</code> 全为 NULL）；因部门↔岗位是 1:1，此处以部门为行、岗位名为副标题。
-          </p>
+          
         </section>
       </div>
 
@@ -194,34 +190,31 @@
             <span class="spacer" />
             <span class="op" @click="goCourseAdmin">课程管理 →</span>
           </div>
-          <p class="s-note">
-            「学习覆盖」= <code>studentCount</code> / <code>expectedStudentCount</code> 与岗位级完成率（复用 <code>CourseMapper</code> 既有口径）。
-            <b>应交人数为 0 的课程不显示百分比</b>，避免把"没人该学"画成"0% 完成"。
-          </p>
+          
         </section>
 
         <section class="s-card s-c5">
           <div class="s-card-h">
-            <div class="tt"><span class="s-idx g">库</span><h3>题库健康度</h3></div>
-            <span class="hint">{{ banks.length }} 个库 · {{ emptyBankCount }} 个空库</span>
+            <div class="tt"><span class="s-idx g">库</span><h3>部门题池健康度</h3></div>
+            <span class="hint">{{ banks.length }} 个题池 · {{ emptyBankCount }} 个空题池</span>
           </div>
 
           <div class="scroll">
             <table v-if="banks.length" class="s-tbl">
               <thead>
                 <tr>
-                  <th style="min-width:140px">题库</th>
+                  <th style="min-width:140px">部门题池</th>
                   <th class="ctr" style="width:60px">题量</th>
                   <th class="ctr" style="width:64px">知识点</th>
                   <th class="ctr" style="width:88px">健康度</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="b in banks" :key="b.id" class="row-link" @click="goBank(b.id)">
+                <tr v-for="b in banks" :key="b.id" class="row-link" @click="goBank()">
                   <td class="nm">
                     {{ b.bankName }}
                     <div class="n1">
-                      {{ b.bankType === 'FORMAL' ? '正式' : '模拟' }}
+                      理论题 · 按知识点抽题
                       <template v-if="bankNeed(b.id)"> · 组卷需 {{ bankNeed(b.id) }} 题</template>
                     </div>
                   </td>
@@ -240,26 +233,21 @@
                 </tr>
               </tbody>
             </table>
-            <div v-else class="s-empty"><i class="el-icon-collection" /><span>暂无题库</span></div>
+            <div v-else class="s-empty"><i class="el-icon-collection" /><span>暂无部门题池（各部门还没导入理论题）</span></div>
           </div>
 
           <div class="s-callout warn">
             <i class="el-icon-warning-outline" />
             <div>
-              <b>为什么要「实时统计」题量</b>
+              <b>题量为什么按题目列表实时统计</b>
               <p style="margin:4px 0 0">
-                <code>question_bank.question_count</code> 是<b>冗余字段且长期未维护</b> —— 实测
-                <b>5 个库该字段为 0，而实际各有 48~49 题</b>。旧版直接读它，会把有题的库显示成「空库」。
-                本页改为对题目列表实时计数。
+                题目不再挂「题库」，直接按 <code>question.dept_id</code> 归属部门 ——
+                一个部门 = 一个理论题池。本页对题目列表实时计数，不依赖任何冗余统计字段。
               </p>
             </div>
           </div>
 
-          <p class="s-note">
-            <b>健康度判据</b>：<code>need</code> = 使用该库的考核所要求的题量（无考核使用则按 20 题估算）；<br />
-            题量 <code>0</code> → <b>空库</b>；<code>≥ need×2</code> → <b>充足</b>；<code>≥ need</code> → <b>够用</b>；否则 <b>偏少</b>。
-            点题库行可进<b>题库详情</b>。
-          </p>
+          
         </section>
       </div>
 
@@ -287,10 +275,7 @@
               <span v-else-if="g.tag" class="s-badge warn">{{ g.tag }}</span>
             </div>
           </div>
-          <p class="s-note">
-            ★ 缺口全部由前端从上面各列表<b>实时聚合</b>（复用列表接口，<b>不为此新增统计接口</b>），
-            所以不会出现「统计与列表对不上」。
-          </p>
+          
         </section>
       </div>
     </template>
@@ -302,26 +287,31 @@
  * 超管「课程与题库总览」V2（2026-09-20 重做）
  *
  * 从「两张各自独立的清单」升级为「培养资料齐备度看板」：
- *   KPI 条 → 部门 × 资料齐备度矩阵 → 课程发布总览 / 题库健康度 → 资料缺口清单
+ *   KPI 条 → 部门 × 资料齐备度矩阵 → 课程发布总览 / 部门题池健康度 → 资料缺口清单
  *
- * 数据源（**全部复用既有列表接口，零新增接口** —— 体量很小：题目 289 / 课程 12 / 题库 10 / 实操 16 / 考核 2）：
- *   /business/question/list、/business/course/list、/business/question-bank/list、
+ * 数据源（**全部复用既有列表接口，零新增接口**）：
+ *   /business/question/list、/business/course/list、
  *   /business/practice-subject/list、/business/exam/list
  *
+ * ★★ 2026-09-23：题库概念退场 —— 题目直接按 question.dept_id 归属部门，
+ *   一个部门 = 一个理论题池。原「题库健康度」改为「部门题池健康度」，
+ *   「题库行」的行数据由题目列表按部门聚合得到（id 语义 = 部门ID）。
+ *
  * ★★ 本版修掉旧版的三个真问题
- *   1. **题量全错**：旧版读 `question_bank.questionCount`（冗余字段、长期未维护），
- *      实测 5 个库该字段为 0 而实际各有 48~49 题 → 有题的库被显示成「空库」。
+ *   1. **题量全错**：旧版读 `question_bank.questionCount`（冗余字段、长期未维护）→ 有题被显示成「空库」。
  *      本版改为对题目列表**实时计数**。
  *   2. **失败被吞成空数组**（`.catch(() => this.x = [])`）：403/500 都会显示成「暂无课程」。
  *      本版区分「加载失败」与「确实没有」，失败给原因 + 重试。
  *   3. **文案与代码不一致**：旧版注释写「按岗位考核配置题量、未配置按 20 题」，代码却硬编码 `>= 40`。
- *      本版判据与文案统一（need 从使用该库的考核取，兜底 20）。
+ *      本版判据与文案统一（need 从使用该题池的考核取，兜底 20）。
  */
 import { listQuestion } from '@/api/business/question'
 import { listCourse } from '@/api/business/course'
-import { listBank } from '@/api/business/questionBank'
 import { listPracticeSubject } from '@/api/business/practiceSubject'
 import { listExam } from '@/api/business/exam'
+// ★ 2026-09-23 修：模板里用了 <data-tag>（KPI「实时统计」标记）但从未注册 →
+//   Vue 会打 "Unknown custom element: <data-tag>" 且标记不渲染。这里补上局部注册。
+import DataTag from '@/components/DataTag'
 
 /** 难度枚举实测有两套「简单」（EASY 111 / SIMPLE 22）—— 归一后展示 */
 const DIFF_ALIAS = { EASY: 'SIMPLE', SIMPLE: 'SIMPLE', MEDIUM: 'MEDIUM', HARD: 'HARD' }
@@ -330,12 +320,12 @@ const DEFAULT_NEED = 20
 
 export default {
   name: 'SuperOpsCourses',
+  components: { DataTag },
   data() {
     return {
       loading: false,
       error: '',
       courses: [],
-      banks: [],
       questions: [],
       subjects: [],
       exams: [],
@@ -376,19 +366,41 @@ export default {
       return this.courses.reduce((s, c) => s + (Number(c.itemCount) || 0), 0)
     },
 
-    /** ★ 题库题量：实时计数（不用 question_bank.questionCount） */
+    /**
+     * 部门题池（★ 2026-09-23：题库概念退场，理论题直接按 dept_id 归属部门）。
+     * 超管视角 = 一部门一行；行内字段沿用原「题库行」的形状（id / bankName / deptName / bankType），
+     * 只是 id 的语义变成了**部门ID**，因此下方所有 bankQ / bankKp / diffDist 都按 deptId 取数。
+     */
+    banks() {
+      const map = {}
+      this.questions.forEach(q => {
+        const id = q.deptId
+        if (id == null) return
+        if (!map[id]) {
+          map[id] = {
+            id,
+            deptId: id,
+            deptName: q.deptName || ('部门 ' + id),
+            bankName: (q.deptName || ('部门 ' + id)) + ' · 理论题池',
+            bankType: 'COMMON'
+          }
+        }
+      })
+      return Object.keys(map).map(k => map[k]).sort((a, b) => a.deptId - b.deptId)
+    },
+    /** ★ 题池题量：实时计数（不再读 question_bank.questionCount） */
     bankQ() {
       const m = {}
-      this.questions.forEach(q => { m[q.bankId] = (m[q.bankId] || 0) + 1 })
+      this.questions.forEach(q => { m[q.deptId] = (m[q.deptId] || 0) + 1 })
       return m
     },
-    /** 题库知识点数（去重） */
+    /** 题池知识点数（去重） */
     bankKp() {
       const m = {}
       this.questions.forEach(q => {
         if (!q.knowledgePoint) return
-        if (!m[q.bankId]) m[q.bankId] = {}
-        m[q.bankId][q.knowledgePoint] = 1
+        if (!m[q.deptId]) m[q.deptId] = {}
+        m[q.deptId][q.knowledgePoint] = 1
       })
       const out = {}
       Object.keys(m).forEach(k => { out[k] = Object.keys(m[k]).length })
@@ -397,12 +409,12 @@ export default {
     questionTotal() {
       return this.questions.length
     },
-    /** 组卷需求：题库 → 使用它的考核要求的最大题量（无则 0，页面按兜底值展示） */
+    /** 组卷需求：部门 → 该部门考核要求的最大题量（无则 0，页面按兜底值展示） */
     bankNeedMap() {
       const m = {}
       this.exams.forEach(e => {
-        if (!e.bankId) return
-        m[e.bankId] = Math.max(m[e.bankId] || 0, Number(e.questionCount) || 0)
+        if (e.deptId == null) return
+        m[e.deptId] = Math.max(m[e.deptId] || 0, Number(e.questionCount) || 0)
       })
       return m
     },
@@ -490,15 +502,14 @@ export default {
     /** ★ 资料缺口清单（实时聚合，按严重度排序） */
     gaps() {
       const out = []
-      // ① 空题库（HIGH）
+      // ① 空题池（HIGH）
       this.banks.forEach(b => {
         if (!this.bankQ[b.id]) {
           out.push({
             level: 'HIGH',
-            title: '空题库：' + b.bankName,
-            detail: (b.deptName || '未知部门') + ' · ' + (b.bankType === 'FORMAL' ? '正式' : '模拟')
-              + '题库 · 0 题 → 无法组卷，该类型考核无法开展',
-            link: '/super/ops/bank-detail/' + b.id, linkText: '去补题'
+            title: '空题池：' + b.bankName,
+            detail: (b.deptName || '未知部门') + ' · 0 题 → 无法组卷，该部门理论考核无法开展',
+            link: '/super/ops/bank-admin', linkText: '去补题'
           })
         }
       })
@@ -596,10 +607,10 @@ export default {
       if (n >= need) return 'blue'
       return 'warn'
     },
-    /** 难度分布（归一「简单」的两套枚举） */
-    diffDist(bankId) {
+    /** 难度分布（归一「简单」的两套枚举）；poolId = 部门ID */
+    diffDist(poolId) {
       const m = {}
-      this.questions.filter(q => q.bankId === bankId).forEach(q => {
+      this.questions.filter(q => q.deptId === poolId).forEach(q => {
         const k = DIFF_ALIAS[q.difficulty] || q.difficulty || '未标'
         m[k] = (m[k] || 0) + 1
       })
@@ -628,8 +639,9 @@ export default {
       if (!this.routeOk(path)) return
       this.$router.push(path).catch(() => {})
     },
-    goBank(bankId) {
-      this.go('/super/ops/bank-detail/' + bankId)
+    goBank() {
+      // ★ 原「题库详情」页已退场（题目直接按部门归属）→ 统一落到题库管理页
+      this.go('/super/ops/bank-admin')
     },
     goCourseAdmin() {
       this.go('/super/ops/course-admin')
@@ -640,13 +652,11 @@ export default {
       const q = { pageNum: 1, pageSize: 500 }
       Promise.all([
         listCourse({ pageNum: 1, pageSize: 200 }),
-        listBank({ pageNum: 1, pageSize: 200 }),
         listQuestion(q),
         listPracticeSubject({ pageNum: 1, pageSize: 200 }),
         listExam({ pageNum: 1, pageSize: 100 })
-      ]).then(([c, b, qs, s, e]) => {
+      ]).then(([c, qs, s, e]) => {
         this.courses = c.rows || []
-        this.banks = b.rows || []
         this.questions = qs.rows || []
         this.subjects = s.rows || []
         this.exams = e.rows || []
@@ -655,7 +665,6 @@ export default {
         this.error = (err && err.message) ? err.message
           : '接口请求失败（可能是权限不足或后端未启动），请稍后重试'
         this.courses = []
-        this.banks = []
         this.questions = []
         this.subjects = []
         this.exams = []

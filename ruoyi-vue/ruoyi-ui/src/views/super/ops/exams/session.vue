@@ -64,7 +64,7 @@
             <div><span>通过线</span><b>{{ exam.passLine }} 分</b></div>
             <div v-if="!isPractice"><span>题型与分值</span><b>{{ theorySpec }}</b></div>
             <div><span>名单模式</span><b>{{ assignText }}</b></div>
-            <div><span>组卷题库</span><b>{{ bankText }}</b></div>
+            <div><span>抽题题池</span><b>{{ bankText }}</b></div>
             <div><span>已作答 / 待批阅</span><b>{{ (exam.answeredCount || 0) + ' / ' + (exam.pendingCount || 0) }}</b></div>
             <div><span>发布 / 更新</span><b>{{ fmtTime(exam.publishedAt || exam.updateTime) }}</b></div>
           </div>
@@ -102,10 +102,7 @@
               </tbody>
             </table>
             <div v-else class="s-empty sm"><i class="el-icon-warning-outline" /><span>尚未配置组卷规则 —— 发布时后端会校验「知识分布 / 抽题量」，请到配置页补齐</span></div>
-            <p class="s-note">
-              判定以<b>后端试抽</b>为准（点右上角「试抽一次」）。⚠️ 「可用题量」不在这里猜 ——
-              试抽成功即绿，失败会把后端给的原因原样显示。
-            </p>
+            
           </template>
         </section>
 
@@ -121,7 +118,7 @@
               <span class="bar-track"><i :style="{ width: b.pct + '%' }" /></span>
               <span class="bar-n">{{ b.count }}</span>
             </div>
-            <p class="s-note">区间按卷面得分划分；样本 {{ scoredRows.length }} 份，分布仅供参考。</p>
+            
           </template>
           <template v-else-if="scoredRows.length">
             <div class="s-empty sm">
@@ -166,7 +163,7 @@
 </template>
 
 <script>
-import { getExam, getExamConfig, gradingList, tryDrawByBanks, tryDrawPaper } from '@/api/business/exam'
+import { getExam, getExamConfig, gradingList, tryDraw } from '@/api/business/exam'
 
 /**
  * 超管「考核与成绩」L1 —— 单场考核详情
@@ -206,13 +203,6 @@ export default {
     fullScore() {
       const n = v => Number(v) || 0
       if (this.isPractice) return Math.round(n(this.exam.subjectTotalScore) * 10) / 10
-      const rules = this.cfg.bankRules || []
-      if (rules.length) {
-        const s = rules.reduce((a, r) => a + n(r.singleCount), 0)
-        const m = rules.reduce((a, r) => a + n(r.multiCount), 0)
-        const j = rules.reduce((a, r) => a + n(r.judgeCount), 0)
-        return Math.round((s * n(this.exam.singleScore) + m * n(this.exam.multiScore) + j * n(this.exam.judgeScore)) * 10) / 10
-      }
       return Math.round((n(this.exam.singleCount) * n(this.exam.singleScore) +
         n(this.exam.multiCount) * n(this.exam.multiScore) +
         n(this.exam.judgeCount) * n(this.exam.judgeScore)) * 10) / 10
@@ -239,32 +229,25 @@ export default {
       if (this.cfg.assignMode === 'ASSIGNED') return '指定 ' + ((this.cfg.participantIds || []).length) + ' 人'
       return '全部在培实习生'
     },
+    /** 抽题题池摘要（★ 2026-09-23：题库概念退场，一部门一个理论题池） */
     bankText() {
-      const rules = this.cfg.bankRules || []
-      if (rules.length) return rules.map(r => r.bankName || ('库 ' + r.bankId)).join(' + ')
-      return this.exam.bankName || '未配置'
+      const rules = this.cfg.knowledgeRules || []
+      if (rules.length) return '本部门题池 · ' + rules.length + ' 个知识点'
+      return '未配置知识点配比'
     },
-    /** 本场实际走哪条抽题链路（双轨制，必须显式） */
+    /** 本场实际走哪条抽题链路（★ 2026-09-23 起只有一条：按知识点配比） */
     drawKind() {
-      if ((this.cfg.bankRules || []).length) return 'bank'
       if ((this.cfg.knowledgeRules || []).length) return 'knowledge'
       return 'fallback'
     },
     drawBasisText() {
-      return { bank: '当前生效：题库 × 题型', knowledge: '当前生效：章节（知识点）配比', fallback: '未配组卷：单库兜底' }[this.drawKind]
+      return { knowledge: '当前生效：按知识点配比', fallback: '未配置知识点配比' }[this.drawKind]
     },
     drawBasisTag() {
       return this.drawKind === 'fallback' ? 'warn' : 'ok'
     },
     drawRows() {
       const n = v => Number(v) || 0
-      if (this.drawKind === 'bank') {
-        return (this.cfg.bankRules || []).map(r => ({
-          name: r.bankName || ('库 ' + r.bankId),
-          single: n(r.singleCount), multi: n(r.multiCount), judge: n(r.judgeCount),
-          total: n(r.singleCount) + n(r.multiCount) + n(r.judgeCount)
-        }))
-      }
       if (this.drawKind === 'knowledge') {
         return (this.cfg.knowledgeRules || []).map(r => ({
           name: r.knowledgePoint || r.point || '未命名章节',
@@ -348,29 +331,22 @@ export default {
     },
     /** 组卷可行性 = 直接试抽（判定在后端，不在这里猜"够不够"） */
     tryDraw() {
-      const rules = this.cfg.bankRules || []
       const krules = this.cfg.knowledgeRules || []
-      if (!rules.length && !krules.length) {
-        this.$modal.msgWarning('本场未配置组卷规则，无法试抽（到配置页补齐后再来）')
+      if (!krules.length) {
+        this.$modal.msgWarning('本场未配置知识点配比，无法试抽（到配置页补齐后再来）')
         return
       }
       this.drawing = true
-      const req = rules.length
-        ? tryDrawByBanks({ bankRules: rules.map((r, i) => ({
-            bankId: r.bankId, singleCount: r.singleCount, multiCount: r.multiCount,
-            judgeCount: r.judgeCount, sortNo: i + 1
-          })) })
-        : tryDrawPaper(this.exam.bankId, { knowledgeRules: krules })
-      req.then(res => {
+      tryDraw({ deptId: this.exam && this.exam.deptId, knowledgeRules: krules }).then(res => {
         this.drawing = false
         const list = (res && res.data) || []
         if (!list.length) {
-          this.$modal.msgWarning('按当前配置抽不到题：请检查各题库题量是否充足')
+          this.$modal.msgWarning('按当前配置抽不到题：请检查题池各知识点题量是否充足')
           return
         }
         const typeText = t => ({ SINGLE: '单选', MULTI: '多选', JUDGE: '判断' }[t] || t)
         this.$alert(
-          list.map(q => (q.seq || '') + ' · ' + typeText(q.qtype) + ' · ' + (q.bankName || '') + ' · ' + (q.stem || '')).join('<br/>'),
+          list.map(q => (q.seq || '') + ' · ' + typeText(q.qtype) + ' · ' + (q.knowledgePoint || '未分类') + ' · ' + (q.stem || '')).join('<br/>'),
           '试抽结果（' + list.length + ' 题）',
           { dangerouslyUseHTMLString: true }
         )

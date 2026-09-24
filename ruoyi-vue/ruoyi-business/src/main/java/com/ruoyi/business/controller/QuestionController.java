@@ -35,7 +35,7 @@ public class QuestionController extends BaseController {
     @Autowired
     private IQuestionService questionService;
 
-    /** 题目列表（管理员按题库/部门查看） */
+    /** 题目列表（管理员按部门查看；超管可按 deptId 再筛） */
     @PreAuthorize("@ss.hasPermi('business:question:list')")
     @GetMapping("/list")
     public TableDataInfo list(Question question) {
@@ -84,11 +84,11 @@ public class QuestionController extends BaseController {
                 .doWrite(new ArrayList<>());
     }
 
-    /** Excel 批量导入题目 */
+    /** Excel 批量导入题目（deptId = 目标部门题池；部门账号强制本部门） */
     @PreAuthorize("@ss.hasPermi('business:question:import')")
     @Log(title = "题目批量导入", businessType = BusinessType.IMPORT)
-    @PostMapping("/import/{bankId}")
-    public AjaxResult importQuestions(@PathVariable Long bankId, @RequestParam("file") MultipartFile file) throws IOException {
+    @PostMapping("/import/{deptId}")
+    public AjaxResult importQuestions(@PathVariable Long deptId, @RequestParam("file") MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
             return AjaxResult.error("请选择要上传的 Excel 文件");
         }
@@ -96,20 +96,20 @@ public class QuestionController extends BaseController {
                 .head(QuestionImportRow.class)
                 .sheet()
                 .doReadSync();
-        QuestionImportResult result = questionService.importQuestions(bankId, rows);
+        QuestionImportResult result = questionService.importQuestions(deptId, rows);
         return AjaxResult.success(result);
     }
 
     /**
-     * 导出题库题目为 Excel。
+     * 导出本部门题目为 Excel。
      *
      * <p>表头与导入模板一致（复用 {@code QuestionImportRow}）→ 导出的文件<b>可以直接再导入</b>，
-     * 便于跨题库复制题目、或线下批量改完再导入。</p>
+     * 便于跨部门复制题目、或线下批量改完再导入。</p>
      */
     @PreAuthorize("@ss.hasPermi('business:question:list')")
-    @GetMapping("/export/{bankId}")
-    public void export(@PathVariable Long bankId, HttpServletResponse response) throws IOException {
-        List<QuestionImportRow> rows = questionService.exportRows(bankId);
+    @GetMapping("/export/{deptId}")
+    public void export(@PathVariable Long deptId, HttpServletResponse response) throws IOException {
+        List<QuestionImportRow> rows = questionService.exportRows(deptId);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setCharacterEncoding("utf-8");
         String fileName = URLEncoder.encode("题目导出", "UTF-8").replaceAll("\\+", "%20");
@@ -121,9 +121,9 @@ public class QuestionController extends BaseController {
 
     /** 实习生抽题（不含答案和解析） */
     @PreAuthorize("@ss.hasPermi('business:bank:list')")
-    @GetMapping("/preview/{bankId}")
-    public AjaxResult preview(@PathVariable Long bankId, @RequestParam(required = false) Integer limit) {
-        return AjaxResult.success(questionService.previewQuestions(bankId, limit));
+    @GetMapping("/preview/{deptId}")
+    public AjaxResult preview(@PathVariable Long deptId, @RequestParam(required = false) Integer limit) {
+        return AjaxResult.success(questionService.previewQuestions(deptId, limit));
     }
 
     /** 实习生提交判分 */

@@ -87,8 +87,9 @@ export function uploadFile(formData) {
   })
 }
 
-// ---------- 多题库组卷配置（当前主用） ----------
-// 本部门可选题库清单（含各库按题型的可用题量）
+// ---------- 理论组卷配置（★ 2026-09-23 起统一按知识点抽题） ----------
+// 题池概览：本部门理论题池按题型的可用题量（题库概念退场后固定返回 1 条）
+// 返回项的 bankId 语义 = 部门ID（deptId）
 export function listExamBankOptions(deptId, examMode, bankKind) {
   const params = {}
   if (deptId) params.deptId = deptId
@@ -96,8 +97,9 @@ export function listExamBankOptions(deptId, examMode, bankKind) {
   if (bankKind) params.bankKind = bankKind
   return request({ url: '/business/exam/bank-options', method: 'get', params })
 }
-// 按多题库组卷配置试抽一套卷（校验用，不落库）
-export function tryDrawByBanks(data) {
+// 按知识点配比试抽一套卷（校验用，不落库）
+// data: { deptId, knowledgeRules: [{ knowledgePoint, questionCount }] }
+export function tryDraw(data) {
   return request({ url: '/business/exam/try-draw', method: 'post', data })
 }
 
@@ -107,14 +109,14 @@ export function listExamInternOptions(deptId) {
   return request({ url: '/business/exam/intern-options', method: 'get', params: deptId ? { deptId } : {} })
 }
 
-// ---------- 理论考试配置（知识分布 / 指定人员 / 试抽） ----------
-// 题库知识点及题量（配置页「从题库导入知识点」）
-export function listKnowledgePoints(bankId) {
-  return request({ url: '/business/exam/bank/' + bankId + '/knowledge-points', method: 'get' })
+// ---------- 理论考试配置（知识点配比 / 指定人员 / 试抽） ----------
+// 本部门题池的知识点及题量（配置页「从题池导入知识点」）；deptId 为目标部门
+export function listKnowledgePoints(deptId) {
+  return request({ url: '/business/exam/bank/' + deptId + '/knowledge-points', method: 'get' })
 }
-// 按知识分布试抽一套卷（校验用，不落库）
-export function tryDrawPaper(bankId, data) {
-  return request({ url: '/business/exam/bank/' + bankId + '/try-draw', method: 'post', data })
+// 按知识点配比试抽一套卷（deptId = 目标部门题池；校验用，不落库）
+export function tryDrawPaper(deptId, data) {
+  return request({ url: '/business/exam/bank/' + deptId + '/try-draw', method: 'post', data })
 }
 // 保存考核配置（知识分布 + 指定人员 + 时间窗），不改发布状态
 export function saveExamConfig(id, data) {

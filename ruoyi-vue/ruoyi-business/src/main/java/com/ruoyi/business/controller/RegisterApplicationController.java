@@ -102,6 +102,10 @@ public class RegisterApplicationController extends BaseController {
 
     /**
      * 部门管理员审核：pass / reject
+     *
+     * <p>★ 2026-09-23 起：导师<b>不再</b>在审核环节填写（已抽成独立 {@code mentor} 主表，
+     * 由「实习生管理页」从导师库中选）。{@code mentorName / mentorPhone} 仍接收，
+     * 但已<b>非必填</b>；不传时不会触碰实习生已有的导师信息。</p>
      */
     @PreAuthorize("@ss.hasPermi('business:register:audit')")
     @Log(title = "注册审核", businessType = BusinessType.UPDATE)

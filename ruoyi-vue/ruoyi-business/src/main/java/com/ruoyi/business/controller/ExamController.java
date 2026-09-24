@@ -63,8 +63,9 @@ public class ExamController extends BaseController {
     }
 
     /**
-     * 本部门可选题库清单（含各库按题型的可用题量）—— 多题库组卷配置页选题库用
+     * 题池概览（本部门理论题池按题型的可用题量）—— 组卷配置页展示「可抽多少题」用
      * GET /business/exam/bank-options?deptId=xxx
+     * ★ 2026-09-23：题库概念退场后固定返回 1 条，bankId 的语义 = 部门ID。
      */
     @PreAuthorize("@ss.hasPermi('business:bank:list')")
     @GetMapping("/bank-options")
@@ -86,24 +87,24 @@ public class ExamController extends BaseController {
     }
 
     /**
-     * 按多题库组卷配置试抽一套卷（配置页「试抽一套」校验用，不落库）
-     * POST /business/exam/try-draw  body: { bankRules: [{bankId, singleCount, multiCount, judgeCount}] }
+     * 按知识点配比试抽一套卷（配置页「试抽一套」校验用，不落库）
+     * POST /business/exam/try-draw  body: { deptId?: xxx, knowledgeRules: [{knowledgePoint, questionCount}] }
      */
     @PreAuthorize("@ss.hasPermi('business:bank:list')")
     @PostMapping("/try-draw")
-    public AjaxResult tryDrawByBanks(@RequestBody(required = false) Exam params) {
-        return AjaxResult.success(examService.tryDrawByBanks(params));
+    public AjaxResult tryDraw(@RequestBody(required = false) Exam params) {
+        return AjaxResult.success(examService.tryDraw(params));
     }
 
     /**
-     * 题库知识点及题量（理论考试配置页「从题库导入知识点」）
-     * GET /business/exam/bank/{bankId}/knowledge-points
+     * 本部门题池的知识点及题量（理论考试配置页「从题池导入知识点」）
+     * GET /business/exam/bank/{deptId}/knowledge-points
      * 注意：路径用三段，避免与既有 GET /{id} 冲突。
      */
     @PreAuthorize("@ss.hasPermi('business:bank:list')")
-    @GetMapping("/bank/{bankId}/knowledge-points")
-    public AjaxResult knowledgePoints(@PathVariable("bankId") Long bankId) {
-        return AjaxResult.success(examService.bankKnowledgePoints(bankId));
+    @GetMapping("/bank/{deptId}/knowledge-points")
+    public AjaxResult knowledgePoints(@PathVariable("deptId") Long deptId) {
+        return AjaxResult.success(examService.bankKnowledgePoints(deptId));
     }
 
     /**
@@ -125,13 +126,14 @@ public class ExamController extends BaseController {
     }
 
     /**
-     * 按知识分布试抽一套卷（配置页「试抽一套」校验用，不落库）
-     * POST /business/exam/bank/{bankId}/try-draw  body: { knowledgeRules: [...] }
+     * 按知识点配比试抽一套卷（配置页「试抽一套」校验用，不落库）
+     * POST /business/exam/bank/{deptId}/try-draw  body: { knowledgeRules: [...] }
+     * ★ deptId 为目标部门题池（部门账号传自己的部门ID即可，服务层会强制本部门）。
      */
     @PreAuthorize("@ss.hasPermi('business:bank:list')")
-    @PostMapping("/bank/{bankId}/try-draw")
-    public AjaxResult tryDraw(@PathVariable("bankId") Long bankId, @RequestBody(required = false) Exam params) {
-        return AjaxResult.success(examService.tryDraw(bankId, params));
+    @PostMapping("/bank/{deptId}/try-draw")
+    public AjaxResult tryDrawPaper(@PathVariable("deptId") Long deptId, @RequestBody(required = false) Exam params) {
+        return AjaxResult.success(examService.tryDraw(deptId, params));
     }
 
     @PreAuthorize("@ss.hasPermi('business:bank:edit')")

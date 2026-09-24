@@ -15,7 +15,6 @@
 
     <div v-loading="loading" class="review-body">
       <div v-if="record" class="rv-summary">
-        <div class="rv-item"><span class="rv-label">模块</span><b>{{ record.moduleName || '—' }}</b></div>
         <div class="rv-item"><span class="rv-label">考核</span><b>{{ record.examName || '—' }}</b></div>
         <div class="rv-item"><span class="rv-label">成绩</span><b class="ok">{{ record.correctCount }} / {{ record.totalCount }}</b></div>
         <div class="rv-item"><span class="rv-label">正确题数</span><b>{{ record.correctCount }} 题</b></div>

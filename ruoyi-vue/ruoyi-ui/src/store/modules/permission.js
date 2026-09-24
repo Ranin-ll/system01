@@ -149,7 +149,8 @@ function buildSuperSidebar(dbRoutes = []) {
     // 「组织岗位」页已于 2026-09-20 整合部门/岗位管理（三个页签），
     // 原独立的 `org/positions` 入口从侧栏移除（路由保留，避免旧链接 404）。
     absGroup('/super/org', '组织与人员', 'peoples',
-      ['org/organization', 'org/roles', 'org/accounts']),
+      // 「导师管理」2026-09-23 新增（org/mentor），与部门端共用同一页面组件
+      ['org/organization', 'org/roles', 'org/accounts', 'org/mentor']),
     group('/super/ops', '培养运营', 'education',
       // ★ 2026-09-22：'ops/psubject-admin'（实操题库）已下线 —— 题库管理内点实操题库即可进入维护
       // ★ 顺序即侧栏顺序（group() 用 .map 保序，不走排序）：
@@ -196,7 +197,9 @@ function buildDeptAdminSidebar() {
 
   return dash.concat([
     group('/department/people', '人员管理', 'peoples',
-      ['people/register-review', 'people/students', 'people/promotion']),
+      // ★ 顺序即侧栏顺序（group 用 .map 保序，不走排序）
+      // 「导师管理」2026-09-23 新增，放在实习生管理之后、转正审核之前
+      ['people/register-review', 'people/students', 'people/mentors', 'people/promotion']),
     group('/department/study', '学习与考核管理', 'education',
       ['study/courses', 'study/banks', 'study/prep', 'study/exam', 'study/scores']),
     group('/department/messages', '通知', 'message',

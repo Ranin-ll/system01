@@ -74,11 +74,11 @@ public class PracticeSubjectController extends BaseController {
         return toAjax(practiceSubjectService.deleteByIds(ids));
     }
 
-    /** 实习生端：本部门已发布的实操题列表（moduleId 非空时只取该模块下的题） */
+    /** 实习生端：本部门已发布的实操题列表（★ 2026-09-23 起不分模块，按排序号返回） */
     @PreAuthorize("@ss.hasPermi('business:bank:list')")
     @GetMapping("/published")
-    public AjaxResult published(@RequestParam(value = "moduleId", required = false) Long moduleId) {
-        return AjaxResult.success(practiceSubjectService.selectPublishedForIntern(moduleId));
+    public AjaxResult published() {
+        return AjaxResult.success(practiceSubjectService.selectPublishedForIntern());
     }
 
     /** 实习生端：本部门已发布的单条实操题详情（独立详情页使用，支持刷新直链） */

@@ -219,13 +219,7 @@
     </div>
 
     <!-- 权限边界 -->
-    <div class="dcallout" style="margin-top:16px">
-      <i class="el-icon-info" />
-      <span>
-        <b>权限边界（不做的事）</b>：本页<b>不出现其他部门数据</b>，也不做「全公司排行」——
-        部门平均分仅对本部门范围计算，跨部门不可见。跨部门对比是超管端专属能力。
-      </span>
-    </div>
+    
   </div>
 </template>
 

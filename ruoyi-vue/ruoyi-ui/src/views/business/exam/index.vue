@@ -266,6 +266,7 @@
 import { listExam, getExam, addExam, updateExam, delExam, changeExamStatus, publishExam } from '@/api/business/exam'
 import { listDept } from '@/api/system/dept'
 import { mapGetters } from 'vuex'
+import { isSuperAdminRole } from '@/utils/permission'
 
 const DURATION_OPTIONS = [0, 30, 45, 60, 90, 120, 150, 180, 240]
 
@@ -304,7 +305,7 @@ export default {
   },
   computed: {
     ...mapGetters(['roles']),
-    isSuperAdmin() { return this.roles.indexOf('SUPER_ADMIN') > -1 },
+    isSuperAdmin() { return isSuperAdminRole(this.roles) },
     // 分栏类型归一化：只有 THEORY / PRACTICAL 算筛选，其余（含 element-ui 兜底的 "0"）一律当「全部」
     examTypeFilter() {
       return this.activeType === 'THEORY' || this.activeType === 'PRACTICAL' ? this.activeType : 'ALL'

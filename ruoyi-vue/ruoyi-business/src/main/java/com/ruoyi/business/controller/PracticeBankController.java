@@ -1,9 +1,8 @@
 package com.ruoyi.business.controller;
 
 import com.ruoyi.business.domain.PracticeSubject;
-import com.ruoyi.business.domain.QuestionBank;
+import com.ruoyi.business.mapper.ExamRuleMapper;
 import com.ruoyi.business.mapper.PracticeSubjectMapper;
-import com.ruoyi.business.mapper.QuestionBankMapper;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
@@ -21,73 +20,68 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 模拟实操题库（实习生端只读浏览 + 管理员勾选启用范围）。
+ * 模拟实操题（实习生端只读浏览）。
  *
- * 业务口径：只有「实操形态 + 用途为 模拟/通用 + 已勾选开放(practice_enabled=1)」的题库，
- * 实习生才能看到；管理员在本部门范围内勾选。
+ * <p>★ 2026-09-23：题目不再挂「题库」，模拟实操题直接按 dept_id 归属部门。
+ * 原来的「实操题库」概念（question_bank.bank_kind=PRACTICAL + practice_enabled 勾选）已退场，
+ * 实习生能看到的就是本部门<b>已发布</b>（practice_subject.status=1）的模拟实操题。</p>
+ *
+ * <p>为让实习生端页面零改动，接口仍以「题库分组」的形状返回，
+ * 其中 {@code bankId} 的语义已由「题库ID」变为「部门ID」（正好等于路由 /practice-bank/:bankId 的参数）。</p>
  */
 @RestController
 @RequestMapping("/business/practice-bank")
 public class PracticeBankController extends BaseController {
 
     @Autowired
-    private QuestionBankMapper questionBankMapper;
-
-    @Autowired
     private PracticeSubjectMapper practiceSubjectMapper;
 
-    /** 已对实习生开放的实操题库列表（含题量） */
+    @Autowired
+    private ExamRuleMapper examRuleMapper;
+
+    /** 本部门模拟实操题分组（含题量）—— 返回 0 或 1 条，页面据此渲染分组卡片 */
     @GetMapping("/enabled")
     public AjaxResult enabled() {
         Long deptId = SecurityUtils.getDeptId();
-        QuestionBank q = new QuestionBank();
-        q.setDeptId(deptId);
-        q.setScopeDeptId(deptId);
-        q.setBankKind("PRACTICAL");
-        q.setPracticeEnabled(1);
-        List<QuestionBank> banks = questionBankMapper.selectBankList(q);
         List<Map<String, Object>> result = new ArrayList<>();
-        if (banks != null) {
-            for (QuestionBank b : banks) {
-                // 只保留 模拟考核题库 / 通用题库（正式考核题库不对实习生开放）
-                String bt = b.getBankType() == null ? "COMMON" : b.getBankType().toUpperCase();
-                if (!"PRACTICE".equals(bt) && !"COMMON".equals(bt)) {
-                    continue;
-                }
-                PracticeSubject cq = new PracticeSubject();
-                cq.setBankId(b.getId());
-                List<PracticeSubject> items = practiceSubjectMapper.selectSubjectList(cq);
-                Map<String, Object> m = new LinkedHashMap<>();
-                m.put("bankId", b.getId());
-                m.put("bankName", b.getBankName());
-                m.put("bankType", bt);
-                m.put("description", b.getDescription());
-                m.put("subjectCount", items == null ? 0 : items.size());
-                result.add(m);
-            }
+        if (deptId == null) {
+            return AjaxResult.success(result);
         }
+        List<PracticeSubject> items = listPublished(deptId);
+        if (items.isEmpty()) {
+            // 本部门还没有已发布的模拟实操题 → 空列表，页面走空态
+            return AjaxResult.success(result);
+        }
+        String deptName = examRuleMapper.selectDeptName(deptId);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("bankId", deptId);
+        m.put("deptId", deptId);
+        m.put("bankName", (deptName == null ? "本部门" : deptName) + " · 模拟实操题");
+        m.put("bankType", "PRACTICE");
+        m.put("description", null);
+        m.put("subjectCount", items.size());
+        result.add(m);
         return AjaxResult.success(result);
     }
 
-    /** 某个已开放实操题库内的题目列表（只读；未开放则拒绝） */
-    @GetMapping("/{bankId}/subjects")
+    /** 本部门已发布的模拟实操题列表（只读；非超管一律按自己部门取，忽略路径参数防越权） */
+    @GetMapping("/{deptId}/subjects")
     @PreAuthorize("@ss.hasAnyRoles('PRE_TRAINEE,FORMAL_TRAINEE,DEPT_ADMIN,SUPER_ADMIN')")
-    public TableDataInfo subjects(@PathVariable("bankId") Long bankId) {
-        QuestionBank bank = questionBankMapper.selectBankById(bankId, SecurityUtils.getDeptId());
-        if (bank == null || (bank.getDeleted() != null && bank.getDeleted() == 1)) {
+    public TableDataInfo subjects(@PathVariable("deptId") Long deptId) {
+        Long scope = SecurityUtils.getDeptId();
+        Long target = scope != null ? scope : deptId;
+        if (target == null) {
             return getDataTable(new ArrayList<>());
         }
-        boolean enabled = bank.getPracticeEnabled() != null && bank.getPracticeEnabled() == 1;
-        String kind = bank.getBankKind() == null ? "THEORY" : bank.getBankKind().toUpperCase();
-        String type = bank.getBankType() == null ? "COMMON" : bank.getBankType().toUpperCase();
-        boolean typeOk = "PRACTICE".equals(type) || "COMMON".equals(type);
-        if (!enabled || !"PRACTICAL".equals(kind) || !typeOk) {
-            // 未开放 / 非实操 / 正式题库：对实习生一律不可见，返回空表（不暴露存在性）
-            return getDataTable(new ArrayList<>());
-        }
+        return getDataTable(listPublished(target));
+    }
+
+    /** 取某部门已发布（status=1）的模拟实操题 */
+    private List<PracticeSubject> listPublished(Long deptId) {
         PracticeSubject q = new PracticeSubject();
-        q.setBankId(bankId);
+        q.setScopeDeptId(deptId);
+        q.setStatus(1);
         List<PracticeSubject> list = practiceSubjectMapper.selectSubjectList(q);
-        return getDataTable(list == null ? new ArrayList<>() : list);
+        return list == null ? new ArrayList<>() : list;
     }
 }

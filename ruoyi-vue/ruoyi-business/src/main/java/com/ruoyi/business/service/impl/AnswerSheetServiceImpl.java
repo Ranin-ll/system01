@@ -438,51 +438,43 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
     }
 
     /**
-     * 理论考核组卷抽题。
+     * 理论考核组卷抽题（★ 2026-09-23 起统一口径）。
      *
-     * 优先多题库配置（exam_bank_rule）：按「题库 × 题型」配额，每个题库分别按
-     * 单选/多选/判断 的配置数量在该库内随机抽取，各库互不干扰、跨库去重。
-     * 未配置时回退历史单库逻辑（exam.bank_id + 题型数量）。
+     * <p>从<b>本部门题池</b>（question.dept_id）抽题：</p>
+     * <ol>
+     *   <li>配了知识配比（exam_knowledge_rule）→ 按知识点逐个抽取，跨知识点去重；</li>
+     *   <li>未配知识配比 → 退回「按题型数量从本部门题池随机抽」。</li>
+     * </ol>
      */
     private List<Question> pickTheoryQuestions(Exam exam) {
-        List<Question> questions = pickByBankRules(exam.getId());
-        if (!questions.isEmpty()) {
-            return questions;
+        Long deptId = exam.getDeptId();
+        if (deptId == null) {
+            throw new ServiceException("考核未归属部门，无法抽题");
         }
-        // 历史单库链路
-        if (exam.getBankId() == null) {
-            throw new ServiceException("理论考核题库未配置");
-        }
-        questions.addAll(questionMapper.selectQuestionsByType(exam.getBankId(), null, "SINGLE", exam.getSingleCount()));
-        questions.addAll(questionMapper.selectQuestionsByType(exam.getBankId(), null, "MULTI", exam.getMultiCount()));
-        questions.addAll(questionMapper.selectQuestionsByType(exam.getBankId(), null, "JUDGE", exam.getJudgeCount()));
-        return questions;
-    }
-
-    /**
-     * 多题库组卷抽题（理论与实操共用同一套逻辑）：
-     * 对每个题库分别按 单选/多选/判断 的配置数量在该库内随机取题，跨库去重。
-     * 未配置组卷时返回空列表，由调用方决定回退方式。
-     */
-    private List<Question> pickByBankRules(Long examId) {
         List<Question> questions = new ArrayList<>();
-        List<com.ruoyi.business.domain.ExamBankRule> bankRules = examRuleMapper.selectBankRules(examId);
-        if (bankRules == null || bankRules.isEmpty()) {
-            return questions;
-        }
         List<Long> used = new ArrayList<>();
-        for (com.ruoyi.business.domain.ExamBankRule rule : bankRules) {
-            addPicked(questions, used, examRuleMapper.selectQuestionsByPoint(
-                    rule.getBankId(), null, "SINGLE", new ArrayList<>(used), nz(rule.getSingleCount())));
-            addPicked(questions, used, examRuleMapper.selectQuestionsByPoint(
-                    rule.getBankId(), null, "MULTI", new ArrayList<>(used), nz(rule.getMultiCount())));
-            addPicked(questions, used, examRuleMapper.selectQuestionsByPoint(
-                    rule.getBankId(), null, "JUDGE", new ArrayList<>(used), nz(rule.getJudgeCount())));
+        List<com.ruoyi.business.domain.ExamKnowledgeRule> rules = examRuleMapper.selectKnowledgeRules(exam.getId());
+        if (rules != null && !rules.isEmpty()) {
+            for (com.ruoyi.business.domain.ExamKnowledgeRule rule : rules) {
+                int need = rule.getQuestionCount() == null ? 0 : rule.getQuestionCount();
+                if (need <= 0) {
+                    continue;
+                }
+                addPicked(questions, used, examRuleMapper.selectQuestionsByPoint(
+                        deptId, rule.getKnowledgePoint(), null, new ArrayList<>(used), need));
+            }
+            if (!questions.isEmpty()) {
+                return questions;
+            }
         }
+        // 退回「按题型数量」从本部门题池抽
+        questions.addAll(questionMapper.selectQuestionsByType(deptId, null, "SINGLE", exam.getSingleCount()));
+        questions.addAll(questionMapper.selectQuestionsByType(deptId, null, "MULTI", exam.getMultiCount()));
+        questions.addAll(questionMapper.selectQuestionsByType(deptId, null, "JUDGE", exam.getJudgeCount()));
         return questions;
     }
 
-    /** 合并抽到的题并跨库去重 */
+    /** 合并抽到的题并跨知识点/题型去重 */
     private void addPicked(List<Question> target, List<Long> used, List<Question> src) {
         if (src == null) {
             return;

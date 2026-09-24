@@ -92,8 +92,12 @@
                END                                AS stage,
                CASE WHEN u.user_status = 'WAIT_AUDIT' THEN 1 ELSE 0 END  AS statusConflict,
                u.mentor_name                      AS mentorName,
+               u.mentor_phone                     AS mentorPhone,
                CASE WHEN u.protocol_status = '1' THEN 1 ELSE 0 END       AS protocolSigned,
                DATEDIFF(NOW(), u.create_time)     AS stayDays,
+               u.expected_entry_date              AS expectedEntryDate,
+               u.create_time                      AS createTime,
+               u.login_date                       AS loginDate,
                (SELECT COUNT(*) FROM study_record s
                  WHERE s.user_id = u.user_id)                             AS learnTotal,
                (SELECT COUNT(*) FROM study_record s

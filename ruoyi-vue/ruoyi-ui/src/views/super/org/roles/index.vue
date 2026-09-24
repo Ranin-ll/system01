@@ -14,7 +14,7 @@
 
     <div class="s-grid">
       <section class="s-card s-c4">
-        <div class="s-card-h"><div class="tt"><span class="s-idx">角</span><h3>系统角色</h3></div><span class="hint">sys_role</span></div>
+        <div class="s-card-h"><div class="tt"><span class="s-idx">角</span><h3>系统角色</h3></div></div>
         <table v-if="roles.length" class="s-tbl">
           <thead><tr><th>角色</th><th style="width:110px">标识</th><th style="width:80px">成员</th></tr></thead>
           <tbody>
@@ -26,7 +26,7 @@
           </tbody>
         </table>
         <div v-else class="s-empty"><i class="el-icon-lock" /><span>暂无角色数据</span></div>
-        <p class="s-note">业务侧 4 个角色由后端 <code>@PreAuthorize</code> 强校验：<code>SUPER_ADMIN</code> / <code>DEPT_ADMIN</code> / <code>PRE_TRAINEE</code> / <code>FORMAL_TRAINEE</code>；前端隐藏按钮只是界面优化。</p>
+        
       </section>
 
       <section class="s-card s-c8">

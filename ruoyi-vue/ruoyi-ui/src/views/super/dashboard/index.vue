@@ -33,7 +33,7 @@
       <section class="s-card s-c7">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx">1</span><h3>部门分布 · 在培实习生</h3></div>
-          <span class="hint">数据来源：register_application 实时聚合 · <b>点柱子 → 该部门详情</b></span>
+          
         </div>
         <div v-if="deptStats.length" class="s-vchart">
           <div
@@ -48,7 +48,7 @@
           </div>
         </div>
         <div v-else class="s-empty"><i class="el-icon-data-analysis" /><span>暂无部门数据</span></div>
-        <p class="s-note">口径：<b>已通过审核</b>的报名记录（status = PASSED）按部门归集。<b>学习完成率 / 考核通过率</b>不在本卡展示 —— 那两项已接真数据，见「培养分析看板」。</p>
+        
       </section>
 
       <!-- 考核概览 -->
@@ -71,30 +71,29 @@
           </table>
         </div>
         <div v-else class="s-empty"><i class="el-icon-finished" /><span>暂无正式考核</span></div>
-        <p class="s-note">批次 = 一条 <code>exam</code> 记录；理论 / 实操为同批次下 <code>exam_type</code> 不同的两条记录，状态各自独立（可表达「理论已发布 · 实操草稿」的半场态）。</p>
+        
       </section>
 
-      <!-- 题库健康度 -->
+      <!-- 部门题池（★ 2026-09-23：题库概念退场，理论题直接按部门归属） -->
       <section class="s-card s-c5">
         <div class="s-card-h">
-          <div class="tt"><span class="s-idx g">3</span><h3>题库健康度</h3></div>
-          <span class="hint">模拟 / 正式分库</span>
+          <div class="tt"><span class="s-idx g">3</span><h3>部门题池</h3></div>
+          <span class="hint">理论题 · 按部门归属</span>
         </div>
-        <div v-if="banks.length" style="max-height:238px;overflow-y:auto">
+        <div v-if="poolRows.length" style="max-height:238px;overflow-y:auto">
           <table class="s-tbl">
-            <thead><tr><th>题库</th><th style="width:70px">类型</th><th style="width:64px">题量</th><th style="width:70px">状态</th></tr></thead>
+            <thead><tr><th>部门</th><th style="width:64px">题量</th><th style="width:76px">状态</th></tr></thead>
             <tbody>
-              <tr v-for="b in banks" :key="b.id" class="row-link" :title="'查看题库：' + b.bankName" @click="goBank(b.id)">
-                <td class="nm">{{ b.bankName }}</td>
-                <td>{{ b.bankType === 'FORMAL' ? '正式' : '模拟' }}</td>
-                <td class="num">{{ b.questionCount || 0 }}</td>
-                <td><span class="s-badge" :class="(b.questionCount || 0) > 0 ? 'ok' : 'warn'">{{ (b.questionCount || 0) > 0 ? '可用' : '空库' }}</span></td>
+              <tr v-for="p in poolRows" :key="p.deptId" class="row-link" :title="'查看题目：' + p.deptName" @click="goPool(p)">
+                <td class="nm">{{ p.deptName }}</td>
+                <td class="num">{{ p.count }}</td>
+                <td><span class="s-badge" :class="p.count > 0 ? 'ok' : 'warn'">{{ p.count > 0 ? '可用' : '空题池' }}</span></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div v-else class="s-empty"><i class="el-icon-collection" /><span>暂无题库</span></div>
-        <p class="s-note">判据：题量 &gt; 0 且 ≥ 单场组卷需求 × 2；空库会进下方异常预警。</p>
+        <div v-else class="s-empty"><i class="el-icon-collection" /><span>暂无培养部门</span></div>
+        
       </section>
 
       <!-- 异常预警 -->
@@ -117,14 +116,14 @@
           </div>
         </div>
         <div v-else class="s-empty"><i class="el-icon-circle-check" /><span>暂无异常</span></div>
-        <p class="s-note"><b>点任一条可直达处理位置</b>（空库 → 题库详情 / 草稿 → 考核与成绩 / 堆积 → 注册审核）。当前规则：空题库、草稿未发布考核、待审核报名堆积。<b>部门完成率 / 逾期未提交</b> 规则需跨模块聚合接口，属 P3 排期。</p>
+        
       </section>
 
       <!-- 最近动态 -->
       <section class="s-card s-c12">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx p">5</span><h3>最近动态（操作日志）</h3></div>
-          <span class="hint">sys_oper_log · 共 {{ operTotal }} 条 · <b>点任一行 → 审计与合规</b></span>
+          
         </div>
         <table v-if="operLogs.length" class="s-tbl">
           <thead><tr><th style="width:170px">时间</th><th style="width:150px">操作人</th><th style="width:150px">动作</th><th>请求</th><th style="width:80px">结果</th></tr></thead>
@@ -150,7 +149,7 @@ import { listPosition } from '@/api/business/position'
 import { listRegister } from '@/api/business/register'
 import { listExam } from '@/api/business/exam'
 import { listCourse } from '@/api/business/course'
-import { listBank } from '@/api/business/questionBank'
+import { listQuestion } from '@/api/business/question'
 import { list as listOperlog } from '@/api/monitor/operlog'
 import { getRuleConfig } from '@/api/business/rule'
 
@@ -169,7 +168,9 @@ export default {
       interns: [],
       exams: [],
       courses: [],
-      banks: [],
+      /** 全组织理论题（★ 2026-09-23：题目直接按部门归属，不再有「题库」这一层） */
+      questions: [],
+      questionTotal: 0,
       operLogs: [],
       /** 「规则与配置」页维护的默认值（异常预警阈值从这里读，不再是写死的 3） */
       ruleConfig: {},
@@ -210,8 +211,19 @@ export default {
     maxDeptCount() {
       return this.deptStats.reduce((max, d) => Math.max(max, d.count), 0)
     },
-    emptyBanks() {
-      return this.banks.filter(b => !b.questionCount || b.questionCount === 0)
+    /** 每个培养部门的题池题量（来自已加载的真实题目，按 deptId 聚合） */
+    poolRows() {
+      return this.trainDepts
+        .map(d => ({
+          deptId: d.deptId,
+          deptName: d.deptName,
+          count: this.questions.filter(q => Number(q.deptId) === Number(d.deptId)).length
+        }))
+        .sort((a, b) => b.count - a.count)
+    },
+    /** 空题池的部门（题量 0 → 无法组卷） */
+    emptyPools() {
+      return this.poolRows.filter(p => !p.count)
     },
     draftExams() {
       return this.exams.filter(e => e.status === 'DRAFT')
@@ -241,9 +253,9 @@ export default {
           path: '/super/ops/exams', toLabel: '考核与成绩'
         },
         {
-          label: '题库总题量', value: this.banks.reduce((sum, b) => sum + (b.questionCount || 0), 0), unit: '题', color: '#0e7490',
-          hint: this.emptyBanks.length ? (this.emptyBanks.length + ' 个空库需补充') : '题库均可用',
-          tone: this.emptyBanks.length ? 'warn' : '',
+          label: '理论题总量', value: this.questionTotal, unit: '题', color: '#0e7490',
+          hint: this.emptyPools.length ? (this.emptyPools.length + ' 个部门题池为空') : '各部门题池均可用',
+          tone: this.emptyPools.length ? 'warn' : '',
           path: '/super/ops/bank-admin', toLabel: '题库管理'
         },
         {
@@ -256,8 +268,8 @@ export default {
     alerts() {
       const list = []
       const pendingLimit = Number(this.ruleConfig.alertRegisterPending) || 3
-      this.emptyBanks.forEach(b => {
-        list.push({ title: b.bankName + ' 为空库', desc: '题量 0，无法组卷；请通知对应部门管理员导入题目', link: '/super/ops/bank-detail/' + b.id })
+      this.emptyPools.forEach(p => {
+        list.push({ title: p.deptName + ' 题池为空', desc: '题量 0，无法组卷；请通知该部门管理员导入题目', link: '/super/ops/bank-admin' })
       })
       this.draftExams.forEach(e => {
         list.push({ title: '考核仍为草稿：' + e.examName, desc: (e.deptName || '未知部门') + ' · 未发布前实习生在正式考核页看不到该场次', link: '/super/ops/exams' })
@@ -294,13 +306,13 @@ export default {
     goDept(deptId) {
       this.go('/super/ops/analysis/dept/' + deptId)
     },
-    /** 题库行 → 题库详情（带题目列表） */
-    goBank(bankId) {
-      this.go('/super/ops/bank-detail/' + bankId)
+    /** 题池行 → 题库管理（★ 原「题库详情」页已退场，统一落到题库管理页） */
+    goPool(pool) {
+      this.go('/super/ops/bank-admin')
     },
     loadAll() {
       this.loading = true
-      Promise.all([this.loadDepts(), this.loadPositions(), this.loadInterns(), this.loadExams(), this.loadCourses(), this.loadBanks(), this.loadLogs(), this.loadRuleConfig()])
+      Promise.all([this.loadDepts(), this.loadPositions(), this.loadInterns(), this.loadExams(), this.loadCourses(), this.loadQuestions(), this.loadLogs(), this.loadRuleConfig()])
         .finally(() => { this.loading = false })
     },
     loadDepts() {
@@ -318,8 +330,11 @@ export default {
     loadCourses() {
       return listCourse({ pageNum: 1, pageSize: 200 }).then(res => { this.courses = res.rows || [] }).catch(() => { this.courses = [] })
     },
-    loadBanks() {
-      return listBank({ pageNum: 1, pageSize: 200 }).then(res => { this.banks = res.rows || [] }).catch(() => { this.banks = [] })
+    loadQuestions() {
+      return listQuestion({ pageNum: 1, pageSize: 1000 }).then(res => {
+        this.questions = res.rows || []
+        this.questionTotal = res.total || 0
+      }).catch(() => { this.questions = []; this.questionTotal = 0 })
     },
     loadLogs() {
       return listOperlog({ pageNum: 1, pageSize: 8 }).then(res => {

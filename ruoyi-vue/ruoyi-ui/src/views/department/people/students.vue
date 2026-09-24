@@ -72,31 +72,52 @@
             <th>导师</th>
             <th>保密协议</th>
             <th>学习完成率</th>
-            <th>模拟正确率</th>
-            <th>正式考核</th>
+            <th>正式考核次数</th>
             <th>最近活跃</th>
-            <th style="width:170px">操作</th>
+            <th style="width:210px">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in pagedRows" :key="row.id">
+          <tr v-for="row in pagedRows" :key="row.userId">
             <td>
-              <span class="strong">{{ row.realName }}</span>
-              <div v-if="row.loginAccount" class="sub-account">{{ row.loginAccount }}</div>
+              <span class="strong">{{ row.nickName }}</span>
+              <div v-if="row.userName" class="sub-account">{{ row.userName }}</div>
             </td>
             <td>{{ row.positionName || '—' }}</td>
             <td>
-              <span class="dbadge" :class="statusMeta(row.userStatus).tone">{{ statusMeta(row.userStatus).text }}</span>
+              <span class="dbadge" :class="statusMeta(row.stage).tone">{{ statusMeta(row.stage).text }}</span>
+              <div v-if="row.statusConflict" class="sub-account warn-txt">角色已发 · 状态待修正</div>
             </td>
             <td>
-              <span v-if="row.mentorName">{{ row.mentorName }}</span>
+              <span v-if="row.mentorName" class="strong-sm">{{ row.mentorName }}</span>
               <span v-else class="muted">未分配</span>
+              <div v-if="row.mentorPhone" class="sub-account">{{ row.mentorPhone }}</div>
             </td>
-            <td><span class="muted">--</span></td>
-            <td><span class="muted">--</span></td>
-            <td><span class="muted">--</span></td>
-            <td><span class="muted">--</span></td>
-            <td class="muted">{{ fmtDate(row.updateTime || row.createTime) }}</td>
+            <!-- 保密协议（sys_user.protocol_status，真数据） -->
+            <td>
+              <span class="dbadge" :class="row.protocolSigned === 1 ? 'green' : 'orange'">
+                {{ row.protocolSigned === 1 ? '已签' : '未签' }}
+              </span>
+            </td>
+            <!-- 学习完成率：本人学习项进度均值；无记录 → 「暂无课程」，不显示 0% -->
+            <td>
+              <template v-if="row.learnTotal">
+                <span class="strong-sm">{{ row.learnAvgProgress }}%</span>
+                <div class="sub-account">达标 {{ row.learnDone }}/{{ row.learnTotal }} 项</div>
+              </template>
+              <span v-else class="muted" title="该实习生尚无任何学习记录">暂无课程</span>
+            </td>
+            <!-- 正式考核：★ 主值展示【参加次数】；有结果时下带一行通过与否 -->
+            <td>
+              <template v-if="row.formalTimes">
+                <span class="strong-sm">{{ row.formalTimes }} 次</span>
+                <div class="sub-account" :class="row.formalPassed === 1 ? 'ok-txt' : 'warn-txt'">
+                  {{ row.formalPassed === 1 ? '已通过' : '未通过' }}
+                </div>
+              </template>
+              <span v-else class="muted">未参加</span>
+            </td>
+            <td class="muted">{{ fmtDate(row.loginDate || row.createTime) }}</td>
             <td>
               <div class="acts">
                 <el-button type="text" @click="openProfile(row)">查看档案</el-button>
@@ -107,11 +128,11 @@
             </td>
           </tr>
           <tr v-if="!filteredRows.length && !loading">
-            <td colspan="10">
+            <td colspan="9">
               <div class="dempty small">
                 <i class="el-icon-user" />
                 <strong>没有符合条件的实习生</strong>
-                <span>试着放宽筛选条件，或前往「注册审核」先通过注册申请。</span>
+                <span>试着放宽筛选条件；本页只显示当前部门名下的实习生与注册待审人员。</span>
               </div>
             </td>
           </tr>
@@ -131,8 +152,18 @@
 </template>
 
 <script>
-import { listRegister } from '@/api/business/register'
+// ★ 2026-09-23：花名册数据源由 `register_application` 换成**培养分析聚合接口**
+//   （GET /business/super/analysis/stage-progress，权限 business:bank:list，部门管理员持有）。
+//   原因：① 原口径只取「注册已通过」，与后端聚合口径（sys_user + 实习生角色）对不上
+//          —— 部门端只有 1 人 vs 实际 7 人；
+//        ② 「保密协议 / 学习完成率 / 正式考核」这几列的数据本来就在
+//           后端这一份聚合里（protocolSigned / learnTotal+learnDone+learnAvgProgress /
+//           formalPassed），不必再另做接口。
+//   该接口**不需要传部门参数**，范围从 token 取（超管=全部、部门管理员=本部门）。
+import { getStageProgress } from '@/api/business/analysis'
+import { getMentorOptions, assignInternMentor, clearInternMentor } from '@/api/business/mentor'
 
+// ★ 键用后端归一后的 `stage`（以角色为主、user_status 为辅），不再用原始 userStatus
 const STATUS_MAP = {
   WAIT_AUDIT: { text: '注册待审', tone: 'orange' },
   PRE_TRAINEE: { text: '预备实习中', tone: 'blue' },
@@ -148,23 +179,34 @@ export default {
     return {
       loading: false,
       roster: [],
+      mentorDialog: {
+        visible: false,
+        submitting: false,
+        optionsLoading: false,
+        row: null,
+        mentorId: undefined,
+        options: []
+      },
       query: { positionName: '', mentorName: '', status: 'ALL', entryRange: 'ALL', keyword: '', pageNum: 1, pageSize: 20 }
     }
   },
   computed: {
-    /** 花名册 = 注册申请已通过的人（注册待审归「注册审核」页处理） */
+    /**
+     * 花名册 = 后端培养分析聚合的逐人明细（与「培养状态 / 转正 gate」同一份口径）。
+     * ★ 2026-09-23 起**不再**过滤掉注册待审的人 —— 他们照样在本部门名下，
+     *   由「培养状态」列标出「注册待审」，避免两个页面人数对不上。
+     */
     interns() {
       return this.roster
-        .filter(row => row.status === 'PASSED')
-        // 2026-09-22：不再注入随机示例字段（原 row.demo 的 4 列已改为留空显示「--」）
     },
     kpis() {
-      const by = key => this.interns.filter(r => r.userStatus === key).length
+      const by = key => this.interns.filter(r => r.stage === key).length
+      const waiting = by('WAIT_AUDIT')
       const pre = by('PRE_TRAINEE')
       const promoting = by('PENDING_PROMOTE')
       const formal = by('FORMAL_TRAINEE')
       return [
-        { key: 'all', label: '在册实习生', value: this.interns.length, hint: '本部门 ' + this.positionOptions.length + ' 个岗位', color: '#1764f5' },
+        { key: 'all', label: '本部门人员', value: this.interns.length, hint: '含注册待审 ' + waiting + ' 人', color: '#1764f5' },
         { key: 'pre', label: '预备实习中', value: pre, hint: 'PRE_TRAINEE', color: '#1764f5' },
         { key: 'promoting', label: '转正审核中', value: promoting, hint: '已推荐待终审', tone: 'warn', color: '#f79009' },
         { key: 'formal', label: '已转正', value: formal, hint: '转正即生效并自动发证', tone: 'ok', color: '#12b76a' }
@@ -177,24 +219,24 @@ export default {
       return this.uniq(this.interns.map(r => r.mentorName))
     },
     statusTabs() {
-      const count = key => (key === 'ALL' ? this.interns.length : this.interns.filter(r => r.userStatus === key).length)
+      const count = key => (key === 'ALL' ? this.interns.length : this.interns.filter(r => r.stage === key).length)
       return [
         { key: 'ALL', label: '全部', count: count('ALL') },
+        { key: 'WAIT_AUDIT', label: '注册待审', count: count('WAIT_AUDIT') },
         { key: 'PRE_TRAINEE', label: '预备', count: count('PRE_TRAINEE') },
         { key: 'PENDING_PROMOTE', label: '审核中', count: count('PENDING_PROMOTE') },
-        { key: 'FORMAL_TRAINEE', label: '已转正', count: count('FORMAL_TRAINEE') },
-        { key: 'DISABLED', label: '已停用', count: count('DISABLED') }
+        { key: 'FORMAL_TRAINEE', label: '已转正', count: count('FORMAL_TRAINEE') }
       ]
     },
     filteredRows() {
       const q = this.query
       const kw = (q.keyword || '').trim().toLowerCase()
       return this.interns.filter(row => {
-        if (q.status !== 'ALL' && row.userStatus !== q.status) return false
+        if (q.status !== 'ALL' && row.stage !== q.status) return false
         if (q.positionName && row.positionName !== q.positionName) return false
         if (q.mentorName && row.mentorName !== q.mentorName) return false
         if (kw) {
-          const hay = ((row.realName || '') + ' ' + (row.loginAccount || '')).toLowerCase()
+          const hay = ((row.nickName || '') + ' ' + (row.userName || '')).toLowerCase()
           if (hay.indexOf(kw) < 0) return false
         }
         if (q.entryRange !== 'ALL') {
@@ -230,8 +272,10 @@ export default {
   methods: {
     loadRoster() {
       this.loading = true
-      listRegister({ pageNum: 1, pageSize: 200 }).then(res => {
-        this.roster = (res && res.rows) || []
+      // 培养分析聚合接口：一次拿到全部门逐人明细（含协议 / 学习 / 模拟 / 正式考核）
+      getStageProgress().then(res => {
+        const d = (res && res.data) || {}
+        this.roster = d.rows || []
       }).catch(() => {
         this.roster = []
       }).finally(() => {
@@ -286,6 +330,12 @@ export default {
 .dtbl .muted { color: #98a2b3; }
 .dtbl .sub-account { margin-top: 3px; color: #98a2b3; font-size: 11px; }
 .dtbl .acts .sep { color: #d0d5dd; }
+.dtbl .strong-sm { font-weight: 600; }
+.dtbl .warn-txt { color: #b54708; }
+.dtbl .ok-txt { color: #027a48; }
+.mentor-head { margin-bottom: 14px; color: #344054; }
+.mentor-head .muted { color: #98a2b3; font-size: 12px; }
+.field-tip { margin-top: 3px; color: #98a2b3; font-size: 11px; }
 .dkpi-val small { margin-left: 2px; color: #667085; font-size: 12px; font-weight: 400; }
 code { padding: 1px 5px; color: #344054; font-size: 11.5px; background: #f2f4f7; border-radius: 4px; }
 </style>

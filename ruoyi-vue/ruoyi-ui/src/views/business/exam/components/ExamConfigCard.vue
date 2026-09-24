@@ -127,9 +127,10 @@
           <div class="field"><span>卷面满分<i class="f-note">自动计算</i></span><b>{{ subjectTotalScore }} 分</b></div>
         </template>
         <template v-else>
-          <div class="field"><span>组卷题库<i class="f-note">右侧配置</i></span><b>{{ bankText }}</b></div>
+          <div class="field"><span>抽题题池<i class="f-note">本部门</i></span><b>{{ poolText }}</b></div>
+          <div class="field"><span>抽题方式<i class="f-note">按知识点</i></span><b>知识点配比 · {{ knowledgeRules.length }} 个知识点</b></div>
           <div class="field"><span>题型与分值<i class="f-note">自动汇总</i></span><b>{{ theorySpec }}</b></div>
-          <div class="field"><span>题目数量<i class="f-note">自动计算</i></span><b>{{ exam.questionCount || 0 }} 题</b></div>
+          <div class="field"><span>题目数量<i class="f-note">自动计算</i></span><b>{{ typeCountSum }} 题</b></div>
           <div class="field"><span>卷面满分<i class="f-note">自动计算</i></span><b>{{ ruleTotalScore }} 分</b></div>
         </template>
 
@@ -140,79 +141,77 @@
 
       <!-- ===== 右：内容（理论＝组卷题库 / 实操＝题目清单） ===== -->
       <div class="dm-table-wrap" :class="{ locked: configLocked }">
-        <!-- 理论：多题库 × 题型配额 -->
+        <!-- 理论：从本部门题池按知识点配比抽题 -->
         <template v-if="!isPractice">
           <div class="dm-sub-head">
-            <h4>组卷规则（每个题库各出几道什么题型）</h4>
+            <h4>知识点配比（每个知识点抽几道题）</h4>
             <div class="dm-actions">
-              <el-select v-model="addBankId" size="mini" placeholder="＋ 添加题库" style="width:170px" @change="addBankRule">
-                <el-option
-                  v-for="b in bankMeta"
-                  :key="b.bankId"
-                  :label="b.bankName + '（可用 ' + b.totalCount + ' 题）'"
-                  :value="b.bankId"
-                  :disabled="bankChosen(b.bankId)"
-                />
-              </el-select>
+              <el-button size="mini" icon="el-icon-download" @click="importFromPool">从题池导入知识点</el-button>
+              <el-button size="mini" icon="el-icon-plus" @click="addKnowledgeRule(null)">添加知识点</el-button>
               <el-button size="mini" :loading="drawing" @click="tryDraw">试抽一套</el-button>
             </div>
           </div>
 
           <p class="draw-basis">
-            当前主链路按「<b>题库 × 题型</b>」配额抽题；未配组卷时回退历史链路（模拟考核按<b>知识点/章节</b>配比）。
+            抽题口径：从<b>本部门理论题池</b>（可用 {{ poolTotal }} 题 / {{ poolPoints.length }} 个知识点）
+            按<b>知识点配比</b>随机抽取，跨知识点去重。
             <el-tag size="mini" effect="plain" :type="drawBasisTag">{{ drawBasisText }}</el-tag>
           </p>
 
-          <!-- 每题分值：与抽题数量同一处设置，改完点「保存配置」落库 -->
+          <!-- 卷面结构：题型数量 × 每题分值 = 卷面满分（决定通过线上限） -->
           <div class="score-bar">
-            <span class="sb-title">每题分值</span>
-            <label class="sb-item">单选<el-input-number v-model="singleScore" :min="0" :max="100" :precision="1" controls-position="right" size="mini" style="width:88px" />分</label>
-            <label class="sb-item">多选<el-input-number v-model="multiScore" :min="0" :max="100" :precision="1" controls-position="right" size="mini" style="width:88px" />分</label>
-            <label class="sb-item">判断<el-input-number v-model="judgeScore" :min="0" :max="100" :precision="1" controls-position="right" size="mini" style="width:88px" />分</label>
-            <span class="sb-total">卷面满分 <b>{{ ruleTotalScore }}</b> 分</span>
+            <span class="sb-title">卷面结构</span>
+            <label class="sb-item">
+              单选<el-input-number v-model="singleCount" :min="0" :max="999" controls-position="right" size="mini" style="width:82px" />题
+              ×<el-input-number v-model="singleScore" :min="0" :max="100" :precision="1" controls-position="right" size="mini" style="width:82px" />分
+            </label>
+            <label class="sb-item">
+              多选<el-input-number v-model="multiCount" :min="0" :max="999" controls-position="right" size="mini" style="width:82px" />题
+              ×<el-input-number v-model="multiScore" :min="0" :max="100" :precision="1" controls-position="right" size="mini" style="width:82px" />分
+            </label>
+            <label class="sb-item">
+              判断<el-input-number v-model="judgeCount" :min="0" :max="999" controls-position="right" size="mini" style="width:82px" />题
+              ×<el-input-number v-model="judgeScore" :min="0" :max="100" :precision="1" controls-position="right" size="mini" style="width:82px" />分
+            </label>
+            <span class="sb-total">共 <b>{{ typeCountSum }}</b> 题 · 卷面满分 <b>{{ ruleTotalScore }}</b> 分</span>
           </div>
 
-          <el-table :data="bankRules" size="mini" border empty-text="点右上角「＋ 添加题库」选择参与组卷的题库">
-            <el-table-column label="题库" min-width="164">
+          <el-table :data="knowledgeRules" size="mini" border empty-text="点右上角「从题池导入知识点」把本部门已有知识点带进来">
+            <el-table-column label="知识点（章节）" min-width="190">
               <template slot-scope="scope">
-                <el-select v-model="scope.row.bankId" size="mini" filterable style="width:100%">
-                  <el-option v-for="b in bankMeta" :key="b.bankId" :label="b.bankName" :value="b.bankId" />
+                <el-select
+                  v-model="scope.row.knowledgePoint"
+                  size="mini"
+                  filterable
+                  allow-create
+                  default-first-option
+                  placeholder="选择或输入知识点"
+                  style="width:100%"
+                >
+                  <el-option v-for="p in poolPoints" :key="p.knowledgePoint" :label="p.knowledgePoint" :value="p.knowledgePoint" />
                 </el-select>
               </template>
             </el-table-column>
-            <el-table-column label="可用题量" width="102" align="center">
-              <template slot-scope="scope"><span class="muted">{{ bankAvailable(scope.row.bankId) }} 题</span></template>
+            <el-table-column label="题池可用" width="94" align="center">
+              <template slot-scope="scope"><span class="muted">{{ poolAvailable(scope.row.knowledgePoint) }} 题</span></template>
             </el-table-column>
-            <el-table-column label="单选" width="102" align="center">
+            <el-table-column label="抽题数量" width="126" align="center">
               <template slot-scope="scope">
-                <el-input-number v-model="scope.row.singleCount" :min="0" :max="inputMaxOf(scope.row.bankId, 'singleCount')" size="mini" style="width:86px" />
+                <el-input-number v-model="scope.row.questionCount" :min="0" :max="Math.max(poolAvailable(scope.row.knowledgePoint), 999)" size="mini" style="width:104px" />
               </template>
             </el-table-column>
-            <el-table-column label="多选" width="102" align="center">
-              <template slot-scope="scope">
-                <el-input-number v-model="scope.row.multiCount" :min="0" :max="inputMaxOf(scope.row.bankId, 'multiCount')" size="mini" style="width:86px" />
-              </template>
-            </el-table-column>
-            <el-table-column label="判断" width="102" align="center">
-              <template slot-scope="scope">
-                <el-input-number v-model="scope.row.judgeCount" :min="0" :max="inputMaxOf(scope.row.bankId, 'judgeCount')" size="mini" style="width:86px" />
-              </template>
-            </el-table-column>
-            <el-table-column label="小计" width="112" align="center">
-              <template slot-scope="scope">
-                <strong class="num">{{ ruleRowTotal(scope.row) }}</strong> 题
-                <span class="sb-sub">/ {{ ruleRowScore(scope.row) }} 分</span>
-              </template>
+            <el-table-column label="占比" width="88" align="center">
+              <template slot-scope="scope"><span class="muted">{{ ruleRatioText(scope.row) }}%</span></template>
             </el-table-column>
             <el-table-column label="操作" width="70" align="center">
               <template slot-scope="scope">
-                <el-button type="text" size="mini" class="danger-text" @click="bankRules.splice(scope.$index, 1)">删除</el-button>
+                <el-button type="text" size="mini" class="danger-text" @click="knowledgeRules.splice(scope.$index, 1)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
           <div class="dm-callout" :class="checkOk ? 'ok' : 'warn'">
             <span v-if="checkOk">
-              校验通过：共 {{ bankRules.length }} 个题库 · 合计 {{ ruleCountSum }} 题（单选 {{ ruleSumOf('single') }} + 多选 {{ ruleSumOf('multi') }} + 判断 {{ ruleSumOf('judge') }}） · 满分 {{ ruleTotalScore }} 分 ✓
+              校验通过：{{ knowledgeRules.length }} 个知识点 · 合计 {{ knowledgeCountSum }} 题（= 卷面题量 {{ typeCountSum }} 题） · 满分 {{ ruleTotalScore }} 分 ✓
             </span>
             <span v-else>{{ checkMessage }}</span>
           </div>
@@ -228,8 +227,8 @@
                 <el-input-number v-model="bulkScore" :min="0" :max="1000" :precision="1" controls-position="right" size="mini" style="width:88px" />
                 <el-button size="mini" @click="applyBulkScore">应用</el-button>
               </template>
-              <!-- ★ 实操题来源统一到题库：从「实操题库」勾选带入（与实习生端「模拟实操题」页同一批题） -->
-              <el-button v-hasPermi="['business:bank:edit']" size="mini" icon="el-icon-folder-add" @click="pickerVisible = true">从实操题库选题</el-button>
+              <!-- ★ 实操题来源统一到题池：从「模拟实操题」勾选带入（与实习生端「模拟实操题」页同一批题） -->
+              <el-button v-hasPermi="['business:bank:edit']" size="mini" icon="el-icon-folder-add" @click="pickerVisible = true">从模拟实操题选题</el-button>
               <el-button v-hasPermi="['business:bank:edit']" size="mini" :icon="editingSubjects ? 'el-icon-arrow-up' : 'el-icon-edit'" @click="toggleSubjectEditor">{{ editingSubjects ? '收起编辑' : '编辑题目' }}</el-button>
             </div>
           </div>
@@ -238,7 +237,7 @@
           <subject-item-editor v-if="editingSubjects" v-model="subjectItems" />
           <div v-else-if="!subjectItems.length" class="dm-empty">
             <i class="el-icon-document-add" />
-            <span>尚未配置实操题目：点右上角「从实操题库选题」一键带入，或「编辑题目」逐条填写；至少一道题才能发布</span>
+            <span>尚未配置实操题目：点右上角「从模拟实操题选题」一键带入，或「编辑题目」逐条填写；至少一道题才能发布</span>
           </div>
 
           <template v-else>
@@ -385,7 +384,7 @@
       </div>
     </div>
 
-    <!-- 从实操题库选题（实操考核专用；题库与实习生端「模拟实操题」同源） -->
+    <!-- 从模拟实操题选题（实操考核专用；题库与实习生端「模拟实操题」同源） -->
     <practice-subject-picker
       :visible.sync="pickerVisible"
       :dept-id="deptId ? Number(deptId) : null"
@@ -397,7 +396,7 @@
 </template>
 
 <script>
-import { getExamConfig, saveExamConfig, publishExam, listExamBankOptions, tryDrawByBanks, listExamInternOptions, updateExam } from '@/api/business/exam'
+import { getExamConfig, saveExamConfig, publishExam, listExamBankOptions, listKnowledgePoints, tryDraw, listExamInternOptions, updateExam } from '@/api/business/exam'
 import SubjectItemEditor from './SubjectItemEditor'
 import PracticeSubjectPicker from './PracticeSubjectPicker'
 
@@ -405,9 +404,12 @@ import PracticeSubjectPicker from './PracticeSubjectPicker'
  * 单条考核的配置卡。
  *
  * 理论与实操彻底分开后，一条考核 = 一类（THEORY / PRACTICAL）。
- *  · 理论：组卷题库（多题库 × 题型配额）+ 发布设置
+ *  · 理论：从本部门理论题池按「知识点配比」抽题（题型数量 × 每题分值 = 卷面满分）+ 发布设置
  *  · 实操：题目清单（逐题填写，不抽题）+ 发布设置
  * 两者的「发布方式 / 时间窗 / 参与人员」是同一套逻辑，各自独立、互不影响。
+ *
+ * ★ 2026-09-23：题库概念退场 —— 原「题库 × 题型配额」（exam_bank_rule）已整体退场，
+ *   理论考核与模拟套卷统一按知识点从 question.dept_id 归属的部门题池抽题。
  */
 export default {
   name: 'ExamConfigCard',
@@ -416,14 +418,17 @@ export default {
     /** 考核记录（列表行） */
     exam: { type: Object, required: true },
     isSuperAdmin: { type: Boolean, default: false },
-    /** 超管据此取题库与花名册 */
+    /** 超管据此取题池与花名册 */
     deptId: { type: [Number, String], default: null }
   },
   data() {
     return {
-      bankMeta: [],
-      bankRules: [],
-      addBankId: null,
+      /** 本部门题池概览（可用题量，按题型） */
+      poolMeta: null,
+      /** 本部门题池的知识点及题量 */
+      poolPoints: [],
+      /** 知识点配比明细（落 exam_knowledge_rule） */
+      knowledgeRules: [],
       drawing: false,
       configSaving: false,
       /** 统一保存（基本信息 + 组卷/题目 + 发布设置）的 loading */
@@ -435,9 +440,13 @@ export default {
       participantIds: [],
       internOptions: [],
       /**
-       * 理论考核每题分值（在组卷题库同一处设置，随「保存配置」落库到 exam 的
-       * single_score / multi_score / judge_score）。初值取列表行，loadConfig 时再同步一次。
+       * 理论考核卷面结构：题型数量 × 每题分值（决定卷面满分与通过线上限）。
+       * 题型数量与分值都随「保存配置」落库到 exam 的 single_count/... / single_score/...。
+       * 「知识点配比」的抽题数量合计必须等于题型数量合计。
        */
+      singleCount: 0,
+      multiCount: 0,
+      judgeCount: 0,
       singleScore: 0,
       multiScore: 0,
       judgeScore: 0,
@@ -449,7 +458,7 @@ export default {
       subjectItems: [],
       activeSubjectIndex: 0,
       metaReady: false,
-      /** 实操：内联展开逐题编辑器 / 「从实操题库选题」弹窗 */
+      /** 实操：内联展开逐题编辑器 / 「从模拟实操题选题」弹窗 */
       editingSubjects: false,
       pickerVisible: false,
 
@@ -512,30 +521,40 @@ export default {
       if (this.baseScoreLevel === 'warn') return '等于卷面满分，须全对才及格'
       return '卷面满分 ' + this.baseTotal + ' 分，余量 ' + (Math.round((this.baseTotal - (Number(this.baseForm.passLine) || 0)) * 10) / 10) + ' 分'
     },
-    /** 当前这条考核实际走哪条抽题链路（界面上要看得见，避免双轨制下"不知道走哪条"） */
+    /** 抽题链路（★ 2026-09-23 起只有一条：本部门题池按知识点配比） */
     drawBasisText() {
-      if (this.bankRules && this.bankRules.length) return '当前生效：题库 × 题型'
-      const mode = this.exam && this.exam.examMode
-      return mode === 'PRACTICE' ? '当前生效：按章节(知识点)配比（历史链路）' : '当前生效：单库兜底（未配组卷）'
+      if (this.knowledgeRules.length) return '当前生效：按知识点配比'
+      return '尚未配置知识点配比'
     },
     drawBasisTag() {
-      return this.bankRules && this.bankRules.length ? 'success' : 'warning'
+      return this.knowledgeRules.length ? 'success' : 'warning'
     },
-    bankText() {
-      if (this.bankRules.length) return this.bankRules.map(r => this.bankNameOf(r.bankId)).join(' + ')
-      return this.exam.bankName || '未配置'
+    /** 题池名（本部门题池；超管按所选部门） */
+    poolText() {
+      return (this.poolMeta && this.poolMeta.bankName) || (this.isSuperAdmin ? '请先选择部门' : '本部门 · 理论题池')
     },
-    ruleCountSum() { return this.bankRules.reduce((sum, r) => sum + this.ruleRowTotal(r), 0) },
+    /** 题池可用总题量 */
+    poolTotal() {
+      return this.poolMeta ? Number(this.poolMeta.totalCount) || 0 : 0
+    },
+    /** 知识点抽题数量合计 */
+    knowledgeCountSum() {
+      return this.knowledgeRules.reduce((sum, r) => sum + (Number(r.questionCount) || 0), 0)
+    },
+    /** 卷面题量 = 题型数量合计 */
+    typeCountSum() {
+      return (Number(this.singleCount) || 0) + (Number(this.multiCount) || 0) + (Number(this.judgeCount) || 0)
+    },
     ruleTotalScore() {
-      return round1(this.ruleSumOf('single') * (Number(this.singleScore) || 0) +
-        this.ruleSumOf('multi') * (Number(this.multiScore) || 0) +
-        this.ruleSumOf('judge') * (Number(this.judgeScore) || 0))
+      return round1((Number(this.singleCount) || 0) * (Number(this.singleScore) || 0) +
+        (Number(this.multiCount) || 0) * (Number(this.multiScore) || 0) +
+        (Number(this.judgeCount) || 0) * (Number(this.judgeScore) || 0))
     },
     theorySpec() {
       const parts = []
-      if (this.ruleSumOf('single') > 0) parts.push('单选 ' + this.ruleSumOf('single') + '×' + (Number(this.singleScore) || 0) + ' 分')
-      if (this.ruleSumOf('multi') > 0) parts.push('多选 ' + this.ruleSumOf('multi') + '×' + (Number(this.multiScore) || 0) + ' 分')
-      if (this.ruleSumOf('judge') > 0) parts.push('判断 ' + this.ruleSumOf('judge') + '×' + (Number(this.judgeScore) || 0) + ' 分')
+      if (Number(this.singleCount) > 0) parts.push('单选 ' + this.singleCount + '×' + (Number(this.singleScore) || 0) + ' 分')
+      if (Number(this.multiCount) > 0) parts.push('多选 ' + this.multiCount + '×' + (Number(this.multiScore) || 0) + ' 分')
+      if (Number(this.judgeCount) > 0) parts.push('判断 ' + this.judgeCount + '×' + (Number(this.judgeScore) || 0) + ' 分')
       return parts.join(' + ') || '待配置'
     },
     /** 实操卷面满分 = 各题满分之和 */
@@ -543,7 +562,7 @@ export default {
       const sum = this.subjectItems.reduce((acc, s) => acc + (Number(s.score) || 0), 0)
       return Math.round(sum * 100) / 100
     },
-    /** 已在清单里的题目名（「从实操题库选题」据此标「已添加」并禁止重复勾选） */
+    /** 已在清单里的题目名（「从模拟实操题选题」据此标「已添加」并禁止重复勾选） */
     existingTitles() {
       return this.subjectItems.map(s => String(s.title || '').trim()).filter(Boolean)
     },
@@ -595,41 +614,42 @@ export default {
           .some(v => String(v === null || v === undefined ? '' : v).toLowerCase().indexOf(kw) > -1)
       })
     },
+    /** 抽题数量超过题池该知识点可用题量的行 */
     overRows() {
-      return this.bankRules.filter(r => {
-        const avail = this.bankMetaOf(r.bankId)
-        return (Number(r.singleCount) || 0) > avail.singleCount ||
-          (Number(r.multiCount) || 0) > avail.multiCount ||
-          (Number(r.judgeCount) || 0) > avail.judgeCount
-      })
+      return this.knowledgeRules.filter(r => (Number(r.questionCount) || 0) > this.poolAvailable(r.knowledgePoint))
     },
     checkOk() {
-      // 实操不走题库，但题目清单要能用（后端发布时也要求「至少一道题」）
+      // 实操不走题池，但题目清单要能用（后端发布时也要求「至少一道题」）
       if (this.isPractice) {
         if (!this.subjectItems.length) return false
         if (this.subjectItems.some(s => !String(s.title || '').trim())) return false
         if (this.subjectItems.some(s => !(Number(s.score) > 0))) return false
         return true
       }
-      if (!this.bankRules.length) return false
-      if (this.bankRules.some(r => !r.bankId)) return false
-      if (this.ruleCountSum <= 0) return false
+      if (!this.knowledgeRules.length) return false
+      if (this.knowledgeRules.some(r => !String(r.knowledgePoint || '').trim())) return false
+      if (this.knowledgeCountSum <= 0) return false
+      if (this.typeCountSum <= 0 || this.typeCountSum !== this.knowledgeCountSum) return false
       if (this.ruleTotalScore <= 0) return false
       return this.overRows.length === 0
     },
     checkMessage() {
       if (this.isPractice) {
-        if (!this.subjectItems.length) return '还没有实操题目：点右上角「从实操题库选题」一键带入，或「编辑题目」逐条填写（至少一道题才能发布）。'
+        if (!this.subjectItems.length) return '还没有实操题目：点右上角「从模拟实操题选题」一键带入，或「编辑题目」逐条填写（至少一道题才能发布）。'
         if (this.subjectItems.some(s => !String(s.title || '').trim())) return '存在没填题干的题目，请补全或删除该题。'
         if (this.subjectItems.some(s => !(Number(s.score) > 0))) return '存在满分为 0 的题目，请填写每题满分（发布时后端也会拦截）。'
         return ''
       }
-      if (!this.bankRules.length) return '尚未配置组卷题库：点右上角「＋ 添加题库」选择参与组卷的题库，再分别设置每个题库的抽题数量。'
-      if (this.bankRules.some(r => !r.bankId)) return '存在未选择题库的行，请选择对应题库或删除该行。'
-      if (this.ruleCountSum <= 0) return '抽题数量合计为 0，请至少为一个题库设置抽题数量，或删除该题库行。'
-      if (this.ruleTotalScore <= 0) return '每题分值都是 0，卷面满分为 0。请在上方「每题分值」里设置单选 / 多选 / 判断题的每题分值。'
+      if (!this.knowledgeRules.length) return '尚未配置知识点配比：点右上角「从题池导入知识点」把本部门已有知识点带进来，再逐个填抽题数量。'
+      if (this.knowledgeRules.some(r => !String(r.knowledgePoint || '').trim())) return '存在未选知识点的行，请选择知识点或删除该行。'
+      if (this.knowledgeCountSum <= 0) return '抽题数量合计为 0，请至少为一个知识点设置抽题数量。'
+      if (this.typeCountSum <= 0) return '卷面题量为 0：请在上方「卷面结构」里填单选题 / 多选题 / 判断题的数量。'
+      if (this.typeCountSum !== this.knowledgeCountSum) {
+        return '知识点抽题数量合计（' + this.knowledgeCountSum + ' 题）须等于卷面题量（' + this.typeCountSum + ' 题）。'
+      }
+      if (this.ruleTotalScore <= 0) return '每题分值都是 0，卷面满分为 0。请在上方「卷面结构」里设置单选 / 多选 / 判断题的每题分值。'
       if (this.overRows.length) {
-        return '「' + this.overRows.map(r => this.bankNameOf(r.bankId)).join('、') + '」的抽题数量超过该题库可用题量，会抽不满题。'
+        return '「' + this.overRows.map(r => r.knowledgePoint).join('、') + '」的抽题数量超过题池该知识点可用题量，会抽不满题。'
       }
       return ''
     }
@@ -639,7 +659,7 @@ export default {
       immediate: true,
       handler() { if (this.metaReady) this.loadConfig() }
     },
-    deptId() { this.loadBankMeta().then(() => this.loadConfig()) },
+    deptId() { this.loadPool().then(() => this.loadConfig()) },
     /** 换一条考核时重置花名册的搜索/部门筛选，避免沿用上一条的过滤条件 */
     'exam.id'() {
       this.internKeyword = ''
@@ -652,14 +672,14 @@ export default {
   },
   methods: {
     /**
-     * 先取题库清单，再读考核配置。
-     * 顺序很重要：题库清单没到位时「可用题量」返回 0，而 el-input-number 的 :max
+     * 先取部门题池（可用题量 + 知识点清单），再读考核配置。
+     * 顺序很重要：知识点清单没到位时「可用题量」返回 0，而 el-input-number 的 :max
      * 会在渲染瞬间把超出上限的已存值「夹」成 0 并写回模型 —— 页面明明配了题却提示
      * 「抽题数量合计为 0」。理论考核必须等清单到位后再渲染抽题量。
      */
     bootstrap() {
       this.resetBase()
-      this.loadBankMeta().then(() => {
+      this.loadPool().then(() => {
         this.metaReady = true
         this.loadConfig()
       })
@@ -667,22 +687,23 @@ export default {
     loadConfig() {
       getExamConfig(this.exam.id).then(res => {
         const data = res.data || {}
-        this.bankRules = (data.bankRules || []).map((r, i) => ({
-          bankId: r.bankId,
-          bankName: r.bankName,
-          singleCount: Number(r.singleCount) || 0,
-          multiCount: Number(r.multiCount) || 0,
-          judgeCount: Number(r.judgeCount) || 0,
+        // 知识点配比（落 exam_knowledge_rule）
+        this.knowledgeRules = (data.knowledgeRules || []).map((r, i) => ({
+          knowledgePoint: r.knowledgePoint || '',
+          questionCount: Number(r.questionCount) || 0,
           sortNo: r.sortNo || i + 1
         }))
         // 统一成「编辑形态」：后端返回的参考图/附件是 JSON 字符串，这里解析成数组，
-        // 使其与内联编辑器、「从实操题库选题」带回的结构一致；保存时（buildPayload）再序列化。
+        // 使其与内联编辑器、「从模拟实操题选题」带回的结构一致；保存时（buildPayload）再序列化。
         this.subjectItems = (data.subjectItems || []).map(s => Object.assign({}, s, {
           images: parseJsonList(s.referenceImages),
           attachments: parseJsonList(s.attachmentsJson)
         }))
         if (this.activeSubjectIndex >= this.subjectItems.length) this.activeSubjectIndex = 0
-        // 每题分值不在 configDetail 里返回，取自列表行（exam.singleScore 等），确保与库中一致
+        // 卷面结构（题型数量 + 每题分值）取自列表行（exam.*），确保与库中一致
+        this.singleCount = numOf(this.exam.singleCount, 0)
+        this.multiCount = numOf(this.exam.multiCount, 0)
+        this.judgeCount = numOf(this.exam.judgeCount, 0)
         this.singleScore = numOf(this.exam.singleScore, 0)
         this.multiScore = numOf(this.exam.multiScore, 0)
         this.judgeScore = numOf(this.exam.judgeScore, 0)
@@ -743,54 +764,88 @@ export default {
       }
       return true
     },
-    /** 拉取本部门可选题库（含各库按题型的可用题量）；返回 Promise 供 bootstrap 串行等待 */
-    loadBankMeta() {
-      if (this.isSuperAdmin && !this.deptId) {
-        this.bankMeta = []
+    /**
+     * 拉取「部门题池」信息：可用题量（按题型）+ 知识点清单。
+     * ★ 2026-09-23：题库概念退场，一个部门只有一个理论题池（bank-options 固定返回 1 条）。
+     * 返回 Promise 供 bootstrap 串行等待 —— 知识点清单没到位时可用题量算 0，
+     * el-input-number 的 :max 会把已存值夹成 0，页面会误报「抽题数量合计为 0」。
+     */
+    loadPool() {
+      if (this.isPractice) {
+        this.poolMeta = null
+        this.poolPoints = []
         return Promise.resolve()
       }
-      // 候选库 = 形态 × 用途：理论套卷只选理论库（防止抽到正式题库），实操考核才取实操库
-      const kind = this.isPractice ? 'PRACTICAL' : 'THEORY'
-      return listExamBankOptions(this.isSuperAdmin ? this.deptId : undefined, this.exam && this.exam.examMode, kind).then(res => {
-        this.bankMeta = (res.data || []).map(b => ({
-          bankId: b.bankId,
-          bankName: b.bankName,
-          bankType: b.bankType,
-          totalCount: Number(b.totalCount) || 0,
-          singleCount: Number(b.singleCount) || 0,
-          multiCount: Number(b.multiCount) || 0,
-          judgeCount: Number(b.judgeCount) || 0
+      const deptId = this.isSuperAdmin ? this.deptId : 0
+      return Promise.all([
+        listExamBankOptions(deptId, this.exam && this.exam.examMode).catch(() => ({ data: [] })),
+        listKnowledgePoints(deptId).catch(() => ({ data: [] }))
+      ]).then(([optRes, kpRes]) => {
+        const opt = (optRes.data || [])[0] || null
+        this.poolMeta = opt
+          ? {
+            bankId: opt.bankId,
+            bankName: opt.bankName,
+            totalCount: Number(opt.totalCount) || 0,
+            singleCount: Number(opt.singleCount) || 0,
+            multiCount: Number(opt.multiCount) || 0,
+            judgeCount: Number(opt.judgeCount) || 0
+          }
+          : null
+        this.poolPoints = (kpRes.data || []).map(p => ({
+          knowledgePoint: p.knowledgePoint,
+          totalCount: Number(p.totalCount) || 0,
+          singleCount: Number(p.singleCount) || 0,
+          multiCount: Number(p.multiCount) || 0,
+          judgeCount: Number(p.judgeCount) || 0
         }))
-      }).catch(() => { this.bankMeta = [] })
+      })
     },
-    /** 题库清单查不到该库时不设上限，避免 el-input-number 把已存值夹成 0 */
-    inputMaxOf(bankId, key) {
-      const meta = this.bankMeta.find(b => b.bankId === bankId)
-      if (!meta) return Number.MAX_SAFE_INTEGER
-      const v = Number(meta[key])
-      return isNaN(v) ? Number.MAX_SAFE_INTEGER : v
+    /** 题池某知识点的可用题量（查不到时不设上限，避免 el-input-number 把已存值夹成 0） */
+    poolAvailable(point) {
+      if (!point) return Number.MAX_SAFE_INTEGER
+      const p = this.poolPoints.find(x => x.knowledgePoint === point)
+      return p ? p.totalCount : Number.MAX_SAFE_INTEGER
     },
-    bankMetaOf(bankId) {
-      return this.bankMeta.find(b => b.bankId === bankId) ||
-        { bankName: '未选择题库', totalCount: 0, singleCount: 0, multiCount: 0, judgeCount: 0 }
+    /** 单个知识点占总题量的比例（展示用，四舍五入到整数） */
+    ruleRatioText(row) {
+      const total = this.knowledgeCountSum
+      if (!total) return '0'
+      return Math.round((Number(row.questionCount) || 0) * 100 / total)
     },
-    bankNameOf(bankId) { return this.bankMetaOf(bankId).bankName || '未选择题库' },
-    bankAvailable(bankId) { return this.bankMetaOf(bankId).totalCount },
-    bankChosen(bankId) { return this.bankRules.some(r => r.bankId === bankId) },
-    ruleRowTotal(row) {
-      return (Number(row.singleCount) || 0) + (Number(row.multiCount) || 0) + (Number(row.judgeCount) || 0)
+    /** 添加一行知识点配比（point 为空则留空待选） */
+    addKnowledgeRule(point) {
+      this.knowledgeRules.push({ knowledgePoint: point || '', questionCount: 0 })
     },
-    ruleSumOf(type) {
-      const key = { single: 'singleCount', multi: 'multiCount', judge: 'judgeCount' }[type]
-      if (!key) return 0
-      return this.bankRules.reduce((sum, r) => sum + (Number(r[key]) || 0), 0)
+    /** 「从题池导入知识点」：把题池里已有的知识点带进来（已存在的跳过，保留已填数量） */
+    importFromPool() {
+      if (!this.poolPoints.length) {
+        this.$modal.msgWarning('本部门题池还没有题目，请先到「题库管理」导入题目')
+        return
+      }
+      const exist = {}
+      this.knowledgeRules.forEach(r => { if (r.knowledgePoint) exist[r.knowledgePoint] = true })
+      const added = []
+      this.poolPoints.forEach(p => {
+        if (exist[p.knowledgePoint]) return
+        exist[p.knowledgePoint] = true
+        added.push({ knowledgePoint: p.knowledgePoint, questionCount: 0 })
+      })
+      if (!added.length) {
+        this.$modal.msgWarning('题池里的知识点都已在本表里，未重复添加')
+        return
+      }
+      this.knowledgeRules = this.knowledgeRules.concat(added)
+      this.$modal.msgSuccess('已带入 ' + added.length + ' 个知识点，请逐个填写抽题数量')
     },
-    /** 单行（单个题库）按当前每题分值换算出的小计分 */
-    ruleRowScore(row) {
-      const s = Number(this.singleScore) || 0
-      const m = Number(this.multiScore) || 0
-      const j = Number(this.judgeScore) || 0
-      return round1((Number(row.singleCount) || 0) * s + (Number(row.multiCount) || 0) * m + (Number(row.judgeCount) || 0) * j)
+    knowledgePayload() {
+      return this.knowledgeRules
+        .filter(r => String(r.knowledgePoint || '').trim())
+        .map((r, i) => ({
+          knowledgePoint: String(r.knowledgePoint).trim(),
+          questionCount: Number(r.questionCount) || 0,
+          sortNo: i + 1
+        }))
     },
     /** 按扩展名判断是否为视频（参考/附件为视频时用 <video> 渲染） */
     isVideo(url) { return /\.(mp4|webm|ogg|ogv|mov|avi|m4v)$/i.test(String(url || '')) },
@@ -817,7 +872,7 @@ export default {
         attachments: p.attachments || []
       }
     },
-    /** 「从实操题库选题」确认：按题名去重后追加，并直接展开编辑器便于核对满分 */
+    /** 「从模拟实操题选题」确认：按题名去重后追加，并直接展开编辑器便于核对满分 */
     onPickerConfirm(rows) {
       const exist = {}
       this.subjectItems.forEach(s => { exist[String(s.title || '').trim()] = true })
@@ -848,42 +903,25 @@ export default {
       this.subjectItems.forEach(s => { s.score = v })
       this.$modal.msgSuccess('已把 ' + this.subjectItems.length + ' 道题的满分设为 ' + v + ' 分，点「保存设置」生效')
     },
-    addBankRule(bankId) {
-      if (!bankId) return
-      this.bankRules.push({
-        bankId,
-        bankName: this.bankNameOf(bankId),
-        singleCount: 0,
-        multiCount: 0,
-        judgeCount: 0
-      })
-      this.addBankId = null
-    },
-    bankRulePayload() {
-      return this.bankRules.map((r, i) => ({
-        bankId: r.bankId,
-        singleCount: r.singleCount,
-        multiCount: r.multiCount,
-        judgeCount: r.judgeCount,
-        sortNo: i + 1
-      }))
-    },
     tryDraw() {
-      if (!this.bankRules.length || this.ruleCountSum <= 0) {
-        this.$modal.msgWarning('请先添加题库并设置抽题数量')
+      if (!this.knowledgeRules.length || this.knowledgeCountSum <= 0) {
+        this.$modal.msgWarning('请先配置知识点配比与抽题数量')
         return
       }
       this.drawing = true
-      tryDrawByBanks({ bankRules: this.bankRulePayload() }).then(res => {
+      tryDraw({
+        deptId: this.exam && this.exam.deptId,
+        knowledgeRules: this.knowledgePayload()
+      }).then(res => {
         const list = res.data || []
         this.drawing = false
         if (!list.length) {
-          this.$modal.msgWarning('按当前配置抽不到题，请检查各题库的题目是否充足')
+          this.$modal.msgWarning('按当前配置抽不到题，请检查各知识点的题目是否充足')
           return
         }
         const typeText = t => ({ SINGLE: '单选', MULTI: '多选', JUDGE: '判断' }[t] || t)
         this.$alert(
-          list.map(q => q.seq + ' · ' + typeText(q.qtype) + ' · ' + (q.bankName || '') + ' · ' + q.stem).join('<br/>'),
+          list.map(q => q.seq + ' · ' + typeText(q.qtype) + ' · ' + (q.knowledgePoint || '未分类') + ' · ' + q.stem).join('<br/>'),
           '试抽结果（' + list.length + ' 题）',
           { dangerouslyUseHTMLString: true }
         )
@@ -891,8 +929,8 @@ export default {
     },
     buildPayload() {
       const payload = {
-        // 实操不走题库：传空数组让后端清掉历史组卷配置，避免残留
-        bankRules: this.isPractice ? [] : this.bankRulePayload(),
+        // 实操不走题池：传空数组让后端清掉历史知识配比，避免残留
+        knowledgeRules: this.isPractice ? [] : this.knowledgePayload(),
         assignMode: this.assignMode,
         participantIds: this.assignMode === 'ASSIGNED' ? this.participantIds : [],
         startTime: this.publishMode === 'TIMED' && this.timeRange && this.timeRange.length === 2 ? this.timeRange[0] : null,
@@ -911,7 +949,10 @@ export default {
           attachmentsJson: (s.attachments && s.attachments.length) ? JSON.stringify(s.attachments) : ''
         }))
       } else {
-        // 理论：每题分值与抽题数量一起落库
+        // 理论：卷面结构（题型数量）+ 每题分值，与知识点配比一起落库
+        payload.singleCount = Number(this.singleCount) || 0
+        payload.multiCount = Number(this.multiCount) || 0
+        payload.judgeCount = Number(this.judgeCount) || 0
         payload.singleScore = Number(this.singleScore) || 0
         payload.multiScore = Number(this.multiScore) || 0
         payload.judgeScore = Number(this.judgeScore) || 0

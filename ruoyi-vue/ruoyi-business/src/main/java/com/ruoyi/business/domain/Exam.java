@@ -36,7 +36,11 @@ public class Exam implements Serializable {
     /** 考核性质：FORMAL正式 / PRACTICE模拟（练习） */
     private String examMode;
 
-    /** 所属题库ID（理论考核用，关联question_bank） */
+    /**
+     * 所属题库ID（★ 已停用：2026-09-23 题库概念退场，题目直接按 dept_id 归属部门）
+     *
+     * <p>列 {@code exam.bank_id} 保留在库中但不再读写；理论考核一律从「本部门题池」按知识点抽题。</p>
+     */
     private Long bankId;
 
     /** 客观题抽题数量（理论考核用，已由分题型数量替代） */
@@ -141,17 +145,10 @@ public class Exam implements Serializable {
     private Long scopeDeptId;
 
     /**
-     * 多题库组卷配置（当前主用，落 exam_bank_rule）
-     * 语义：按题库分配抽题量；每个题库分别配置 单选/多选/判断 的抽题数量。
-     * 注：题库 = 一个部门的一门科目（**不是"知识模块"**，一个题库内含多个知识点）。
-     * 配置非空时优先按它抽题；为空时回退到 bankId 单库 + knowledgeRules 老逻辑。
-     */
-    @TableField(exist = false)
-    private java.util.List<ExamBankRule> bankRules;
-
-    /**
-     * 知识分布（历史兼容，落 exam_knowledge_rule）
-     * 仅在未配置 bankRules 时作为单库内「按知识点分配题量」的老链路生效。
+     * 知识配比（落 exam_knowledge_rule）—— 理论考核抽题的唯一口径
+     *
+     * <p>★ 2026-09-23：正式考核与模拟套卷统一按知识点从本部门题池抽题，
+     * 原先「按题库 × 题型配额」的 bankRules（exam_bank_rule）已整体退场。</p>
      */
     @TableField(exist = false)
     private java.util.List<ExamKnowledgeRule> knowledgeRules;

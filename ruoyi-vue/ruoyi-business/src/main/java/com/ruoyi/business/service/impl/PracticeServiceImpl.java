@@ -5,12 +5,10 @@ import com.ruoyi.business.domain.PracticeModule;
 import com.ruoyi.business.domain.PracticeRecord;
 import com.ruoyi.business.domain.PracticeRecordItem;
 import com.ruoyi.business.domain.Question;
-import com.ruoyi.business.domain.QuestionBank;
 import com.ruoyi.business.mapper.ExamMapper;
 import com.ruoyi.business.mapper.PracticeModuleMapper;
 import com.ruoyi.business.mapper.PracticeRecordItemMapper;
 import com.ruoyi.business.mapper.PracticeRecordMapper;
-import com.ruoyi.business.mapper.QuestionBankMapper;
 import com.ruoyi.business.mapper.QuestionMapper;
 import com.ruoyi.business.service.IPracticeService;
 import com.ruoyi.common.exception.ServiceException;
@@ -40,7 +38,6 @@ import java.util.Set;
 @Service
 public class PracticeServiceImpl implements IPracticeService {
 
-    private final QuestionBankMapper questionBankMapper;
     private final QuestionMapper questionMapper;
     private final PracticeRecordMapper practiceRecordMapper;
     private final PracticeRecordItemMapper practiceRecordItemMapper;
@@ -48,14 +45,12 @@ public class PracticeServiceImpl implements IPracticeService {
     private final ExamMapper examMapper;
     private final PracticeModuleMapper practiceModuleMapper;
 
-    public PracticeServiceImpl(QuestionBankMapper questionBankMapper,
-                               QuestionMapper questionMapper,
+    public PracticeServiceImpl(QuestionMapper questionMapper,
                                PracticeRecordMapper practiceRecordMapper,
                                PracticeRecordItemMapper practiceRecordItemMapper,
                                com.ruoyi.business.mapper.ExamRuleMapper examRuleMapper,
                                ExamMapper examMapper,
                                PracticeModuleMapper practiceModuleMapper) {
-        this.questionBankMapper = questionBankMapper;
         this.questionMapper = questionMapper;
         this.practiceRecordMapper = practiceRecordMapper;
         this.practiceRecordItemMapper = practiceRecordItemMapper;
@@ -71,36 +66,18 @@ public class PracticeServiceImpl implements IPracticeService {
         if (deptId == null) {
             throw new ServiceException("当前账号未配置部门，无法进行模拟考核");
         }
-        QuestionBank bank = questionBankMapper.selectPracticeBankByDept(deptId);
 
         // 本次考核口径：优先用模块下选定的理论模拟考核，未指定则用本部门最近发布的一套配置
         Map<String, Object> config = resolveConfig(deptId, examId);
-        Long fallbackBankId = null;
-        if (config != null && config.get("bankId") != null) {
-            fallbackBankId = Long.valueOf(String.valueOf(config.get("bankId")));
-        }
-        if (fallbackBankId == null && bank != null) {
-            fallbackBankId = bank.getId();
-        }
 
         List<Question> questions;
         Map<String, Object> result = new LinkedHashMap<>();
         if (config != null && config.get("examId") != null) {
             Long cfgExamId = Long.valueOf(String.valueOf(config.get("examId")));
-            java.util.List<com.ruoyi.business.domain.ExamBankRule> bankRules = examRuleMapper.selectBankRules(cfgExamId);
-            if (bankRules != null && !bankRules.isEmpty()) {
-                // 多题库组卷（当前主用）：每个题库按 单选/多选/判断 配额各自抽题
-                questions = pickByBankRules(bankRules);
-                result.put("bankRules", toBankRuleView(bankRules));
-            } else {
-                // 历史链路：单库 + 知识分布
-                if (fallbackBankId == null) {
-                    throw new ServiceException("本部门暂无模拟题库，请联系管理员");
-                }
-                List<com.ruoyi.business.domain.ExamKnowledgeRule> rules = examRuleMapper.selectKnowledgeRules(cfgExamId);
-                questions = pickByConfig(fallbackBankId, rules, config);
-                result.put("points", rules);
-            }
+            // ★ 统一口径：从本部门题池按知识配比抽题（与正式考试一致）
+            List<com.ruoyi.business.domain.ExamKnowledgeRule> rules = examRuleMapper.selectKnowledgeRules(cfgExamId);
+            questions = pickByConfig(deptId, rules, config);
+            result.put("points", rules);
             result.put("configured", true);
             result.put("examId", cfgExamId);
             result.put("configName", config.get("examName"));
@@ -114,14 +91,11 @@ public class PracticeServiceImpl implements IPracticeService {
             result.put("duration", config.get("duration"));
             result.put("passLine", config.get("passLine"));
         } else {
-            if (bank == null) {
-                throw new ServiceException("本部门暂无模拟题库，请联系管理员");
-            }
-            questions = questionMapper.selectQuestionsForExam(bank.getId(), null, 10);
+            questions = questionMapper.selectQuestionsForExam(deptId, null, 10);
             result.put("configured", false);
         }
         if (questions.isEmpty()) {
-            throw new ServiceException("模拟题库暂无题目，请等待管理员补充");
+            throw new ServiceException("本部门理论题池暂无题目，请等待管理员补充");
         }
 
         List<Map<String, Object>> list = new ArrayList<>();
@@ -134,8 +108,7 @@ public class PracticeServiceImpl implements IPracticeService {
             m.put("knowledgePoint", q.getKnowledgePoint());
             list.add(m);
         }
-        result.put("bankId", fallbackBankId);
-        result.put("bankName", bank != null ? bank.getBankName() : null);
+        result.put("bankId", deptId);
         result.put("questions", list);
         return result;
     }
@@ -162,7 +135,7 @@ public class PracticeServiceImpl implements IPracticeService {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("examId", exam.getId());
         m.put("examName", exam.getExamName());
-        m.put("bankId", exam.getBankId());
+        m.put("deptId", deptId);
         m.put("questionCount", exam.getQuestionCount());
         m.put("singleCount", exam.getSingleCount());
         m.put("multiCount", exam.getMultiCount());
@@ -234,52 +207,15 @@ public class PracticeServiceImpl implements IPracticeService {
     }
 
     /**
-     * 按多题库组卷配置抽题：对每个题库，分别按 单选/多选/判断 的配置数量在该库内随机取题。
-     * 不同题库之间互不影响，跨库用 usedIds 去重兜底。
-     */
-    private List<Question> pickByBankRules(List<com.ruoyi.business.domain.ExamBankRule> bankRules) {
-        List<Question> picked = new ArrayList<>();
-        Set<Long> usedIds = new LinkedHashSet<>();
-        for (com.ruoyi.business.domain.ExamBankRule rule : bankRules) {
-            addAll(picked, usedIds, pickBankType(rule.getBankId(), "SINGLE", intOf(rule.getSingleCount()), usedIds));
-            addAll(picked, usedIds, pickBankType(rule.getBankId(), "MULTI", intOf(rule.getMultiCount()), usedIds));
-            addAll(picked, usedIds, pickBankType(rule.getBankId(), "JUDGE", intOf(rule.getJudgeCount()), usedIds));
-        }
-        return picked;
-    }
-
-    /** 从某题库抽指定题型的题（不限知识点） */
-    private List<Question> pickBankType(Long bankId, String qtype, int need, Set<Long> usedIds) {
-        if (need <= 0) {
-            return Collections.emptyList();
-        }
-        List<Question> list = examRuleMapper.selectQuestionsByPoint(bankId, null, qtype, new ArrayList<>(usedIds), need);
-        return list == null ? Collections.emptyList() : list;
-    }
-
-    /** 组卷配置转前端展示结构（题库名 = 知识模块名） */
-    private List<Map<String, Object>> toBankRuleView(List<com.ruoyi.business.domain.ExamBankRule> bankRules) {
-        List<Map<String, Object>> list = new ArrayList<>();
-        for (com.ruoyi.business.domain.ExamBankRule rule : bankRules) {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("bankId", rule.getBankId());
-            m.put("bankName", rule.getBankName());
-            m.put("singleCount", rule.getSingleCount());
-            m.put("multiCount", rule.getMultiCount());
-            m.put("judgeCount", rule.getJudgeCount());
-            list.add(m);
-        }
-        return list;
-    }
-
-    /**
-     * 按配置抽题（知识分布 + 题型配比同时满足）：
+     * 按配置抽题（知识配比 + 题型配额同时满足）：
      *
      * 核心思路：把每个知识点的抽题数量**按全局题型比例分摊**到单选/多选/判断，
      * 于是「每个知识点内按题型取题」天然满足题型配额，不需要事后裁剪（裁剪会破坏知识覆盖）。
-     * 某知识点某题型不够时，先在该知识点内换其它题型补足（保覆盖），再从题库按题型补齐。
+     * 某知识点某题型不够时，先在该知识点内换其它题型补足（保覆盖），再从本部门题池按题型补齐。
+     *
+     * <p>★ 2026-09-23：候选池 = 本部门题池（question.dept_id），不再是某个题库。</p>
      */
-    private List<Question> pickByConfig(Long bankId,
+    private List<Question> pickByConfig(Long deptId,
                                         List<com.ruoyi.business.domain.ExamKnowledgeRule> rules,
                                         Map<String, Object> config) {
         int single = intOf(config.get("singleCount"));
@@ -298,32 +234,32 @@ public class PracticeServiceImpl implements IPracticeService {
                     continue;
                 }
                 int[] alloc = splitByTypeRatio(need, single, multi, judge, rule.getSingleRatio());
-                addAll(picked, usedIds, pickPoint(bankId, rule.getKnowledgePoint(), "SINGLE", alloc[0], usedIds));
-                addAll(picked, usedIds, pickPoint(bankId, rule.getKnowledgePoint(), "MULTI", alloc[1], usedIds));
-                addAll(picked, usedIds, pickPoint(bankId, rule.getKnowledgePoint(), "JUDGE", alloc[2], usedIds));
+                addAll(picked, usedIds, pickPoint(deptId, rule.getKnowledgePoint(), "SINGLE", alloc[0], usedIds));
+                addAll(picked, usedIds, pickPoint(deptId, rule.getKnowledgePoint(), "MULTI", alloc[1], usedIds));
+                addAll(picked, usedIds, pickPoint(deptId, rule.getKnowledgePoint(), "JUDGE", alloc[2], usedIds));
                 // 该知识点题型不足 → 用该知识点其它题型补足（保知识覆盖）
                 int missing = need - (int) countInPoint(picked, rule.getKnowledgePoint());
                 if (missing > 0) {
                     addAll(picked, usedIds, examRuleMapper.selectQuestionsByPoint(
-                            bankId, rule.getKnowledgePoint(), null, new ArrayList<>(usedIds), missing));
+                            deptId, rule.getKnowledgePoint(), null, new ArrayList<>(usedIds), missing));
                 }
             }
         }
 
         int target = typeTotal > 0 ? typeTotal : (configureCount > 0 ? configureCount : (picked.isEmpty() ? 10 : picked.size()));
 
-        // 题型配额补足（同知识点优先 → 题库任意）；先裁掉超额题型（优先裁「该知识点抽题数已超配」的）
+        // 题型配额补足（同知识点优先 → 本部门题池任意）；先裁掉超额题型（优先裁「该知识点抽题数已超配」的）
         if (typeTotal > 0) {
             trimToQuota(picked, rules, "JUDGE", judge);
             trimToQuota(picked, rules, "MULTI", multi);
             trimToQuota(picked, rules, "SINGLE", single);
-            fillQuota(bankId, picked, usedIds, "SINGLE", single);
-            fillQuota(bankId, picked, usedIds, "MULTI", multi);
-            fillQuota(bankId, picked, usedIds, "JUDGE", judge);
+            fillQuota(deptId, picked, usedIds, "SINGLE", single);
+            fillQuota(deptId, picked, usedIds, "MULTI", multi);
+            fillQuota(deptId, picked, usedIds, "JUDGE", judge);
         }
-        // 总数不足 → 题库随机补齐；总数超出 → 截断
+        // 总数不足 → 本部门题池随机补齐；总数超出 → 截断
         if (picked.size() < target) {
-            for (Question q : questionMapper.selectQuestionsForExam(bankId, null, target)) {
+            for (Question q : questionMapper.selectQuestionsForExam(deptId, null, target)) {
                 if (picked.size() >= target) {
                     break;
                 }
@@ -336,12 +272,12 @@ public class PracticeServiceImpl implements IPracticeService {
         return picked.size() > target ? new ArrayList<>(picked.subList(0, target)) : picked;
     }
 
-    /** 从某知识点抽指定题型的题（不足则有多少返回多少） */
-    private List<Question> pickPoint(Long bankId, String point, String qtype, int need, Set<Long> usedIds) {
+    /** 从本部门题池的某知识点抽指定题型的题（不足则有多少返回多少） */
+    private List<Question> pickPoint(Long deptId, String point, String qtype, int need, Set<Long> usedIds) {
         if (need <= 0) {
             return Collections.emptyList();
         }
-        List<Question> list = examRuleMapper.selectQuestionsByPoint(bankId, point, qtype, new ArrayList<>(usedIds), need);
+        List<Question> list = examRuleMapper.selectQuestionsByPoint(deptId, point, qtype, new ArrayList<>(usedIds), need);
         return list == null ? Collections.emptyList() : list;
     }
 
@@ -433,8 +369,8 @@ public class PracticeServiceImpl implements IPracticeService {
         }
     }
 
-    /** 补足某题型的配额：先同知识点，再从题库任意抽 */
-    private void fillQuota(Long bankId, List<Question> list, Set<Long> usedIds, String qtype, int quota) {
+    /** 补足某题型的配额：先同知识点，再从本部门题池任意抽 */
+    private void fillQuota(Long deptId, List<Question> list, Set<Long> usedIds, String qtype, int quota) {
         long have = list.stream().filter(q -> qtype.equals(q.getQtype())).count();
         int lack = (int) (quota - have);
         if (lack <= 0) {
@@ -450,7 +386,7 @@ public class PracticeServiceImpl implements IPracticeService {
             if (lack <= 0) {
                 break;
             }
-            List<Question> extra = examRuleMapper.selectQuestionsByPoint(bankId, point, qtype, new ArrayList<>(usedIds), lack);
+            List<Question> extra = examRuleMapper.selectQuestionsByPoint(deptId, point, qtype, new ArrayList<>(usedIds), lack);
             if (extra != null) {
                 for (Question q : extra) {
                     if (lack <= 0) {
@@ -465,7 +401,7 @@ public class PracticeServiceImpl implements IPracticeService {
             }
         }
         if (lack > 0) {
-            List<Question> extra = examRuleMapper.selectQuestionsByPoint(bankId, null, qtype, new ArrayList<>(usedIds), lack);
+            List<Question> extra = examRuleMapper.selectQuestionsByPoint(deptId, null, qtype, new ArrayList<>(usedIds), lack);
             if (extra != null) {
                 for (Question q : extra) {
                     if (!usedIds.contains(q.getId())) {
@@ -542,9 +478,6 @@ public class PracticeServiceImpl implements IPracticeService {
         // 3. 逐题判分，构造返回明细 + 待落库明细
         //    分值口径：与开考时一致（模块下选定的考核配置，或本部门最近发布的一套配置），否则每题 1 分
         Map<String, Object> config = resolveConfig(deptId, examId);
-        if (bankId == null && config != null && config.get("bankId") != null) {
-            bankId = Long.valueOf(String.valueOf(config.get("bankId")));
-        }
         // 来源考核ID：以**实际生效的配置**为准（examId 为空时会回退到本部门最近发布的一套配置）。
         // 落库后供「模拟考核记录」按模块归类 + 展示考核名称。
         Long resolvedExamId = examId;
@@ -603,7 +536,8 @@ public class PracticeServiceImpl implements IPracticeService {
         int total = orderedIds.size();
         PracticeRecord record = new PracticeRecord();
         record.setUserId(userId);
-        record.setBankId(bankId);
+        // ★ 2026-09-23：题库概念退场，模拟考核记录按 dept_id 归属（bankId 参数仅作向前兼容，不再落库）
+        record.setBankId(null);
         record.setExamId(resolvedExamId);
         record.setDeptId(deptId);
         record.setTotalCount(total);
