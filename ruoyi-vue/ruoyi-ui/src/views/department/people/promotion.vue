@@ -17,6 +17,26 @@
 
     
 
+    <!-- 转正要求设置（部门管理员） -->
+    <div class="dsec" style="padding:16px 22px">
+      <div class="s-setrow">
+        <div class="s-setrow-hd">
+          <span class="s-setrow-label">转正要求设置</span>
+          <span class="hint-text">设置即时生效；实习生端「转正申请」资格清单以本设置为准</span>
+        </div>
+        <div class="s-setrow-fields">
+          <span>学习完成率</span>
+          <el-input-number v-model="promotionRule.studyRateMin" :min="0" :max="100" :step="5" size="mini" controls-position="right" style="width:110px" @change="onRuleChange" />
+          <span class="unit">%</span>
+          <span style="margin-left:24px">正式考核通过</span>
+          <el-input-number v-model="promotionRule.examPassTimes" :min="1" :max="10" size="mini" controls-position="right" style="width:110px" @change="onRuleChange" />
+          <span class="unit">次</span>
+          <el-tag size="mini" type="warning" effect="plain" style="margin-left:12px">演示态</el-tag>
+        </div>
+      </div>
+      <p class="dsec-note">学习完成率门槛最低可设为 0（不设学习门槛）；正式考核通过次数默认为 1 次。<b>后端 promotion_rule 接入后由服务端持久化，当前存本地演示。</b></p>
+    </div>
+
     <!-- 筛选条 -->
     <div class="dsec" style="padding:16px 22px">
       <div class="dfilter" style="margin-bottom:0">
@@ -156,46 +176,88 @@
 </template>
 
 <script>
-import { listRegister } from '@/api/business/register'
+import { mapGetters } from 'vuex'
 
 const PASS_LINE = 70
 
-/** 资格核对清单：4 项数据依据（学习完成率 / 正式考核结论 / 协议签署 / 必修完成）
- *  均无聚合接口（profile_snapshot / promotion_application 零 Java 层）
- *  ⇒ pass = null 表示「待接入」，渲染为灰点，不用假分数假装已核对 */
-function buildChecklist() {
-  return [
-    { key: 'study', pass: null, text: '学习完成率 <b>待接入</b>（需部门学习聚合接口）' },
-    { key: 'exam', pass: null, text: '正式考核结论 <b>待接入</b>（需成绩聚合接口）' },
-    { key: 'protocol', pass: null, text: '保密协议签署状态 <b>待接入</b>' },
-    { key: 'required', pass: null, text: '未完成必修项 <b>待接入</b>' }
+/** 部门管理员直接终审 → 演示态数据（promotion_application 尚无 Java 层） */
+function buildCandidates(cfg) {
+  const studyRateMin = Number(cfg && cfg.studyRateMin != null ? cfg.studyRateMin : 0)
+  const examPassTimes = Number(cfg && cfg.examPassTimes != null ? cfg.examPassTimes : 1)
+  const raw = [
+    {
+      id: 1, name: '陈子轩', position: '开发实习生', userId: 1041,
+      studyRate: 91, theory: 88, practice: 85, protocol: true, signedAt: '2026-06-15 13:20',
+      passedExams: 1, submittedAt: '2026-09-16 15:02',
+      dim: [['学习投入', 91], ['理论掌握', 88], ['实践能力', 85], ['规范遵从', 82]],
+      good: '代码规范意识强，Spring Boot 掌握扎实，能独立完成模块联调。',
+      improve: 'Docker 部署环节偏弱（该知识点错误率 42%），建议转正后继续补。整体建议予以转正。'
+    },
+    {
+      id: 2, name: '林知遥', position: '开发实习生', userId: 1042,
+      studyRate: 78, theory: 74, practice: 76, protocol: true, signedAt: '2026-06-20 09:05',
+      passedExams: 1, submittedAt: '2026-09-16 11:38',
+      dim: [['学习投入', 78], ['理论掌握', 74], ['实践能力', 76], ['规范遵从', 80]],
+      good: '学习节奏稳定，前端基础扎实，接口联调配合度高。',
+      improve: '学习完成率 78% 已过线，理论/实操均通过，整体建议予以转正。'
+    },
+    {
+      id: 3, name: '吴柏舟', position: '开发实习生', userId: 1043,
+      studyRate: 66, theory: 72, practice: 68, protocol: true, signedAt: '2026-06-25 15:40',
+      passedExams: 0, submittedAt: '2026-09-15 17:20',
+      dim: [['学习投入', 66], ['理论掌握', 72], ['实践能力', 68], ['规范遵从', 70]],
+      good: '动手意愿强，能主动承担联调工作。',
+      improve: '正式考核尚未通过（实操 68 分未过线），建议继续培养一周期后再提交。'
+    },
+    {
+      id: 4, name: '孙悦', position: '开发实习生', userId: 1044,
+      studyRate: 100, theory: 93, practice: 90, protocol: true, signedAt: '2026-06-10 10:12',
+      passedExams: 2, submittedAt: '2026-09-10 09:30',
+      status: 'PASSED', decidedAt: '2026-09-10 14:05',
+      dim: [['学习投入', 100], ['理论掌握', 93], ['实践能力', 90], ['规范遵从', 88]],
+      good: '全科通过，学习完成率 100%，可作为组内样板。',
+      improve: '进展良好，无特别短板。'
+    },
+    {
+      id: 5, name: '周霖', position: '开发实习生', userId: 1045,
+      studyRate: 23, theory: 51, practice: 40, protocol: true, signedAt: '2026-06-28 16:00',
+      passedExams: 0, submittedAt: '2026-08-28 10:00',
+      status: 'REJECTED', decidedAt: '2026-08-29 11:20',
+      rejectReason: '学习完成率与实操能力均明显不足，建议延长培养期后再评估。',
+      dim: [['学习投入', 23], ['理论掌握', 51], ['实践能力', 40], ['规范遵从', 58]],
+      good: '无明显优势项。',
+      improve: '多项指标未达门槛，本轮不予转正。'
+    }
   ]
-}
 
-/** 只把「名单」接真：来自 register_application（status=PASSED）；资格项无接口 ⇒ 留空 */
-function mapCandidate(row, status) {
-  return {
-    id: row.userId || row.id,
-    userId: row.userId,
-    name: row.realName || '—',
-    position: row.positionName || '—',
-    mentorName: row.mentorName || '',
-    entryDate: row.expectedEntryDate || row.createTime || null,
-    status,
-    submittedAt: null,
-    theory: null,
-    practice: null,
-    total: null,
-    passed: null,
-    good: null,
-    improve: null,
-    checklist: buildChecklist(),
-    dimensions: [],
-    verdict: status === 'PASSED'
-      ? { text: '已转正', tone: 'green', dot: 'g' }
-      : { text: '待核对', tone: 'orange', dot: 'o' },
-    summary: (row.positionName || '—') + ' · 导师 ' + (row.mentorName || '未分配')
-  }
+  return raw.map(item => {
+    const total = Math.round((item.theory * 0.6 + item.practice * 0.4) * 10) / 10
+    const passed = total >= PASS_LINE && item.studyRate >= studyRateMin && item.passedExams >= examPassTimes
+    const checklist = [
+      { key: 'study', pass: item.studyRate >= studyRateMin, text: '学习完成率 <b>' + item.studyRate + '%</b> ≥ 门槛 ' + studyRateMin + '%' },
+      { key: 'exam', pass: item.passedExams >= examPassTimes, text: '正式考核已通过 <b>' + item.passedExams + '</b> 次（要求 ≥ ' + examPassTimes + ' 次）' },
+      { key: 'protocol', pass: item.protocol, text: item.protocol ? '保密协议已签署（' + item.signedAt + '）' : '保密协议<b>未签署</b>' }
+    ]
+    const failCount = checklist.filter(c => !c.pass).length
+    let verdict
+    if (failCount === 0) verdict = { text: '资格齐备', tone: 'green', dot: 'g' }
+    else if (!passed) verdict = { text: '未达门槛', tone: 'red', dot: '' }
+    else verdict = { text: failCount + ' 项待补', tone: 'orange', dot: 'o' }
+    return Object.assign({}, item, {
+      status: item.status || 'PENDING',
+      total,
+      passed,
+      checklist,
+      verdict,
+      summary: '完成率 ' + item.studyRate + '% · 通过 ' + item.passedExams + ' 次考核 · ' + (item.protocol ? '协议已签' : '协议未签'),
+      dimensions: item.dim.map(([name, value]) => ({
+        name,
+        value,
+        tone: value >= 85 ? 'good' : (value >= 70 ? 'mid' : 'poor'),
+        barTone: value >= 85 ? 'good' : (value >= 70 ? 'avg' : 'poor')
+      }))
+    })
+  })
 }
 
 export default {
@@ -205,12 +267,14 @@ export default {
       passLine: PASS_LINE,
       activeStatus: 'PENDING',
       positionFilter: '',
+      // 转正要求（部门管理员设置；后端 promotion_rule 就绪前本地演示）
+      promotionRule: { studyRateMin: 0, examPassTimes: 1 },
       candidates: [],
-      currentId: null,
-      loading: false
+      currentId: null
     }
   },
   computed: {
+    ...mapGetters(['deptId']),
     statusTabs() {
       const count = s => this.candidates.filter(c => c.status === s).length
       return [
@@ -252,12 +316,9 @@ export default {
     },
     checklistSummary() {
       if (!this.current) return ''
-      const list = this.current.checklist
-      const unknown = list.filter(c => c.pass === null).length
-      if (unknown === list.length) return '资格项数据待接入，暂无法自动核对'
-      const fail = list.filter(c => c.pass === false).length
-      if (fail) return fail + ' 项未通过，需补齐后再提交'
-      return (list.length - unknown) + ' 项通过，可直接审批转正' + (unknown ? '（另有 ' + unknown + ' 项待接入）' : '')
+      const fail = this.current.checklist.filter(c => !c.pass).length
+      const total = this.current.checklist.length
+      return fail === 0 ? total + ' 项全部通过，可直接审批转正' : fail + ' 项未通过，需补齐后再提交'
     }
   },
   watch: {
@@ -270,38 +331,51 @@ export default {
     }
   },
   created() {
-    this.loadCandidates()
+    this.loadRule()
+    const fromQuery = Number(this.$route.query.id)
+    if (fromQuery) {
+      const hit = this.candidates.find(c => c.userId === fromQuery || c.id === fromQuery)
+      if (hit) {
+        this.activeStatus = hit.status
+        this.currentId = hit.id
+        return
+      }
+    }
+    this.syncSelection()
   },
   methods: {
-    /** 只接真「名单」：register_application 里注册已通过的人，按培养状态归入两个页签 */
-    loadCandidates() {
-      this.loading = true
-      listRegister({ pageNum: 1, pageSize: 200 }).then(res => {
-        const rows = (res && res.rows) || []
-        const mapped = rows
-          .filter(r => r.status === 'PASSED')
-          .map(r => {
-            if (r.userStatus === 'FORMAL_TRAINEE') return mapCandidate(r, 'PASSED')
-            if (r.userStatus === 'PENDING_PROMOTE') return mapCandidate(r, 'PENDING')
-            return null
-          })
-          .filter(Boolean)
-        this.candidates = mapped
-        const fromQuery = Number(this.$route.query.id)
-        if (fromQuery) {
-          const hit = mapped.find(c => c.userId === fromQuery || c.id === fromQuery)
-          if (hit) {
-            this.activeStatus = hit.status
-            this.currentId = hit.id
-            return
+    /** 读取本部门转正要求（后端 promotion_rule 就绪前用本地演示） */
+    loadRule() {
+      const load = function (key) {
+        try {
+          var saved = localStorage.getItem(key)
+          if (saved) {
+            var c = JSON.parse(saved)
+            return {
+              studyRateMin: Number(c.studyRateMin != null ? c.studyRateMin : 0),
+              examPassTimes: Number(c.examPassTimes != null ? c.examPassTimes : 1)
+            }
           }
-        }
-        this.syncSelection()
-      }).catch(() => {
-        this.candidates = []
-      }).finally(() => {
-        this.loading = false
-      })
+        } catch (e) { /* 忽略 */ }
+        return null
+      }
+      // 优先本部门规则，其次全局默认，最后内置默认
+      var deptKey = this.deptId ? ('promotion-rule-' + this.deptId) : null
+      var deptRule = deptKey ? load(deptKey) : null
+      var globalRule = load('promotion-rule')
+      this.promotionRule = deptRule || globalRule || { studyRateMin: 0, examPassTimes: 1 }
+      this.candidates = buildCandidates(this.promotionRule)
+    },
+    /** 部门管理员调整转正要求后即时落库（本地演示，写本部门键）并刷新列表判定 */
+    onRuleChange() {
+      try {
+        var key = this.deptId ? ('promotion-rule-' + this.deptId) : 'promotion-rule'
+        localStorage.setItem(key, JSON.stringify(this.promotionRule))
+      } catch (e) {
+        // 本地存储不可用时仍继续
+      }
+      this.candidates = buildCandidates(this.promotionRule)
+      this.syncSelection()
     },
     syncSelection() {
       const rows = this.listRows
@@ -378,6 +452,12 @@ export default {
 
 .dbtn-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 code { padding: 1px 5px; color: #344054; font-size: 11.5px; background: #f2f4f7; border-radius: 4px; }
+/* 转正要求设置行 */
+.s-setrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.s-setrow-hd { display: flex; flex-direction: column; gap: 4px; }
+.s-setrow-label { color: #475467; font-size: 13px; font-weight: 600; }
+.s-setrow-fields { display: flex; align-items: center; gap: 8px; color: #475467; font-size: 12.5px; }
+.s-setrow-fields .unit { color: #98a2b3; }
 .dkv small { color: #98a2b3; font-size: 11px; font-weight: 400; }
 .hint-text { color: #98a2b3; font-size: 11.5px; }
 .dkpi-val small { font-size: 12px; font-weight: 400; }

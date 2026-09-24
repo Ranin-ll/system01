@@ -1,15 +1,15 @@
 <template>
   <div class="practice-page">
     <div class="exam-breadcrumb">
-      <el-button type="text" icon="el-icon-arrow-left" @click="goList">返回模拟考核</el-button>
+      <el-button type="text" icon="el-icon-arrow-left" @click="goList">返回模拟理论考核</el-button>
       <span>/</span>
-      <b>模拟考核回顾</b>
+      <b>模拟理论考核回顾</b>
     </div>
 
     <header class="exam-heading">
       <div>
         <span class="eyebrow">PRACTICE REVIEW</span>
-        <h1>模拟考核回顾</h1>
+        <h1>模拟理论考核回顾</h1>
       </div>
     </header>
 
@@ -110,11 +110,11 @@ export default {
       })
     },
     goList() {
-      this.$router.push('/assessment/intern/mock-exam')
+      this.$router.push('/assessment/intern/learning/mock/theory')
     },
     /** 回到自测页并自动开始新一次抽题 */
     rePractice() {
-      this.$router.push({ path: '/assessment/intern/mock-exam', query: { start: '1' } })
+      this.$router.push({ path: '/assessment/intern/learning/mock/theory', query: { start: '1' } })
     }
   }
 }

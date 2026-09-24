@@ -3,7 +3,7 @@
     <div class="exam-breadcrumb">
       <el-button type="text" icon="el-icon-arrow-left" @click="goBack">返回</el-button>
       <span>/</span>
-      <b>模拟考核</b>
+      <b>模拟实操考核</b>
       <span>/</span>
       <b>实操题详情</b>
     </div>
@@ -50,6 +50,7 @@
             <h3 class="p-title">{{ subject.title || '未命名实操题' }}</h3>
 
             <div class="info2">
+              <div><span>所属模块</span><b>{{ subject.moduleName || '未归属模块' }}</b></div>
               <div><span>建议用时</span><b>{{ subject.estimatedMinutes ? subject.estimatedMinutes + ' 分钟' : '不限' }}</b></div>
               <div><span>难度</span><b>{{ difficultyText(subject.difficulty) }}</b></div>
               <div><span>发布时间</span><b>{{ fmtTime(subject.updateTime || subject.createTime) }}</b></div>
@@ -142,11 +143,11 @@ export default {
       return { EASY: '简单', MEDIUM: '中等', HARD: '困难' }[v] || '中等'
     },
     /**
-     * 返回上一级：回到「模拟考核 › 实操题」列表（★ 2026-09-23 起模拟实操题不再分模块，
-     * 没有模块内内容页可回）。不再跳转到已下线的独立「实操题库」页。
+     * 返回上一级：回到「模拟实操考核」清单页。
+     * （2026-09-23 模拟考核去掉模块层级后不再带 ?moduleId= 回模块内内容。）
      */
     goBack() {
-      this.$router.push('/assessment/intern/learning/mock')
+      this.$router.push('/assessment/intern/learning/mock/practice')
     }
   }
 }

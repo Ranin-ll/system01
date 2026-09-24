@@ -460,7 +460,7 @@ export default {
       return { WAIT_AUDIT: '', PRE_TRAINEE: 'blue', PENDING_PROMOTE: 'warn', FORMAL_TRAINEE: 'ok' }[stage] || ''
     },
     typeCls(t) {
-      return { DOC: '', VIDEO: 'purple', QUIZ: 'warn' }[t] || ''
+      return { DOC: '', VIDEO: 'purple' }[t] || ''
     },
     taskCls(s) {
       return { DONE: 'ok', OVERDUE: 'red', NOT_STARTED: '' }[s] || ''

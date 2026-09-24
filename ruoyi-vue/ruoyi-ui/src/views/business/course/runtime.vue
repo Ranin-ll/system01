@@ -148,6 +148,8 @@ export default Object.assign({}, CoursePage, {
       this.assetUploadProgress = 0
       this.assetUploadState = 'READY'
       this.assetUploadMessage = '文件已选择，保存资料后开始上传'
+      // 读视频真实时长（异步）：写进表单，保存时随资料一起提交
+      this.applyMediaDuration(raw)
     },
 
     clearAsset() {
@@ -196,7 +198,9 @@ export default Object.assign({}, CoursePage, {
           isRequired: this.itemForm.isRequired,
           completionRule: this.itemForm.completionRule,
           quizJson: this.itemForm.quizJson,
-          completionThreshold: this.itemForm.completionThreshold
+          completionThreshold: this.itemForm.completionThreshold,
+          // 视频真实时长（秒）：后端据此校正「预计时长」并按真实片长算学习进度
+          mediaSeconds: this.itemForm.itemType === 'VIDEO' ? this.itemForm.mediaSeconds : null
         }
         const request = this.itemForm.id
           ? updateStudyItem(this.itemForm.id, payload)
@@ -209,6 +213,10 @@ export default Object.assign({}, CoursePage, {
           if (!this.pendingAsset || !itemId) return null
           const formData = new FormData()
           formData.append('file', this.pendingAsset)
+          // 真实时长随文件一起提交：即便上面保存资料时探测还没回来，上传这一步也能补上
+          if (this.itemForm.itemType === 'VIDEO' && this.itemForm.mediaSeconds) {
+            formData.append('mediaSeconds', String(this.itemForm.mediaSeconds))
+          }
           this.assetUploadState = 'UPLOADING'
           this.assetUploadProgress = 0
           this.assetUploadMessage = '正在上传 ' + this.itemForm.fileName

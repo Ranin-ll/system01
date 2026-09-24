@@ -131,6 +131,19 @@ public interface InternAuthMapper {
             @Param("signIp") String signIp, @Param("terminal") String terminal,
             @Param("signature") String signature);
 
+    /**
+     * 读取某人最近一次生效的签署凭证（含签名图本体）。
+     *
+     * <p>只取 status=1 的有效记录；sign_mode=MOUSE 时 signature_data 是 data:image/png;base64 图片，
+     * sign_mode=TEXT 是历史文字式签署（2026-09-15 前遗留），前端需降级显示。</p>
+     */
+    @Select("SELECT id, agreement_name AS agreementName, version_no AS versionNo, "
+            + "sign_time AS signTime, sign_ip AS signIp, terminal, sign_mode AS signMode, "
+            + "signature_data AS signatureData "
+            + "FROM agreement_signature WHERE user_id = #{userId} AND status = 1 "
+            + "ORDER BY sign_time DESC, id DESC LIMIT 1")
+    Map<String, Object> selectLatestAgreementSignature(@Param("userId") Long userId);
+
     @Update("UPDATE sys_user SET protocol_status = 1, update_by = #{updateBy}, update_time = NOW() "
             + "WHERE user_id = #{userId} AND del_flag = '0'")
     int updateProtocolStatus(@Param("userId") Long userId, @Param("updateBy") String updateBy);

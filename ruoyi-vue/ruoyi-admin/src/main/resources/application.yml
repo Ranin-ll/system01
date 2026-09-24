@@ -61,10 +61,10 @@ spring:
   # 文件上传
   servlet:
     multipart:
-      # 单个文件大小
-      max-file-size: ${UPLOAD_MAX_FILE_SIZE:500MB}
-      # 设置总上传的文件大小
-      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:510MB}
+      # 单个文件大小（2026-09-23：课程附件上限提到 3GB，这里必须 ≥ 它）
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:3GB}
+      # 设置总上传的文件大小（含表单开销，比单文件上限留一点余量）
+      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:3300MB}
   # 服务模块
   devtools:
     restart:
@@ -96,8 +96,8 @@ spring:
 
 # 上传上限统一 500MB（实操题参考视频等素材需要）；课程视频走 course 档 510MB。
 upload:
-  default-max-request-size: ${DEFAULT_UPLOAD_MAX_REQUEST_SIZE:500MB}
-  course-max-request-size: ${COURSE_UPLOAD_MAX_REQUEST_SIZE:510MB}
+  default-max-request-size: ${DEFAULT_UPLOAD_MAX_REQUEST_SIZE:20MB}
+  course-max-request-size: ${COURSE_UPLOAD_MAX_REQUEST_SIZE:3300MB}
 
 # token配置
 token:

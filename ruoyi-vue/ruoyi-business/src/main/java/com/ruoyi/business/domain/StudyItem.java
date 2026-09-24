@@ -38,6 +38,14 @@ public class StudyItem implements Serializable {
     private String fileExt;
     private Integer completionThreshold;
 
+    /**
+     * 视频文件的**真实时长（秒）** —— 管理端上传时由浏览器读 `<video>` 元数据探测后写入。
+     * 与 `duration`（预计时长，分钟）不是一回事：后者是人工填的估值，常与真实片长对不上。
+     * 用途：① 列表/侧栏显示真实时长；② 学习进度按「已看秒数 / 视频秒数」计算，
+     * 这样短片（如 35 秒）看完也能到 100%，不再被「每秒最多涨 2%」的固定口径卡住。
+     */
+    private Integer mediaSeconds;
+
     /** 前端本地草稿状态，不落库。 */
     @TableField(exist = false)
     private String assetStatus;

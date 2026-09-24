@@ -23,10 +23,13 @@ public class MultipartRequestSizeFilter extends OncePerRequestFilter {
 
     /**
      * 允许大文件（course-max-request-size）的 multipart 端点白名单。
+     * 课程资料接口自 2026-09-23 起上限 3300MB（文档类附件放开到 3GB）；其余接口仍是 20MB 档。
      *
      * <p>⚠️ 新增「能传大文件」的上传接口时<b>必须</b>在这里加一条，且与 Controller 的
      * {@code @PostMapping} 路径逐字一致；否则该接口会被默认 20MB 档静默卡成 413，
-     * 而错误信息完全不指向这里。</p>
+     * 而错误信息完全不指向这里。</p><p>
+     * ⚠️ 生产环境若前面挂了反向代理（nginx），还要同步 {@code client_max_body_size} 与
+     * 超时（默认 1MB 会直接把大文件挡在代理层）。</p>
      */
     private static final String[] LARGE_MULTIPART_PATTERNS = {
             "/business/course/items/\\d+/asset",
@@ -38,7 +41,7 @@ public class MultipartRequestSizeFilter extends OncePerRequestFilter {
     @DataSizeUnit(DataUnit.MEGABYTES)
     private DataSize defaultMaxRequestSize;
 
-    @Value("${upload.course-max-request-size:510MB}")
+    @Value("${upload.course-max-request-size:3300MB}")
     @DataSizeUnit(DataUnit.MEGABYTES)
     private DataSize courseMaxRequestSize;
 
