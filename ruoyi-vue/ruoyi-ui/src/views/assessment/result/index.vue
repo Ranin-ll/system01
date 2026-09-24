@@ -216,15 +216,6 @@ const PASS_LINE = 70
 
 /**
  * 考核成绩与转正（实习生端）
- *
- * 真实数据（均为既有接口，不新增、不改动后端）：
- *  - `GET /business/answer-sheet/my?examMode=FORMAL` → 场次与环节成绩
- *  - `GET /business/answer-sheet/detail/{sheetId}`   → 提交时间 / 逐题明细
- *  - `GET /business/learning/courses`               → 学习完成率（转正资格①）
- *  - vuex getters：protocolStatus（转正资格④）、roles、deptName
- *
- * 留空项（无接口，一律不造假）：
- *  - 部门平均分（按业务要求不向实习生展示）、薄弱模块、转正申请单状态机
  */
 export default {
   name: 'InternResult',
@@ -349,7 +340,7 @@ export default {
       if (!this.latest) return '暂无正式考核记录，完成考核并发布成绩后此处显示对比数据。'
       return '按业务要求，本页只展示你自己的成绩与通过线（综合分 = 理论 × 40% + 实操 × 60%，权重由批次规则决定）。'
     },
-    /** 薄弱模块：待接入「本人 × 章节得分率」接口（2026-09-22 起不再用示例数据，先留空） */
+    /** 薄弱模块 */
     weakModules() { return [] },
     weakest() {
       if (!this.weakModules.length) return { module: '--', rate: 0 }

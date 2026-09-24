@@ -3,11 +3,8 @@
     <header class="nt-head">
       <div>
         <span class="eyebrow">NOTICE CENTER</span>
-        <h1>任务与通知</h1>
-        <p>
-          发<b>公告</b>（挂出去给人看）或<b>通知</b>（戳到人）。范围四档：全体 / 部门 / 岗位 / 指定人员。
-          <b>公告与「全体」仅超管可发</b>；业务通知统一走业务表，与平台原生「通知公告」并存。
-        </p>
+        <h1>通知中心</h1>
+        <p>发送公告或通知，范围支持全体、部门、岗位、指定人员。公告与「全体」仅超级管理员可发。</p>
       </div>
       <div class="nt-actions">
         <span class="chip"><i class="el-icon-bell" /> 我的未读 {{ unread }}</span>
@@ -56,10 +53,8 @@
             <el-option v-for="p in positionOptions" :key="p.id" :label="p.positionName" :value="Number(p.id)" />
           </el-select>
           <div class="tip">
-            岗位分两类：<b>实习生岗</b>（实施 / 开发 / 设计 / 质检 / 建模）
-            与<b>管理员岗</b>（各部门管理员）。
-            <b>部门管理员不占实习生岗</b>（<code>position_id</code> 为空），
-            所以要单独选「部门管理员」才会发给 TA 们。
+            岗位分为实习生岗（实施 / 开发 / 设计 / 质检 / 建模）与管理员岗（各部门管理员）。
+            部门管理员不占实习生岗，需单独选择「部门管理员」才会发送给对应管理员。
           </div>
         </div>
 
@@ -87,7 +82,7 @@
         <div class="field">
           <label>预计送达</label>
           <span class="badge blue">{{ estimate === null ? '—' : estimate + ' 人' }}</span>
-          <span class="tip" style="display:inline;margin-left:8px">由后端按<b>送达规则</b>实时计算（与发出后的「送达数」同口径，两个数必然一致）</span>
+          <span class="tip" style="display:inline;margin-left:8px">根据所选范围实时计算</span>
         </div>
 
         <div class="foot">
@@ -150,9 +145,7 @@
           </el-table-column>
         </el-table>
         <div v-if="!loading && !sent.length" class="empty">还没有发送过通知</div>
-        <div class="note">
-          送达数 = 命中该条范围的有效账号数；已读数来自 <code>notice_read</code>（与实习生端铃铛红点<b>同一张表</b>，不会出现「这边已读、那边还红着」）。
-        </div>
+        <div class="note">送达数为命中该条范围的有效账号数，已读状态与实习生端同步更新。</div>
       </section>
     </div>
 
@@ -169,19 +162,18 @@
         </el-table-column>
         <el-table-column prop="readTime" label="已读时间" />
       </el-table>
-      <div class="note" style="margin-top:10px">未读的人排在前面。「再提醒」= 对这些未读者发一条定向通知（与超管催办同一套机制，P3）。</div>
+      <div class="note" style="margin-top:10px">未读的人排在前面。</div>
     </el-dialog>
   </div>
 </template>
 
 <script>
 /**
- * 超管端「任务与通知」（通知中心）
+ * 超管端「通知中心」
  *
- * 三端命名统一（决策 6）：实习生 / 部门管理员 / 超管都叫「任务与通知」，用户跨角色不用重新认位置。
  * 本页 = 发送（公告 / 通知 × 四档范围）+ 已发送回执 + 撤回 + 未读名单。
  *
- * 权限口径：前端只用 canAnnounce 控制「公告」选项的可见性，**真正的范围强校验在后端**
+ * 权限口径：前端只用 canAnnounce 控制「公告」选项的可见性，真正的范围强校验在后端
  * （公告与 ALL 仅超管；部门管理员限本部门），前端隐藏只是体验。
  */
 import { getUnreadCount, sendMessage, listSentMessages, listRecipients, revokeMessage, estimateAudience } from '@/api/business/message'

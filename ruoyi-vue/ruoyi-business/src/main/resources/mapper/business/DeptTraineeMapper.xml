@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.DeptTraineeMapper">
+
+    <!-- 本部门在培实习生（含待转正）。
+         成员口径：账号有效 + 状态三态 + 真持有实习生角色 +
+         部门与岗位在 dept_position 里是生效绑定。 -->
+    <select id="selectDeptTrainees" resultType="java.util.Map">
+        SELECT u.user_id       AS userId,
+               u.user_name     AS userName,
+               u.nick_name     AS nickName,
+               u.dept_id       AS deptId,
+               u.position_id   AS positionId,
+               u.user_status   AS userStatus,
+               p.position_name AS positionName
+          FROM sys_user u
+          LEFT JOIN position p ON p.id = u.position_id
+          JOIN dept_position dp ON dp.position_id = u.position_id AND dp.status = 1
+         WHERE u.del_flag = '0'
+           AND u.status = '0'
+           AND u.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE', 'PENDING_PROMOTE')
+           AND EXISTS (SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id
+                        WHERE ur.user_id = u.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+        <if test="deptId != null">
+           AND u.dept_id = #{deptId}
+        </if>
+         ORDER BY u.position_id, u.user_id
+    </select>
+
+</mapper>

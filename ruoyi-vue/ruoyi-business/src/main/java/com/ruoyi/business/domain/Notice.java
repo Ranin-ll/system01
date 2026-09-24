@@ -14,7 +14,7 @@ import java.util.Date;
  * <p>一张表承载三种载体，靠 {@code msgType} 区分：</p>
  * <ul>
  *   <li><b>公告 ANNOUNCE</b>：面向一片人公开告知（仅超管可发），双展示位＝工作台公告位 + 消息中心，可置顶、有有效期、<b>不计未读红点</b>；</li>
- *   <li><b>通知</b>（TASK / EXAM / AUDIT / URGE / SYSTEM）：点对点，只进消息中心 + 铃铛；</li>
+ *   <li><b>通知</b>（EXAM / AUDIT / URGE / SYSTEM）：点对点，只进消息中心 + 铃铛；</li>
  *   <li>范围由 {@code scopeType}(ALL/DEPT/POSITION/USER) + {@code scopeId} 决定，USER 时收件人见 {@code notice_target}。</li>
  * </ul>
  *
@@ -61,10 +61,10 @@ public class Notice implements Serializable {
     /** 范围对象ID（部门ID / 岗位ID）；USER 时为空，收件人在 notice_target */
     private Long scopeId;
 
-    /** 消息类型：ANNOUNCE / TASK / EXAM / AUDIT / URGE / SYSTEM */
+    /** 消息类型：ANNOUNCE / EXAM / AUDIT / URGE / SYSTEM */
     private String msgType;
 
-    /** 业务类型：TASK / EXAM / REGISTER / PROMOTION */
+    /** 业务类型：EXAM / REGISTER / PROMOTION */
     private String bizType;
 
     /** 业务主键（点击跳转用） */

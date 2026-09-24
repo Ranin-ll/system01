@@ -100,8 +100,6 @@ import { list } from '@/api/monitor/operlog'
 
 /**
  * 超管「审计日志」页
- * 真实数据：/monitor/operlog/list（平台原生操作日志，@Log 注解自动记录）
- * 静态内容：仍会被拦截的写入说明、转正纠错流程（待补实现）
  */
 export default {
   name: 'SuperAudit',
@@ -114,7 +112,6 @@ export default {
       detailVisible: false,
       current: null,
       guards: [
-        { name: '任务：发布 / 结束 / 批阅', desc: 'TaskServiceImpl.requireDeptAdmin() 抛「超级管理员仅可查看任务，不能发布或批阅」（任务列表本身可读）' },
         { name: '非超管且未配置部门时访问业务数据', desc: '各 Service 的 currentScopeDeptId / managerScopeDeptId 对该类账号直接抛「当前账号未配置部门」' }
       ]
     }

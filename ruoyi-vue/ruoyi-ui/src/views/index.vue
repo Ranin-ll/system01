@@ -251,7 +251,6 @@ export default {
       learningLoading: false,
       previewCourses: [],
       learningOverview: { progress: null, courseCount: 0, completedCourses: 0, learningCourses: 0, completedItems: 0, itemCount: 0, lastStudyTime: '尚未开始' },
-      /** 考核类真数据（2026-09-22 起接真 —— 这几块原先都是硬编码示例值） */
       practiceRecords: [],
       myFormalExams: [],
       entryDate: null
@@ -265,15 +264,13 @@ export default {
     isDeptAdmin() { return this.roles.indexOf('DEPT_ADMIN') > -1 },
     eyebrow() { return this.isIntern ? 'INTERNSHIP WORKSPACE' : (this.isDeptAdmin ? 'DEPARTMENT WORKSPACE' : 'MANAGEMENT WORKSPACE') },
     title() { return this.isIntern ? `${this.nickName || '实习生'}的工作台` : (this.isDeptAdmin ? `${this.deptName || '部门'}工作台` : '全局工作台') },
-    subtitle() { return this.isIntern ? (this.isFormal ? '在线学习与历史培养记录' : '学习任务、考核安排与成长进度') : (this.isDeptAdmin ? '注册审核、培养进度与考核批阅' : '组织培养、考核运营与规则执行') },
+    subtitle() { return this.isIntern ? (this.isFormal ? '在线学习与历史培养记录' : '在线学习、考核安排与成长进度') : (this.isDeptAdmin ? '注册审核、培养进度与考核批阅' : '组织培养、考核运营与规则执行') },
     messagePath() { return '/messages' },
     mentorText() { return this.mentorName ? `导师：${this.mentorName}${this.mentorPhone ? ' · ' + this.mentorPhone : ''}` : '导师待登记' },
     learningProgress() { return this.learningOverview.progress === null ? 0 : this.learningOverview.progress },
     learningGap() { return Math.max(0, 70 - this.learningProgress) },
-    // —— 设计稿 i2 新增：无后端接口的块一律示例数据并在界面标注「示例」，不用 0 占位 ——
     /**
-     * 入职天数：由 /system/user/profile 的 createTime 算（2026-09-22 起为真值）
-     * 取不到日期 → null，模板显示「—」（不留假数）
+     * 入职天数
      */
     onboardDays() {
       if (!this.entryDate) return null
@@ -281,8 +278,7 @@ export default {
       if (isNaN(t)) return null
       return Math.max(0, Math.floor((Date.now() - t) / 86400000))
     },
-    // ============ 学习类真数据（2026-09-23 工作台改版）============
-    /** 全部已发布课程里的学习单项（后端 fillLearningContent 会把 chapters[].items 连进度一起下发） */
+    /** 全部已发布课程里的学习单项 */
     allItems() {
       const rows = []
       ;(this.previewCourses || []).forEach(course => {
@@ -667,7 +663,7 @@ export default {
     openLearningCourse(course) {
       this.go('/assessment/intern/learning/course/' + course.id)
     },
-    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    /** 统一跳转：目标路由不存在则不动 */
     go(path, query) {
       if (!path) return
       if (!this.$router.resolve(path).route.matched.length) return
@@ -702,7 +698,6 @@ export default {
 .certification-section, .admin-actions { margin-bottom: 14px; padding: 18px; border: 1px solid #e4e9f0; background: #fff; }.section-title { justify-content: space-between; margin-bottom: 13px; }.section-title p { margin: 5px 0 0 28px; color: #7a8694; font-size: 12px; }.entry-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }.entry-grid.three-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }.entry { display: flex; min-width: 0; align-items: center; gap: 11px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; color: inherit; text-align: left; background: #fff; cursor: pointer; }.entry:hover { border-color: #9fc2f3; box-shadow: 0 5px 14px rgba(32, 64, 106, .07); }.entry > i { flex: 0 0 auto; color: #1764f5; font-size: 23px; }.entry > span { flex: 1; min-width: 0; }.entry b, .entry small { display: block; }.entry small { margin-top: 5px; overflow: hidden; color: #7a8694; text-overflow: ellipsis; white-space: nowrap; }.entry em { color: #1764f5; font-size: 12px; font-style: normal; }
 .records-grid { grid-template-columns: 1fr 1fr; }.record-row { min-height: 52px; gap: 12px; border-bottom: 1px solid #edf0f4; }.record-row:last-child { border-bottom: 0; }.record-row > div { flex: 1; }.record-row b, .record-row span { display: block; }.record-row span { margin-top: 4px; color: #8a94a3; font-size: 11px; }.record-row > strong { width: 48px; text-align: right; font-size: 13px; }.ability-row { gap: 10px; min-height: 36px; }.ability-row > span { width: 65px; color: #667085; font-size: 12px; }.ability-row > div { height: 7px; flex: 1; overflow: hidden; border-radius: 4px; background: #edf1f5; }.ability-row i { display: block; height: 100%; background: #2878c7; }.ability-row b { width: 28px; text-align: right; font-size: 12px; }.quick-nav { flex-wrap: wrap; gap: 8px; color: #667085; font-size: 12px; }.quick-nav > span { margin-right: 4px; }.scope-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 11px 0; border-bottom: 1px solid #edf0f4; }.scope-row:last-child { border-bottom: 0; }.scope-row b { color: #1764f5; }.scope-row small { grid-column: 1 / -1; color: #8a94a3; }.admin-actions { margin-bottom: 0; }
 .record-band { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; padding: 14px 18px; border: 1px solid #e4e9f0; border-radius: 6px; background: #fff; }.record-band-label { color: #344054; font-size: 14px; }.record-pill { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 16px; border: 0; border-radius: 8px; background: #e8f1fd; color: #1764f5; font-size: 14px; cursor: pointer; transition: background .15s; }.record-pill:hover { background: #d7e7fc; }.record-pill > i { font-size: 15px; }.record-pill em { padding: 1px 7px; border-radius: 10px; background: rgba(23, 100, 245, .12); font-size: 11px; font-style: normal; }.record-pill.is-pending { background: #fff4e5; color: #b54708; }.record-pill.is-pending em { background: rgba(181, 71, 8, .12); }.record-pill.is-idle { background: #f2f4f7; color: #98a2b3; }.record-pill.is-idle em { background: rgba(152, 162, 179, .18); }
-/* —— 实习生工作台 i2 区块（设计稿 11 块） —— */
 .i2-card { min-width: 0; margin-bottom: 14px; padding: 16px 18px; border: 1px solid #e4e9f0; border-radius: 6px; background: #fff; }
 .i2-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
 .i2-grid .i2-card { margin-bottom: 0; }

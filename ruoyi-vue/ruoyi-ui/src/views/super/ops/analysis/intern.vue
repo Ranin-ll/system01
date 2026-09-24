@@ -12,7 +12,7 @@
         </span>
         <h1>{{ user.nickName || user.userName || '个人档案' }}</h1>
         <p>
-          培养状态进度 · 学习进度（逐项）· 任务交付 · 模拟与正式考核 · 知识点掌握 · 阶段评价。
+          培养状态进度 · 学习进度（逐项）· 模拟与正式考核 · 知识点掌握 · 阶段评价。
           <strong>除「阶段评价」（表为空）外，全部为实时真数据</strong>。
         </p>
       </div>
@@ -91,7 +91,7 @@
         </section>
       </div>
 
-      <!-- ① 学习进度 + ④ 任务交付 -->
+      <!-- ① 学习进度 -->
       <div class="s-grid">
         <section class="s-card s-c7">
           <div class="s-card-h">
@@ -135,41 +135,6 @@
             ★ <b>「进度」与「状态」是两件事</b>：实测存在
             <code>progress=100</code> 但 <code>status</code> 仍是 <code>IN_PROGRESS</code> 的项
             （完成判定还依赖其它条件）。本页两者都如实显示，<b>不替业务"修数"</b>。
-          </p>
-        </section>
-
-        <section class="s-card s-c5">
-          <div class="s-card-h">
-            <div class="tt"><span class="s-idx o">④</span><h3>任务交付（逐任务）</h3></div>
-            <span class="hint">{{ tasks.length }} 个 · 逾期 {{ num(user.taskOverdue) }}</span>
-            <el-button class="hd-link" type="text" size="mini" @click="go('/super/todo')">督办看板 ›</el-button>
-          </div>
-          <div v-if="!tasks.length" class="s-empty"><i class="el-icon-tickets" /><span>暂无任务</span></div>
-          <table v-else class="s-tbl">
-            <thead>
-              <tr><th style="min-width:140px">任务</th><th class="ctr" style="width:76px">状态</th>
-                <th class="ctr" style="width:88px">审核</th><th class="ctr" style="width:70px">提交</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="t in tasks" :key="t.assignmentId" class="row-link" title="查看：督办看板" @click="go('/super/todo')">
-                <td>
-                  <b>{{ t.taskName || ('任务 #' + t.taskId) }}</b>
-                  <div class="n1">截止 {{ fmtDate(t.deadline) }}</div>
-                </td>
-                <td class="ctr"><span class="s-badge" :class="taskCls(t.status)">{{ taskLabel(t.status) }}</span></td>
-                <td class="ctr">
-                  <span v-if="t.reviewStatus" class="s-badge" :class="reviewCls(t.reviewStatus)">{{ reviewLabel(t.reviewStatus) }}</span>
-                  <span v-else class="none">未提交</span>
-                </td>
-                <td class="ctr">
-                  {{ num(t.submitCount) }} 次
-                  <div v-if="num(t.submitCount) > 1" class="n1 bad">重交 {{ num(t.submitCount) - 1 }} 次</div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p class="s-note">
-            ★ 审核结果是<b>三值</b>（待审核 / 通过 / 驳回），<b>不能当布尔用</b>；提交次数 &gt; 1 说明被驳回后重交过。
           </p>
         </section>
       </div>
@@ -296,7 +261,7 @@
  * L3 个人档案（超管「培养分析看板」下钻到个人）
  *
  * 真数据（`GET /business/super/analysis/intern/{userId}`）：
- *   身份 / 培养状态 / 学习逐项 / 任务逐笔（含最新一次审核结果）
+ *   身份 / 培养状态 / 学习逐项
  *   ★ 这两个查询补的是「超管读缺口」—— `/business/learning/**`、`/business/practice/**`
  *     的类级注解只放实习生角色；本模块另写只读路径，**没去动那两处的类级注解**。
  *
@@ -319,7 +284,6 @@ export default {
       error: '',
       user: {},
       study: [],
-      tasks: [],
       /** 考核类（2026-09-22 起为真数据） */
       practiceList: [],
       formalList: [],
@@ -334,7 +298,7 @@ export default {
     deptRoute() {
       return '/super/ops/analysis/dept/' + this.user.deptId
     },
-    /** 下钻回部门：目标路由不存在就不给链接（不给死链） */
+    /** 下钻回部门：目标路由不存在就不给链接 */
     deptRouteOk() {
       return !!this.user.deptId && this.$router.resolve(this.deptRoute).route.matched.length > 0
     },
@@ -345,7 +309,7 @@ export default {
       const nodes = [
         { key: 'PENDING', label: '提交报名', sub: '已建档' },
         { key: 'PRE_TRAINEE', label: '预备实习生', sub: this.mentorSub() },
-        { key: 'PENDING_PROMOTE', label: '待转正', sub: '需 5 条硬条件全部满足' },
+        { key: 'PENDING_PROMOTE', label: '待转正', sub: '需 4 条硬条件全部满足' },
         { key: 'FORMAL_TRAINEE', label: '正式实习生', sub: '部门终审通过 + 发证' }
       ]
       // 节点下标与阶段下标对齐：node0=报名、node1=预备、node2=待转正、node3=正式。
@@ -388,8 +352,6 @@ export default {
           text: total > 0 ? (done + '/' + total + ' 项达标，达标率 ' + Math.round(learnRate) + '%') : '暂无学习记录' },
         { key: 'formal', label: '正式考试通过', ok: formalPassed === 1, mock: false,
           text: formalPassed === undefined || formalPassed === null ? '无本人考核记录' : (formalPassed === 1 ? '已通过' : '未通过') },
-        { key: 'task', label: '任务无逾期', ok: Number(this.user.taskOverdue || 0) === 0, mock: false,
-          text: Number(this.user.taskOverdue || 0) > 0 ? ('逾期 ' + this.user.taskOverdue + ' 个') : '无逾期' },
         { key: 'protocol', label: '协议已签', ok: Number(this.user.protocolSigned || 0) === 1, mock: false,
           text: Number(this.user.protocolSigned || 0) === 1 ? '已签署' : '未签署（转正硬条件）' },
         { key: 'approve', label: '部门终审通过', ok: false, mock: false,
@@ -428,7 +390,7 @@ export default {
     }
   },
   methods: {
-    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    /** 统一跳转：目标路由不存在则不动 */
     go(path, query) {
       if (!path) return
       if (!this.$router.resolve(path).route.matched.length) return
@@ -457,10 +419,6 @@ export default {
       const n = Number(v)
       return (Math.round(n * 10) / 10) + '%'
     },
-    fmtDate(v) {
-      if (!v) return '—'
-      return String(v).slice(0, 10)
-    },
     reach(p) {
       return Number(p) >= Number(this.threshold || 70)
     },
@@ -475,19 +433,6 @@ export default {
     typeCls(t) {
       return { DOC: '', VIDEO: 'purple' }[t] || ''
     },
-    taskCls(s) {
-      return { DONE: 'ok', OVERDUE: 'red', NOT_STARTED: '' }[s] || ''
-    },
-    taskLabel(s) {
-      return { DONE: '已交', OVERDUE: '逾期', NOT_STARTED: '未开始' }[s] || s
-    },
-    /** ⚠️ review_status 是三值，不能当布尔 */
-    reviewCls(s) {
-      return { PASSED: 'ok', REJECTED: 'red', PENDING: 'warn' }[s] || ''
-    },
-    reviewLabel(s) {
-      return { PASSED: '通过', REJECTED: '驳回', PENDING: '待审核' }[s] || s
-    },
     load() {
       this.loading = true
       this.error = ''
@@ -501,7 +446,6 @@ export default {
         const d = res.data || {}
         this.user = d.user || {}
         this.study = d.study || []
-        this.tasks = d.tasks || []
         this.practiceList = d.practice || []
         this.formalList = d.formal || []
         this.knowledgeList = d.knowledge || []
@@ -511,7 +455,9 @@ export default {
           : '接口请求失败（可能是权限不足或该人员不在你的可见范围），请稍后重试'
         this.user = {}
         this.study = []
-        this.tasks = []
+        this.practiceList = []
+        this.formalList = []
+        this.knowledgeList = []
       }).finally(() => { this.loading = false })
     }
   }
@@ -643,8 +589,7 @@ export default {
 
 .gate .mark { font-size: 12px; }
 
-/* ==================== 2026-09-22：全卡片可点（与 L0/L1 统一 affordance） ====================
-   ★ 只加视觉与鼠标态；跳转走 go() / goPeople()，目标路由不存在时不动（不给死链）。 */
+/* 全卡片可点的视觉与鼠标态 */
 .link { position: relative; cursor: pointer; transition: background .15s; }
 .link:hover { background: #f7fbff; }
 .s-hbar.link:hover { border-radius: 6px; }

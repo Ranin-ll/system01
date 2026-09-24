@@ -8,20 +8,19 @@
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>实习生管理</h1>
-        <p>本部门实习生花名册与统计下钻。花名册基础信息、培养状态、导师均为真实数据。</p>
+        <p>本部门实习生花名册与统计下钻。</p>
       </div>
       <div class="dept-heading-actions">
         <el-button size="small" @click="notReady('导出花名册')">导出</el-button>
       </div>
     </div>
 
-    <!-- 统计卡：前 3 项真实，最后 1 项依赖 certificate -->
+    <!-- 统计卡 -->
     <div class="dkpi-grid" style="margin-bottom:16px">
       <div v-for="item in kpis" :key="item.key" class="dkpi">
         <div class="dkpi-label">
           <span class="d" :style="{ background: item.color }" />
           {{ item.label }}
-          <!-- 2026-09-22：不再打「示例」标（没有的指标一律显示 --） -->
         </div>
         <div class="dkpi-val">{{ item.value }}<small>人</small></div>
         <div class="dkpi-sub" :class="item.tone">{{ item.hint }}</div>
@@ -104,7 +103,6 @@
                 <span class="sep">|</span>
                 <el-button v-if="row.userStatus === 'PENDING_PROMOTE'" type="text" @click="goPromotion(row)">审核转正</el-button>
                 <el-button v-else-if="!row.mentorName" type="text" @click="notReady('分配导师')">分配导师</el-button>
-                <el-button v-else type="text" @click="sendTask(row)">发任务</el-button>
               </div>
             </td>
           </tr>
@@ -127,25 +125,6 @@
         <el-button size="mini" :disabled="query.pageNum <= 1" @click="query.pageNum--">上一页</el-button>
         <el-button size="mini" type="primary">{{ query.pageNum }}</el-button>
         <el-button size="mini" :disabled="query.pageNum >= pageCount" @click="query.pageNum++">下一页</el-button>
-      </div>
-    </div>
-
-    <!-- 数据说明 -->
-    <div class="dgrid" style="margin-top:16px">
-      <div class="dcallout ok c6" style="margin:0">
-        <i class="el-icon-success" />
-        <span>
-          表格里「姓名 / 岗位 / 培养状态 / 导师 / 最近活跃」<b>已接真实接口</b>（<code>register_application</code> + <code>sys_user</code>）。
-          「保密协议 / 学习完成率 / 模拟正确率 / 正式考核」4 列需后端出<b>批量聚合接口</b>，
-          当前<b>留空显示「--」</b>（不再用随机示例值）。
-        </span>
-      </div>
-      <div class="dcallout warn c6" style="margin:0">
-        <i class="el-icon-warning-outline" />
-        <span>
-          4 个统计卡中，前 3 个来自 <code>sys_user.user_status</code> <b>可真实</b>；
-          「已发证」需要 <code>certificate</code> 表有 Java 层，<b>当前未展示该状态</b>（不做假数据）。
-        </span>
       </div>
     </div>
   </div>
@@ -290,11 +269,8 @@ export default {
     goPromotion(row) {
       this.$router.push({ path: '/department/people/promotion', query: { id: String(row.userId || row.id) } })
     },
-    sendTask(row) {
-      this.$router.push({ path: '/department/messages/tasks', query: { to: row.realName || '' } })
-    },
     notReady(action) {
-      this.$message({ message: '「' + action + '」所需的接口尚未落地（见设计方案 §实施状态）', type: 'warning' })
+      this.$message({ message: '「' + action + '」功能暂未开放', type: 'warning' })
     }
   }
 }

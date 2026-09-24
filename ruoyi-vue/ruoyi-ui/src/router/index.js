@@ -213,8 +213,7 @@ export const dynamicRoutes = [
         meta: { title: '实操题详情', activeMenu: '/assessment/intern/learning' }
       },
       {
-        // 能力画像详情（工作台「能力画像 · 详情」下钻，设计稿 i9）。
-        // dynamicRoutes 先于后端菜单路由 addRoutes，会遮蔽 sys_menu 里同路径的骨架页菜单。
+        // 能力画像详情
         path: 'portrait',
         component: () => import('@/views/assessment/portrait/index'),
         name: 'InternPortrait',
@@ -286,7 +285,7 @@ export const dynamicRoutes = [
   },
 
   // ==========================================================================
-  // 部门管理员端（设计稿 §一：四目录 —— 工作台 / 人员管理 / 学习与考核管理 / 任务与通知）
+  // 部门管理员端（四目录 —— 工作台 / 人员管理 / 学习与考核管理 / 通知）
   //
   // 与实习生端同一套思路：本段只声明「真实路由」，**侧栏分组**由
   // store/modules/permission.js 的 buildDeptAdminSidebar() 按四目录重排。
@@ -392,20 +391,7 @@ export const dynamicRoutes = [
         meta: { title: '成绩管理', icon: 'chart', activeMenu: '/department/study/scores' }
       },
 
-      // ---------- ④ 任务与通知 ----------
-      {
-        path: 'messages/tasks',
-        component: () => import('@/views/department/messages/tasks'),
-        name: 'DeptTasks',
-        meta: { title: '任务管理', icon: 'job', activeMenu: '/department/messages/tasks' }
-      },
-      {
-        // 任务批阅工作台：完成情况统计 + 内联批阅 + 资料 + 讨论（原来散在「任务管理」的弹窗里）
-        path: 'messages/review',
-        component: () => import('@/views/department/messages/review'),
-        name: 'DeptTaskReview',
-        meta: { title: '任务批阅', icon: 'edit', activeMenu: '/department/messages/review' }
-      },
+      // ---------- ④ 通知 ----------
       {
         path: 'messages/notices',
         component: () => import('@/views/department/messages/notices'),
@@ -416,12 +402,9 @@ export const dynamicRoutes = [
   },
 
   // ==========================================================================
-  // 超管端（设计稿 V2 五目录：全局工作台 / 组织与人员 / 培养运营 / 规则与配置 / 审计与合规）
-  //
-  // 与实习生端、部门端同一套思路：本段只声明「真实路由」，**侧栏分组**由
-  // store/modules/permission.js 的 buildSuperSidebar() 按设计稿五目录重排；
-  // 「系统管理 / 系统监控 / 系统工具」三项继续复用平台原生菜单（由 DB 菜单提供）。
-  // roles 同时匹配内置 admin（role_key='admin'）与业务超管角色 SUPER_ADMIN。
+  // 超管端：本段只声明「真实路由」，侧栏分组由 store/modules/permission.js 的
+  // buildSuperSidebar() 负责；「系统管理 / 系统监控 / 系统工具」三项继续复用
+  // 平台原生菜单（由 DB 菜单提供）。roles 同时匹配内置 admin 与 SUPER_ADMIN。
   // ==========================================================================
   {
     path: '/super',
@@ -457,17 +440,6 @@ export const dynamicRoutes = [
         component: () => import('@/views/super/org/accounts/index'),
         name: 'SuperAccounts',
         meta: { title: '人员与账号', icon: 'user', activeMenu: '/super/org/accounts' }
-      },
-      {
-        // 2026-09-20：本页内容（各部门管理员的待办量 + 催办）与「督办看板」**同源**
-        //（页面自己也写着"两个页面的数字必然一致"），已并入 /super/todo 的「按人」视角。
-        // 这里保留路由并重定向 —— 与之前 org/positions 的处理一致，旧书签不会 404。
-        //
-        // ⚠️ 必须用**函数式** redirect：字符串形式会把 `?view=people` 整串当成 path
-        //（vue-router 3 不会把 path 里的 query 拆出来），匹配不到就掉进 /404。
-        path: 'org/dept-admins',
-        name: 'SuperDeptAdmins',
-        redirect: () => ({ path: '/super/todo', query: { view: 'people' } })
       },
       {
         // 超管维护业务岗位（position 表）：复用部门端的岗位管理页。
@@ -545,7 +517,7 @@ export const dynamicRoutes = [
       {
         // ★ 2026-09-22：独立「实操题库」页已下线 —— 能力被「题库管理 → 点实操题库 → 实操题库详情页」
         //   完整覆盖（新增/编辑/停用/删除实操题），且按题库归属组织更合理，故侧栏不再单列。
-        //   路由**保留并重定向**，避免旧书签 / 旧链接掉 404（项目铁律：弃用页别删路由，改 redirect 保底）。
+        //   路由保留并重定向，避免旧书签 / 旧链接掉 404。
         path: 'ops/psubject-admin',
         redirect: () => ({ path: '/super/ops/bank-admin' })
       },
@@ -576,23 +548,16 @@ export const dynamicRoutes = [
       },
       {
         // 已下线（2026-09-22）：成绩与统计分析并入「考核与成绩」（ops/exams），侧栏不再单列。
-        // 保留路由做 redirect 兜底，避免旧书签 / 收藏 404（与 org/dept-admins 同一做法）。
+        // 保留路由做 redirect 兜底，避免旧书签 / 收藏 404。
         path: 'ops/scores',
         redirect: () => ({ path: '/super/ops/exams' })
       },
-      // ④ 任务与通知（单项目录；三端命名统一 —— 决策 6）
+      // ④ 通知
       {
         path: 'notify',
         component: () => import('@/views/super/notify/index'),
         name: 'SuperNotify',
         meta: { title: '通知中心', icon: 'message', activeMenu: '/super/notify' }
-      },
-      {
-        // 督办看板：四源待办按责任人归集 + 批量催办（超管督办视图）
-        path: 'todo',
-        component: () => import('@/views/super/todo/index'),
-        name: 'SuperTodo',
-        meta: { title: '督办看板', icon: 'checkbox', activeMenu: '/super/todo' }
       },
       // ⑤ 规则与配置（单项目录）
       {

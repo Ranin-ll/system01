@@ -11,19 +11,9 @@
         <p>把「预备实习生」变成「正式实习生」的审批台。左列表 + 右决策页，核心是资格核对清单 —— 每项都有明确的数据依据。</p>
       </div>
       <div class="dept-heading-actions">
-        <span class="dsample">名单真实 · 资格项待接入</span>
       </div>
     </div>
 
-    <div class="dcallout ok">
-      <i class="el-icon-success" />
-      <span>
-        <b>已按既定决策改写：部门管理员直接终审。</b>本页<b>不再有「推荐给超管」这一步</b>，
-        按钮语义从「推荐」改为「审批通过」，审批即时生效并自动发证。
-      </span>
-    </div>
-
-    <!-- 转正要求设置（部门管理员） -->
     <div class="dsec" style="padding:16px 22px">
       <div class="s-setrow">
         <div class="s-setrow-hd">
@@ -37,7 +27,6 @@
           <span style="margin-left:24px">正式考核通过</span>
           <el-input-number v-model="promotionRule.examPassTimes" :min="1" :max="10" size="mini" controls-position="right" style="width:110px" @change="onRuleChange" />
           <span class="unit">次</span>
-          <el-tag size="mini" type="warning" effect="plain" style="margin-left:12px">演示态</el-tag>
         </div>
       </div>
       <p class="dsec-note">学习完成率门槛最低可设为 0（不设学习门槛）；正式考核通过次数默认为 1 次。<b>后端 promotion_rule 接入后由服务端持久化，当前存本地演示。</b></p>
@@ -218,24 +207,6 @@
           </tbody>
         </table>
       </div>
-
-      <div class="dcard c4">
-        <div class="dcard-h">
-          <div class="tt"><span class="idx p">规</span><h3>规则与超管端影响</h3></div>
-        </div>
-        <div class="dcallout warn" style="margin-bottom:10px">
-          <i class="el-icon-warning-outline" />
-          <span><b>业务规则变更</b>：原需求「预备→正式需通过正式考试<b>并经超管审批</b>」在本决策下<b>作废</b>，改为「部门审批即生效」。请同步改需求文档，否则验收会与文档冲突。</span>
-        </div>
-        <div class="dcallout warn">
-          <i class="el-icon-warning-outline" />
-          <span><b>超管端设计稿失效</b>：原画了「超管终审」环节，需删除，只留「查看 + 撤回转正」。</span>
-        </div>
-        <p class="dsec-note">
-          <b>好消息</b>：<code>promotion_application</code> / <code>certificate</code> / <code>stage_evaluation</code>
-          <b>全部零 Java 层</b>，整套都是新增 —— <b>不受「已实现接口一律不改」约束</b>，也没有改老代码的回归风险。
-        </p>
-      </div>
     </div>
   </div>
 </template>
@@ -245,7 +216,7 @@ import { mapGetters } from 'vuex'
 
 const PASS_LINE = 70
 
-/** 部门管理员直接终审 → 演示态数据（promotion_application 尚无 Java 层） */
+/** 部门管理员直接终审 */
 function buildCandidates(cfg) {
   const studyRateMin = Number(cfg && cfg.studyRateMin != null ? cfg.studyRateMin : 0)
   const examPassTimes = Number(cfg && cfg.examPassTimes != null ? cfg.examPassTimes : 1)

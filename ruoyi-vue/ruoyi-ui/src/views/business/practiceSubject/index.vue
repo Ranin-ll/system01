@@ -520,7 +520,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-/* ===== 与统一设计稿一致的设计令牌 ===== */
+/* 设计令牌 */
 $blue: #1764f5;
 $blue-soft: #edf4ff;
 $ink: #1d2939;

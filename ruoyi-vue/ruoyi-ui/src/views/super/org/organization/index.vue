@@ -22,7 +22,6 @@
       <section class="s-card s-c8">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx">组</span><h3>部门 · 绑定岗位 · 在培人数</h3></div>
-          <span class="hint">真实数据：sys_dept + position + dept_position + sys_user + register_application</span>
         </div>
         <div v-loading="loading">
           <table v-if="rows.length" class="s-tbl">
@@ -260,18 +259,6 @@ const SOURCE_LABEL = {
 
 /**
  * 超管「组织岗位」页（只读核对）
- *
- * 真实数据：/system/dept/list、/business/position/list、
- *          /business/position/dept-bindings（部门↔岗位绑定 + 在培/待审核人数）、
- *          /business/register/list（退路）
- *
- * 推导规则（2026-09-17 三轮修正，每轮都踩了一个坑）：
- *   ① 绑定岗位：以权威表 `dept_position` 为准（接口 dept-bindings），拿不到时退回报名记录。
- *      —— 旧实现只看报名记录，遇到「账号直接创建、未走注册审核」的部门会显示未绑定（建模 107）。
- *   ② 在培人数 / 待审核：**由后端 SQL 直接算**。
- *      —— 曾试图用 `/system/user/list` 在前端数，但该接口虽然返回 `userStatus` 字段、值却是 null
- *         （RuoYi 的 selectUserList 没 select 这个业务扩展列，也不返回 positionId），结果五行全是 0。
- *   ③ 取不到时显示 `—`，**不伪装成 0**（沿用项目既有口径）。
  */
 export default {
   name: 'SuperOrganization',

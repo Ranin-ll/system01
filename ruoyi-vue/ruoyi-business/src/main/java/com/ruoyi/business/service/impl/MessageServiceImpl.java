@@ -110,9 +110,9 @@ public class MessageServiceImpl implements IMessageService {
 
     // ------------------------------------------------------------------ P1 发送方
 
-    /** 允许的消息类型（公告 / 人工通知 / 由业务事件产生的五类） */
+    /** 允许的消息类型（公告 / 人工通知 / 由业务事件产生的四类） */
     private static final java.util.List<String> ALLOWED_TYPES = java.util.Arrays.asList(
-            Notice.TYPE_ANNOUNCE, "NOTIFY", "TASK", "EXAM", "AUDIT", "URGE", "SYSTEM");
+            Notice.TYPE_ANNOUNCE, "NOTIFY", "EXAM", "AUDIT", "URGE", "SYSTEM");
 
     @Override
     @Transactional(rollbackFor = Exception.class)

@@ -41,7 +41,7 @@
     </div>
 
     <template v-else-if="examId">
-      <!-- ① 总览：全部来自当前场次的应考名单（真实数据），点卡即筛选 -->
+      <!-- ① 总览：当前场次的应考名单，点卡即筛选 -->
       <div class="prep-kpi-row kpi6">
         <div
           v-for="k in kpiCards"

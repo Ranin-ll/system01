@@ -9,7 +9,7 @@
         </span>
         <h1>{{ dept.deptName || '部门详情' }}</h1>
         <p>
-          本部门培养情况内部统计：岗位分布 · 课程完成率 · 学习与任务卡点 · 实习生明细（可下钻到个人）。
+          本部门培养情况内部统计：岗位分布 · 课程完成率 · 学习卡点 · 实习生明细（可下钻到个人）。
           <strong>本部门数取自 L0 同一份聚合</strong>，与看板不会漂移。
         </p>
       </div>
@@ -32,8 +32,8 @@
     </div>
 
     <template v-else>
-      <!-- KPI 4（全部可点：落对应模块页 / 人员列表） -->
-      <div v-loading="loading" class="s-kpis kpi4">
+      <!-- KPI 3（全部可点：落对应模块页 / 人员列表） -->
+      <div v-loading="loading" class="s-kpis kpi3">
         <div class="s-kpi link" title="查看：人员与账号 · 人员列表" @click="goPeople">
           <i class="jump el-icon-top-right" />
           <div class="lb"><i class="dot" style="background:#1764f5" />在培实习生</div>
@@ -47,14 +47,6 @@
           <div class="ft">
             <template v-if="dept.learnTotal">达标 {{ num(dept.learnDone) }}/{{ num(dept.learnTotal) }} 条（门槛 {{ num(dept.learnThreshold) }}）· N={{ num(dept.learnPersons) }} 人</template>
             <template v-else>本部门暂无学习记录</template>
-          </div>
-        </div>
-        <div class="s-kpi link" title="查看：督办看板" @click="go('/super/todo')">
-          <i class="jump el-icon-top-right" />
-          <div class="lb"><i class="dot" style="background:#f79009" />任务完成率</div>
-          <div class="vl">{{ dept.taskDoneRate === null || dept.taskDoneRate === undefined ? '--' : dept.taskDoneRate }}<small v-if="dept.taskDoneRate !== null && dept.taskDoneRate !== undefined">%</small></div>
-          <div class="ft" :class="{ warn: num(dept.taskOverdue) > 0 }">
-            {{ num(dept.taskDone) }}/{{ num(dept.taskTotal) }} 已交 · 逾期 {{ num(dept.taskOverdue) }}
           </div>
         </div>
         <div class="s-kpi link" title="查看：人员与账号 · 人员列表" @click="goPeople">
@@ -86,21 +78,6 @@
                 <span class="vs-lb">全局</span>
                 <span class="track"><i class="gray" :style="{ width: clamp(dept.globalLearnAvgProgress) + '%' }" /></span>
                 <b>{{ dept.globalLearnAvgProgress === null ? '--' : dept.globalLearnAvgProgress + '%' }}</b>
-              </div>
-            </div>
-          </div>
-          <div class="vs-row">
-            <span class="vs-nm">任务完成率</span>
-            <div class="vs-bar">
-              <div class="vs-line">
-                <span class="vs-lb">本部门</span>
-                <span class="track"><i :style="{ width: clamp(dept.taskDoneRate) + '%' }" /></span>
-                <b>{{ dept.taskDoneRate === null ? '--' : dept.taskDoneRate + '%' }}</b>
-              </div>
-              <div class="vs-line">
-                <span class="vs-lb">全局</span>
-                <span class="track"><i class="gray" :style="{ width: clamp(dept.globalTaskDoneRate) + '%' }" /></span>
-                <b>{{ dept.globalTaskDoneRate === null ? '--' : dept.globalTaskDoneRate + '%' }}</b>
               </div>
             </div>
           </div>
@@ -197,7 +174,7 @@
               <p style="margin:4px 0 0">
                 结论算得再准，超管看完也只能自己知道。此处应支持<b>「通知该部门管理员」</b> ——
                 复用已通的定向通知能力（<code>scope_type='USER'</code> 定向到该部门管理员），
-                正文自动拼上薄弱知识点与得分率。<b>零新表、零新接口</b>，待 S5/S6 一起接。
+                正文自动拼上薄弱知识点与得分率。
               </p>
             </div>
           </div>
@@ -220,7 +197,6 @@
                 <th class="ctr" style="width:84px">培养状态</th>
                 <th class="ctr" style="width:88px">导师</th>
                 <th style="min-width:146px">学习进度</th>
-                <th class="ctr" style="width:86px">任务</th>
                 <th class="ctr" style="width:64px">在培</th>
                 <th class="ctr" style="width:78px">操作</th>
               </tr>
@@ -245,10 +221,6 @@
                   </div>
                   <span v-else class="none">无学习记录 <data-tag :none="true" /></span>
                   <span v-if="num(r.learnTotal)" class="n1">达标 {{ num(r.learnDone) }}/{{ num(r.learnTotal) }} 项</span>
-                </td>
-                <td class="ctr">
-                  {{ num(r.taskDone) }}/{{ num(r.taskTotal) }}
-                  <div v-if="num(r.taskOverdue)" class="n1 bad">逾期 {{ num(r.taskOverdue) }}</div>
                 </td>
                 <td class="ctr">{{ num(r.stayDays) }}<div class="n1">天</div></td>
                 <td class="ctr"><span class="op">档案 →</span></td>
@@ -335,7 +307,7 @@ export default {
       return { WAIT_AUDIT: '', PRE_TRAINEE: 'blue', PENDING_PROMOTE: 'warn', FORMAL_TRAINEE: 'ok' }[stage] || ''
     },
     /** 下钻到个人档案 */
-    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    /** 统一跳转：目标路由不存在则不动 */
     go(path, query) {
       if (!path) return
       if (!this.$router.resolve(path).route.matched.length) return
@@ -372,7 +344,7 @@ export default {
 
 .crumb-link { color: $blue; }
 
-.kpi4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.kpi3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 /* 本部门 vs 全局 */
 .vs-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
@@ -426,11 +398,10 @@ export default {
 .s-hbar.low .track i { background: $orange; }
 
 @media (max-width: 1280px) {
-  .kpi4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ==================== 2026-09-22：全卡片可点（与 L0 统一 affordance） ====================
-   ★ 只加视觉与鼠标态；跳转走 go() / goPeople() / goIntern()，目标路由不存在时不动（不给死链）。 */
+/* 全卡片可点的视觉与鼠标态 */
 .link { position: relative; cursor: pointer; transition: background .15s, box-shadow .15s, border-color .15s; }
 .link:hover { background: #f7fbff; }
 .s-kpi.link:hover { border-color: #cfe0fb; box-shadow: 0 2px 10px rgba(23, 100, 245, .12); }

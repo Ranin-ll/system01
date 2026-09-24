@@ -247,13 +247,6 @@
             {{ regStat.oldest ? (regStat.oldest.realName + ' · ' + regStat.oldest.createTime) : '暂无待审申请' }}
           </div>
         </div>
-        <div class="s-kpi kpi-click" @click="urgeAllPending">
-          <div class="lb"><i class="dot" style="background:#0e7490" />待催办管理员</div>
-          <div class="vl">{{ regStat.adminsWithPending.length }}<small>位</small></div>
-          <div class="ft" :class="{ warn: regStat.adminsWithPending.length > 0 }">
-            {{ regStat.adminsWithPending.length > 0 ? '点击一键催办（通知 TA 的完整待办）' : '当前无需催办' }}
-          </div>
-        </div>
       </div>
 
       <!-- 注册申请分布 -->
@@ -274,8 +267,7 @@
         <section class="s-card s-c6">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx">部</span><h3>待审按部门分布</h3></div>
-            <span v-if="regDeptRows.length" class="s-badge warn">待催办 {{ regStat.adminsWithPending.length }} 位管理员</span>
-            <span v-else class="hint">没有待审申请</span>
+            <span v-if="!regDeptRows.length" class="hint">没有待审申请</span>
           </div>
           <div class="s-hbars">
             <div v-for="r in regDeptRows" :key="r.label" class="s-hbar">
@@ -293,10 +285,6 @@
           <div class="tt"><span class="s-idx">审</span><h3>实习生注册申请</h3></div>
           <div class="head-right">
             <span class="hint">超管不受部门限制，可见全部申请</span>
-            <el-button v-if="num(regStat.pending) > 0" type="warning" size="mini" plain
-                       icon="el-icon-bell" @click="urgeAllPending">
-              一键催办（{{ regStat.adminsWithPending.length }}）
-            </el-button>
           </div>
         </div>
         <div class="s-filters">
@@ -345,7 +333,6 @@
               <td>
                 <el-button v-if="r.status === 'WAIT_AUDIT'" type="text" size="mini" @click="openAudit(r, 'PASS')">通过</el-button>
                 <el-button v-if="r.status === 'WAIT_AUDIT'" type="text" size="mini" class="danger-text" @click="openAudit(r, 'REJECT')">驳回</el-button>
-                <el-button v-if="r.status === 'WAIT_AUDIT'" type="text" size="mini" icon="el-icon-bell" @click="urgeOne(r)">催办</el-button>
                 <span v-if="r.status !== 'WAIT_AUDIT'" class="muted">已处理</span>
               </td>
             </tr>
@@ -368,8 +355,6 @@
           与部门管理员同一套审核逻辑：<b>通过</b>需补导师姓名与联系方式（导师只是档案信息，不会创建账号、也不会绑定审核人）；
           <b>驳回</b>需填原因，账号保持停用，申请人可改资料后重新提交。
           通过后该实习生进入「预备实习」并启用账号，可在「人员与账号」页签继续维护其岗位与培养状态。
-          <br /><b>催办</b>是超管专属：复用既有的定向通知通道（<code>msgType=URGE</code>），
-          通知会自动附上该部门管理员的<b>完整待办清单</b>（不止注册审核），且<b>同一人每天最多被催一次</b>；已停用的管理员不可催办。
         </p>
       </section>
     </div>
@@ -579,8 +564,6 @@ import { listDept } from '@/api/system/dept'
 import { listPosition, getDeptBindings } from '@/api/business/position'
 import { listPersonnel, getPersonnel, savePersonnelBusiness, deletePersonnel, getPersonnelSummary } from '@/api/business/personnel'
 import { listRegister, auditRegister, getRegisterSummary } from '@/api/business/register'
-// 催办：复用既有的「超管督办」通道（定向通知 msgType=URGE，同一人每天最多被催一次）
-import { listDeptAdmins, urgeTodo } from '@/api/business/superTodo'
 
 /** 培养状态文案：与系统其余页面（如部门端档案页）保持同一口径 */
 const STATUS_TEXT = {
@@ -668,10 +651,8 @@ export default {
       regStat: {
         pending: 0, passed: 0, rejected: 0, total: 0,
         byDept: [],              // 待审按部门分布 [{label, cnt}]
-        oldest: null,            // 最久待审 {realName, days, createTime}
-        adminsWithPending: []     // 有注册待审的部门管理员（催办对象）
+        oldest: null             // 最久待审 {realName, days, createTime}
       },
-      deptAdminList: [],          // 全部部门管理员（按部门定位催办对象）
       regText: { WAIT_AUDIT: '待审核', PASSED: '已通过', REJECTED: '已驳回' },
       audit: {
         visible: false,
@@ -929,23 +910,20 @@ export default {
       this.loadRegister()
       this.loadRegOverview()
     },
-    // ---------------- 注册申请：统计板块 + 催办 ----------------
+    // ---------------- 注册申请：统计板块 ----------------
     /**
      * 一次拉齐统计板块所需数据：
      *   ① 计数（/business/register/summary：待审/通过/驳回/总数）
      *   ② 待审明细（用于算「待审部门分布」与「最久待审」）
-     *   ③ 部门管理员清单（`pendingRegisters>0` 的就是催办对象，`deptId` 用于逐条催办定位）
      */
     loadRegOverview() {
       this.regStatLoading = true
       Promise.all([
         getRegisterSummary(),
-        listRegister({ pageNum: 1, pageSize: 200, status: 'WAIT_AUDIT' }),
-        listDeptAdmins()
-      ]).then(([sumRes, pendRes, admRes]) => {
+        listRegister({ pageNum: 1, pageSize: 200, status: 'WAIT_AUDIT' })
+      ]).then(([sumRes, pendRes]) => {
         const s = sumRes.data || {}
         const pendingRows = pendRes.rows || []
-        const admins = admRes.data || []
         const byDeptMap = {}
         let oldest = null
         pendingRows.forEach(row => {
@@ -960,7 +938,6 @@ export default {
             oldest = { realName: row.realName, days: days, createTime: String(row.createTime).slice(0, 16) }
           }
         })
-        this.deptAdminList = admins
         this.regStat = {
           pending: this.num(s.pending_count),
           passed: this.num(s.passed_count),
@@ -968,58 +945,10 @@ export default {
           total: this.num(s.total_count),
           byDept: Object.keys(byDeptMap).map(label => ({ label: label, cnt: byDeptMap[label] }))
             .sort((a, b) => b.cnt - a.cnt),
-          oldest: oldest,
-          adminsWithPending: admins.filter(a => this.num(a.pendingRegisters) > 0)
+          oldest: oldest
         }
         this.pendingCount = this.num(s.pending_count)
       }).catch(() => {}).finally(() => { this.regStatLoading = false })
-    },
-    /** 催办结果统一处理（后端会返回 sent/skipped 与逐条说明） */
-    handleUrgeResult(res) {
-      const d = res.data || {}
-      const details = d.details || []
-      if (d.sent) {
-        this.$message.success('已催办 ' + d.sent + ' 人' + (d.skipped ? ('，跳过 ' + d.skipped + ' 人') : ''))
-      } else {
-        this.$message.warning(details.length ? details.join('；') : '没有可催办的对象（同一人每天最多被催一次）')
-      }
-      this.loadRegOverview()
-    },
-    /** 一键催办：通知所有「有注册待审」的部门管理员 */
-    urgeAllPending() {
-      const admins = this.regStat.adminsWithPending || []
-      if (!admins.length) {
-        this.$message.info('当前没有待审的注册申请，无需催办')
-        return
-      }
-      const names = admins.map(a => a.nickName || a.userName).join('、')
-      this.$prompt(
-        `将通知 ${admins.length} 位部门管理员：${names}。\n` +
-        `注意：催办通知会自动附上该管理员的完整待办清单（不止注册审核），且同一人每天最多被催一次。\n` +
-        '附加说明（可空）：',
-        '催办 · 注册待审',
-        { confirmButtonText: '发送催办', cancelButtonText: '取消', inputPlaceholder: '例如：请今天内处理完待审报名' }
-      ).then(({ value }) => {
-        return urgeTodo({ ownerIds: admins.map(a => a.userId), content: value || '' })
-      }).then(res => this.handleUrgeResult(res)).catch(() => {})
-    },
-    /** 逐条催办：通知该申请所属部门的部门管理员 */
-    urgeOne(row) {
-      const admin = (this.deptAdminList || []).find(a => Number(a.deptId) === Number(row.deptId))
-      if (!admin) {
-        this.$message.warning('未找到该部门的部门管理员，无法催办')
-        return
-      }
-      const name = admin.nickName || admin.userName
-      this.$prompt(
-        `将通知「${name}」处理该报名：${row.realName}（${row.applicationNo}）。\n` +
-        `注意：催办通知会自动附上 TA 的完整待办清单，且同一人每天最多被催一次。\n` +
-        '附加说明（可空）：',
-        '催办 · ' + (row.realName || '注册申请'),
-        { confirmButtonText: '发送催办', cancelButtonText: '取消' }
-      ).then(({ value }) => {
-        return urgeTodo({ ownerIds: [admin.userId], content: value || '' })
-      }).then(res => this.handleUrgeResult(res)).catch(() => {})
     },
     // ---------------- 新增 / 修改 ----------------
     /** 签署时间：后端下发 ISO 串，展示到秒 */
@@ -1290,7 +1219,7 @@ export default {
 @import '~@/assets/styles/super-module.scss';
 
 /* 页签：共享基线里没有 tabs，这里自包含（与「组织与岗位管理」页保持同一视觉）。
-   注意：@import 进 scoped 时不能用 :root，令牌一律走 SCSS 变量（本项目铁律）。 */
+   注意：@import 进 scoped 时不能用 :root，令牌一律走 SCSS 变量。 */
 .s-tabs {
   display: flex; gap: 6px; margin-bottom: 14px;
   span {
@@ -1309,7 +1238,7 @@ export default {
 }
 
 .s-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
-/* 卡片头右侧：提示文案 + 操作按钮（如注册申请的「一键催办」） */
+/* 卡片头右侧：提示文案 + 操作按钮 */
 .head-right { display: flex; align-items: center; gap: 10px; }
 .s-pager { margin-top: 14px; text-align: right; }
 .s-form-sec {

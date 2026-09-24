@@ -1,20 +1,16 @@
 <template>
   <div class="dept-page">
     <div class="dept-breadcrumb">
-      任务与通知 <span>/</span> <b>通知管理</b>
+      通知 <span>/</span> <b>通知管理</b>
     </div>
 
     <div class="dept-heading">
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>通知管理</h1>
-        <p>
-          单向告知，无完成状态；对应实习生端顶栏铃铛与工作台公告位。
-          <b>范围锁本部门</b>（后端强校验）；「公告」仅超管可发。
-        </p>
+        <p>向本部门实习生发送通知，随时查看送达与已读情况。</p>
       </div>
       <div class="dept-heading-actions">
-        <span class="dbadge green">真实数据</span>
         <el-button size="small" icon="el-icon-refresh" :loading="loading" @click="loadSent">刷新</el-button>
       </div>
     </div>
@@ -159,23 +155,7 @@
             </tr>
           </tbody>
         </table>
-        <p class="dsec-note">
-          送达数 = 命中该条范围的有效账号数；已读数来自 <code>notice_read</code>。
-          实习生读完后两端<b>同时</b>变化 —— 不会出现「这边显示已读、那边还红着」。
-          点「未读名单」可看具体是谁没读（未读排前）。
-          <b>按实习生筛选</b>后，列表只留他能收到的通知，并直接给出他本人的已读状态 ——
-          回答「我到底有没有通知到张三」只需一步。
-        </p>
       </div>
-    </div>
-
-    <div class="dcallout" style="margin-top:16px">
-      <i class="el-icon-success" />
-      <span>
-        <b>已接后端</b>：发送走 <code>POST /business/message</code>，列表走 <code>GET /business/message/sent</code>，
-        收件人走 <code>GET /business/message/{id}/recipients</code>，撤回走 <code>POST /business/message/{id}/revoke</code>。
-        范围与「公告」的强校验在<b>后端</b>：部门管理员只能发本部门 / 本部门岗位 / 本部门人员。
-      </span>
     </div>
 
     <!-- 未读名单 -->
@@ -201,16 +181,13 @@
 
 <script>
 /**
- * 部门管理员端 · 通知管理（2026-09-17 接后端）
+ * 部门管理员端 · 通知管理
  *
- * 与超管「任务与通知」共用同一套接口与送达谓词，差异只在能力：
- * 部门管理员**不能发公告、不能发全体**，范围锁在本部门（后端强校验，前端 disabled 只是体验）。
- *
- * 本页原为演示态；本轮只换数据层，保留既有 d* 结构与样式。
+ * 部门管理员**不能发公告、不能发全体**，范围锁在本部门。
  */
 import { sendMessage, listSentMessages, listRecipients, revokeMessage } from '@/api/business/message'
 import { listCoursePositions } from '@/api/business/course'
-import { listTrainees } from '@/api/business/task'
+import { listTrainees } from '@/api/business/dept'
 import TraineeSelect from '@/components/TraineeSelect'
 import { mapGetters } from 'vuex'
 
@@ -247,9 +224,7 @@ export default {
   computed: {
     ...mapGetters(['deptId', 'deptName']),
     /**
-     * 可选岗位：直接用 /business/course/positions —— 该接口**已按当前部门过滤**
-     * （开发部门管理员只返回「开发实习生」，超管返回全部 5 个）。
-     * 不用 dept-bindings 是因为它对 DEPT_ADMIN 是 403（缺 business:position:list 权限）。
+     * 可选岗位：按当前部门过滤
      */
     myPositions() {
       return this.positions
@@ -272,8 +247,6 @@ export default {
   methods: {
     loadBase() {
       listCoursePositions().then(res => { this.positions = res.data || [] }).catch(() => { this.positions = [] })
-      // ★ 用业务侧接口，不用 /system/user/list（后者对部门管理员是 403，会静默拿到空列表，
-      //   之前的「指定人员」选择器就是空的）
       listTrainees().then(res => { this.users = res.data || [] }).catch(() => { this.users = [] })
     },
     loadSent() {
@@ -373,6 +346,9 @@ export default {
 
 <style lang="scss" scoped>
 @import '~@/assets/styles/department-module.scss';
+
+/* 双列表单：抵消 .dfield 首列/次列 margin 错位，保证同行两字段对齐 */
+.dfg2 > .dfield { margin-top: 0; }
 
 .dchkrow:hover { color: #1764f5; }
 .dtbl .acts .sep { color: #d0d5dd; }

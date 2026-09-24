@@ -24,7 +24,6 @@
       <section class="s-card s-c7">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx">规</span><h3>考核规则（全局默认值）</h3></div>
-          <span class="s-badge ok">真实数据 · 可写</span>
         </div>
         <el-form label-width="150px" size="small" v-loading="loading">
           <el-form-item label="学习门槛（必修完成率）">
@@ -74,7 +73,6 @@
       <section class="s-card s-c7">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx">转</span><h3>转正要求（按部门设置）</h3></div>
-          <span class="s-badge ok">演示态 · localStorage</span>
         </div>
         <el-form label-width="150px" size="small">
           <el-form-item label="目标部门">
@@ -120,7 +118,6 @@
       <section class="s-card s-c5">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx g">签</span><h3>协议模板与版本</h3></div>
-          <span class="s-badge ok">真实数据</span>
           <el-button size="mini" type="primary" icon="el-icon-plus" style="margin-left:auto" :disabled="!canWrite" @click="openTplDialog">新增版本</el-button>
         </div>
         <table v-if="templates.length" class="s-tbl">
@@ -305,7 +302,7 @@ export default {
       templates: [],
       tplDialog: false,
       newTpl: { agreementName: '保密协议', versionNo: '', effectiveTime: '', fileUrl: '', content: '' },
-      // 转正要求（按部门设置，演示态 localStorage）
+      // 转正要求（按部门设置）
       depts: [],
       promotionDeptId: '',
       promotionRule: { studyRateMin: 0, examPassTimes: 1 },

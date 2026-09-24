@@ -63,14 +63,14 @@
         </div>
       </div>
 
-      <!-- ============ ④ 培养漏斗（真实数据） ============ -->
+      <!-- ============ ④ 培养漏斗 ============ -->
       <div class="dcard c5">
         <div class="dcard-h">
           <div class="tt">
             <span class="idx g">4</span>
             <h3>培养漏斗</h3>
           </div>
-          <span class="hint-text">真实数据 · sys_user.user_status · <b>点阶段 → 实习生管理</b></span>
+          <span class="hint-text"><b>点阶段 → 实习生管理</b></span>
         </div>
         <div
           v-for="row in funnel"
@@ -88,7 +88,7 @@
           </div>
         </div>
         <p class="dsec-note">
-          漏斗口径 = <code>sys_user.user_status</code>：WAIT_AUDIT → PRE_TRAINEE → PENDING_PROMOTE → FORMAL_TRAINEE。
+          培养阶段：待审核 → 预备实习 → 待转正 → 已转正。
         </p>
       </div>
 
@@ -101,7 +101,7 @@
           </div>
           <span class="hint-text">
             {{ internCount }} 名实习生 · 按完成率分档
-            <template v-if="!studyDist.length">· 数据待接入</template>
+            <template v-if="!studyDist.length">· 暂无数据</template>
             <template v-else>· <b>点柱子 → 实习生管理</b></template>
           </span>
         </div>
@@ -121,7 +121,6 @@
           <i class="el-icon-warning-outline" />
           <span>
             <b>{{ lowCount }} 人完成率不足 50%</b>，其中 {{ blockedCount }} 人因此未达正式考核门槛（需 70%）。
-            建议直接在此处「发任务」催办。
           </span>
         </div>
       </div>
@@ -133,10 +132,7 @@
             <span class="idx">6</span>
             <h3>考核概览</h3>
           </div>
-          <span class="hint-text">
-            最近 5 个环节 · 点行进成绩管理
-      <!-- 2026-09-22：本卡数据待接入，已移除「示例」标（没有就不显示假数） -->
-          </span>
+          <span class="hint-text">最近 5 个环节 · 点行进成绩管理</span>
         </div>
         <table class="dtbl">
           <thead>
@@ -191,10 +187,6 @@
         <p class="dsec-note">
           错误率 = 本部门实习生错题数 ÷ 该知识点被考次数。点任一行跳进「题库管理」，便于直接补题 / 改题。
         </p>
-        <p class="dsec-note" style="color:#b54708">
-          需后端把 <code>knowledge_point</code> 快照进明细表并出聚合接口（P0-1）；超管端已有同口径
-          <code>knowledge-matrix</code> 可复用，接上即可显示。
-        </p>
       </div>
 
       <!-- ============ ⑧ 最近动态 ============ -->
@@ -204,7 +196,7 @@
             <span class="idx g">8</span>
             <h3>最近动态</h3>
           </div>
-          <span class="hint-text">真实数据 · 注册申请 / 考核发布 · <b>点任一条 → 对应处理页</b></span>
+          <span class="hint-text">注册申请 / 考核发布 · <b>点任一条 → 对应处理页</b></span>
         </div>
         <div v-if="activities.length" class="dkv">
           <div
@@ -277,7 +269,7 @@ export default {
       const d = new Date()
       return d.getFullYear() + '-Q' + (Math.floor(d.getMonth() / 3) + 1)
     },
-    /** 按 user_status 统计（漏斗真实口径） */
+    /** 按 user_status 统计 */
     statusCount() {
       const c = { WAIT_AUDIT: 0, PRE_TRAINEE: 0, PENDING_PROMOTE: 0, FORMAL_TRAINEE: 0 }
       this.roster.forEach(row => {
@@ -301,7 +293,7 @@ export default {
     draftExams() {
       return this.exams.filter(e => e.status === 'DRAFT').length
     },
-    /** 培养漏斗：四段真实数据 */
+    /** 培养漏斗 */
     funnel() {
       const c = this.statusCount
       const rows = [
@@ -313,15 +305,14 @@ export default {
       const max = Math.max.apply(null, rows.map(r => r.value).concat([1]))
       return rows.map(r => Object.assign({}, r, { pct: Math.round(r.value / max * 100) }))
     },
-    /** 今日待办（前 4 项为真实待办；后 2 项无接口 ⇒ 值为 null，界面显示 --） */
+    /** 今日待办 */
     todoItems() {
       return [
         { key: 'audit', label: '待审核注册', value: this.summary.pendingCount, color: '#1764f5', hint: '本部门累计提交 ' + this.summary.totalCount + ' 条', to: '/department/people/register-review' },
         { key: 'grading', label: '待批阅答卷', value: this.pendingGrading, color: '#f79009', hint: this.exams.length ? '来自 ' + this.exams.length + ' 场考核' : '暂无待批阅', to: '/department/study/scores' },
         { key: 'promote', label: '待转正审批', value: this.pendingPromoteCount, color: '#7a5af8', hint: this.pendingPromoteCount ? '已推荐待终审' : '暂无待审批', to: '/department/people/promotion' },
         { key: 'publish', label: '待发布考核', value: this.draftExams, color: '#12b76a', hint: this.draftExams ? '草稿待发布' : '暂无草稿', to: '/department/study/exam' },
-        { key: 'task', label: '进行中任务', value: null, color: '#f79009', hint: '待接入任务统计', to: '/department/messages/tasks' },
-        { key: 'unread', label: '未读消息', value: null, color: '#98a2b3', hint: '待接入消息统计', to: '/department/messages/notices' }
+        { key: 'unread', label: '未读消息', value: null, color: '#98a2b3', hint: '去通知管理查看', to: '/department/messages/notices' }
       ]
     },
     todayTodo() {
@@ -333,12 +324,12 @@ export default {
         { key: 'intern', label: '在册实习生', value: this.internCount, unit: '人', hint: '本部门 ' + this.positionCount + ' 个岗位', color: '#1764f5' },
         { key: 'pre', label: '预备实习中', value: this.preCount, unit: '人', hint: 'PRE_TRAINEE', color: '#1764f5' },
         { key: 'formal', label: '已转正', value: this.formalCount, unit: '人', hint: 'FORMAL_TRAINEE', tone: 'ok', color: '#12b76a' },
-        { key: 'study', label: '学习完成率均值', value: null, unit: '%', hint: '待接入部门学习统计', tone: '', barTone: 'o', color: '#1764f5' },
-        { key: 'practice', label: '模拟正确率均值', value: null, unit: '%', hint: '待接入模拟考核统计', tone: '', barTone: 'g', color: '#1764f5' },
+        { key: 'study', label: '学习完成率均值', value: null, unit: '%', hint: '暂无数据', tone: '', barTone: 'o', color: '#1764f5' },
+        { key: 'practice', label: '模拟正确率均值', value: null, unit: '%', hint: '暂无数据', tone: '', barTone: 'g', color: '#1764f5' },
         { key: 'pass', label: '正式考核通过率', value: null, unit: '%', hint: this.formalCount + ' 人已转正', tone: '', barTone: 'g', color: '#12b76a' }
       ]
     },
-    /** 学习进度分布：待接入「部门学习完成率分档」接口（2026-09-22：先留空，不再用示例值） */
+    /** 学习进度分布 */
     studyDist() {
       return []
     },
@@ -348,7 +339,7 @@ export default {
     blockedCount() {
       return 0
     },
-    /** 最薄弱知识点：待接入「部门 × 章节得分率」接口（超管端已有 knowledge-matrix，部门端待补） */
+    /** 最薄弱知识点 */
     weakPoints() {
       return []
     },
@@ -374,10 +365,9 @@ export default {
           tone: st.tone
         }
       })
-      // 2026-09-22：不再用示例行补足 5 行（没有就空着），只显示真实的考核环节
       return real
     },
-    /** ⑧ 最近动态：由注册申请 + 考核发布时间线合成（真实） */
+    /** ⑧ 最近动态：由注册申请 + 考核发布时间线合成 */
     activities() {
       const list = []
       this.exams.forEach(e => {
@@ -447,7 +437,7 @@ export default {
       if (d.toDateString() === yest.toDateString()) return '昨天 ' + p(d.getHours()) + ':' + p(d.getMinutes())
       return p(d.getMonth() + 1) + '-' + p(d.getDate())
     },
-    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    /** 统一跳转：目标路由不存在则不动 */
     go(path, query) {
       if (!path) return
       if (!this.$router.resolve(path).route.matched.length) return
@@ -480,8 +470,7 @@ code { padding: 1px 5px; color: #344054; font-size: 11.5px; background: #f2f4f7;
   .didentity .fact { padding: 0 14px; }
 }
 
-/* ==================== 2026-09-22：卡片内元素可点（与超管端统一 affordance） ====================
-   ★ 只加视觉与鼠标态；跳转走 go()，目标路由不存在时不动（不给死链）。 */
+/* 卡片内可点元素的视觉与鼠标态 */
 .dhbar.clickable { padding: 6px 8px; margin-right: -8px; margin-left: -8px; border-radius: 8px; cursor: pointer; transition: background .15s; }
 .dhbar.clickable:hover { background: #f7fbff; }
 .dhbar.clickable:hover .dhbar-name { color: #1764f5; }

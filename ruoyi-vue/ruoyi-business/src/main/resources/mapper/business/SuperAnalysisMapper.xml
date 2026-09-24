@@ -69,25 +69,6 @@
         GROUP BY d.dept_id, d.dept_name
     </select>
 
-    <!-- ==================== 维度 E · 任务交付按部门 ==================== -->
-    <select id="selectTaskByDept" resultType="com.ruoyi.business.domain.DeptMatrixRow">
-        SELECT d.dept_id                                              AS deptId,
-               d.dept_name                                            AS deptName,
-               COUNT(DISTINCT ta.id)                                  AS taskTotal,
-               COUNT(DISTINCT CASE WHEN ta.status = 'DONE'
-                                   THEN ta.id END)                    AS taskDone,
-               COUNT(DISTINCT CASE WHEN ta.status = 'OVERDUE'
-                                   THEN ta.id END)                    AS taskOverdue,
-               COUNT(DISTINCT CASE WHEN ta.status = 'NOT_STARTED'
-                                   THEN ta.id END)                    AS taskNotStarted
-        FROM task_assignment ta
-        JOIN sys_user u ON u.user_id = ta.user_id AND u.del_flag = '0' AND u.status = '0'
-        JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
-        WHERE <include refid="internRoleExists"/>
-          <include refid="deptScope"/>
-        GROUP BY d.dept_id, d.dept_name
-    </select>
-
     <!-- ==================== 培养状态进度 · 逐人明细 ==================== -->
     <!--
       stage 的归一规则（★ 以角色为主、user_status 为辅）：
@@ -118,11 +99,7 @@
                (SELECT COUNT(*) FROM study_record s
                  WHERE s.user_id = u.user_id AND s.progress >= #{threshold}) AS learnDone,
                (SELECT ROUND(AVG(s.progress), 1) FROM study_record s
-                 WHERE s.user_id = u.user_id)                             AS learnAvgProgress,
-               (SELECT COUNT(*) FROM task_assignment ta
-                 WHERE ta.user_id = u.user_id)                            AS taskTotal,
-               (SELECT COUNT(*) FROM task_assignment ta
-                 WHERE ta.user_id = u.user_id AND ta.status = 'OVERDUE')  AS taskOverdue
+                 WHERE s.user_id = u.user_id)                             AS learnAvgProgress
         FROM sys_user u
         JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
         LEFT JOIN position p ON p.id = u.position_id
@@ -224,40 +201,6 @@
         LEFT JOIN course c ON c.id = s.course_id
         WHERE s.user_id = #{userId}
         ORDER BY s.course_id, s.chapter_id, i.sort_no, s.id
-    </select>
-
-    <!--
-      逐任务：★ 审核结果取**最新一次提交**。
-      task_submission 一个 assignment 会有多个版本行（实测同一任务有 PASSED/REJECTED/PASSED 三行），
-      直接 JOIN 会让清单行数翻倍、审核结果还会串到别的版本上。
-    -->
-    <select id="selectInternTasks" resultType="java.util.LinkedHashMap">
-        SELECT ta.id                AS assignmentId,
-               ta.task_id           AS taskId,
-               lt.task_name         AS taskName,
-               lt.theory_hours      AS theoryHours,
-               lt.practice_hours    AS practiceHours,
-               lt.deadline          AS deadline,
-               ta.status            AS status,
-               ta.create_time       AS assignTime,
-               ta.finish_time       AS finishTime,
-               sub.review_status    AS reviewStatus,
-               sub.submit_time      AS submitTime,
-               sub.file_name        AS fileName,
-               sub.file_url         AS fileUrl,
-               sub.version          AS submitVersion,
-               sub.review_comment   AS reviewComment,
-               (SELECT COUNT(*) FROM task_submission allsub
-                 WHERE allsub.assignment_id = ta.id) AS submitCount
-        FROM task_assignment ta
-        LEFT JOIN learning_task lt ON lt.id = ta.task_id
-        LEFT JOIN task_submission sub ON sub.id = (
-            SELECT ts.id FROM task_submission ts
-            WHERE ts.assignment_id = ta.id
-            ORDER BY ts.submit_time DESC, ts.id DESC
-            LIMIT 1)
-        WHERE ta.user_id = #{userId}
-        ORDER BY FIELD(ta.status, 'OVERDUE', 'NOT_STARTED', 'DONE'), ta.id
     </select>
 
     <!-- ==================================================================

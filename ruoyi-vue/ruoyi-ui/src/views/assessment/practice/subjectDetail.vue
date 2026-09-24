@@ -97,7 +97,7 @@ export default {
     attachments() {
       return this.subject ? this.parseAttachments(this.subject.attachmentsJson) : []
     },
-    /** 无参考时的大图占位（与设计稿同款线框风格） */
+    /** 无参考时的大图占位 */
     placeholderSvg() {
       return '<svg viewBox="0 0 520 300" preserveAspectRatio="none">' +
         '<rect x="30" y="40" width="460" height="220" rx="12" fill="#f2f7ff"/>' +

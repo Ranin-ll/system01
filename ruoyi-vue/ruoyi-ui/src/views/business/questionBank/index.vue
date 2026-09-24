@@ -312,7 +312,7 @@ export default {
       //   超管点了一律 404（超管访问 /department/** 会掉 404）。改为与理论分支同口径按角色前缀拼。
       if ((row.bankKind || 'THEORY') === 'PRACTICAL') {
         const pPath = (isSuper ? '/super/ops/practice-bank-detail/' : '/department/study/practice-bank-detail/') + row.id
-        // 目标路由不存在则不动 —— 不给死链（项目铁律）
+        // 目标路由不存在则不动
         if (!this.$router.resolve(pPath).route.matched.length) return
         this.$router.push({ path: pPath, query: { bankName: row.bankName, bankType: row.bankType } }).catch(() => {})
         return

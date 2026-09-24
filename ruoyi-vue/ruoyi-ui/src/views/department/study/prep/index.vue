@@ -30,7 +30,7 @@
 
     <!-- ============ 页签 1 · 备考资料 ============ -->
     <template v-if="activeTab === 'material'">
-      <!-- 总览（真实数据：来自已加载的资料列表） -->
+      <!-- 总览 -->
       <div class="prep-kpi-row">
         <div v-for="k in materialKpis()" :key="k.label" class="prep-kpi-card" :class="k.tone">
           <span class="prep-kpi-icon"><i :class="k.icon" /></span>

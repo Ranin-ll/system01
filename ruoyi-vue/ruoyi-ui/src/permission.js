@@ -47,7 +47,7 @@ function isDeptAdminOnly() {
     && roles.indexOf('admin') === -1
 }
 
-/** 超管（SUPER_ADMIN 或内置 admin）——登录后直接进设计稿的全局工作台 */
+/** 超管（SUPER_ADMIN 或内置 admin）——登录后直接进全局工作台 */
 export const SUPER_DASHBOARD_PATH = '/super/dashboard'
 
 function isSuperAdminRole() {

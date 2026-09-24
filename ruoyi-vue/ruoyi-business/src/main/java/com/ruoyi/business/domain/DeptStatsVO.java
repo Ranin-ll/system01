@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * L1 部门详情 —— 超管「培养分析看板」下钻的第一层。
  *
- * <p><b>「本部门 vs 全局」怎么给</b>：{@code globalLearnAvgProgress} / {@code globalTaskDoneRate}
+ * <p><b>「本部门 vs 全局」怎么给</b>：{@code globalLearnAvgProgress}
  * 由 Service 从 L0 的同一份矩阵里取（超管档 = 全公司；非超管档 = 其可见范围），
  * **不是另算一遍** —— 否则本页的「全局均值」会与 L0 看板漂移。</p>
  *
@@ -44,15 +44,10 @@ public class DeptStatsVO implements Serializable {
     /** 有学习记录的人数（用于标注 N） */
     private Integer learnPersons;
     private BigDecimal learnAvgProgress;
-    private Integer taskTotal;
-    private Integer taskDone;
-    private Integer taskOverdue;
-    private Integer taskDoneRate;
 
     // ==================== 全局对照（取自 L0 同一份矩阵） ====================
 
     private BigDecimal globalLearnAvgProgress;
-    private Integer globalTaskDoneRate;
     private Integer globalInternCount;
     /** 全公司学习达标门槛（assessment_config） */
     private BigDecimal learnThreshold;
@@ -68,7 +63,7 @@ public class DeptStatsVO implements Serializable {
     /** 本部门在培实习生（含阶段、卡点、gate 输入项）—— 下钻到个人的入口 */
     private List<InternStageRow> interns;
 
-    /** 本部门卡点计数：角色状态不一致 / 未分导师 / 未签协议 / 无学习记录 / 有逾期任务 */
+    /** 本部门卡点计数：角色状态不一致 / 未分导师 / 未签协议 / 无学习记录 */
     private Map<String, Object> blockers;
 
     /** 本部门 × 知识点明细（题次 / 正确数）—— 2026-09-22 起为真数据（原先前端用 _mock.js 填充） */
