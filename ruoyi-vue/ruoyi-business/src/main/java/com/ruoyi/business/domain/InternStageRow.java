@@ -3,6 +3,7 @@ package com.ruoyi.business.domain;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.Date;
 
 /**
  * 培养状态进度 —— 逐人一行（超管「培养分析看板」的漏斗 / 卡点 / 个人时间轴三处共用同一份数据）。
@@ -45,11 +46,24 @@ public class InternStageRow implements Serializable {
 
     /** 导师（sys_user.mentor_name，**文本字段非关联 ID**，可能为空或脏值） */
     private String mentorName;
+    /** 导师联系方式（与 mentorName 配对展示；2026-09-23 加） */
+    private String mentorPhone;
     /** 1 = 协议已签 */
     private Integer protocolSigned;
 
     /** 自建档起的天数（近似「在培天数」；库里没有阶段流转日志，故只能给近似值） */
     private Integer stayDays;
+
+    // ==================== 花名册（部门端「实习生管理」页）展示所需 ====================
+    // 2026-09-23 加：该页的花名册改为直接吃本结构（不再走 register_application），
+    // 所以把该页要显示的字段一并在这里带出，避免再发一次请求、也避免两处口径漂移。
+
+    /** 预计入职日期（花名册展示 + 「入职时间」筛选） */
+    private Date expectedEntryDate;
+    /** 建档时间（最近活跃的兜底值） */
+    private Date createTime;
+    /** 最近登录时间 —— 这才是真正的「最近活跃」；为空时前端回落到 createTime */
+    private Date loginDate;
 
     // ==================== 转正 gate 的「真数据」输入项 ====================
 
@@ -64,9 +78,27 @@ public class InternStageRow implements Serializable {
     /** 本人逾期任务数 */
     private Integer taskOverdue;
 
+    // ==================== 模拟考核（2026-09-23 加，花名册「模拟正确率」列） ====================
+
+    /** 本人模拟练习场次（无记录 = 0） */
+    private Integer practiceTimes;
     /**
-     * 正式考试是否通过（🟠 考核模块待合并，本期不查库 → null 由前端示例填充）。
-     * 保留字段是为了把转正 gate 的接口契约先定死。
+     * 本人模拟考核正确率（%）= 对题总数 ÷ 总题数 × 100。
+     * ★ 无记录 → {@code null}，**不伪装成 0%**（项目铁律：分母 0 不得显示 0%）。
+     */
+    private java.math.BigDecimal practiceAccuracy;
+
+    /**
+     * 正式考试是否通过（1 通过 / 0 未通过；**无正式答卷时保持 null**，
+     * 前端显示「未参加」，不伪装成「未通过」）。
      */
     private Integer formalPassed;
+
+    /**
+     * 正式考核<b>参加次数</b>（= 该人已产生的正式答卷数，口径与 {@link #formalPassed} 同一份查询）。
+     *
+     * <p>2026-09-23 加：部门端「实习生管理」花名册的「正式考核」列改为展示参加次数
+     * （原来是「已通过 / 未通过」）。无答卷 → {@code null}，前端显示「未参加」。</p>
+     */
+    private Integer formalTimes;
 }

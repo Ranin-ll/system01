@@ -139,15 +139,7 @@
             </tbody>
           </table>
 
-          <p class="s-note">
-            <b>综合健康度公式（公开）</b>：
-            <code>0.30×学习达标率 + 0.30×知识点正确率 + 0.20×任务完成率 + 0.20×模拟均分归一</code><br />
-            ★ <b>缺项不按 0 计</b> —— 把权重按剩余项<b>重新归一</b>（否则「没数据」会被读成「表现最差」）；
-            全项缺失显示「数据不足」。<br />
-            ★ 本页只统计<b>有在培实习生的部门</b> —— 根部门下的 0 人部门若列出来会多出一行全是「--」的噪声。<br />
-            ★ 「学习进度均值」的分母是<b>该部门有学习记录的人</b>，当前多为 1 人，故标 <code>N=1</code>：
-            它反映的是个人推进度，<b>不能当部门水平横向比</b>。
-          </p>
+          
         </section>
       </div>
 
@@ -179,7 +171,7 @@
         <section id="sec-stage" class="s-card s-c7" :class="{ 'focus-flash': focusKey === 'sec-stage' }">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx p">2</span><h3>培养状态进度</h3></div>
-            <span class="hint">阶段判定：以角色为主、user_status 为辅</span>
+            
           </div>
 
           <div
@@ -225,12 +217,7 @@
             </div>
           </div>
 
-          <p class="s-note">
-            转正 gate 为<strong>硬条件逐条勾选</strong>（不是一个笼统的「未达标」）。
-            阈值全部读 <code>assessment_config</code>，改配置即改判定。当前
-            <b>{{ num(ov.internTotal) }} 人中 0 人满足全部条件</b>，主要卡点是<strong>正式考试</strong>
-            —— 流程堵在最后一道门。
-          </p>
+          
         </section>
       </div>
 
@@ -253,9 +240,7 @@
             <span v-else class="track empty" />
             <span class="pc">{{ r.practiceAvg !== null ? r.practiceAvg : '暂无' }}</span>
           </div>
-          <p class="s-note">
-            满分 10 分。无数据的部门<b>显式写「暂无」</b>。数据来源：模拟练习记录（<code>practice_record</code>）按部门聚合。
-          </p>
+          
         </section>
 
         <section id="sec-knowledge" class="s-card s-c7" :class="{ 'focus-flash': focusKey === 'sec-knowledge' }">
@@ -283,11 +268,7 @@
             </span>
           </div>
 
-          <p class="s-note">
-            ★ 灰底 = <b>样本不足</b>（题次 &lt; 2 或为 0）—— <b>不拿 1 题次算出的 0%/100% 去误导决策</b>。<br />
-            ★ 开发部门一眼可读：<b>Redis、MySQL、Linux、ECharts、Java 全线 0 分</b>，
-            而同部门 <b>Docker 9/9、若依 8/8 全对</b> —— 「哪块弱」不需要再猜。
-          </p>
+          
         </section>
       </div>
 
@@ -296,7 +277,7 @@
         <section id="sec-alert" class="s-card s-c12" :class="{ 'focus-flash': focusKey === 'sec-alert' }">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx o">警</span><h3>异常预警</h3></div>
-            <span class="hint">阈值全部读 assessment_config · 共 {{ alerts.length }} 条 · <b>点任一条直达处理位置</b></span>
+            
           </div>
           <div v-if="!alerts.length" class="s-empty"><i class="el-icon-circle-check" /><span>当前无预警</span></div>
           <div v-else class="s-steps">
@@ -316,12 +297,7 @@
               <i class="jump el-icon-arrow-right" />
             </div>
           </div>
-          <p class="s-note">
-            预警口径全部落在 <code>assessment_config</code>（部门完成率下限、逾期小时数等），
-            <b>改配置即改判定，不在代码里硬编码阈值</b>。<br />
-            ★ 每条预警都带后端下发的 <code>link</code>：部门类直达该部门详情，其余带 <code>?focus=</code>
-            锚点回到本页对应卡片并高亮。
-          </p>
+          
         </section>
       </div>
     </template>

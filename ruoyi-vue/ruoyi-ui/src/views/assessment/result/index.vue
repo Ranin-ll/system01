@@ -146,7 +146,7 @@
                 @click="submitApplication"
               >{{ currentStatus === 'REJECTED' ? '重新提交转正申请' : '提交转正申请' }}</el-button>
             </div>
-            <p class="rg-note">提交后状态变为「待部门审核」，部门管理员终审通过即生效并发证。当前接口（<code>promotion_application</code>）待后端实现，表单可填写预览但无法真正提交。</p>
+            
           </div>
 
           <!-- 进行中 / 已通过的操作 -->

@@ -3,9 +3,14 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ruoyi.business.mapper.QuestionMapper">
 
+    <!--
+      ★ 2026-09-23 起：题目不再挂在「题库」下，而是直接按 dept_id 归属部门。
+      一个部门 = 一个理论题池（所有理论题都在这里，理论考试按知识点抽题），
+      因此本 Mapper 不再 JOIN question_bank，bank_id 列保留但不再读写。
+    -->
     <resultMap type="Question" id="QuestionResult">
         <id     property="id"            column="id"             />
-        <result property="bankId"        column="bank_id"        />
+        <result property="deptId"        column="dept_id"        />
         <result property="questionNo"    column="question_no"    />
         <result property="positionId"    column="position_id"    />
         <result property="qtype"         column="qtype"          />
@@ -25,37 +30,43 @@
         <result property="createTime"    column="create_time"    />
         <result property="updateTime"    column="update_time"    />
         <result property="deleted"       column="deleted"        />
-        <result property="bankName"      column="bank_name"      />
         <result property="deptName"      column="dept_name"      />
     </resultMap>
 
     <sql id="questionColumns">
-        q.id, q.bank_id, q.question_no, q.position_id, q.qtype, q.difficulty, q.knowledge_point,
+        q.id, q.dept_id, q.question_no, q.position_id, q.qtype, q.difficulty, q.knowledge_point,
         q.stem, q.options_json, q.attachment_url, q.answer, q.analysis, q.score, q.is_subjective, q.status,
         q.import_batch, q.version, q.create_by, q.create_time, q.update_time, q.deleted,
-        b.bank_name,
         d.dept_name
     </sql>
 
+    <sql id="questionJoins">
+        LEFT JOIN sys_dept d ON d.dept_id = q.dept_id AND d.del_flag = '0'
+    </sql>
+
+    <!-- 数据范围：超管传 null（看全部），部门账号传本部门ID -->
     <sql id="questionScope">
         <if test="scopeDeptId != null">
-            AND b.dept_id = #{scopeDeptId}
+            AND q.dept_id = #{scopeDeptId}
         </if>
     </sql>
 
     <select id="selectQuestionList" resultMap="QuestionResult">
         SELECT <include refid="questionColumns" />
         FROM question q
-        LEFT JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
-        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <include refid="questionJoins" />
         <where>
             q.deleted = 0
             <include refid="questionScope" />
-            <if test="bankId != null">
-                AND q.bank_id = #{bankId}
+            <!-- 超管按部门筛选（扩展式新增条件） -->
+            <if test="deptId != null">
+                AND q.dept_id = #{deptId}
             </if>
             <if test="qtype != null and qtype != ''">
                 AND q.qtype = #{qtype}
+            </if>
+            <if test="difficulty != null and difficulty != ''">
+                AND q.difficulty = #{difficulty}
             </if>
             <if test="knowledgePoint != null and knowledgePoint != ''">
                 AND q.knowledge_point LIKE CONCAT('%', #{knowledgePoint}, '%')
@@ -73,8 +84,7 @@
     <select id="selectQuestionById" resultMap="QuestionResult">
         SELECT <include refid="questionColumns" />
         FROM question q
-        LEFT JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
-        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <include refid="questionJoins" />
         <where>
             q.id = #{id}
             AND q.deleted = 0
@@ -86,14 +96,12 @@
     <select id="selectQuestionsForExam" resultMap="QuestionResult">
         SELECT <include refid="questionColumns" />
         FROM question q
-        INNER JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
-        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <include refid="questionJoins" />
         <where>
             q.deleted = 0
-            AND q.bank_id = #{bankId}
+            AND q.dept_id = #{deptId}
             AND q.status = 1
             AND q.is_subjective = 0
-            <include refid="questionScope" />
         </where>
         ORDER BY RAND()
         LIMIT #{limit}
@@ -102,15 +110,13 @@
     <select id="selectQuestionsByType" resultMap="QuestionResult">
         SELECT <include refid="questionColumns" />
         FROM question q
-        INNER JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
-        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <include refid="questionJoins" />
         <where>
             q.deleted = 0
-            AND q.bank_id = #{bankId}
+            AND q.dept_id = #{deptId}
             AND q.status = 1
             AND q.is_subjective = 0
             AND q.qtype = #{qtype}
-            <include refid="questionScope" />
         </where>
         ORDER BY RAND()
         <if test="limit != null and limit > 0">
@@ -121,14 +127,12 @@
     <select id="selectSubjectQuestions" resultMap="QuestionResult">
         SELECT <include refid="questionColumns" />
         FROM question q
-        INNER JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
-        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <include refid="questionJoins" />
         <where>
             q.deleted = 0
-            AND q.bank_id = #{bankId}
+            AND q.dept_id = #{deptId}
             AND q.status = 1
             AND q.is_subjective = 1
-            <include refid="questionScope" />
         </where>
         ORDER BY RAND()
         <if test="limit != null and limit > 0">
@@ -139,8 +143,7 @@
     <select id="selectQuestionsByIds" resultMap="QuestionResult">
         SELECT <include refid="questionColumns" />
         FROM question q
-        LEFT JOIN question_bank b ON b.id = q.bank_id AND b.deleted = 0
-        LEFT JOIN sys_dept d ON d.dept_id = b.dept_id AND d.del_flag = '0'
+        <include refid="questionJoins" />
         <where>
             q.deleted = 0
             AND q.id IN
@@ -152,10 +155,10 @@
     </select>
 
     <insert id="insertQuestion" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO question (bank_id, question_no, position_id, qtype, difficulty, knowledge_point,
+        INSERT INTO question (dept_id, question_no, position_id, qtype, difficulty, knowledge_point,
                               stem, options_json, attachment_url, answer, analysis, score, is_subjective, status,
                               import_batch, version, create_by, create_time, update_time, deleted)
-        VALUES (#{bankId}, #{questionNo}, #{positionId}, #{qtype}, #{difficulty}, #{knowledgePoint},
+        VALUES (#{deptId}, #{questionNo}, #{positionId}, #{qtype}, #{difficulty}, #{knowledgePoint},
                 #{stem}, #{optionsJson}, #{attachmentUrl}, #{answer}, #{analysis}, #{score}, #{isSubjective}, #{status},
                 #{importBatch}, #{version}, #{createBy}, #{createTime}, #{createTime}, #{deleted})
     </insert>

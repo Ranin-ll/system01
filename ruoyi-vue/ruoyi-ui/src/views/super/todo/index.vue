@@ -315,12 +315,7 @@
             </span>
           </div>
 
-          <div class="note">
-            数据源：<code>notice</code>（本体）+ <code>notice_target</code>（送达）+ <code>notice_read</code>（已读回执）。<br />
-            已读率 = <b>既被送达、又确实读了</b>的人数 ÷ 送达人数 —— 分母分子都锚定在 <code>notice_target</code> 上；
-            直接统计 <code>notice_read</code> 会把「全部已读」产生的回执算进来，导致已读率超过 100%。<br />
-            上方指标是<b>全量口径</b>（不随筛选变化），表格是当前筛选结果。
-          </div>
+          
         </section>
       </template>
 

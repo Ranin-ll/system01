@@ -32,7 +32,7 @@
       <div slot="header" class="card-header">
         <div>
           <span class="card-title">注册申请列表</span>
-          <span class="card-subtitle">申请提交后自动写入数据库，部门管理员只能处理本部门申请</span>
+          
         </div>
         <el-button size="mini" icon="el-icon-refresh" @click="refreshAll">刷新</el-button>
       </div>
@@ -87,10 +87,12 @@
         v-loading="loading"
         :data="registerList"
         stripe
+        border
+        :row-class-name="rowClassName"
         class="review-table"
         empty-text="暂无符合条件的注册申请"
       >
-        <el-table-column label="申请人" min-width="170">
+        <el-table-column label="申请人" min-width="150" fixed="left">
           <template slot-scope="scope">
             <div class="applicant-cell">
               <span class="avatar-mark">{{ nameInitial(scope.row.realName) }}</span>
@@ -101,49 +103,86 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="登录账号" prop="loginAccount" min-width="135" />
-        <el-table-column label="岗位 / 自动匹配部门" min-width="205">
+        <el-table-column label="登录账号" prop="loginAccount" min-width="130" show-overflow-tooltip />
+        <el-table-column label="身份证号" min-width="170">
+          <template slot-scope="scope">{{ maskIdCard(scope.row.idCard) }}</template>
+        </el-table-column>
+        <el-table-column label="意向岗位 / 所属部门" min-width="180">
           <template slot-scope="scope">
             <div class="job-cell">
-              <strong>{{ scope.row.positionName || '-' }}</strong>
+              <strong>{{ scope.row.positionName || '岗位缺失' }}</strong>
               <small><i class="el-icon-location-outline" /> {{ scope.row.deptName || '部门待配置' }}</small>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="预计入职" prop="expectedEntryDate" width="115">
+        <el-table-column label="预计入职" min-width="105">
           <template slot-scope="scope">{{ formatDate(scope.row.expectedEntryDate, 'yyyy-MM-dd') || '未填写' }}</template>
         </el-table-column>
-        <el-table-column label="申请状态" width="100">
+        <el-table-column label="申请状态" min-width="92">
           <template slot-scope="scope">
             <el-tag :type="statusTagType(scope.row.status)" size="mini" effect="plain">
               {{ statusLabel(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="账号状态" width="100">
-          <template slot-scope="scope">{{ accountStatusLabel(scope.row.accountStatus) }}</template>
+        <el-table-column label="账号状态 / 业务身份" min-width="150">
+          <template slot-scope="scope">
+            <div class="stack-cell">
+              <strong :class="isEnabled(scope.row.accountStatus) ? 'text-success' : 'text-warning'">
+                {{ accountStatusLabel(scope.row.accountStatus) }}
+              </strong>
+              <small>{{ userStatusLabel(scope.row.userStatus) }}</small>
+            </div>
+          </template>
         </el-table-column>
-        <el-table-column label="提交时间" prop="createTime" min-width="155">
+        <el-table-column label="导师（实习生管理页分配）" min-width="170">
+          <template slot-scope="scope">
+            <div class="stack-cell">
+              <strong>{{ scope.row.mentorName || '待分配' }}</strong>
+              <small>{{ scope.row.mentorPhone || '待分配' }}</small>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="审核情况" min-width="205">
+          <template slot-scope="scope">
+            <div class="audit-cell">
+              <span>共提交 <b>{{ scope.row.auditCount || 0 }}</b> 次</span>
+              <small class="muted-line">
+                最近更新 {{ formatDate(scope.row.updateTime, 'yyyy-MM-dd HH:mm') || '—' }}
+              </small>
+              <small :class="auditHintTone(scope.row)">{{ auditHint(scope.row) }}</small>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="驳回原因" min-width="175" show-overflow-tooltip>
+          <template slot-scope="scope">
+            <span v-if="scope.row.rejectReason">{{ scope.row.rejectReason }}</span>
+            <span v-else class="muted-text">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="提交时间" min-width="145">
           <template slot-scope="scope">{{ formatDate(scope.row.createTime, 'yyyy-MM-dd HH:mm') }}</template>
         </el-table-column>
-        <el-table-column label="操作" fixed="right" width="190" align="center">
+        <el-table-column label="操作" fixed="right" width="150" align="center">
           <template slot-scope="scope">
-            <el-button type="text" size="mini" icon="el-icon-view" @click="handleDetail(scope.row)">查看详情</el-button>
-            <el-button
-              v-if="scope.row.status === 'WAIT_AUDIT'"
-              type="text"
-              size="mini"
-              icon="el-icon-s-check"
-              @click="handleAudit(scope.row, 'PASS')"
-              v-hasPermi="['business:register:audit']"
-            >审核</el-button>
-            <el-button
-              v-else
-              type="text"
-              size="mini"
-              icon="el-icon-document"
-              @click="handleDetail(scope.row)"
-            >查看记录</el-button>
+            <template v-if="scope.row.status === 'WAIT_AUDIT'">
+              <el-button
+                type="text"
+                size="mini"
+                icon="el-icon-s-check"
+                @click="handleAudit(scope.row, 'PASS')"
+                v-hasPermi="['business:register:audit']"
+              >通过</el-button>
+              <el-button
+                type="text"
+                size="mini"
+                class="danger-text"
+                icon="el-icon-close"
+                @click="handleAudit(scope.row, 'REJECT')"
+                v-hasPermi="['business:register:audit']"
+              >驳回</el-button>
+            </template>
+            <span v-else class="muted-text">已处理</span>
           </template>
         </el-table-column>
       </el-table>
@@ -173,7 +212,7 @@
       </div>
       <el-alert
         v-if="auditForm.action === 'PASS'"
-        title="请补充导师姓名和联系方式。导师是实习生档案信息，不会创建导师角色，也不会绑定当前审核员。"
+        title="通过后账号自动启用并进入「预备实习」。导师不再在这里填写 —— 请到「实习生管理」页从导师库中选。"
         type="success"
         :closable="false"
         show-icon
@@ -192,14 +231,6 @@
             <el-radio-button label="REJECT">驳回申请</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <template v-if="auditForm.action === 'PASS'">
-          <el-form-item label="导师姓名" required>
-            <el-input v-model="auditForm.mentorName" maxlength="64" placeholder="请输入实习生导师姓名" />
-          </el-form-item>
-          <el-form-item label="导师联系方式" required>
-            <el-input v-model="auditForm.mentorPhone" maxlength="32" placeholder="请输入手机号或其他联系方式" />
-          </el-form-item>
-        </template>
         <el-form-item v-if="auditForm.action === 'REJECT'" label="驳回原因" required>
           <el-input
             v-model="auditForm.reason"
@@ -218,101 +249,22 @@
         </el-button>
       </div>
     </el-dialog>
-
-    <el-drawer
-      title="注册申请详情"
-      :visible.sync="detailOpen"
-      direction="rtl"
-      size="560px"
-      append-to-body
-      class="detail-drawer"
-    >
-      <div v-loading="detailLoading" class="detail-panel">
-        <template v-if="currentRow.id">
-          <div class="detail-heading">
-            <div class="applicant-cell">
-              <span class="avatar-mark large">{{ nameInitial(currentRow.realName) }}</span>
-              <div>
-                <h3>{{ currentRow.realName }}</h3>
-                <span>{{ currentRow.applicationNo }}</span>
-              </div>
-            </div>
-            <el-tag :type="statusTagType(currentRow.status)" effect="plain">{{ statusLabel(currentRow.status) }}</el-tag>
-          </div>
-
-          <div class="detail-section">
-            <div class="section-title"><i class="el-icon-user" />申请人资料</div>
-            <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="登录账号">{{ currentRow.loginAccount || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="身份证号">{{ maskIdCard(currentRow.idCard) }}</el-descriptions-item>
-              <el-descriptions-item label="意向岗位">{{ currentRow.positionName || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="所属部门">
-                <span class="department-value"><i class="el-icon-location-outline" />{{ currentRow.deptName || '待配置' }}</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="预计入职">{{ currentRow.expectedEntryDate || '未填写' }}</el-descriptions-item>
-              <el-descriptions-item label="提交次数">{{ currentRow.auditCount || 0 }} 次</el-descriptions-item>
-            </el-descriptions>
-          </div>
-
-          <div class="detail-section">
-            <div class="section-title"><i class="el-icon-s-management" />账号与导师</div>
-            <div class="account-grid">
-              <div><span>登录状态</span><strong :class="isEnabled(currentRow.accountStatus) ? 'text-success' : 'text-warning'">{{ accountStatusLabel(currentRow.accountStatus) }}</strong></div>
-              <div><span>业务身份</span><strong>{{ userStatusLabel(currentRow.userStatus) }}</strong></div>
-              <div><span>导师姓名</span><strong>{{ currentRow.mentorName || '待审核补充' }}</strong></div>
-              <div><span>导师联系方式</span><strong>{{ currentRow.mentorPhone || '待审核补充' }}</strong></div>
-            </div>
-          </div>
-
-          <div v-if="currentRow.rejectReason" class="reject-reason">
-            <span>最近驳回原因</span>
-            <p>{{ currentRow.rejectReason }}</p>
-          </div>
-
-          <div class="detail-section">
-            <div class="section-title"><i class="el-icon-time" />审核历史</div>
-            <el-timeline v-if="history.length">
-              <el-timeline-item
-                v-for="record in history"
-                :key="record.id"
-                :timestamp="formatDate(record.createTime, 'yyyy-MM-dd HH:mm')"
-                :type="record.action === 'PASS' ? 'success' : 'danger'"
-                placement="top"
-              >
-                <strong>{{ record.action === 'PASS' ? '审核通过' : '驳回申请' }}</strong>
-                <p>{{ record.operatorName || '系统管理员' }} · {{ record.deptName || '系统范围' }}</p>
-                <p v-if="record.reason" class="timeline-reason">{{ record.reason }}</p>
-              </el-timeline-item>
-            </el-timeline>
-            <div v-else class="history-empty">暂无审核动作，当前申请等待处理。</div>
-          </div>
-
-          <div v-if="currentRow.status === 'WAIT_AUDIT'" class="detail-actions">
-            <el-button type="primary" icon="el-icon-check" @click="handleAudit(currentRow, 'PASS')">通过申请</el-button>
-            <el-button type="danger" plain icon="el-icon-close" @click="handleAudit(currentRow, 'REJECT')">驳回申请</el-button>
-          </div>
-        </template>
-      </div>
-    </el-drawer>
   </div>
 </template>
 
 <script>
-import { listRegister, getRegister, listRegisterHistory, auditRegister, getRegisterSummary } from '@/api/business/register'
+import { listRegister, auditRegister, getRegisterSummary } from '@/api/business/register'
 
 export default {
   name: 'RegisterApplication',
   data() {
     return {
       loading: false,
-      detailLoading: false,
       auditSubmitting: false,
-      detailOpen: false,
       auditOpen: false,
       total: 0,
       registerList: [],
       currentRow: {},
-      history: [],
       summary: {
         totalCount: 0,
         pendingCount: 0,
@@ -322,9 +274,7 @@ export default {
       auditForm: {
         id: undefined,
         action: 'PASS',
-        reason: '',
-        mentorName: '',
-        mentorPhone: ''
+        reason: ''
       },
       queryParams: {
         pageNum: 1,
@@ -392,35 +342,18 @@ export default {
       this.$refs.queryForm.resetFields()
       this.handleQuery()
     },
-    handleDetail(row) {
-      this.detailOpen = true
-      this.detailLoading = true
-      this.currentRow = Object.assign({}, row)
-      this.history = []
-      Promise.all([getRegister(row.id), listRegisterHistory(row.id)]).then(([detailResponse, historyResponse]) => {
-        this.currentRow = detailResponse.data || this.currentRow
-        this.history = historyResponse.data || []
-      }).finally(() => {
-        this.detailLoading = false
-      })
-    },
     handleAudit(row, action) {
       this.currentRow = Object.assign({}, row)
       this.auditForm = {
         id: row.id,
         action: action,
-        reason: '',
-        mentorName: '',
-        mentorPhone: ''
+        reason: ''
       }
       this.auditOpen = true
     },
     handleActionChange(action) {
       if (action === 'PASS') {
         this.auditForm.reason = ''
-      } else {
-        this.auditForm.mentorName = ''
-        this.auditForm.mentorPhone = ''
       }
     },
     submitAudit() {
@@ -428,25 +361,38 @@ export default {
         this.$modal.msgWarning('驳回必须填写原因')
         return
       }
-      if (this.auditForm.action === 'PASS' && !this.auditForm.mentorName.trim()) {
-        this.$modal.msgWarning('审核通过必须填写导师姓名')
-        return
-      }
-      if (this.auditForm.action === 'PASS' && !this.auditForm.mentorPhone.trim()) {
-        this.$modal.msgWarning('审核通过必须填写导师联系方式')
-        return
-      }
+      // ★ 2026-09-23：通过申请不再需要填导师（导师改到「实习生管理」页从导师库中选）
       this.auditSubmitting = true
       auditRegister(this.auditForm).then(() => {
-        this.$modal.msgSuccess(this.auditForm.action === 'PASS' ? '审核通过，账号已启用并保存导师信息' : '申请已驳回')
+        this.$modal.msgSuccess(this.auditForm.action === 'PASS' ? '审核通过，账号已启用；请到「实习生管理」页分配导师' : '申请已驳回')
         this.auditOpen = false
         this.refreshAll()
-        if (this.detailOpen && this.currentRow.id) {
-          this.handleDetail({ id: this.currentRow.id })
-        }
       }).finally(() => {
         this.auditSubmitting = false
       })
+    },
+    /** 行高亮：待审核的行加浅底色，便于一眼扫到 */
+    rowClassName({ row }) {
+      return row.status === 'WAIT_AUDIT' ? 'row-pending' : ''
+    },
+    /** 审核情况（由列表已有字段派生，不再单独请求审核记录） */
+    auditHint(row) {
+      if (row.status === 'WAIT_AUDIT') {
+        return Number(row.auditCount || 0) > 1 ? '前次被驳回，待重新审核' : '等待部门管理员处理'
+      }
+      if (row.status === 'PASSED') {
+        return row.mentorName ? '已通过并启用账号' : '已通过，待分配导师'
+      }
+      if (row.status === 'REJECTED') {
+        return '已驳回，待申请人修改后重提'
+      }
+      return '—'
+    },
+    auditHintTone(row) {
+      if (row.status === 'PASSED') return 'tone-success'
+      if (row.status === 'REJECTED') return 'tone-danger'
+      if (row.status === 'WAIT_AUDIT') return 'tone-warning'
+      return 'muted-line'
     },
     nameInitial(name) {
       return (name || '?').slice(0, 1)
@@ -720,6 +666,64 @@ export default {
   font-weight: 600;
 }
 
+/* ---- 展平后的表格单元格 ---- */
+.stack-cell strong,
+.stack-cell small,
+.audit-cell span,
+.audit-cell small {
+  display: block;
+}
+
+.stack-cell strong {
+  color: #33465b;
+  font-weight: 600;
+}
+
+.stack-cell small {
+  margin-top: 4px;
+  overflow: hidden;
+  color: #8a96a4;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-cell span {
+  color: #52637a;
+  font-size: 12px;
+}
+
+.audit-cell span b {
+  color: #2f4052;
+  font-size: 13px;
+}
+
+.audit-cell small {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.muted-line { color: #9aa5b2; }
+.muted-text { color: #b3bcc7; }
+
+.danger-text { color: #cd5b5b; }
+
+.tone-success { color: #2f9b79; }
+.tone-danger { color: #cd5b5b; }
+.tone-warning { color: #d2872f; }
+
+.review-table ::v-deep .row-pending td {
+  background: #fffaf1 !important;
+}
+
+.review-table ::v-deep th {
+  background: #f7f9fc;
+  color: #52637a;
+  font-weight: 600;
+}
+
+/* ---- 审核弹窗头部 ---- */
 .avatar-mark.large {
   width: 42px;
   height: 42px;
@@ -764,159 +768,13 @@ export default {
   width: 100%;
 }
 
-.detail-panel {
-  min-height: 100%;
-  padding: 4px 22px 28px;
-}
-
-.detail-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0 18px;
-  border-bottom: 1px solid #edf0f4;
-}
-
-.detail-heading h3 {
-  margin: 0 0 4px;
-  color: #2b3d50;
-  font-size: 19px;
-  font-weight: 600;
-}
-
-.detail-heading span:not(.avatar-mark) {
-  color: #8a96a4;
-  font-size: 12px;
-}
-
-.detail-section {
-  margin-top: 22px;
-}
-
-.section-title {
-  margin-bottom: 10px;
-  color: #35485c;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.section-title i {
-  margin-right: 6px;
-  color: #3d82c7;
-}
-
-.department-value {
-  color: #3472ad;
-}
-
-.department-value i {
-  margin-right: 4px;
-}
-
-.account-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 9px;
-}
-
-.account-grid > div {
-  min-height: 67px;
-  padding: 11px;
-  border: 1px solid #e6ebf1;
-  background: #fafbfd;
-}
-
-.account-grid span,
-.account-grid strong {
-  display: block;
-}
-
-.account-grid span {
-  margin-bottom: 7px;
-  color: #8490a0;
-  font-size: 11px;
-}
-
-.account-grid strong {
-  color: #35485c;
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .text-success { color: #2f9b79 !important; }
 .text-warning { color: #d2872f !important; }
-
-.reject-reason {
-  margin-top: 20px;
-  padding: 12px 14px;
-  border-left: 3px solid #cd5b5b;
-  background: #fff7f7;
-}
-
-.reject-reason span {
-  color: #a24b4b;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.reject-reason p {
-  margin: 7px 0 0;
-  color: #6c5960;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.detail-section ::v-deep .el-timeline {
-  padding-left: 4px;
-}
-
-.detail-section ::v-deep .el-timeline-item__content {
-  color: #3e5063;
-  font-size: 13px;
-}
-
-.detail-section ::v-deep .el-timeline-item__timestamp {
-  color: #9aa5b2;
-  font-size: 11px;
-}
-
-.detail-section ::v-deep .el-timeline-item__content p {
-  margin: 5px 0 0;
-  color: #8490a0;
-  font-size: 12px;
-}
-
-.detail-section ::v-deep .el-timeline-item__content .timeline-reason {
-  padding: 7px 9px;
-  background: #fafbfd;
-  color: #687688;
-  line-height: 1.5;
-}
-
-.history-empty {
-  padding: 15px;
-  border: 1px dashed #dbe3ec;
-  color: #8a96a4;
-  font-size: 12px;
-  text-align: center;
-}
-
-.detail-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px solid #edf0f4;
-}
 
 @media (max-width: 900px) {
   .card-subtitle {
     display: block;
     margin: 5px 0 0;
-  }
-
-  .account-grid {
-    grid-template-columns: 1fr;
   }
 }
 

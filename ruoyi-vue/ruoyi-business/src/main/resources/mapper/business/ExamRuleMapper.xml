@@ -3,72 +3,12 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ruoyi.business.mapper.ExamRuleMapper">
 
-    <!-- ==================== 多题库组卷配置（当前主用） ==================== -->
+    <!--
+      ★ 2026-09-23：多题库组卷（exam_bank_rule）已整体退场 ——
+      题目直接按 dept_id 归属部门，理论考核统一走「按知识点配比抽题」（exam_knowledge_rule）。
+    -->
 
-    <resultMap type="ExamBankRule" id="BankRuleResult">
-        <id     property="id"              column="id"              />
-        <result property="examId"          column="exam_id"         />
-        <result property="bankId"          column="bank_id"         />
-        <result property="singleCount"     column="single_count"    />
-        <result property="multiCount"      column="multi_count"     />
-        <result property="judgeCount"      column="judge_count"     />
-        <result property="sortNo"          column="sort_no"         />
-        <result property="createTime"      column="create_time"     />
-        <result property="bankName"        column="bank_name"       />
-        <result property="availableSingle" column="available_single"/>
-        <result property="availableMulti"  column="available_multi" />
-        <result property="availableJudge"  column="available_judge" />
-        <result property="availableTotal"  column="available_total" />
-    </resultMap>
-
-    <!-- 已配置的组卷题库，附带各库按题型的可用题量（校验「抽题量 ≤ 可用量」） -->
-    <select id="selectBankRules" resultMap="BankRuleResult">
-        SELECT r.id, r.exam_id, r.bank_id, r.single_count, r.multi_count, r.judge_count,
-               r.sort_no, r.create_time,
-               b.bank_name,
-               (SELECT COUNT(1) FROM question q
-                 WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
-                   AND q.bank_id = r.bank_id AND q.qtype = 'SINGLE')  AS available_single,
-               (SELECT COUNT(1) FROM question q
-                 WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
-                   AND q.bank_id = r.bank_id AND q.qtype = 'MULTI')   AS available_multi,
-               (SELECT COUNT(1) FROM question q
-                 WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
-                   AND q.bank_id = r.bank_id AND q.qtype = 'JUDGE')   AS available_judge,
-               (SELECT COUNT(1) FROM question q
-                 WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
-                   AND q.bank_id = r.bank_id)                          AS available_total
-        FROM exam_bank_rule r
-        LEFT JOIN question_bank b ON b.id = r.bank_id AND b.deleted = 0
-        WHERE r.exam_id = #{examId}
-        ORDER BY r.sort_no, r.id
-    </select>
-
-    <delete id="deleteBankRules">
-        DELETE FROM exam_bank_rule WHERE exam_id = #{examId}
-    </delete>
-
-    <insert id="insertBankRules">
-        INSERT INTO exam_bank_rule
-            (exam_id, bank_id, single_count, multi_count, judge_count, sort_no, create_time)
-        VALUES
-        <foreach collection="list" item="it" separator=",">
-            (#{it.examId}, #{it.bankId}, #{it.singleCount}, #{it.multiCount}, #{it.judgeCount}, #{it.sortNo}, NOW())
-        </foreach>
-    </insert>
-
-    <!-- 单库可用题量（按题型），配置时即时校验用 -->
-    <select id="selectBankAvailable" resultType="java.util.LinkedHashMap">
-        SELECT COUNT(1)                                           AS totalCount,
-               SUM(CASE WHEN q.qtype = 'SINGLE' THEN 1 ELSE 0 END) AS singleCount,
-               SUM(CASE WHEN q.qtype = 'MULTI'  THEN 1 ELSE 0 END) AS multiCount,
-               SUM(CASE WHEN q.qtype = 'JUDGE'  THEN 1 ELSE 0 END) AS judgeCount
-        FROM question q
-        WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
-          AND q.bank_id = #{bankId}
-    </select>
-
-    <!-- ==================== 知识分布（历史兼容） ==================== -->
+    <!-- ==================== 知识分布（理论考核主链路） ==================== -->
 
     <resultMap type="ExamKnowledgeRule" id="KnowledgeRuleResult">
         <id     property="id"             column="id"             />
@@ -83,14 +23,14 @@
         <result property="availableSingle" column="available_single"/>
     </resultMap>
 
-    <!-- 已配置的知识分布，附带题库该知识点的可用题量（校验「抽题数量 ≤ 题库可用」） -->
+    <!-- 已配置的知识分布，附带本部门题池该知识点的可用题量（校验「抽题数量 ≤ 可用」） -->
     <select id="selectKnowledgeRules" resultMap="KnowledgeRuleResult">
         SELECT r.id, r.exam_id, r.knowledge_point, r.question_count, r.ratio, r.single_ratio, r.sort_no, r.create_time,
                (SELECT COUNT(1) FROM question q
-                 WHERE q.deleted = 0 AND q.bank_id = e.bank_id
+                 WHERE q.deleted = 0 AND q.dept_id = e.dept_id
                    AND q.knowledge_point = r.knowledge_point)                       AS available_count,
                (SELECT COUNT(1) FROM question q
-                 WHERE q.deleted = 0 AND q.bank_id = e.bank_id AND q.qtype = 'SINGLE'
+                 WHERE q.deleted = 0 AND q.dept_id = e.dept_id AND q.qtype = 'SINGLE'
                    AND q.knowledge_point = r.knowledge_point)                       AS available_single
         FROM exam_knowledge_rule r
         LEFT JOIN exam e ON e.id = r.exam_id
@@ -111,26 +51,42 @@
         </foreach>
     </insert>
 
-    <!-- 题库知识点聚合（配置页「从题库导入知识点」） -->
-    <select id="selectBankKnowledgePoints" resultType="java.util.LinkedHashMap">
+    <!-- 本部门题池知识点聚合（配置页「从题池导入知识点」） -->
+    <select id="selectDeptKnowledgePoints" resultType="java.util.LinkedHashMap">
         SELECT IFNULL(q.knowledge_point, '未分类')                AS knowledgePoint,
                COUNT(1)                                           AS totalCount,
                SUM(CASE WHEN q.qtype = 'SINGLE' THEN 1 ELSE 0 END) AS singleCount,
                SUM(CASE WHEN q.qtype = 'MULTI'  THEN 1 ELSE 0 END) AS multiCount,
                SUM(CASE WHEN q.qtype = 'JUDGE'  THEN 1 ELSE 0 END) AS judgeCount
         FROM question q
-        WHERE q.deleted = 0 AND q.bank_id = #{bankId}
+        WHERE q.deleted = 0 AND q.dept_id = #{deptId}
         GROUP BY IFNULL(q.knowledge_point, '未分类')
         ORDER BY totalCount DESC, knowledgePoint
     </select>
 
+    <!-- 本部门题池按题型的可用题量（配置页「题池概览」用） -->
+    <select id="selectDeptAvailable" resultType="java.util.LinkedHashMap">
+        SELECT COUNT(1)                                           AS totalCount,
+               SUM(CASE WHEN q.qtype = 'SINGLE' THEN 1 ELSE 0 END) AS singleCount,
+               SUM(CASE WHEN q.qtype = 'MULTI'  THEN 1 ELSE 0 END) AS multiCount,
+               SUM(CASE WHEN q.qtype = 'JUDGE'  THEN 1 ELSE 0 END) AS judgeCount
+        FROM question q
+        WHERE q.deleted = 0 AND q.status = 1 AND q.is_subjective = 0
+          AND q.dept_id = #{deptId}
+    </select>
+
+    <!-- 部门名称（题池概览展示用） -->
+    <select id="selectDeptName" resultType="java.lang.String">
+        SELECT dept_name FROM sys_dept WHERE dept_id = #{deptId} AND del_flag = '0' LIMIT 1
+    </select>
+
     <!-- 按知识点抽题：同知识点内随机，已抽到的题目通过 excludeIds 排除，避免重复 -->
     <select id="selectQuestionsByPoint" resultType="Question">
-        SELECT q.id, q.bank_id, q.question_no, q.position_id, q.qtype, q.difficulty, q.knowledge_point,
+        SELECT q.id, q.dept_id, q.question_no, q.position_id, q.qtype, q.difficulty, q.knowledge_point,
                q.stem, q.options_json, q.attachment_url, q.answer, q.analysis, q.score, q.is_subjective, q.status
         FROM question q
         WHERE q.deleted = 0 AND q.status = 1
-          AND q.bank_id = #{bankId}
+          AND q.dept_id = #{deptId}
         <if test="point != null and point != ''">
           AND q.knowledge_point = #{point}
         </if>

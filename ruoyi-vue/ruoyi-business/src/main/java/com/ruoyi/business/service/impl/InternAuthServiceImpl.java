@@ -59,6 +59,12 @@ public class InternAuthServiceImpl implements IInternAuthService {
         validate(body);
         validateCaptcha(body.getCode(), body.getUuid());
 
+        // 身份证号：先去空格归一化，再做唯一性校验（一个身份证号只能注册一个账号）
+        if (body.getIdCard() != null) {
+            body.setIdCard(body.getIdCard().trim());
+        }
+        assertIdCardAvailable(body.getUsername(), body.getIdCard());
+
         Position position = internAuthMapper.selectEnabledPositionById(body.getPositionId());
         if (position == null || !Integer.valueOf(1).equals(position.getStatus())) {
             throw new ServiceException("所选岗位不可用");
@@ -193,6 +199,23 @@ public class InternAuthServiceImpl implements IInternAuthService {
         }
         internAuthMapper.updateProtocolStatus(userId, "agreement");
         return getAgreementStatus(userId);
+    }
+
+    /**
+     * 身份证号唯一性守卫：一个身份证号只能对应一个注册账号。
+     *
+     * 统计时**排除本登录账号自己的记录**，所以以下两种正常场景不会被拦：
+     *   · 被驳回后沿用原手机号重新提交（库里本来就有这个身份证）；
+     *   · 重复手机号提交（该身份证本就挂在自己名下，随后会由「注册账号已存在」接管提示）。
+     * 而「换个手机号、用同一个身份证再申请」会被拒绝。
+     */
+    private void assertIdCardAvailable(String loginAccount, String idCard) {
+        if (StringUtils.isEmpty(idCard)) {
+            return;
+        }
+        if (internAuthMapper.countOtherAccountByIdCard(idCard, loginAccount) > 0) {
+            throw new ServiceException("该身份证号已被其他账号使用，一个身份证号只能注册一次");
+        }
     }
 
     private void validate(InternRegisterBody body) {

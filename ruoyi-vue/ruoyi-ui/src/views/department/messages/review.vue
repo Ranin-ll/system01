@@ -265,15 +265,7 @@
       </div>
     </div>
 
-    <div class="dcallout" style="margin-top:16px">
-      <i class="el-icon-success" />
-      <span>
-        <b>已接后端</b>：<code>GET /business/task/list</code>（统计口径同「任务管理」）、
-        <code>GET /business/task/{id}/submissions</code>（含未提交者与作业附件）、
-        <code>POST /business/task/review</code>（批阅，回执自动通知实习生）、
-        <code>/business/task-attachment/*</code>（资料）、<code>/business/task-post/*</code>（讨论）。
-      </span>
-    </div>
+    
 
     <!-- 处理批阅：**大弹窗工作区**（原来是表格下方的内联面板，c7 卡片里太挤）。
          素材 + 在线预览 + 历次提交 + 批语都在这个弹窗里一次性完成。 -->

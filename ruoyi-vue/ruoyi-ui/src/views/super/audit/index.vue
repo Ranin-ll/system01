@@ -76,7 +76,7 @@
           <div class="s-step"><span class="mark">3</span><div class="txt"><b>二次确认</b><span>输入实习生姓名以确认（防误操作）</span></div></div>
           <div class="s-step"><span class="mark">4</span><div class="txt"><b>生效</b><span><code>user_status</code> 退回 PRE_TRAINEE、证书作废、学习与考核记录保留</span></div></div>
         </div>
-        <p class="s-note">这是超管<b>唯一</b>能改业务实例的入口：因为转正由部门管理员终审即生效，出现误批时需要一条纠错通道，但必须可追溯。</p>
+        
       </section>
     </div>
 

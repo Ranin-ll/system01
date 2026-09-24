@@ -1,6 +1,8 @@
 package com.ruoyi.business.service.impl;
 
+import com.ruoyi.business.domain.Mentor;
 import com.ruoyi.business.domain.Position;
+import com.ruoyi.business.mapper.MentorMapper;
 import com.ruoyi.business.mapper.PositionMapper;
 import com.ruoyi.business.mapper.SuperPersonnelMapper;
 import com.ruoyi.business.service.ISuperPersonnelService;
@@ -42,6 +44,10 @@ public class SuperPersonnelServiceImpl implements ISuperPersonnelService {
 
     @Autowired
     private PositionMapper positionMapper;
+
+    /** 导师库（2026-09-23：导师从主表选，不再手敲文本） */
+    @Autowired
+    private MentorMapper mentorMapper;
 
     /** 删除委托给框架实现：它负责逻辑删除与角色/岗位关联清理 */
     @Autowired
@@ -137,6 +143,31 @@ public class SuperPersonnelServiceImpl implements ISuperPersonnelService {
         Date entryDate = dateOf(body.get("expectedEntryDate"));
         boolean clearEntryDate = body.containsKey("expectedEntryDate") && entryDate == null;
 
+        // ---- 导师（2026-09-23 改为从导师库选）----
+        // 三档语义，互斥且可预期：
+        //   ① 传了 mentorId（非空）→ 从 mentor 表取出姓名/联系方式并回填冗余列
+        //   ② 显式传 mentorId = null → 清空导师关联（mentor_id + 两个冗余列）
+        //   ③ 只传了 mentorName / mentorPhone（老前端）→ 按旧逻辑写文本，不动 mentor_id
+        Long mentorId = longOf(body.get("mentorId"));
+        boolean clearMentor = body.containsKey("mentorId") && mentorId == null;
+        String mentorName = body.containsKey("mentorName") ? strOrEmpty(body.get("mentorName")) : null;
+        String mentorPhone = body.containsKey("mentorPhone") ? strOrEmpty(body.get("mentorPhone")) : null;
+        if (mentorId != null) {
+            Mentor mentor = mentorMapper.selectMentorById(mentorId);
+            if (mentor == null) {
+                throw new ServiceException("所选导师不存在或已删除");
+            }
+            if (!"0".equals(mentor.getStatus())) {
+                throw new ServiceException("所选导师已停用，请先启用或另选一位");
+            }
+            mentorName = mentor.getMentorName();
+            mentorPhone = mentor.getMentorPhone();
+            clearMentor = false;
+        } else if (clearMentor) {
+            mentorName = "";
+            mentorPhone = "";
+        }
+
         personnelMapper.updateBusinessFields(
                 userId,
                 deptId,
@@ -144,9 +175,10 @@ public class SuperPersonnelServiceImpl implements ISuperPersonnelService {
                 clearPosition,
                 userStatus,
                 protocolStatus,
-                // 导师/联系方式允许清空成空串 → 用 containsKey 判定，传了就写
-                body.containsKey("mentorName") ? strOrEmpty(body.get("mentorName")) : null,
-                body.containsKey("mentorPhone") ? strOrEmpty(body.get("mentorPhone")) : null,
+                mentorId,
+                clearMentor,
+                mentorName,
+                mentorPhone,
                 entryDate,
                 clearEntryDate,
                 SecurityUtils.getUsername());

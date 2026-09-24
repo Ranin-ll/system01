@@ -37,7 +37,7 @@ public interface SuperPersonnelMapper {
             + "       u.protocol_status AS protocolStatus,"
             + "       u.dept_id AS deptId, d.dept_name AS deptName,"
             + "       u.position_id AS positionId, p.position_name AS positionName, p.position_code AS positionCode,"
-            + "       u.mentor_name AS mentorName, u.mentor_phone AS mentorPhone,"
+            + "       u.mentor_id AS mentorId, u.mentor_name AS mentorName, u.mentor_phone AS mentorPhone,"
             + "       u.expected_entry_date AS expectedEntryDate,"
             + "       u.is_dept_admin AS isDeptAdmin, u.fail_count AS failCount,"
             + "       u.create_time AS createTime, u.login_date AS loginDate,"
@@ -81,7 +81,7 @@ public interface SuperPersonnelMapper {
             + "       u.protocol_status AS protocolStatus,"
             + "       u.dept_id AS deptId, d.dept_name AS deptName,"
             + "       u.position_id AS positionId, p.position_name AS positionName,"
-            + "       u.mentor_name AS mentorName, u.mentor_phone AS mentorPhone,"
+            + "       u.mentor_id AS mentorId, u.mentor_name AS mentorName, u.mentor_phone AS mentorPhone,"
             + "       u.expected_entry_date AS expectedEntryDate,"
             + "       u.is_dept_admin AS isDeptAdmin, u.fail_count AS failCount,"
             + "       u.create_time AS createTime, u.login_date AS loginDate, u.remark AS remark,"
@@ -112,6 +112,8 @@ public interface SuperPersonnelMapper {
             + "     <if test=\"clearPosition\">position_id = NULL,</if>"
             + "     <if test=\"userStatus != null and userStatus != ''\">user_status = #{userStatus},</if>"
             + "     <if test=\"protocolStatus != null\">protocol_status = #{protocolStatus},</if>"
+            + "     <if test=\"mentorId != null\">mentor_id = #{mentorId},</if>"
+            + "     <if test=\"clearMentor\">mentor_id = NULL,</if>"
             + "     <if test=\"mentorName != null\">mentor_name = #{mentorName},</if>"
             + "     <if test=\"mentorPhone != null\">mentor_phone = #{mentorPhone},</if>"
             + "     <if test=\"expectedEntryDate != null\">expected_entry_date = #{expectedEntryDate},</if>"
@@ -127,6 +129,8 @@ public interface SuperPersonnelMapper {
                              @Param("clearPosition") boolean clearPosition,
                              @Param("userStatus") String userStatus,
                              @Param("protocolStatus") Integer protocolStatus,
+                             @Param("mentorId") Long mentorId,
+                             @Param("clearMentor") boolean clearMentor,
                              @Param("mentorName") String mentorName,
                              @Param("mentorPhone") String mentorPhone,
                              @Param("expectedEntryDate") Date expectedEntryDate,

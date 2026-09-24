@@ -24,8 +24,8 @@ public class Question implements Serializable {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    /** 所属题库ID（关联question_bank） */
-    private Long bankId;
+    /** 所属部门ID（★ 2026-09-23 起题目直接按部门归属，不再关联题库） */
+    private Long deptId;
 
     /** 题目编号（题库内唯一） */
     private String questionNo;
@@ -84,10 +84,6 @@ public class Question implements Serializable {
     private Date updateTime;
 
     private Integer deleted;
-
-    /** 题库名称（列表展示字段） */
-    @TableField(exist = false)
-    private String bankName;
 
     /** 所属部门名称（列表展示字段） */
     @TableField(exist = false)

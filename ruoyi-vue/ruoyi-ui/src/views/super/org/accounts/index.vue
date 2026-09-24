@@ -106,7 +106,7 @@
       <section class="s-card">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx">筛</span><h3>查询条件</h3></div>
-          <span class="hint">数据源：sys_user 全量（含手工创建的账号，不依赖报名记录）</span>
+          
         </div>
         <div class="s-filters">
           <el-input v-model="query.keyword" size="small" clearable placeholder="账号 / 姓名 / 手机号" style="width:200px"
@@ -195,22 +195,9 @@
           @size-change="loadPersonnel"
         />
 
-        <p class="s-note">
-          列表基于 <code>sys_user</code> 全量（不是 <code>register_application</code>）—— 手工创建的账号也会出现，不会漏人。
-          账号下方小字为登录名；「无角色」标红表示该账号未分配任何角色（登录后看不到任何菜单）。
-        </p>
-        <p class="s-note">
-          <b>超管口径</b>：系统<b>只保留一个「超级管理员」角色</b>；超管属于<b>公司根部门（融谷）</b>、不归属任何子部门 ——
-          勾选该角色时部门会被锁定为根部门，服务端也会强制归位（传别的部门直接拒绝）。
-          <b>删除为逻辑删除</b>（<code>del_flag='2'</code>），但
-          <b>平台内置超管账号与持有超管角色的账号一律不可删除</b>（须先把它改为其他角色），
-          <b>当前登录账号</b>同样不可删 —— 以此保证系统始终存在一个可正常登录的超管账号。
-        </p>
-        <p class="s-note">
-          <b>角色与培养信息</b>：角色<b>单选</b>（一个账号一个角色）；<b>只有「预备 / 正式实习生」才出现培养信息</b>
-          （岗位 / 培养状态 / 协议状态 / 预计入职 / 导师）—— 改成非实习生角色保存后，该账号会被置为「非实习生」并清空岗位。
-          协议状态对<b>新账号锁定为「未签」</b>：须由实习生本人首次登录签署，之后由系统置为已签，不允许建号时直接标成已签。
-        </p>
+        
+        
+        
       </section>
     </div>
 
@@ -313,44 +300,67 @@
           <el-button size="small" icon="el-icon-refresh-left" @click="resetRegQuery">重置</el-button>
         </div>
 
-        <table v-if="reg.rows.length" class="s-tbl" v-loading="reg.loading">
-          <thead>
-            <tr>
-              <th style="width:150px">申请人</th>
-              <th style="width:150px">登录账号</th>
-              <th style="width:200px">岗位 / 自动匹配部门</th>
-              <th style="width:110px">预计入职</th>
-              <th style="width:96px">申请状态</th>
-              <th style="width:90px">账号状态</th>
-              <th style="width:140px">提交时间</th>
-              <th style="width:196px">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in reg.rows" :key="r.id">
-              <td class="nm">
-                <b>{{ r.realName || '—' }}</b>
-                <small class="sub">{{ r.applicationNo }}</small>
-              </td>
-              <td>{{ r.loginAccount || '—' }}</td>
-              <td>
-                <span v-if="r.positionName">{{ r.positionName }}</span>
-                <span v-else class="muted">岗位缺失</span>
-                <small class="sub"><i class="el-icon-location-outline" /> {{ r.deptName || '部门待配置' }}</small>
-              </td>
-              <td>{{ fmt(r.expectedEntryDate, false) === '—' ? '未填写' : fmt(r.expectedEntryDate, false) }}</td>
-              <td><el-tag :type="regTone(r.status)" size="mini" effect="plain">{{ regText[r.status] || r.status }}</el-tag></td>
-              <td>{{ accountStatusText(r.accountStatus) }}</td>
-              <td>{{ fmt(r.createTime, true) }}</td>
-              <td>
-                <el-button v-if="r.status === 'WAIT_AUDIT'" type="text" size="mini" @click="openAudit(r, 'PASS')">通过</el-button>
-                <el-button v-if="r.status === 'WAIT_AUDIT'" type="text" size="mini" class="danger-text" @click="openAudit(r, 'REJECT')">驳回</el-button>
-                <el-button v-if="r.status === 'WAIT_AUDIT'" type="text" size="mini" icon="el-icon-bell" @click="urgeOne(r)">催办</el-button>
-                <span v-if="r.status !== 'WAIT_AUDIT'" class="muted">已处理</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-if="reg.rows.length" class="s-tbl-scroll">
+          <table class="s-tbl" v-loading="reg.loading">
+            <thead>
+              <tr>
+                <th style="width:150px">申请人</th>
+                <th style="width:130px">登录账号</th>
+                <th style="width:170px">身份证号</th>
+                <th style="width:190px">意向岗位 / 所属部门</th>
+                <th style="width:100px">预计入职</th>
+                <th style="width:92px">申请状态</th>
+                <th style="width:150px">账号状态 / 业务身份</th>
+                <th style="width:170px">导师（实习生管理页分配）</th>
+                <th style="width:205px">审核情况</th>
+                <th style="width:170px">驳回原因</th>
+                <th style="width:140px">提交时间</th>
+                <th style="width:176px">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in reg.rows" :key="r.id" :class="{ 'row-pending': r.status === 'WAIT_AUDIT' }">
+                <td class="nm">
+                  <b>{{ r.realName || '—' }}</b>
+                  <small class="sub">{{ r.applicationNo }}</small>
+                </td>
+                <td>{{ r.loginAccount || '—' }}</td>
+                <td>{{ maskIdCard(r.idCard) }}</td>
+                <td>
+                  <span v-if="r.positionName">{{ r.positionName }}</span>
+                  <span v-else class="muted">岗位缺失</span>
+                  <small class="sub"><i class="el-icon-location-outline" /> {{ r.deptName || '部门待配置' }}</small>
+                </td>
+                <td>{{ fmt(r.expectedEntryDate, false) === '—' ? '未填写' : fmt(r.expectedEntryDate, false) }}</td>
+                <td><el-tag :type="regTone(r.status)" size="mini" effect="plain">{{ regText[r.status] || r.status }}</el-tag></td>
+                <td>
+                  <span :class="accountStatusText(r.accountStatus) === '正常' ? 'ok-text' : 'warn-text'">{{ accountStatusText(r.accountStatus) }}</span>
+                  <small class="sub">{{ statusText[r.userStatus] || r.userStatus || '—' }}</small>
+                </td>
+                <td>
+                  <span>{{ r.mentorName || '待分配' }}</span>
+                  <small class="sub">{{ r.mentorPhone || '待分配' }}</small>
+                </td>
+                <td>
+                  <span>共提交 <b>{{ num(r.auditCount) }}</b> 次</span>
+                  <small class="sub">最近更新 {{ fmt(r.updateTime, true) }}</small>
+                  <small class="sub" :class="auditHintTone(r)">{{ auditHint(r) }}</small>
+                </td>
+                <td>
+                  <span v-if="r.rejectReason" class="reason" :title="r.rejectReason">{{ r.rejectReason }}</span>
+                  <span v-else class="muted">—</span>
+                </td>
+                <td>{{ fmt(r.createTime, true) }}</td>
+                <td>
+                  <el-button v-if="r.status === 'WAIT_AUDIT'" type="text" size="mini" @click="openAudit(r, 'PASS')">通过</el-button>
+                  <el-button v-if="r.status === 'WAIT_AUDIT'" type="text" size="mini" class="danger-text" @click="openAudit(r, 'REJECT')">驳回</el-button>
+                  <el-button v-if="r.status === 'WAIT_AUDIT'" type="text" size="mini" icon="el-icon-bell" @click="urgeOne(r)">催办</el-button>
+                  <span v-if="r.status !== 'WAIT_AUDIT'" class="muted">已处理</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <div v-else class="s-empty"><i class="el-icon-document-checked" /><span>{{ reg.loading ? '加载中…' : '没有符合条件的注册申请' }}</span></div>
 
         <el-pagination
@@ -364,13 +374,7 @@
           @current-change="loadRegister"
         />
 
-        <p class="s-note">
-          与部门管理员同一套审核逻辑：<b>通过</b>需补导师姓名与联系方式（导师只是档案信息，不会创建账号、也不会绑定审核人）；
-          <b>驳回</b>需填原因，账号保持停用，申请人可改资料后重新提交。
-          通过后该实习生进入「预备实习」并启用账号，可在「人员与账号」页签继续维护其岗位与培养状态。
-          <br /><b>催办</b>是超管专属：复用既有的定向通知通道（<code>msgType=URGE</code>），
-          通知会自动附上该部门管理员的<b>完整待办清单</b>（不止注册审核），且<b>同一人每天最多被催一次</b>；已停用的管理员不可催办。
-        </p>
+        
       </section>
     </div>
 
@@ -472,13 +476,17 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="导师姓名">
-                <el-input v-model="form.mentorName" maxlength="64" placeholder="选填" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="导师电话">
-                <el-input v-model="form.mentorPhone" maxlength="32" placeholder="选填" />
+              <el-form-item label="导师">
+                <el-select v-model="form.mentorId" filterable clearable placeholder="从导师库中选择"
+                           style="width:100%" :loading="mentorOptionsLoading">
+                  <el-option v-for="m in mentorOptions" :key="m.id"
+                             :label="m.mentorName + '（' + (m.mentorPhone || '无联系方式') + '）'"
+                             :value="m.id" />
+                </el-select>
+                <div class="field-tip">
+                  导师库由「组织与人员 › 导师管理」维护
+                  <router-link to="/super/org/mentor">去导师管理</router-link>
+                </div>
               </el-form-item>
             </el-col>
             <el-col v-if="agreementSignature" :span="24">
@@ -547,13 +555,7 @@
       <el-form ref="auditForm" :model="audit" :rules="auditRules" label-width="86px" size="small" style="margin-top:12px">
         <template v-if="audit.action === 'PASS'">
           <el-alert type="info" :closable="false" show-icon
-                    title="通过后账号启用、进入「预备实习」。导师为必填档案信息。" style="margin-bottom:10px" />
-          <el-form-item label="导师姓名" prop="mentorName">
-            <el-input v-model="audit.mentorName" maxlength="64" placeholder="请输入导师姓名" />
-          </el-form-item>
-          <el-form-item label="导师联系方式" prop="mentorPhone">
-            <el-input v-model="audit.mentorPhone" maxlength="32" placeholder="手机号或其他联系方式" />
-          </el-form-item>
+                    title="通过后账号自动启用并进入「预备实习」。导师不再在这里填写 —— 请到「导师管理」维护导师库，再在「实习生管理」页给实习生选一位。" style="margin-bottom:10px" />
         </template>
         <template v-else>
           <el-alert type="warning" :closable="false" show-icon
@@ -579,6 +581,7 @@ import { listDept } from '@/api/system/dept'
 import { listPosition, getDeptBindings } from '@/api/business/position'
 import { listPersonnel, getPersonnel, savePersonnelBusiness, deletePersonnel, getPersonnelSummary } from '@/api/business/personnel'
 import { listRegister, auditRegister, getRegisterSummary } from '@/api/business/register'
+import { getMentorOptions } from '@/api/business/mentor'
 // 催办：复用既有的「超管督办」通道（定向通知 msgType=URGE，同一人每天最多被催一次）
 import { listDeptAdmins, urgeTodo } from '@/api/business/superTodo'
 
@@ -678,10 +681,11 @@ export default {
         submitting: false,
         row: null,
         action: 'PASS',
-        mentorName: '',
-        mentorPhone: '',
         reason: ''
-      }
+      },
+      // ---- 导师库（2026-09-23：导师改为从主表选，不再手敲文本）----
+      mentorOptions: [],
+      mentorOptionsLoading: false
     }
   },
   computed: {
@@ -814,6 +818,7 @@ export default {
     const t = this.$route.query.tab
     if (t === 'register' || t === 'people') this.tab = t
     this.loadRefs()
+    this.loadMentorOptions()
     this.loadPersonnel()
     this.loadPendingCount()
     this.loadSummary()
@@ -827,10 +832,21 @@ export default {
         userId: null, userName: '', nickName: '', phonenumber: '', email: '',
         sex: '0', status: '0', deptId: null, roleId: null, password: '',
         positionId: null, userStatus: 'PRE_TRAINEE', protocolStatus: 0,
-        mentorName: '', mentorPhone: '', expectedEntryDate: null
+        mentorId: null, expectedEntryDate: null
       }
     },
     // ---------------- 参照数据 ----------------
+    /** 导师库选项（2026-09-23）：超管不限部门，拿到的是全部启用中导师 */
+    loadMentorOptions() {
+      this.mentorOptionsLoading = true
+      getMentorOptions().then(res => {
+        this.mentorOptions = (res && res.data) || []
+      }).catch(() => {
+        this.mentorOptions = []
+      }).finally(() => {
+        this.mentorOptionsLoading = false
+      })
+    },
     loadRefs() {
       listDept({}).then(res => {
         const all = res.data || []
@@ -1057,8 +1073,7 @@ export default {
           positionId: d.positionId != null ? Number(d.positionId) : null,
           userStatus: d.userStatus || 'NON_INTERN',
           protocolStatus: d.protocolStatus != null ? Number(d.protocolStatus) : 0,
-          mentorName: d.mentorName || '',
-          mentorPhone: d.mentorPhone || '',
+          mentorId: d.mentorId != null ? Number(d.mentorId) : null,
           expectedEntryDate: d.expectedEntryDate ? String(d.expectedEntryDate).slice(0, 10) : null
         }
       }).catch(() => { this.formVisible = false })
@@ -1106,8 +1121,10 @@ export default {
           body.userStatus = this.form.userStatus
           // 新账号一律「未签」：协议须由实习生本人首次登录签署，不允许建号时就标成已签
           body.protocolStatus = isAdd ? 0 : Number(this.form.protocolStatus)
-          body.mentorName = this.form.mentorName
-          body.mentorPhone = this.form.mentorPhone
+          // ★ 2026-09-23：导师改为从导师库选（mentor_id）。姓名/联系方式由后端按 mentorId 回填，
+          // 前端不再传文本，避免又出现「001 / 圣诞 / (⊙﹏⊙)图」这类脏值。
+          // 传 null 表示显式清空关联（后端用 containsKey 判定）。
+          body.mentorId = this.form.mentorId != null ? Number(this.form.mentorId) : null
           body.expectedEntryDate = this.form.expectedEntryDate
         } else {
           // 非实习生（部门管理员 / 超管）：置为「非实习生」，并清空岗位（岗位只对实习生有意义）
@@ -1224,31 +1241,25 @@ export default {
     openAudit(row, action) {
       this.audit = {
         visible: true, submitting: false, row: row, action: action,
-        mentorName: '', mentorPhone: '', reason: ''
+        reason: ''
       }
       this.$nextTick(() => { this.$refs.auditForm && this.$refs.auditForm.clearValidate() })
     },
     submitAudit() {
       const a = this.audit
       if (!a.row) return
-      if (a.action === 'PASS' && (!a.mentorName || !a.mentorPhone)) {
-        this.$message.warning('通过申请需填写导师姓名与联系方式')
-        return
-      }
+      // ★ 2026-09-23：通过申请不再需要导师（导师改到导师库 + 实习生管理页分配）
       if (a.action === 'REJECT' && !a.reason) {
         this.$message.warning('驳回需填写原因')
         return
       }
       a.submitting = true
       const body = { id: a.row.id, action: a.action }
-      if (a.action === 'PASS') {
-        body.mentorName = a.mentorName
-        body.mentorPhone = a.mentorPhone
-      } else {
+      if (a.action === 'REJECT') {
         body.reason = a.reason
       }
       auditRegister(body).then(() => {
-        this.$message.success(a.action === 'PASS' ? '已通过，账号已启用' : '已驳回')
+        this.$message.success(a.action === 'PASS' ? '已通过，账号已启用；请到「实习生管理」页分配导师' : '已驳回')
         a.visible = false
         this.loadRegister()
         this.loadPendingCount()
@@ -1281,6 +1292,32 @@ export default {
       if (s === '0' || s === 0) return '正常'
       if (s === '1' || s === 1) return '停用'
       return '—'
+    },
+    /** 身份证号脱敏（与部门端注册审核页保持同一口径） */
+    maskIdCard(idCard) {
+      if (!idCard) return '—'
+      if (String(idCard).length < 10) return idCard
+      const s = String(idCard)
+      return s.slice(0, 6) + '********' + s.slice(-4)
+    },
+    /** 审核情况：由注册申请列表已有字段派生，不额外请求审核记录 */
+    auditHint(r) {
+      if (r.status === 'WAIT_AUDIT') {
+        return this.num(r.auditCount) > 1 ? '前次被驳回，待重新审核' : '等待部门管理员处理'
+      }
+      if (r.status === 'PASSED') {
+        return r.mentorName ? '已通过并启用账号' : '已通过，待分配导师'
+      }
+      if (r.status === 'REJECTED') {
+        return '已驳回，待申请人修改后重提'
+      }
+      return '—'
+    },
+    auditHintTone(r) {
+      if (r.status === 'PASSED') return 'ok-text'
+      if (r.status === 'REJECTED') return 'danger-text'
+      if (r.status === 'WAIT_AUDIT') return 'warn-text'
+      return ''
     }
   }
 }
@@ -1330,6 +1367,17 @@ export default {
   td .ok-text { color: #027a48; }
   td i.el-icon-lock { margin-left: 4px; color: #98a2b3; }
 }
+/* 注册申请表：展平后列多，横向滚动 + 待审行高亮 */
+.s-tbl-scroll { overflow-x: auto; }
+.s-tbl-scroll .s-tbl { min-width: 1790px; }
+.s-tbl .warn-text { color: #b54708; }
+.s-tbl .reason {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.s-tbl tr.row-pending td { background: #fffaf1; }
 .field-tip { margin-top: 3px; color: #98a2b3; font-size: 11px; line-height: 1.5; }
 /* 签署凭证：人员详情里展示实习生本人签名图与凭证信息 */
 .sign-receipt { width: 100%; }

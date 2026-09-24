@@ -41,24 +41,7 @@
     </div>
 
     <template v-else-if="examId">
-      <!-- ① 总览：全部来自当前场次的应考名单（真实数据），点卡即筛选 -->
-      <div class="prep-kpi-row kpi6">
-        <div
-          v-for="k in kpiCards"
-          :key="k.key"
-          class="prep-kpi-card"
-          :class="[k.tone, { clickable: k.filter, active: k.filter && statusFilter === k.filter }]"
-          @click="k.filter && applyKpi(k.filter)"
-        >
-          <span class="prep-kpi-icon"><i :class="k.icon" /></span>
-          <span class="prep-kpi-body">
-            <span class="prep-kpi-value">{{ k.value }}<small>{{ k.unit }}</small></span>
-            <span class="prep-kpi-label">{{ k.label }}</span>
-          </span>
-        </div>
-      </div>
-
-      <!-- ② 筛选条 -->
+      <!-- 筛选条 -->
       <div class="prep-filter">
         <span class="dchips">
           <span
@@ -181,11 +164,7 @@
 
             <div v-else class="dcallout ok" style="margin-bottom:0">
               <i class="el-icon-success" />
-              <span>
-                本场答卷<b>全部为客观题</b>，已由后端自动判分写入
-                <code>is_correct / final_score / pass_flag</code>，<b>无需人工录分</b>。
-                如需总评语，可在下方补充后直接发布成绩。
-              </span>
+              <span>全部为客观题，已自动判分。如需总评语，可在下方补充后直接发布成绩。</span>
             </div>
 
             <div class="dkv" style="grid-template-columns:repeat(5,1fr);margin-top:16px">
@@ -218,7 +197,7 @@
 
       <!-- ============ ② 成绩汇总 ============ -->
       <div v-if="activeTab === 'summary'" class="dgrid">
-        <div class="dcard c8">
+        <div class="dcard c12">
           <div class="dcard-h">
             <div class="tt"><span class="idx">汇</span><h3>成绩汇总</h3></div>
             <span class="hint-text">理论「自动」· 实操「人工」· 分项独立出分</span>
@@ -278,56 +257,6 @@
               </tr>
             </tbody>
           </table>
-          <p class="dsec-note">
-            <b>两个分数口径不同，不要混看：</b>
-            「最终分」来自答卷的 <code>final_score</code>（后端写入）；
-            「参考综合分」= 理论 × <b>{{ weight.theory }}%</b> + 实操 × <b>{{ weight.practice }}%</b>（权重读 <code>assessment_config</code>），
-            仅在后端综合规则表 <code>exam_rule_snapshot</code> 接通前的<b>参考口径</b>。
-            任一分缺失一律显示「待定」，不给「通过」—— 部门直接终审没有二次复核。
-          </p>
-        </div>
-
-        <div class="dcard c4">
-          <div class="dcard-h">
-            <div class="tt"><span class="idx o">章</span><h3>本场章节得分率</h3></div>
-            <span class="hint-text">
-              <template v-if="chapterLoading">计算中…</template>
-              <template v-else-if="chapterStats.length">基于 {{ answeredSheetCount }} 份答卷</template>
-            </span>
-          </div>
-
-          <div v-if="chapterLoading" class="dempty small"><i class="el-icon-loading" /><span>正在拉取答卷明细…</span></div>
-          <template v-else-if="chapterStats.length">
-            <p class="dsec-note" style="margin-top:0">
-              <span v-if="answeredSheetCount < 5" class="warn-note">
-                <i class="el-icon-warning-outline" /> 样本不足（仅 {{ answeredSheetCount }} 份），仅作参考
-              </span>
-              <span v-else>口径：已作答的题参与得分率，<b>未作答单独统计</b>（不当作答错）。</span>
-            </p>
-            <div v-for="row in chapterStats" :key="row.name" class="chap-row">
-              <div class="chap-head">
-                <span class="chap-name">{{ row.name }}</span>
-                <span class="chap-rate" :class="row.tone">{{ row.rate == null ? '无作答' : row.rate + '%' }}</span>
-              </div>
-              <div class="chap-bar">
-                <i class="ok" :style="{ width: row.okPct + '%' }" />
-                <i class="bad" :style="{ width: row.badPct + '%' }" />
-                <i class="blank" :style="{ width: row.blankPct + '%' }" />
-              </div>
-              <div class="chap-meta">
-                对 {{ row.ok }} · 错 {{ row.bad }} · 未作答 {{ row.blank }}
-              </div>
-            </div>
-            <p class="dsec-note">
-              数据来源：答卷明细的 <code>items[].knowledgePoint</code>（章节）× <code>isCorrect</code> / <code>userAnswer</code>，
-              按章节聚合后<b>由低到高</b>排序 —— 排前面的就是最该补的章节。
-            </p>
-          </template>
-          <div v-else class="dempty small">
-            <i class="el-icon-data-analysis" />
-            <strong>还没有可用于统计的答卷</strong>
-            <span>本场有答卷后，这里会按章节算出得分率（未作答单独统计）。</span>
-          </div>
         </div>
       </div>
     </template>
@@ -360,10 +289,6 @@ export default {
       sheet: null,
       sheetItems: [],
       currentSheetId: null,
-      // === 改版新增 ===
-      /** 本场章节得分率（真数据，按试卷明细聚合） */
-      chapterStats: [],
-      chapterLoading: false,
       weight: { theory: THEORY_WEIGHT, practice: PRACTICE_WEIGHT }
     }
   },
@@ -399,8 +324,6 @@ export default {
       return this.allRows.filter(r => r.finalScore != null || r.sheetStatus === 'PUBLISHED')
     },
     submittedRows() { return this.allRows },
-    /** 有答卷份数（章节统计的样本量） */
-    answeredSheetCount() { return this.allRows.length },
     /** ③ 列表（评分队列与汇总表都用它） */
     filteredRows() {
       if (this.statusFilter === 'SUBMITTED') return this.submittedRows
@@ -420,21 +343,6 @@ export default {
       ]
     },
     /** ① 总览六卡：全部由当前场次的应考名单算（取不到就显示 —，不编数） */
-    kpiCards() {
-      const scored = this.rows.filter(r => r.finalScore != null || r.sheetStatus === 'PUBLISHED')
-      const scores = scored.map(r => Number(r.finalScore)).filter(n => !isNaN(n))
-      const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10 : null
-      const passed = scored.filter(r => r.passFlag === 1 || r.passFlag === '1').length
-      const rate = scored.length ? Math.round(passed / scored.length * 100) : null
-      return [
-        { key: 'ALL', label: '应考人数', value: this.rows.length, unit: '人', icon: 'el-icon-user', filter: 'ALL' },
-        { key: 'SUBMITTED', label: '已交卷', value: this.submittedRows.length, unit: '人', icon: 'el-icon-upload2', tone: 'tone-orange', filter: 'SUBMITTED' },
-        { key: 'TODO', label: this.pendingLabel, value: this.pendingRows.length, unit: '人', icon: 'el-icon-edit-outline', tone: 'tone-red', filter: 'TODO' },
-        { key: 'GRADED', label: '已出分', value: this.gradedRows.length, unit: '人', icon: 'el-icon-circle-check', tone: 'tone-green', filter: 'GRADED' },
-        { key: 'AVG', label: '平均分', value: avg == null ? '—' : avg, unit: avg == null ? '' : '分', icon: 'el-icon-data-line', tone: 'tone-purple' },
-        { key: 'RATE', label: '通过率', value: rate == null ? '—' : rate, unit: rate == null ? '' : '%', icon: 'el-icon-medal', tone: 'tone-green' }
-      ]
-    },
     /** 能否发布：存在「已出分但未发布」的答卷即可（实操卷需先评完分才会出分） */
     canPublish() {
       return this.unpublishedRows.length > 0
@@ -485,7 +393,6 @@ export default {
       this.currentSheetId = null
       this.statusFilter = 'ALL'
       this.activeTab = 'grading'
-      this.chapterStats = []
       this.loadGrading()
     },
     loadGrading() {
@@ -500,54 +407,12 @@ export default {
     },
     switchToSummary() {
       this.activeTab = 'summary'
-      if (!this.chapterStats.length) this.loadChapterStats()
     },
     /**
      * 本场章节得分率（真数据）
      * 数据源：逐份答卷的 detail.items[]（带 knowledgePoint / isCorrect / userAnswer / fullScore）
      * 口径：已作答的题参与得分率；未作答单独统计，不并入分母。
      */
-    loadChapterStats() {
-      const sheets = this.allRows
-      if (!sheets.length) { this.chapterStats = []; return }
-      this.chapterLoading = true
-      Promise.all(sheets.map(r => sheetDetail(r.sheetId).catch(() => null))).then(list => {
-        const map = {}
-        list.forEach(res => {
-          const items = (res && res.data && res.data.items) || []
-          items.forEach(it => {
-            const name = it.knowledgePoint || '未标注章节'
-            if (!map[name]) map[name] = { name, ok: 0, bad: 0, blank: 0 }
-            const answered = it.userAnswer !== null && it.userAnswer !== undefined && String(it.userAnswer).trim() !== ''
-            if (!answered) map[name].blank++
-            else if (it.isCorrect === 1 || it.isCorrect === '1') map[name].ok++
-            else map[name].bad++
-          })
-        })
-        const list2 = Object.keys(map).map(k => {
-          const m = map[k]
-          const answered = m.ok + m.bad
-          const total = answered + m.blank
-          const rate = answered ? Math.round(m.ok / answered * 100) : null
-          return Object.assign(m, {
-            rate,
-            okPct: total ? m.ok / total * 100 : 0,
-            badPct: total ? m.bad / total * 100 : 0,
-            blankPct: total ? m.blank / total * 100 : 0,
-            tone: rate == null ? 'mid' : (rate < 60 ? 'poor' : (rate < 80 ? 'mid' : 'good'))
-          })
-        })
-        // 排前面的 = 最该补的：得分率低的在前；无作答的垫到最后
-        list2.sort((a, b) => {
-          if (a.rate == null && b.rate == null) return b.blank - a.blank
-          if (a.rate == null) return 1
-          if (b.rate == null) return -1
-          return a.rate - b.rate
-        })
-        this.chapterStats = list2
-        this.chapterLoading = false
-      }).catch(() => { this.chapterLoading = false })
-    },
     openSheet(row) {
       // 防御：没有答卷的人（sheetId 为空）不能进评分面板，否则会请求 /detail/undefined
       if (!row || !row.sheetId) return
@@ -622,11 +487,8 @@ export default {
       }).catch(() => { this.publishing = false })
     },
     /** ① KPI 点卡 = 套用筛选（再点一次取消） */
-    applyKpi(key) {
-      this.statusFilter = this.statusFilter === key ? 'ALL' : key
-    },
     /**
-     * 导出 CSV：成绩汇总 + 章节得分率（**前端直接生成，不依赖后端导出接口**）
+     * 导出 CSV：成绩汇总（**前端直接生成，不依赖后端导出接口**）
      * 带 UTF-8 BOM，Excel 打开中文不乱码；字段含逗号/引号时做转义。
      */
     exportCsv() {
@@ -650,14 +512,6 @@ export default {
           r.submitTime ? this.fmtTime(r.submitTime) : ''
         ].map(esc).join(','))
       })
-      if (this.chapterStats.length) {
-        lines.push('')
-        lines.push(['章节得分率（未作答单独统计）', '基于 ' + this.answeredSheetCount + ' 份答卷'].map(esc).join(','))
-        lines.push(['章节', '答对', '答错', '未作答', '得分率(%)'].map(esc).join(','))
-        this.chapterStats.forEach(c => {
-          lines.push([c.name, c.ok, c.bad, c.blank, c.rate == null ? '' : c.rate].map(esc).join(','))
-        })
-      }
       const csv = '\ufeff' + lines.join('\r\n') + '\r\n'
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)

@@ -111,8 +111,12 @@
                END                                AS stage,
                CASE WHEN u.user_status = 'WAIT_AUDIT' THEN 1 ELSE 0 END  AS statusConflict,
                u.mentor_name                      AS mentorName,
+               u.mentor_phone                     AS mentorPhone,
                CASE WHEN u.protocol_status = '1' THEN 1 ELSE 0 END       AS protocolSigned,
                DATEDIFF(NOW(), u.create_time)     AS stayDays,
+               u.expected_entry_date              AS expectedEntryDate,
+               u.create_time                      AS createTime,
+               u.login_date                       AS loginDate,
                (SELECT COUNT(*) FROM study_record s
                  WHERE s.user_id = u.user_id)                             AS learnTotal,
                (SELECT COUNT(*) FROM study_record s
@@ -122,7 +126,15 @@
                (SELECT COUNT(*) FROM task_assignment ta
                  WHERE ta.user_id = u.user_id)                            AS taskTotal,
                (SELECT COUNT(*) FROM task_assignment ta
-                 WHERE ta.user_id = u.user_id AND ta.status = 'OVERDUE')  AS taskOverdue
+                 WHERE ta.user_id = u.user_id AND ta.status = 'OVERDUE')  AS taskOverdue,
+               <!-- 模拟考核（2026-09-23 加）：场次 + 正确率。
+                    ★ 正确率用 NULLIF 防除零；无记录时 SUM 为 NULL → 整列返回 NULL，
+                      前端显示「未参加」，不伪装成 0%（项目铁律）。 -->
+               (SELECT COUNT(*) FROM practice_record pr
+                 WHERE pr.user_id = u.user_id)                            AS practiceTimes,
+               (SELECT ROUND(SUM(pr.correct_count) / NULLIF(SUM(pr.total_count), 0) * 100, 1)
+                  FROM practice_record pr
+                 WHERE pr.user_id = u.user_id)                            AS practiceAccuracy
         FROM sys_user u
         JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
         LEFT JOIN position p ON p.id = u.position_id

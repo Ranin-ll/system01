@@ -37,13 +37,9 @@ export function practiceRecordDetail(recordId) {
   return request({ url: '/business/practice/record/' + recordId, method: 'get' })
 }
 
-// 模拟考核 · 实操练习列表（本部门已发布，只读；moduleId 非空时只取该模块下的题）
-export function listPracticeSubjects(moduleId) {
-  return request({
-    url: '/business/practice-subject/published',
-    method: 'get',
-    params: moduleId ? { moduleId } : {}
-  })
+// 模拟考核 · 实操练习列表（本部门已发布，只读；★ 2026-09-23 起不再分模块）
+export function listPracticeSubjects() {
+  return request({ url: '/business/practice-subject/published', method: 'get' })
 }
 
 // 模拟考核 · 单条实操题详情（独立详情页使用，仅本部门已发布）

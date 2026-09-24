@@ -53,7 +53,7 @@
         <section class="s-card s-c12">
           <div class="s-card-h">
             <div class="tt"><span class="s-idx p">⓪</span><h3>培养状态进度</h3></div>
-            <span class="hint">阶段判定：以角色为主、user_status 为辅</span>
+            
             <el-button class="hd-link" type="text" size="mini" @click="goPeople">人员与账号 ›</el-button>
           </div>
           <div class="tl">
@@ -131,11 +131,7 @@
               </tr>
             </tbody>
           </table>
-          <p class="s-note">
-            ★ <b>「进度」与「状态」是两件事</b>：实测存在
-            <code>progress=100</code> 但 <code>status</code> 仍是 <code>IN_PROGRESS</code> 的项
-            （完成判定还依赖其它条件）。本页两者都如实显示，<b>不替业务"修数"</b>。
-          </p>
+          
         </section>
 
         <section class="s-card s-c5">
@@ -168,9 +164,7 @@
               </tr>
             </tbody>
           </table>
-          <p class="s-note">
-            ★ 审核结果是<b>三值</b>（待审核 / 通过 / 驳回），<b>不能当布尔用</b>；提交次数 &gt; 1 说明被驳回后重交过。
-          </p>
+          
         </section>
       </div>
 
@@ -189,11 +183,7 @@
               <span class="track"><i :class="p.score >= 8 ? 'g' : (p.score >= 6 ? '' : 'r')" :style="{ width: clamp(p.score * 10) + '%' }" /></span>
               <span class="pc">{{ p.correct }}/{{ p.total }}</span>
             </div>
-            <p class="s-note">
-              共 {{ practice.length }} 场 · 均分 {{ practiceAvg }} / {{ practice[0].total }}。
-              ★ 实测后 5 场<b>分数完全不变</b>（都是 5 分）—— 这不是"发挥稳定"，而是<b>刷同一套题</b>；
-              看板应看<b>去重后的知识覆盖</b>，而不是把多次简单平均当成能力值。
-            </p>
+            
           </template>
         </section>
 
@@ -254,10 +244,7 @@
               </span>
               <span class="pc">{{ f.finalScore === null || f.finalScore === undefined ? '待判' : f.finalScore }}</span>
             </div>
-            <p class="s-note">
-              共 {{ formalList.length }} 场 · 绿条 = 已通过（<code>pass_flag=1</code>）。
-              未判分 / 未发布显示「待判」，<b>不以 0 分占位</b>。
-            </p>
+            
           </template>
         </section>
 

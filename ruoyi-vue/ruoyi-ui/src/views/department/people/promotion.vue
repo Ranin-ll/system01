@@ -15,13 +15,7 @@
       </div>
     </div>
 
-    <div class="dcallout ok">
-      <i class="el-icon-success" />
-      <span>
-        <b>已按既定决策改写：部门管理员直接终审。</b>本页<b>不再有「推荐给超管」这一步</b>，
-        按钮语义从「推荐」改为「审批通过」，审批即时生效并自动发证。
-      </span>
-    </div>
+    
 
     <!-- 转正要求设置（部门管理员） -->
     <div class="dsec" style="padding:16px 22px">
@@ -91,7 +85,6 @@
           <i class="el-icon-document-checked" />
           <strong>暂无记录</strong>
         </div>
-        <p class="dsec-note">列表行显示「资格齐备 / N 项待补 / 未达门槛」，让管理员一眼知道要不要点进去。</p>
       </div>
 
       <!-- 右：审核详情 -->
@@ -141,7 +134,7 @@
                   <div class="dhbar-fill" :class="d.barTone" :style="{ width: d.value + '%' }" />
                 </div>
               </div>
-              <p v-if="!current.dimensions.length" class="dsec-note">四维能力待生成（需 profile_snapshot 聚合接口）。</p>
+              <p v-if="!current.dimensions.length" class="dsec-note">四维能力待生成。</p>
             </div>
           </div>
 
@@ -162,11 +155,7 @@
             <span class="ar">→</span>
             <span class="nd">自动发证 · 转 FORMAL_TRAINEE</span>
           </div>
-          <p class="dsec-note">
-            驳回可重新提交。<b>本决策下 <code>SUPER_PENDING</code>（超管终审）被跳过</b>，审批即时生效：
-            证书由 <code>certificate</code> 生成，<code>sys_user.user_status</code> 直接置为 <code>FORMAL_TRAINEE</code>，
-            实习生端工作台底部证书标签随之点亮。
-          </p>
+          <p class="dsec-note">驳回可重新提交；审批通过后即时生效并自动发证。</p>
 
           <div class="dbtn-row">
             <el-button size="small" :disabled="current.status !== 'PENDING'" @click="reject()">驳回并说明原因</el-button>
@@ -183,60 +172,6 @@
       </div>
     </div>
 
-    <!-- 配套改动 + 规则影响 -->
-    <div class="dgrid" style="margin-top:16px">
-      <div class="dcard c8">
-        <div class="dcard-h">
-          <div class="tt"><span class="idx o">配</span><h3>本决策必须配套的 4 项改动</h3></div>
-          <span class="hint-text">否则会「有入口、审不了」</span>
-        </div>
-        <table class="dtbl">
-          <thead>
-            <tr><th style="width:30px">#</th><th style="width:250px">改动</th><th>原因 / 做法</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>1</td>
-              <td><span class="strong">状态机跳过 <code>SUPER_PENDING</code></span></td>
-              <td><code>DEPT_PENDING → PASSED / REJECTED</code>；<code>super_approve_by/time</code> 两列保留不写（留给超管代操作留痕）</td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td><span class="strong"><code>sys_user.user_status</code> 驱动方下沉</span></td>
-              <td>审批通过时由 Service 直接置 <code>FORMAL_TRAINEE</code>，<b>不再等超管</b>；同时落证 + 回写 <code>cert_no</code></td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td><span class="strong">为 <code>DEPT_ADMIN</code> 补转正审批权限</span></td>
-              <td>现有权限里没有这项 → 新增菜单 + 角色授权（与菜单迁移合并做）</td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td><span class="strong">保留纠错路径</span></td>
-              <td><code>operate_log</code> 留痕 + 超管「撤回转正」（退回 <code>PRE_TRAINEE</code> + 证书作废）</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="dcard c4">
-        <div class="dcard-h">
-          <div class="tt"><span class="idx p">规</span><h3>规则与超管端影响</h3></div>
-        </div>
-        <div class="dcallout warn" style="margin-bottom:10px">
-          <i class="el-icon-warning-outline" />
-          <span><b>业务规则变更</b>：原需求「预备→正式需通过正式考试<b>并经超管审批</b>」在本决策下<b>作废</b>，改为「部门审批即生效」。请同步改需求文档，否则验收会与文档冲突。</span>
-        </div>
-        <div class="dcallout warn">
-          <i class="el-icon-warning-outline" />
-          <span><b>超管端设计稿失效</b>：原画了「超管终审」环节，需删除，只留「查看 + 撤回转正」。</span>
-        </div>
-        <p class="dsec-note">
-          <b>好消息</b>：<code>promotion_application</code> / <code>certificate</code> / <code>stage_evaluation</code>
-          <b>全部零 Java 层</b>，整套都是新增 —— <b>不受「已实现接口一律不改」约束</b>，也没有改老代码的回归风险。
-        </p>
-      </div>
-    </div>
   </div>
 </template>
 

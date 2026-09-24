@@ -6,11 +6,9 @@
     <resultMap type="PracticeSubject" id="PracticeSubjectResult">
         <id     property="id"               column="id"                />
         <result property="deptId"           column="dept_id"           />
-        <result property="moduleId"         column="module_id"         />
         <result property="bankId"           column="bank_id"           />
         <result property="suggestScore"     column="suggest_score"     />
         <result property="chapter"          column="chapter"           />
-        <result property="bankName"         column="bank_name"         />
         <result property="title"            column="title"             />
         <result property="direction"        column="direction"         />
         <result property="directionDesc"    column="direction_desc"    />
@@ -30,24 +28,24 @@
         <result property="updateTime"       column="update_time"       />
         <result property="deleted"          column="deleted"           />
         <result property="deptName"         column="dept_name"         />
-        <result property="moduleName"       column="module_name"       />
     </resultMap>
 
+    <!--
+      ★ 2026-09-23：模拟实操题**不再分模块/阶段**（practice_module 这一层退场）——
+      只按 dept_id 归属部门 + sort_no 排序；module_id 列保留在库中但不再读写。
+    -->
     <sql id="subjectColumns">
-        s.id, s.dept_id, s.module_id, s.bank_id, s.title, s.direction, s.direction_desc, s.difficulty,
-        s.suggest_score, s.chapter,b.bank_name,
+        s.id, s.dept_id, s.bank_id, s.title, s.direction, s.direction_desc, s.difficulty,
+        s.suggest_score, s.chapter,
         s.estimated_minutes, s.deliverables, s.dev_constraints, s.submit_format,
         s.naming_rule, s.reference_images, s.sort_no,
         s.content, s.attachments_json, s.status,
         s.create_by, s.create_time, s.update_time, s.deleted,
-        d.dept_name,
-        m.name AS module_name
+        d.dept_name
     </sql>
 
     <sql id="subjectJoins">
         LEFT JOIN sys_dept d ON d.dept_id = s.dept_id AND d.del_flag = '0'
-        LEFT JOIN practice_module m ON m.id = s.module_id AND m.deleted = 0
-        LEFT JOIN question_bank b ON b.id = s.bank_id AND b.deleted = 0
     </sql>
 
     <select id="selectSubjectList" resultMap="PracticeSubjectResult">
@@ -61,12 +59,6 @@
             </if>
             <if test="deptId != null">
                 AND s.dept_id = #{deptId}
-            </if>
-            <if test="moduleId != null">
-                AND s.module_id = #{moduleId}
-            </if>
-            <if test="bankId != null">
-                AND s.bank_id = #{bankId}
             </if>
             <if test="chapter != null and chapter != ''">
                 AND s.chapter = #{chapter}
@@ -86,7 +78,7 @@
                      OR s.content LIKE CONCAT('%', #{content}, '%'))
             </if>
         </where>
-        ORDER BY s.status DESC, m.sort_no ASC, s.module_id ASC, s.sort_no ASC, s.id DESC
+        ORDER BY s.status DESC, s.sort_no ASC, s.id DESC
     </select>
 
     <select id="selectSubjectById" resultMap="PracticeSubjectResult">
@@ -104,19 +96,16 @@
         WHERE s.deleted = 0
           AND s.status = 1
           AND s.dept_id = #{deptId}
-          <if test="moduleId != null">
-              AND s.module_id = #{moduleId}
-          </if>
-        ORDER BY m.sort_no ASC, s.module_id ASC, s.sort_no ASC, s.id ASC
+        ORDER BY s.sort_no ASC, s.id ASC
     </select>
 
     <insert id="insertSubject" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO practice_subject
-            (dept_id, module_id, bank_id, title, direction, direction_desc, difficulty, suggest_score, chapter, estimated_minutes,
+            (dept_id, bank_id, title, direction, direction_desc, difficulty, suggest_score, chapter, estimated_minutes,
              deliverables, dev_constraints, submit_format, naming_rule, reference_images,
              sort_no, content, attachments_json, status, create_by, create_time, update_time, deleted)
         VALUES
-            (#{deptId}, #{moduleId}, #{bankId}, #{title}, #{direction}, #{directionDesc}, #{difficulty}, #{suggestScore}, #{chapter}, #{estimatedMinutes},
+            (#{deptId}, #{bankId}, #{title}, #{direction}, #{directionDesc}, #{difficulty}, #{suggestScore}, #{chapter}, #{estimatedMinutes},
              #{deliverables}, #{devConstraints}, #{submitFormat}, #{namingRule}, #{referenceImages},
              #{sortNo}, #{content}, #{attachmentsJson}, #{status}, #{createBy}, NOW(), NOW(), 0)
     </insert>
@@ -124,7 +113,6 @@
     <update id="updateSubject">
         UPDATE practice_subject
         <set>
-            <if test="moduleId != null">module_id = #{moduleId},</if>
             <if test="bankId != null">bank_id = #{bankId},</if>
             <if test="suggestScore != null">suggest_score = #{suggestScore},</if>
             <if test="chapter != null">chapter = #{chapter},</if>

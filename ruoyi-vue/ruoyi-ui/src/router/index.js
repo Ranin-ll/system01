@@ -323,6 +323,15 @@ export const dynamicRoutes = [
         meta: { title: '实习生管理', icon: 'peoples', activeMenu: '/department/people/students' }
       },
       {
+        // 导师管理（2026-09-23 新增）：导师抽成独立 mentor 主表后，部门管理员在此维护
+        // 本部门导师；「实习生管理」页分配导师时直接从这里选。
+        // 与超管端共用同一页面组件（views/business/mentor/index.vue）。
+        path: 'people/mentors',
+        component: () => import('@/views/business/mentor/index'),
+        name: 'DeptMentorManage',
+        meta: { title: '导师管理', icon: 'user', activeMenu: '/department/people/mentors' }
+      },
+      {
         path: 'people/promotion',
         component: () => import('@/views/department/people/promotion'),
         name: 'DeptPromotion',
@@ -351,19 +360,20 @@ export const dynamicRoutes = [
         meta: { title: '题库管理', icon: 'list', activeMenu: '/department/study/banks' }
       },
       {
-        // 题库详情（独立页）：与超管端共用同一组件（统计 + 题目管理）
-        path: 'study/practice-bank-detail/:bankId',
-        component: () => import('@/views/business/practiceBank/detail'),
-        name: 'DeptPracticeBankDetail',
-        hidden: true,
-        meta: { title: '实操题库', activeMenu: '/department/study/banks' }
+        // ★ 2026-09-23：模拟实操题**直接在「模拟备考管理 › 模拟实操题」页签内维护**，不再单开页面。
+        //   本路由保留并重定向（旧书签 / 旧链接不掉 404），落在页签上。
+        path: 'study/psubjects',
+        redirect: () => ({ path: '/department/study/prep', query: { tab: 'pbank' } })
       },
       {
+        // ★ 2026-09-23：原「实操题库详情」已退场（实操题库概念取消）→ 重定向到模拟实操题页签。
+        path: 'study/practice-bank-detail/:bankId',
+        redirect: () => ({ path: '/department/study/prep', query: { tab: 'pbank' } })
+      },
+      {
+        // ★ 2026-09-23：原「题库详情」已退场（题目直接按部门归属）→ 重定向到题库管理页。
         path: 'study/bank-detail/:bankId',
-        component: () => import('@/views/business/questionBank/detail'),
-        name: 'DeptBankDetail',
-        hidden: true,
-        meta: { title: '题库详情', activeMenu: '/department/study/banks' }
+        redirect: () => ({ path: '/department/study/banks' })
       },
       {
         path: 'study/prep',
@@ -459,6 +469,16 @@ export const dynamicRoutes = [
         meta: { title: '人员与账号', icon: 'user', activeMenu: '/super/org/accounts' }
       },
       {
+        // 导师管理（2026-09-23 新增）：导师从 sys_user 的自由文本抽成独立 mentor 主表，
+        // 本页维护导师库；实习生侧在「实习生管理」页从此库直接选。
+        // 与部门端共用同一个页面组件（views/business/mentor/index.vue），
+        // 范围由后端区分：超管不限部门，部门管理员只能动本部门。
+        path: 'org/mentor',
+        component: () => import('@/views/business/mentor/index'),
+        name: 'SuperOrgMentor',
+        meta: { title: '导师管理', icon: 'peoples', activeMenu: '/super/org/mentor' }
+      },
+      {
         // 2026-09-20：本页内容（各部门管理员的待办量 + 催办）与「督办看板」**同源**
         //（页面自己也写着"两个页面的数字必然一致"），已并入 /super/todo 的「按人」视角。
         // 这里保留路由并重定向 —— 与之前 org/positions 的处理一致，旧书签不会 404。
@@ -525,29 +545,26 @@ export const dynamicRoutes = [
         meta: { title: '题库管理', icon: 'collection', activeMenu: '/super/ops/bank-admin' }
       },
       {
-        // 题库详情（独立页）：统计 + 题目列表。从题库列表点「查看详情」进来，不进侧栏。
+        // ★ 2026-09-23：原「题库详情」已退场（题目直接按部门归属）→ 重定向到题库管理页。
         path: 'ops/bank-detail/:bankId',
-        component: () => import('@/views/business/questionBank/detail'),
-        name: 'SuperBankDetail',
-        hidden: true,
-        meta: { title: '题库详情', activeMenu: '/super/ops/bank-admin' }
-      },
-      {
-        // ★ 2026-09-22 新增：实操题库详情（与部门端共用同一组件，含实操题 增/删/改/停用）。
-        //   必须挂在 /super 下 —— 原先「题库管理」点实操题库时把路径硬编码成
-        //   /department/study/practice-bank-detail/，超管点了一律 404（因为超管访问 /department/** 会掉 404）。
-        path: 'ops/practice-bank-detail/:bankId',
-        component: () => import('@/views/business/practiceBank/detail'),
-        name: 'SuperPracticeBankDetail',
-        hidden: true,
-        meta: { title: '实操题库', activeMenu: '/super/ops/bank-admin' }
-      },
-      {
-        // ★ 2026-09-22：独立「实操题库」页已下线 —— 能力被「题库管理 → 点实操题库 → 实操题库详情页」
-        //   完整覆盖（新增/编辑/停用/删除实操题），且按题库归属组织更合理，故侧栏不再单列。
-        //   路由**保留并重定向**，避免旧书签 / 旧链接掉 404（项目铁律：弃用页别删路由，改 redirect 保底）。
-        path: 'ops/psubject-admin',
         redirect: () => ({ path: '/super/ops/bank-admin' })
+      },
+      {
+        // ★ 2026-09-23：模拟实操题**直接在「模拟备考管理 › 模拟实操题」页签内维护**，不再单开页面。
+        //   必须指到 /super 前缀（超管访问 /department/** 会掉 404）。
+        path: 'ops/psubjects',
+        redirect: () => ({ path: '/super/ops/prep', query: { tab: 'pbank' } })
+      },
+      {
+        // ★ 2026-09-23：原「实操题库详情」已退场（实操题库概念取消）→ 重定向到模拟实操题页签。
+        path: 'ops/practice-bank-detail/:bankId',
+        redirect: () => ({ path: '/super/ops/prep', query: { tab: 'pbank' } })
+      },
+      {
+        // ★ 2026-09-22：独立「实操题库」页已下线；★ 2026-09-23 起实操题库概念整体退场，
+        //   维护入口回到「模拟备考管理 › 模拟实操题」页签。路由**保留并重定向**，避免旧书签掉 404。
+        path: 'ops/psubject-admin',
+        redirect: () => ({ path: '/super/ops/prep', query: { tab: 'pbank' } })
       },
       {
         // 「考核与成绩」L0：总览（两个视角）+ KPI，下钻到 /exam-config/{id}
