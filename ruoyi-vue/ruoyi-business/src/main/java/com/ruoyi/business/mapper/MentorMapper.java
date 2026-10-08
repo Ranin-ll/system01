@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -93,4 +94,77 @@ public interface MentorMapper extends BaseMapper<Mentor> {
     int syncRedundantToUsers(@Param("mentorId") Long mentorId,
                              @Param("mentorName") String mentorName,
                              @Param("mentorPhone") String mentorPhone);
+
+    // ------------------------------------------------------------------
+    // 实习生「编辑基础信息」（2026-09-24：部门管理员在实习生管理页改所有基础字段）
+    // ------------------------------------------------------------------
+
+    /**
+     * 实习生编辑详情：完整基础信息回显（含 email / sex / positionId / expectedEntryDate，
+     * 这些字段花名册聚合接口 {@code stage-progress} 没带，编辑弹窗必须单独取）。
+     */
+    @Select("SELECT u.user_id AS userId, u.user_name AS userName, u.nick_name AS nickName, "
+            + "       u.phonenumber AS phonenumber, u.email AS email, u.sex AS sex, "
+            + "       u.dept_id AS deptId, u.position_id AS positionId, "
+            + "       u.expected_entry_date AS expectedEntryDate, "
+            + "       u.mentor_id AS mentorId, u.mentor_name AS mentorName, u.mentor_phone AS mentorPhone, "
+            + "       u.user_status AS userStatus, "
+            + "       (SELECT COUNT(*) FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id "
+            + "         WHERE ur.user_id = u.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE')) AS internRoleCount "
+            + "FROM sys_user u WHERE u.user_id = #{userId} AND u.del_flag = '0' LIMIT 1")
+    Map<String, Object> selectInternDetailForEdit(@Param("userId") Long userId);
+
+    /** 手机号是否被其它账号占用（编辑时唯一性校验） */
+    @Select("SELECT COUNT(*) FROM sys_user WHERE del_flag = '0' "
+            + "AND phonenumber = #{phone} AND phonenumber IS NOT NULL AND user_id <> #{userId}")
+    int countPhone(@Param("phone") String phone, @Param("userId") Long userId);
+
+    /** 邮箱是否被其它账号占用（编辑时唯一性校验；空邮箱不参与校验） */
+    @Select("SELECT COUNT(*) FROM sys_user WHERE del_flag = '0' "
+            + "AND email = #{email} AND email IS NOT NULL AND email <> '' AND user_id <> #{userId}")
+    int countEmail(@Param("email") String email, @Param("userId") Long userId);
+
+    /**
+     * 更新实习生基础信息（动态 set，只更新传入的列）。
+     * 语义与超管 {@code SuperPersonnelMapper.updateBusinessFields} 一致，
+     * 只是这里额外支持 nick_name / phonenumber / email / sex 这些账号基础列。
+     */
+    @Update("<script>"
+            + "UPDATE sys_user"
+            + "   <set>"
+            + "     <if test=\"nickName != null\">nick_name = #{nickName},</if>"
+            + "     <if test=\"phonenumber != null\">phonenumber = #{phonenumber},</if>"
+            + "     <if test=\"clearPhone\">phonenumber = NULL,</if>"
+            + "     <if test=\"email != null\">email = #{email},</if>"
+            + "     <if test=\"clearEmail\">email = NULL,</if>"
+            + "     <if test=\"sex != null\">sex = #{sex},</if>"
+            + "     <if test=\"positionId != null\">position_id = #{positionId},</if>"
+            + "     <if test=\"clearPosition\">position_id = NULL,</if>"
+            + "     <if test=\"expectedEntryDate != null\">expected_entry_date = #{expectedEntryDate},</if>"
+            + "     <if test=\"clearEntryDate\">expected_entry_date = NULL,</if>"
+            + "     <if test=\"mentorId != null\">mentor_id = #{mentorId},</if>"
+            + "     <if test=\"clearMentor\">mentor_id = NULL, mentor_name = NULL, mentor_phone = NULL,</if>"
+            + "     <if test=\"mentorName != null\">mentor_name = #{mentorName},</if>"
+            + "     <if test=\"mentorPhone != null\">mentor_phone = #{mentorPhone},</if>"
+            + "     <if test=\"updateBy != null and updateBy != ''\">update_by = #{updateBy},</if>"
+            + "     update_time = NOW()"
+            + "   </set>"
+            + " WHERE user_id = #{userId} AND del_flag = '0'"
+            + "</script>")
+    int updateInternBasic(@Param("userId") Long userId,
+                          @Param("nickName") String nickName,
+                          @Param("phonenumber") String phonenumber,
+                          @Param("clearPhone") boolean clearPhone,
+                          @Param("email") String email,
+                          @Param("clearEmail") boolean clearEmail,
+                          @Param("sex") String sex,
+                          @Param("positionId") Long positionId,
+                          @Param("clearPosition") boolean clearPosition,
+                          @Param("expectedEntryDate") Date expectedEntryDate,
+                          @Param("clearEntryDate") boolean clearEntryDate,
+                          @Param("mentorId") Long mentorId,
+                          @Param("clearMentor") boolean clearMentor,
+                          @Param("mentorName") String mentorName,
+                          @Param("mentorPhone") String mentorPhone,
+                          @Param("updateBy") String updateBy);
 }

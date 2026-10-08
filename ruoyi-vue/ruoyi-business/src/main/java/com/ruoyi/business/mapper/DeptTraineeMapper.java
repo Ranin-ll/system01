@@ -16,4 +16,7 @@ public interface DeptTraineeMapper {
 
     /** 本部门在培实习生（含待转正）。deptId 传 null 表示不限（超管）。 */
     List<Map<String, Object>> selectDeptTrainees(@Param("deptId") Long deptId);
+
+    /** 本部门已绑定的岗位下拉（dept_position 生效 + position 启用）。deptId 传 null 表示全部（超管）。 */
+    List<Map<String, Object>> selectDeptPositions(@Param("deptId") Long deptId);
 }

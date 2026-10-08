@@ -122,8 +122,9 @@
               <div class="acts">
                 <el-button type="text" @click="openProfile(row)">查看档案</el-button>
                 <span class="sep">|</span>
+                <el-button type="text" @click="openEdit(row)">编辑</el-button>
+                <span v-if="row.userStatus === 'PENDING_PROMOTE'" class="sep">|</span>
                 <el-button v-if="row.userStatus === 'PENDING_PROMOTE'" type="text" @click="goPromotion(row)">审核转正</el-button>
-                <el-button v-else-if="!row.mentorName" type="text" @click="notReady('分配导师')">分配导师</el-button>
               </div>
             </td>
           </tr>
@@ -148,6 +149,65 @@
         <el-button size="mini" :disabled="query.pageNum >= pageCount" @click="query.pageNum++">下一页</el-button>
       </div>
     </div>
+
+    <!-- 编辑实习生基础信息 -->
+    <el-dialog
+      :visible.sync="editDialog.visible"
+      title="编辑实习生信息"
+      width="520px"
+      :close-on-click-modal="false"
+      @close="resetEdit"
+    >
+      <el-form v-loading="editDialog.loading" label-width="90px" size="small">
+        <el-form-item label="账号">
+          <el-input :value="editDialog.row ? editDialog.row.userName : ''" disabled />
+        </el-form-item>
+        <el-form-item label="姓名">
+          <el-input v-model="editDialog.form.nickName" placeholder="请输入姓名" maxlength="30" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="editDialog.form.phonenumber" placeholder="请输入手机号" maxlength="11" />
+        </el-form-item>
+        <el-form-item label="邮箱">
+          <el-input v-model="editDialog.form.email" placeholder="请输入邮箱" maxlength="50" />
+        </el-form-item>
+        <el-form-item label="性别">
+          <el-select v-model="editDialog.form.sex" placeholder="请选择" style="width:100%">
+            <el-option label="男" value="0" />
+            <el-option label="女" value="1" />
+            <el-option label="未知" value="2" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="岗位">
+          <el-select v-model="editDialog.form.positionId" placeholder="请选择岗位" clearable filterable style="width:100%">
+            <el-option v-for="p in editDialog.positions" :key="p.positionId" :label="p.positionName" :value="p.positionId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="预计入职">
+          <el-date-picker
+            v-model="editDialog.form.expectedEntryDate"
+            type="date"
+            placeholder="选择日期"
+            value-format="yyyy-MM-dd"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-form-item label="导师">
+          <el-select v-model="editDialog.form.mentorId" placeholder="请选择导师" clearable filterable style="width:100%">
+            <el-option
+              v-for="m in mentorSelectOptions"
+              :key="m.id"
+              :label="m.mentorName + (m.mentorPhone ? '（' + m.mentorPhone + '）' : '')"
+              :value="m.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button size="small" @click="editDialog.visible = false">取消</el-button>
+        <el-button size="small" type="primary" :loading="editDialog.submitting" @click="submitEdit">保存</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -161,7 +221,7 @@
 //           formalPassed），不必再另做接口。
 //   该接口**不需要传部门参数**，范围从 token 取（超管=全部、部门管理员=本部门）。
 import { getStageProgress } from '@/api/business/analysis'
-import { getMentorOptions, assignInternMentor, clearInternMentor } from '@/api/business/mentor'
+import { getMentorOptions, getDeptPositions, getInternDetailForEdit, updateInternBasic } from '@/api/business/mentor'
 
 // ★ 键用后端归一后的 `stage`（以角色为主、user_status 为辅），不再用原始 userStatus
 const STATUS_MAP = {
@@ -179,13 +239,14 @@ export default {
     return {
       loading: false,
       roster: [],
-      mentorDialog: {
+      mentorSelectOptions: [],
+      editDialog: {
         visible: false,
+        loading: false,
         submitting: false,
-        optionsLoading: false,
         row: null,
-        mentorId: undefined,
-        options: []
+        positions: [],
+        form: { nickName: '', phonenumber: '', email: '', sex: '0', positionId: null, expectedEntryDate: null, mentorId: null }
       },
       query: { positionName: '', mentorName: '', status: 'ALL', entryRange: 'ALL', keyword: '', pageNum: 1, pageSize: 20 }
     }
@@ -315,6 +376,62 @@ export default {
     },
     notReady(action) {
       this.$message({ message: '「' + action + '」功能暂未开放', type: 'warning' })
+    },
+    openEdit(row) {
+      this.editDialog.row = row
+      this.editDialog.form = { nickName: '', phonenumber: '', email: '', sex: '0', positionId: null, expectedEntryDate: null, mentorId: null }
+      this.editDialog.positions = []
+      this.editDialog.loading = true
+      // ★ 不先打开弹窗——等数据拉回来再 visible，避免接口失败导致"闪现再关闭"
+      Promise.all([
+        getDeptPositions(),
+        getMentorOptions(),
+        getInternDetailForEdit(row.userId || row.id)
+      ]).then(([posRes, menRes, detailRes]) => {
+        this.editDialog.positions = (posRes && posRes.data) || []
+        this.mentorSelectOptions = (menRes && menRes.data) || []
+        const d = (detailRes && detailRes.data) || {}
+        this.editDialog.form = {
+          nickName: d.nickName || '',
+          phonenumber: d.phonenumber || '',
+          email: d.email || '',
+          sex: d.sex != null ? String(d.sex) : '0',
+          positionId: d.positionId != null ? Number(d.positionId) : null,
+          expectedEntryDate: d.expectedEntryDate || null,
+          mentorId: d.mentorId != null ? Number(d.mentorId) : null
+        }
+        this.editDialog.visible = true  // 数据就绪后才显示弹窗
+      }).catch((err) => {
+        const msg = (err && err.msg) || (err && err.message) || '加载实习生信息失败'
+        this.$message.error(msg)
+      }).finally(() => {
+        this.editDialog.loading = false
+      })
+    },
+    submitEdit() {
+      const f = this.editDialog.form
+      const body = {
+        nickName: (f.nickName || '').trim(),
+        phonenumber: (f.phonenumber || '').trim() || null,
+        email: (f.email || '').trim() || null,
+        sex: f.sex,
+        positionId: f.positionId || null,
+        expectedEntryDate: f.expectedEntryDate || null,
+        mentorId: f.mentorId || null
+      }
+      this.editDialog.submitting = true
+      updateInternBasic(this.editDialog.row.userId || this.editDialog.row.id, body).then(() => {
+        this.$message.success('保存成功')
+        this.editDialog.visible = false
+        this.loadRoster()
+      }).finally(() => {
+        this.editDialog.submitting = false
+      })
+    },
+    resetEdit() {
+      this.editDialog.row = null
+      this.editDialog.form = { nickName: '', phonenumber: '', email: '', sex: '0', positionId: null, expectedEntryDate: null, mentorId: null }
+      this.editDialog.positions = []
     }
   }
 }

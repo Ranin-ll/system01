@@ -27,4 +27,19 @@
          ORDER BY u.position_id, u.user_id
     </select>
 
+    <!-- 本部门已绑定的岗位下拉（供「实习生管理 → 编辑」弹窗选岗位）。
+         只取 dept_position 生效且 position 启用中的，避免选到停用岗位。 -->
+    <select id="selectDeptPositions" resultType="java.util.Map">
+        SELECT DISTINCT p.id             AS positionId,
+                        p.position_code  AS positionCode,
+                        p.position_name  AS positionName
+          FROM dept_position dp
+          JOIN position p ON p.id = dp.position_id AND p.deleted = 0 AND p.status = 1
+         WHERE dp.status = 1
+        <if test="deptId != null">
+           AND dp.dept_id = #{deptId}
+        </if>
+         ORDER BY p.position_code, p.id
+    </select>
+
 </mapper>

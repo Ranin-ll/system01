@@ -27,6 +27,16 @@ public class DeptTraineeController extends BaseController {
         return AjaxResult.success(deptTraineeMapper.selectDeptTrainees(deptId));
     }
 
+    /**
+     * 本部门已绑定的岗位下拉（供「实习生管理 → 编辑」弹窗选岗位）。
+     * 超管返回全部，部门管理员只返回本部门（范围从 token 取，不信任前端传参）。
+     */
+    @GetMapping("/positions")
+    public AjaxResult positions() {
+        Long deptId = isSuper() ? null : SecurityUtils.getDeptId();
+        return AjaxResult.success(deptTraineeMapper.selectDeptPositions(deptId));
+    }
+
     private boolean isSuper() {
         Long uid = SecurityUtils.getUserId();
         return SecurityUtils.hasRole("SUPER_ADMIN") || SecurityUtils.isAdmin(uid);

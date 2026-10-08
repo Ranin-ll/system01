@@ -41,4 +41,10 @@ public interface IMentorService {
 
     /** 校验：该实习生是否在可操作范围内（供前端/其它模块复用） */
     Map<String, Object> getInternMentorInfo(Long userId);
+
+    /** 实习生编辑详情（完整基础信息回显，含 email / sex / positionId / expectedEntryDate） */
+    Map<String, Object> getInternDetailForEdit(Long userId);
+
+    /** 更新实习生基础信息（姓名/手机/邮箱/性别/岗位/预计入职/导师），部门管理员仅限本部门 */
+    int updateInternBasic(Long userId, Map<String, Object> body);
 }
