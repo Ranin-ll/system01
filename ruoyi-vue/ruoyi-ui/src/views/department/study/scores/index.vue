@@ -274,6 +274,58 @@
               </tr>
             </tbody>
           </table>
+          <p class="dsec-note">
+            <b>两个分数口径不同，不要混看：</b>
+            「最终分」来自答卷的 <code>final_score</code>（后端写入）；
+            「参考综合分」= 理论 × <b>{{ weight.theory }}%</b> + 实操 × <b>{{ weight.practice }}%</b>（权重读 <code>assessment_config</code>），
+            仅在后端综合规则表 <code>exam_rule_snapshot</code> 接通前的<b>参考口径</b>。
+            任一分缺失一律显示「待定」，不给「通过」—— 部门直接终审没有二次复核。
+          </p>
+        </div>
+
+        <!-- ⚠️ 2026-09-24 恢复：本卡（模板 + chapterStats/chapterLoading/answeredSheetCount/loadChapterStats）
+             在合并 origin/main（4335cac）时被整块丢掉，只剩描述文案与 CSS，属误删。从 41d22a9 取回。 -->
+        <div class="dcard c4">
+          <div class="dcard-h">
+            <div class="tt"><span class="idx o">章</span><h3>本场章节得分率</h3></div>
+            <span class="hint-text">
+              <template v-if="chapterLoading">计算中…</template>
+              <template v-else-if="chapterStats.length">基于 {{ answeredSheetCount }} 份答卷</template>
+            </span>
+          </div>
+
+          <div v-if="chapterLoading" class="dempty small"><i class="el-icon-loading" /><span>正在拉取答卷明细…</span></div>
+          <template v-else-if="chapterStats.length">
+            <p class="dsec-note" style="margin-top:0">
+              <span v-if="answeredSheetCount < 5" class="warn-note">
+                <i class="el-icon-warning-outline" /> 样本不足（仅 {{ answeredSheetCount }} 份），仅作参考
+              </span>
+              <span v-else>口径：已作答的题参与得分率，<b>未作答单独统计</b>（不当作答错）。</span>
+            </p>
+            <div v-for="row in chapterStats" :key="row.name" class="chap-row">
+              <div class="chap-head">
+                <span class="chap-name">{{ row.name }}</span>
+                <span class="chap-rate" :class="row.tone">{{ row.rate == null ? '无作答' : row.rate + '%' }}</span>
+              </div>
+              <div class="chap-bar">
+                <i class="ok" :style="{ width: row.okPct + '%' }" />
+                <i class="bad" :style="{ width: row.badPct + '%' }" />
+                <i class="blank" :style="{ width: row.blankPct + '%' }" />
+              </div>
+              <div class="chap-meta">
+                对 {{ row.ok }} · 错 {{ row.bad }} · 未作答 {{ row.blank }}
+              </div>
+            </div>
+            <p class="dsec-note">
+              数据来源：答卷明细的 <code>items[].knowledgePoint</code>（章节）× <code>isCorrect</code> / <code>userAnswer</code>，
+              按章节聚合后<b>由低到高</b>排序 —— 排前面的就是最该补的章节。
+            </p>
+          </template>
+          <div v-else class="dempty small">
+            <i class="el-icon-data-analysis" />
+            <strong>还没有可用于统计的答卷</strong>
+            <span>本场有答卷后，这里会按章节算出得分率（未作答单独统计）。</span>
+          </div>
         </div>
       </div>
     </template>
@@ -306,6 +358,9 @@ export default {
       sheet: null,
       sheetItems: [],
       currentSheetId: null,
+      // 章节得分率（合并 4335cac 被整块删除，2026-09-24 恢复）
+      chapterStats: [],
+      chapterLoading: false,
       weight: { theory: THEORY_WEIGHT, practice: PRACTICE_WEIGHT }
     }
   },
@@ -341,6 +396,8 @@ export default {
       return this.allRows.filter(r => r.finalScore != null || r.sheetStatus === 'PUBLISHED')
     },
     submittedRows() { return this.allRows },
+    /** 有答卷份数（章节统计的样本量） */
+    answeredSheetCount() { return this.allRows.length },
     /** ③ 列表（评分队列与汇总表都用它） */
     filteredRows() {
       if (this.statusFilter === 'SUBMITTED') return this.submittedRows
@@ -360,6 +417,27 @@ export default {
       ]
     },
     /** ① 总览六卡：全部由当前场次的应考名单算（取不到就显示 —，不编数） */
+    /**
+     * ⚠️ 2026-09-24 修：方法体在合并 origin/main（4335cac）时被整段丢掉 ——
+     *   只剩上面这行 JSDoc，模板第 47 行 `v-for="k in kpiCards"` 仍在引用 ⇒
+     *   Vue 警告 `Property or method "kpiCards" is not defined` + 总览卡整排空白。
+     *   从 41d22a9 取回原实现（口径未变）。
+     */
+    kpiCards() {
+      const scored = this.rows.filter(r => r.finalScore != null || r.sheetStatus === 'PUBLISHED')
+      const scores = scored.map(r => Number(r.finalScore)).filter(n => !isNaN(n))
+      const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10 : null
+      const passed = scored.filter(r => r.passFlag === 1 || r.passFlag === '1').length
+      const rate = scored.length ? Math.round(passed / scored.length * 100) : null
+      return [
+        { key: 'ALL', label: '应考人数', value: this.rows.length, unit: '人', icon: 'el-icon-user', filter: 'ALL' },
+        { key: 'SUBMITTED', label: '已交卷', value: this.submittedRows.length, unit: '人', icon: 'el-icon-upload2', tone: 'tone-orange', filter: 'SUBMITTED' },
+        { key: 'TODO', label: this.pendingLabel, value: this.pendingRows.length, unit: '人', icon: 'el-icon-edit-outline', tone: 'tone-red', filter: 'TODO' },
+        { key: 'GRADED', label: '已出分', value: this.gradedRows.length, unit: '人', icon: 'el-icon-circle-check', tone: 'tone-green', filter: 'GRADED' },
+        { key: 'AVG', label: '平均分', value: avg == null ? '—' : avg, unit: avg == null ? '' : '分', icon: 'el-icon-data-line', tone: 'tone-purple' },
+        { key: 'RATE', label: '通过率', value: rate == null ? '—' : rate, unit: rate == null ? '' : '%', icon: 'el-icon-medal', tone: 'tone-green' }
+      ]
+    },
     /** 能否发布：存在「已出分但未发布」的答卷即可（实操卷需先评完分才会出分） */
     canPublish() {
       return this.unpublishedRows.length > 0
@@ -412,6 +490,16 @@ export default {
       this.activeTab = 'grading'
       this.loadGrading()
     },
+    /**
+     * 总览卡点选：再点同一张 = 取消筛选回到「全部」。
+     * ⚠️ 2026-09-24 修：本方法在合并 origin/main（4335cac）时被整段丢掉，
+     *    模板第 51 行 `@click="k.filter && applyKpi(k.filter)"` 仍在引用 ⇒
+     *    点任意一张总览卡触发 `TypeError: _vm.applyKpi is not a function`。
+     *    从 41d22a9 取回原实现（口径未变）。
+     */
+    applyKpi(key) {
+      this.statusFilter = this.statusFilter === key ? 'ALL' : key
+    },
     loadGrading() {
       if (!this.examId) return
       gradingList(this.examId).then(res => {
@@ -424,12 +512,55 @@ export default {
     },
     switchToSummary() {
       this.activeTab = 'summary'
+      // 章节得分率按需加载（同一场次只算一次）
+      if (!this.chapterStats.length) this.loadChapterStats()
     },
     /**
      * 本场章节得分率（真数据）
      * 数据源：逐份答卷的 detail.items[]（带 knowledgePoint / isCorrect / userAnswer / fullScore）
      * 口径：已作答的题参与得分率；未作答单独统计，不并入分母。
      */
+    loadChapterStats() {
+      const sheets = this.allRows
+      if (!sheets.length) { this.chapterStats = []; return }
+      this.chapterLoading = true
+      Promise.all(sheets.map(r => sheetDetail(r.sheetId).catch(() => null))).then(list => {
+        const map = {}
+        list.forEach(res => {
+          const items = (res && res.data && res.data.items) || []
+          items.forEach(it => {
+            const name = it.knowledgePoint || '未标注章节'
+            if (!map[name]) map[name] = { name, ok: 0, bad: 0, blank: 0 }
+            const answered = it.userAnswer !== null && it.userAnswer !== undefined && String(it.userAnswer).trim() !== ''
+            if (!answered) map[name].blank++
+            else if (it.isCorrect === 1 || it.isCorrect === '1') map[name].ok++
+            else map[name].bad++
+          })
+        })
+        const list2 = Object.keys(map).map(k => {
+          const m = map[k]
+          const answered = m.ok + m.bad
+          const total = answered + m.blank
+          const rate = answered ? Math.round(m.ok / answered * 100) : null
+          return Object.assign(m, {
+            rate,
+            okPct: total ? m.ok / total * 100 : 0,
+            badPct: total ? m.bad / total * 100 : 0,
+            blankPct: total ? m.blank / total * 100 : 0,
+            tone: rate == null ? 'mid' : (rate < 60 ? 'poor' : (rate < 80 ? 'mid' : 'good'))
+          })
+        })
+        // 排前面的 = 最该补的：得分率低的在前；无作答的垫到最后
+        list2.sort((a, b) => {
+          if (a.rate == null && b.rate == null) return b.blank - a.blank
+          if (a.rate == null) return 1
+          if (b.rate == null) return -1
+          return a.rate - b.rate
+        })
+        this.chapterStats = list2
+        this.chapterLoading = false
+      }).catch(() => { this.chapterLoading = false })
+    },
     openSheet(row) {
       // 防御：没有答卷的人（sheetId 为空）不能进评分面板，否则会请求 /detail/undefined
       if (!row || !row.sheetId) return
