@@ -69,7 +69,7 @@
             <div><span>发布 / 更新</span><b>{{ fmtTime(exam.publishedAt || exam.updateTime) }}</b></div>
           </div>
           <p class="s-note">
-            名单模式为空名单时按「全员应考」处理（后端既有判定）。配置的修改在「配置」页进行。
+            名单模式为空名单时按「全员应考」处理。配置的修改在「配置」页进行。
             <el-button type="text" size="mini" @click="goConfig">去配置页</el-button>
           </p>
         </section>
@@ -101,7 +101,7 @@
                 </tr>
               </tbody>
             </table>
-            <div v-else class="s-empty sm"><i class="el-icon-warning-outline" /><span>尚未配置组卷规则 —— 发布时后端会校验「知识分布 / 抽题量」，请到配置页补齐</span></div>
+            <div v-else class="s-empty sm"><i class="el-icon-warning-outline" /><span>尚未配置组卷规则 —— 发布前需完成组卷配置，请到配置页补齐</span></div>
             
           </template>
         </section>
@@ -271,11 +271,11 @@ export default {
       const pass = Number(this.exam.passLine) || 0
       if (!this.fullScore) {
         return this.isPractice
-          ? '尚无实操题目：到配置页逐题添加题干与满分（发布时后端会拦截）'
-          : '尚未组卷：到配置页添加题库并设置抽题量（发布时后端会拦截）'
+          ? '尚无实操题目：到配置页逐题添加题干与满分（否则无法发布）'
+          : '尚未组卷：到配置页添加题库并设置抽题量（否则无法发布）'
       }
       if (pass > this.fullScore) {
-        return '通过线 ' + pass + ' 分高于卷面满分 ' + this.fullScore + ' 分 —— 发布会被后端拦截，请降低通过线或提高题量/分值'
+        return '通过线 ' + pass + ' 分高于卷面满分 ' + this.fullScore + ' 分 —— 无法发布，请降低通过线或提高题量/分值'
       }
       return '通过线 ' + pass + ' 分等于卷面满分 ' + this.fullScore + ' 分，实习生必须全部答对才及格'
     },
@@ -325,7 +325,7 @@ export default {
         this.rows = (rowsRes && rowsRes.data) || []
         this.loading = false
       }).catch(() => {
-        this.loadError = '加载失败：可能是权限不足或后端未启动'
+        this.loadError = '加载失败：可能是权限不足，请稍后重试'
         this.loading = false
       })
     },

@@ -188,7 +188,7 @@
               <div><span>实操总分</span><strong>{{ practiceTotal }} <small>/ 100</small></strong></div>
               <div><span>通过线</span><strong>{{ passLine }} <small>分</small></strong></div>
               <div><span>理论（自动）</span><strong>{{ fmtScore(sheet.aiScore) }} <small>/ 100</small></strong></div>
-              <div><span>最终分（后端）</span><strong>{{ fmtScore(sheet.finalScore) }}</strong></div>
+              <div><span>最终分</span><strong>{{ fmtScore(sheet.finalScore) }}</strong></div>
               <div><span>参考综合分</span><strong>{{ overallRef }} <small>参考</small></strong></div>
             </div>
 
@@ -227,8 +227,8 @@
                 <th>第 N 次</th>
                 <th>理论 / 自动分</th>
                 <th>实操 / 人工分</th>
-                <th>最终分<em>后端</em></th>
-                <th>参考综合分<em>40/60</em></th>
+                <th>最终分</th>
+                <th>参考综合分</th>
                 <th>结论</th>
                 <th>答卷状态</th>
                 <th style="width:80px">操作</th>
@@ -275,11 +275,10 @@
             </tbody>
           </table>
           <p class="dsec-note">
-            <b>两个分数口径不同，不要混看：</b>
-            「最终分」来自答卷的 <code>final_score</code>（后端写入）；
-            「参考综合分」= 理论 × <b>{{ weight.theory }}%</b> + 实操 × <b>{{ weight.practice }}%</b>（权重读 <code>assessment_config</code>），
-            仅在后端综合规则表 <code>exam_rule_snapshot</code> 接通前的<b>参考口径</b>。
-            任一分缺失一律显示「待定」，不给「通过」—— 部门直接终审没有二次复核。
+            <b>两个分数不要混看：</b>
+            「最终分」为本场终审得分；
+            「参考综合分」按 理论 × <b>{{ weight.theory }}%</b> + 实操 × <b>{{ weight.practice }}%</b> 折算，仅供参考。
+            任一分缺失一律显示「待定」，不显示「通过」—— 部门直接终审，没有二次复核。
           </p>
         </div>
 
@@ -300,7 +299,7 @@
               <span v-if="answeredSheetCount < 5" class="warn-note">
                 <i class="el-icon-warning-outline" /> 样本不足（仅 {{ answeredSheetCount }} 份），仅作参考
               </span>
-              <span v-else>口径：已作答的题参与得分率，<b>未作答单独统计</b>（不当作答错）。</span>
+              <span v-else>统计方式：已作答的题参与得分率，<b>未作答单独统计</b>（不当作答错）。</span>
             </p>
             <div v-for="row in chapterStats" :key="row.name" class="chap-row">
               <div class="chap-head">
@@ -317,8 +316,7 @@
               </div>
             </div>
             <p class="dsec-note">
-              数据来源：答卷明细的 <code>items[].knowledgePoint</code>（章节）× <code>isCorrect</code> / <code>userAnswer</code>，
-              按章节聚合后<b>由低到高</b>排序 —— 排前面的就是最该补的章节。
+              按每题所属章节统计「对 / 错 / 未作答」，得分率<b>由低到高</b>排序 —— 排前面的就是最该补的章节。
             </p>
           </template>
           <div v-else class="dempty small">
@@ -595,7 +593,7 @@ export default {
       }
     },
     draft() {
-      this.$message.success('已暂存到本地（未提交）。点击「提交并评下一份」才写库。')
+      this.$message.success('已暂存。点击「提交并评下一份」后才会正式保存。')
     },
     submitAndNext() {
       if (!this.sheet) return
@@ -648,7 +646,7 @@ export default {
       const lines = []
       const examName = this.currentExam ? this.currentExam.examName : ('考核 ' + this.examId)
       lines.push(['成绩汇总', examName, '导出时间：' + this.nowText()].map(esc).join(','))
-      lines.push(['姓名', '部门', '第N次', '理论自动分', '实操人工分', '最终分(后端)', '参考综合分', '结论', '答卷状态', '提交时间'].map(esc).join(','))
+      lines.push(['姓名', '部门', '第N次', '理论自动分', '实操人工分', '最终分', '参考综合分', '结论', '答卷状态', '提交时间'].map(esc).join(','))
       this.filteredRows.forEach(r => {
         lines.push([
           r.userName, r.deptName || '', r.sheetId ? (r.retakeSeq || 1) : '',
@@ -676,7 +674,7 @@ export default {
       this.$router.push('/department/people/profile/' + row.userId)
     },
     previewAnswer() {
-      this.$message.info('在线预览依赖文件包解压/预览服务（待补）')
+      this.$message.info('暂不支持在线预览，请下载后查看')
     },
     downloadAnswer() {
       const url = this.sheet && this.sheet.subjectAnswer

@@ -321,7 +321,7 @@ export default {
       next()
       return
     }
-    this.$modal.confirm('退出后本次作答进度会保存在服务器，下次进入可继续作答（不会自动交卷）。确定退出吗？').then(() => {
+    this.$modal.confirm('退出后本次作答进度会为你保留，下次进入可继续作答（不会自动交卷）。确定退出吗？').then(() => {
       this.saveDraftNow(false).then(() => { this.teardown(); next() }).catch(() => { this.teardown(); next() })
     }).catch(() => next(false))
   },
@@ -564,7 +564,7 @@ export default {
     },
     /** 放弃作答：进度已保存，明确告诉用户「还能回来继续」 */
     giveUp() {
-      this.$modal.confirm('退出后本次作答进度会保存在服务器，下次进入可继续作答（不会自动交卷）。确定退出吗？').then(() => {
+      this.$modal.confirm('退出后本次作答进度会为你保留，下次进入可继续作答（不会自动交卷）。确定退出吗？').then(() => {
         this.saveDraftNow(false).then(() => this.leave()).catch(() => this.leave())
       }).catch(() => {})
     },

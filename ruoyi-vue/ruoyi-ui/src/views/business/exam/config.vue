@@ -129,11 +129,11 @@ export default {
       const pass = Number(e && e.passLine) || 0
       if (!this.fullScore) {
         return this.isPractice
-          ? '尚无实操题目：请在下方「实操题目」区逐题添加题干与满分，否则发布时会被后端拦截。'
-          : '尚未组卷：请在下方「组卷题库与分值」区添加题库并设置抽题量，否则发布时会被后端拦截。'
+          ? '尚无实操题目：请在下方「实操题目」区逐题添加题干与满分，否则无法发布。'
+          : '尚未组卷：请在下方「组卷题库与分值」区添加题库并设置抽题量，否则无法发布。'
       }
       if (pass > this.fullScore) {
-        return '通过线 ' + pass + ' 分高于卷面满分 ' + this.fullScore + ' 分，发布时会被后端拦截。请降低通过线，或提高题目分值与抽题量。'
+        return '通过线 ' + pass + ' 分高于卷面满分 ' + this.fullScore + ' 分，无法发布。请降低通过线，或提高题目分值与抽题量。'
       }
       return '通过线 ' + pass + ' 分等于卷面满分 ' + this.fullScore + ' 分，实习生必须全部答对才及格，请确认是否符合预期。'
     }
