@@ -34,7 +34,7 @@ public interface ISuperAnalysisService {
     List<Map<String, Object>> knowledgeMatrix();
 
     /**
-     * L3 个人档案：身份 + 逐学习项 + 逐任务（真数据），
+     * L3 个人档案：身份 + 逐学习项（真数据），
      * 考核类与阶段评价为 {@code null}（本期不查，由前端示例填充）。
      */
     Map<String, Object> internDetail(Long userId);

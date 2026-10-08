@@ -4,7 +4,7 @@
       <div>
         <div class="eyebrow">学习考核 / 部门运营</div>
         <div class="title-line"><h2>{{ superAdmin ? '课程管理（全组织）' : '部门课程管理' }}</h2><el-tag size="mini" effect="plain" :type="superAdmin ? 'warning' : 'success'">{{ superAdmin ? '全局范围 · 可写' : '本部门范围' }}</el-tag></div>
-        <p>{{ superAdmin ? '管理全组织课程、章节与学习资料 —— 超管可维护任意部门岗位的课程（2026-09-20 规则调整：超管可写课程与题库）。' : '维护本部门岗位课程、学习章节和学员学习情况，已发布课程会同步展示在实习生学习中心。' }}</p>
+        <p>{{ superAdmin ? '管理全组织课程与学习资料 —— 超管可维护任意部门岗位的课程（2026-09-20 规则调整：超管可写课程与题库）。' : '维护本部门岗位课程、学习资料和学员学习情况，已发布课程会同步展示在实习生学习中心。' }}</p>
       </div>
       <div class="heading-actions">
         <el-button icon="el-icon-refresh" size="small" @click="refreshAll">刷新数据</el-button>
@@ -20,7 +20,7 @@
     <el-alert
       v-if="previewMode"
       class="preview-alert"
-      :title="readOnly ? '课程接口暂不可用，当前为只读演示数据。超级管理员仅可查看，课程写入操作已关闭。' : '课程接口暂不可用，当前为前端演示数据；章节、资料和学习记录接口将在下一阶段接入。'"
+      :title="readOnly ? '课程接口暂不可用，当前为只读演示数据。超级管理员仅可查看，课程写入操作已关闭。' : '课程接口暂不可用，当前为前端演示数据；资料和学习记录接口将在下一阶段接入。'"
       type="info"
       :closable="false"
       show-icon
@@ -90,8 +90,8 @@
         </el-table-column>
         <el-table-column label="学习内容" width="110" align="center">
           <template slot-scope="scope">
-            <strong class="table-number">{{ contentSummary(scope.row).chapterCount }}</strong>
-            <span class="table-subtext">章节 · {{ contentSummary(scope.row).itemCount }} 项</span>
+            <strong class="table-number">{{ contentSummary(scope.row).itemCount }}</strong>
+            <span class="table-subtext">项学习资料</span>
           </template>
         </el-table-column>
         <el-table-column label="学习情况" width="132" align="center">
@@ -125,7 +125,7 @@
     </section>
 
     <el-dialog :title="courseDialogTitle" :visible.sync="courseDialogOpen" width="620px" append-to-body @closed="resetCourseForm">
-      <div class="dialog-tip"><i class="el-icon-info" />发布课程前请至少配置一个章节和学习资料。</div>
+      <div class="dialog-tip"><i class="el-icon-info" />发布课程前请至少配置一项学习资料。</div>
       <el-form ref="courseForm" :model="courseForm" :rules="courseRules" label-width="92px" class="course-form">
         <el-form-item label="课程名称" prop="courseName"><el-input v-model="courseForm.courseName" maxlength="128" placeholder="例如：开发流程与代码交付规范" /></el-form-item>
         <el-form-item label="适用岗位" prop="positionId">
@@ -138,35 +138,30 @@
       <div slot="footer"><el-button @click="courseDialogOpen = false">取消</el-button><el-button type="primary" :loading="courseSubmitting" @click="submitCourse">保存课程</el-button></div>
     </el-dialog>
 
-    <el-drawer :visible.sync="contentDrawerOpen" :with-header="false" direction="rtl" size="680px" append-to-body class="manage-drawer">
+    <el-dialog :visible.sync="contentDrawerOpen" title="课程内容编排" width="1080px" top="4vh" :close-on-click-modal="false" append-to-body class="content-dialog">
       <template v-if="currentCourse">
         <div class="drawer-heading">
           <div class="drawer-heading-main">
             <span class="drawer-cover"><i class="el-icon-reading" /></span>
             <div><span>课程内容</span><h3>{{ currentCourse.courseName }}</h3><p>{{ currentCourse.positionName || positionName(currentCourse.positionId) }}</p></div>
           </div>
-          <el-button icon="el-icon-close" circle size="mini" @click="contentDrawerOpen = false" />
         </div>
-        <div v-loading="contentLoading" class="drawer-body">
+        <div v-loading="contentLoading" class="content-dialog-body">
           <div class="content-toolbar">
             <div>
-              <strong>{{ contentSummary(currentCourse).chapterCount }} 个章节</strong><span> · {{ contentSummary(currentCourse).itemCount }} 项学习资料</span>
+              <strong>{{ contentSummary(currentCourse).itemCount }} 项学习资料</strong>
               <span class="content-save-state" :class="contentDirty ? 'is-dirty' : 'is-saved'"><i :class="contentDirty ? 'el-icon-warning-outline' : 'el-icon-circle-check'" />{{ contentDirty ? '有待保存调整' : '编排已保存' }}</span>
             </div>
             <div class="content-toolbar-actions">
               <el-tag size="mini" effect="plain" :type="contentCheck(currentCourse).ready ? 'success' : 'warning'"><i :class="contentCheck(currentCourse).ready ? 'el-icon-circle-check' : 'el-icon-warning-outline'" /> {{ contentCheck(currentCourse).label }}</el-tag>
               <el-button v-if="canEditContent(currentCourse)" size="mini" icon="el-icon-check" :loading="contentSaving" @click="saveContentDraft">保存编排</el-button>
-              <el-button v-if="canEditContent(currentCourse)" type="primary" plain size="mini" icon="el-icon-plus" @click="openChapterDialog()">新增章节</el-button>
+              <el-button v-if="canEditContent(currentCourse)" type="primary" plain size="mini" icon="el-icon-plus" @click="openItemDialog()">新增学习资料</el-button>
             </div>
           </div>
-          <el-alert class="drawer-alert" :title="contentStatusTip(currentCourse)" :type="canEditContent(currentCourse) ? 'info' : 'success'" :closable="false" show-icon />
-          <draggable v-if="courseContents(currentCourse).length" :list="courseContents(currentCourse)" class="chapter-list" handle=".chapter-drag-handle" :disabled="!canEditContent(currentCourse)" @end="markContentDirty">
-            <section v-for="(chapter, chapterIndex) in courseContents(currentCourse)" :key="chapter.id" class="chapter-block">
-              <header class="chapter-heading">
-                <div><button v-if="canEditContent(currentCourse)" type="button" class="drag-handle chapter-drag-handle" title="拖拽调整章节顺序"><i class="el-icon-rank" /></button><span class="chapter-order">{{ String(chapterIndex + 1).padStart(2, '0') }}</span><span class="chapter-heading-copy"><strong>{{ chapter.chapterName }}</strong><small>{{ chapter.chapterIntro || '暂未填写内容简介' }}</small></span><small class="chapter-item-count">{{ chapter.items.length }} 项资料</small></div>
-                <div v-if="canEditContent(currentCourse)" class="chapter-actions"><el-button type="text" size="mini" @click="openChapterDialog(chapter)">编辑</el-button><el-button type="text" size="mini" class="danger-text" @click="removeChapter(chapter)">删除</el-button></div>
-              </header>
-              <draggable :list="chapter.items" class="resource-list" handle=".resource-drag-handle" :disabled="!canEditContent(currentCourse)" @end="markContentDirty">
+          <el-alert v-if="contentStatusTip(currentCourse)" class="drawer-alert" :title="contentStatusTip(currentCourse)" :type="canEditContent(currentCourse) ? 'info' : 'success'" :closable="false" show-icon />
+          <div v-if="courseContents(currentCourse).length" class="flat-item-list">
+            <template v-for="(chapter) in courseContents(currentCourse)">
+              <draggable :key="chapter.id" :list="chapter.items" class="resource-list" handle=".resource-drag-handle" :disabled="!canEditContent(currentCourse)" @end="markContentDirty">
                 <div v-for="item in chapter.items" :key="item.id" class="resource-row">
                   <button v-if="canEditContent(currentCourse)" type="button" class="drag-handle resource-drag-handle" title="拖拽调整资料顺序"><i class="el-icon-rank" /></button>
                   <span class="resource-icon" :class="item.itemType.toLowerCase()"><i :class="resourceIcon(item.itemType)" /></span>
@@ -174,21 +169,11 @@
                   <div v-if="canEditContent(currentCourse)" class="resource-actions"><el-button type="text" size="mini" @click="openItemDialog(chapter, item)">编辑</el-button><el-button type="text" size="mini" class="danger-text" @click="removeItem(chapter, item)">删除</el-button></div>
                 </div>
               </draggable>
-              <el-button v-if="canEditContent(currentCourse)" class="add-resource" icon="el-icon-plus" size="mini" @click="openItemDialog(chapter)">添加学习资料</el-button>
-            </section>
-          </draggable>
-          <el-empty v-else description="还没有学习章节"><el-button v-if="canEditContent(currentCourse)" type="primary" size="small" @click="openChapterDialog()">新增第一个章节</el-button></el-empty>
+            </template>
+          </div>
+          <el-empty v-else description="还没有学习资料"><el-button v-if="canEditContent(currentCourse)" type="primary" size="small" @click="openItemDialog()">新增第一项学习资料</el-button></el-empty>
         </div>
       </template>
-    </el-drawer>
-
-    <el-dialog :title="chapterForm.id ? '编辑章节' : '新增章节'" :visible.sync="chapterDialogOpen" width="520px" append-to-body>
-      <el-form ref="chapterForm" :model="chapterForm" :rules="chapterRules" label-width="82px">
-        <el-form-item label="章节名称" prop="chapterName"><el-input v-model="chapterForm.chapterName" maxlength="128" placeholder="例如：第一章 入职与保密" /></el-form-item>
-        <el-form-item label="内容简介" prop="chapterIntro"><el-input v-model="chapterForm.chapterIntro" type="textarea" :rows="4" maxlength="300" show-word-limit placeholder="简要说明本章节的学习目标、主要内容和学习重点" /></el-form-item>
-        <el-form-item label="学习要求"><el-radio-group v-model="chapterForm.isRequired"><el-radio :label="1">必修</el-radio><el-radio :label="0">选修</el-radio></el-radio-group></el-form-item>
-      </el-form>
-      <div slot="footer"><el-button @click="chapterDialogOpen = false">取消</el-button><el-button type="primary" @click="saveChapter">保存章节</el-button></div>
     </el-dialog>
 
     <el-dialog :title="itemForm.id ? '编辑学习资料' : '添加学习资料'" :visible.sync="itemDialogOpen" width="560px" append-to-body>
@@ -251,12 +236,10 @@ import { addCourse, disableCourse, listCourse, listCoursePositions, publishCours
 import {
   addCourseChapter,
   addStudyItem,
-  deleteCourseChapter,
   deleteStudyItem,
   getCourseContents,
   listCourseStudyRecords,
   saveCourseContents,
-  updateCourseChapter,
   updateStudyItem,
   uploadStudyAsset
 } from '@/api/business/courseContent'
@@ -304,11 +287,9 @@ function clone(value) {
 function defaultContent(course) {
   const courseName = course.courseName || '岗位基础课程'
   return [
-    { id: 'chapter-' + course.id + '-1', chapterName: '第一章 入职与岗位规范', chapterIntro: '了解岗位职责、工作边界及资料安全要求，为后续学习建立基础。', isRequired: 1, items: [
+    { id: 'chapter-' + course.id + '-1', chapterName: '学习内容', chapterIntro: '', isRequired: 1, items: [
       { id: 'item-' + course.id + '-1', itemTitle: courseName + '说明', itemType: 'DOC', duration: 18, completionRule: 'SCROLL_END' },
-      { id: 'item-' + course.id + '-2', itemTitle: '岗位资料安全操作演示', itemType: 'VIDEO', duration: 14, completionRule: 'PLAY_TO_END' }
-    ] },
-    { id: 'chapter-' + course.id + '-2', chapterName: '第二章 协作流程与质量要求', chapterIntro: '掌握日常协作流程、交付检查点和基本质量标准。', isRequired: 1, items: [
+      { id: 'item-' + course.id + '-2', itemTitle: '岗位资料安全操作演示', itemType: 'VIDEO', duration: 14, completionRule: 'PLAY_TO_END' },
       { id: 'item-' + course.id + '-3', itemTitle: '流程检查清单', itemType: 'DOC', duration: 20, completionRule: 'SCROLL_END' }
     ] }
   ]
@@ -342,9 +323,6 @@ export default {
       currentCourse: null,
       contentStore: {},
       contentDirty: false,
-      chapterDialogOpen: false,
-      chapterForm: {},
-      chapterRules: { chapterName: [{ required: true, message: '请填写章节名称', trigger: 'blur' }] },
       itemDialogOpen: false,
       itemSubmitting: false,
       itemForm: {},
@@ -527,7 +505,7 @@ export default {
         this.courseSubmitting = true
         const request = this.courseForm.id ? updateCourse(this.courseForm) : addCourse(this.courseForm)
         request.then(() => {
-          this.$modal.msgSuccess(this.courseForm.id ? '课程已更新' : '课程已创建，请继续配置章节资料')
+          this.$modal.msgSuccess(this.courseForm.id ? '课程已更新' : '课程已创建，请继续配置学习资料')
           this.courseDialogOpen = false
           this.getList()
         }).finally(() => {
@@ -549,7 +527,7 @@ export default {
       }
       this.total = this.courseList.length
       this.courseDialogOpen = false
-      this.$modal.msgSuccess(isEdit ? '课程已保存' : '课程已创建，请继续配置章节资料')
+      this.$modal.msgSuccess(isEdit ? '课程已保存' : '课程已创建，请继续配置学习资料')
     },
     handlePublish(row) {
       if (!(this.previewMode && String(row.id).indexOf('preview-') === 0)) {
@@ -682,13 +660,11 @@ export default {
     },
     contentCheck(course) {
       const chapters = this.courseContents(course)
+      const items = chapters.reduce((all, chapter) => all.concat(chapter.items || []), [])
       const missing = []
-      if (!chapters.length) missing.push('至少新增一个章节')
-      chapters.forEach((chapter, index) => {
-        if (!chapter.items || !chapter.items.length) missing.push('第' + (index + 1) + '章还没有学习资料')
-        ;(chapter.items || []).forEach(item => {
-          if (!item.fileName && !item.contentUrl) missing.push('“' + item.itemTitle + '”尚未绑定文件')
-        })
+      if (!items.length) missing.push('至少新增一项学习资料')
+      items.forEach(item => {
+        if (!item.fileName && !item.contentUrl) missing.push('“' + item.itemTitle + '”尚未绑定文件')
       })
       return { ready: missing.length === 0, label: missing.length ? '还缺 ' + missing.length + ' 项' : '发布条件已满足', missing: missing.slice(0, 4) }
     },
@@ -713,59 +689,39 @@ export default {
         this.contentSaving = false
       })
     },
-    openChapterDialog(chapter) {
-      if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
-      this.chapterForm = chapter ? Object.assign({}, chapter) : { id: undefined, chapterName: '', chapterIntro: '', isRequired: 1 }
-      this.chapterDialogOpen = true
-    },
-    saveChapter() {
-      if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
-      this.$refs.chapterForm.validate(valid => {
-        if (!valid || !this.currentCourse) return
-        if (!(this.previewMode && String(this.currentCourse.id).indexOf('preview-') === 0)) {
-          const request = this.chapterForm.id
-            ? updateCourseChapter(this.chapterForm.id, this.chapterForm)
-            : addCourseChapter(this.currentCourse.id, this.chapterForm)
-          request.then(() => {
-            this.chapterDialogOpen = false
-            this.$modal.msgSuccess('章节已保存')
-            return this.loadCourseContents(this.currentCourse)
-          }).then(() => this.getList())
-          return
-        }
-        const chapters = this.courseContents(this.currentCourse)
-        if (this.chapterForm.id) {
-          const target = chapters.find(item => item.id === this.chapterForm.id)
-          if (target) Object.assign(target, this.chapterForm)
-        } else {
-          chapters.push({ id: 'chapter-' + Date.now(), chapterName: this.chapterForm.chapterName, chapterIntro: this.chapterForm.chapterIntro, isRequired: this.chapterForm.isRequired, items: [] })
-        }
-        this.saveContentStore()
-        this.contentDirty = true
-        this.chapterDialogOpen = false
-        this.$modal.msgSuccess('章节已保存')
-      })
-    },
-    removeChapter(chapter) {
-      if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
-      this.$modal.confirm('确认删除章节“' + chapter.chapterName + '”？章节中的资料也会一并移除。').then(() => {
-        if (!(this.previewMode && String(this.currentCourse.id).indexOf('preview-') === 0)) {
-          return deleteCourseChapter(chapter.id).then(() => {
-            this.$modal.msgSuccess('章节已删除，历史学习记录仍保留')
-            return this.loadCourseContents(this.currentCourse)
-          }).then(() => this.getList())
-        }
-        const chapters = this.courseContents(this.currentCourse)
-        const index = chapters.findIndex(item => item.id === chapter.id)
-        if (index > -1) chapters.splice(index, 1)
-        this.saveContentStore()
-        this.contentDirty = true
-        this.$modal.msgSuccess('章节已删除')
-      }).catch(() => {})
-    },
     openItemDialog(chapter, item) {
       if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
-      this.activeChapterId = chapter.id
+      // 编辑已有资料时直接打开表单
+      if (item) {
+        this.activeChapterId = chapter.id
+        this.openItemForm(item)
+        return
+      }
+      // 新增资料：扁平模型下总是挂到第一个章节；没有章节就静默建一个默认章节
+      const chapters = this.courseContents(this.currentCourse)
+      const target = chapters[0]
+      if (target) {
+        this.activeChapterId = target.id
+        this.openItemForm(null)
+        return
+      }
+      if (!(this.previewMode && String(this.currentCourse.id).indexOf('preview-') === 0)) {
+        addCourseChapter(this.currentCourse.id, { chapterName: '学习内容', chapterIntro: '', isRequired: 1 }).then(response => {
+          const created = (response && response.data) || {}
+          const list = this.courseContents(this.currentCourse)
+          list.push(Object.assign({ id: created.id, chapterName: '学习内容', chapterIntro: '', isRequired: 1, items: [] }, created))
+          this.activeChapterId = created.id
+          this.openItemForm(null)
+        })
+        return
+      }
+      const newChapter = { id: 'chapter-' + Date.now(), chapterName: '学习内容', chapterIntro: '', isRequired: 1, items: [] }
+      chapters.push(newChapter)
+      this.saveContentStore()
+      this.activeChapterId = newChapter.id
+      this.openItemForm(null)
+    },
+    openItemForm(item) {
       this.itemForm = item ? Object.assign({}, item, { pendingAsset: null }) : { id: undefined, itemTitle: '', itemIntro: '', itemType: 'DOC', duration: 10, completionRule: 'SCROLL_END', isRequired: 1, completionThreshold: 100, fileName: '', fileSize: 0, fileExt: '', mediaSeconds: null, assetStatus: 'UNBOUND', pendingAsset: null }
       this.itemDialogOpen = true
       // 清掉上一次留在 el-upload 里的选择：它的 fileList 不会随弹窗关闭自动清空，
@@ -987,9 +943,9 @@ export default {
     },
     contentStatusTip(course) {
       if (!course) return ''
-      if (course.status === 'DISABLED') return '课程已停用，可修改基础信息、章节和资料；历史学习记录会保留，重新发布后对应实习生可继续学习。'
+      if (course.status === 'DISABLED') return '课程已停用，可修改基础信息和学习资料；历史学习记录会保留，重新发布后对应实习生可继续学习。'
       if (course.status === 'PUBLISHED') return '已发布课程为只读状态；需要调整内容时，请先停用课程。历史学习记录不会受影响。'
-      return '章节和资料编排保存后写入数据库；文档和视频上传到服务器资源目录，数据库保存访问路径和文件元数据。'
+      return ''
     },
     averageProgress(course) {
       const value = Number(course.avgCompletionRate)
@@ -1075,6 +1031,9 @@ export default {
 .chapter-heading-copy small { margin-top: 4px; color: #7f8c9b; }
 .chapter-item-count { margin-left: 12px !important; }
 .resource-list { min-height: 2px; }
+.flat-item-list { overflow: hidden; border: 1px solid #e4eaf1; border-radius: 6px; background: #fff; }
+.content-dialog ::v-deep .el-dialog__body { padding: 0; }
+.content-dialog-body { min-height: 0; max-height: 74vh; overflow-y: auto; padding: 20px 28px 28px; background: #f8fafc; }
 .resource-file-state { display: block; margin-top: 3px; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .resource-intro { display: block; margin-top: 3px; overflow: hidden; color: #657587; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .resource-file-state.is-bound { color: #39856d; }.resource-file-state.is-missing { color: #c78325; }

@@ -73,10 +73,6 @@ public class InternStageRow implements Serializable {
     private Integer learnDone;
     /** 本人学习进度均值（无记录 → null，**不伪装 0%**） */
     private java.math.BigDecimal learnAvgProgress;
-    /** 本人应交任务数 */
-    private Integer taskTotal;
-    /** 本人逾期任务数 */
-    private Integer taskOverdue;
 
     // ==================== 模拟考核（2026-09-23 加，花名册「模拟正确率」列） ====================
 

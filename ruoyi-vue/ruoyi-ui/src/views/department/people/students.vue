@@ -8,20 +8,19 @@
       <div>
         <span class="eyebrow">DEPARTMENT ADMIN</span>
         <h1>实习生管理</h1>
-        <p>本部门实习生花名册与统计下钻。表格 9 列全部接真实数据（含保密协议 / 学习完成率 / 正式考核）。</p>
+        <p>本部门实习生花名册与统计下钻。</p>
       </div>
       <div class="dept-heading-actions">
         <el-button size="small" @click="notReady('导出花名册')">导出</el-button>
       </div>
     </div>
 
-    <!-- 统计卡：前 3 项真实，最后 1 项依赖 certificate -->
+    <!-- 统计卡 -->
     <div class="dkpi-grid" style="margin-bottom:16px">
       <div v-for="item in kpis" :key="item.key" class="dkpi">
         <div class="dkpi-label">
           <span class="d" :style="{ background: item.color }" />
           {{ item.label }}
-          <!-- 2026-09-22：不再打「示例」标（没有的指标一律显示 --） -->
         </div>
         <div class="dkpi-val">{{ item.value }}<small>人</small></div>
         <div class="dkpi-sub" :class="item.tone">{{ item.hint }}</div>
@@ -123,9 +122,9 @@
               <div class="acts">
                 <el-button type="text" @click="openProfile(row)">查看档案</el-button>
                 <span class="sep">|</span>
-                <el-button v-if="row.stage === 'PENDING_PROMOTE'" type="text" @click="goPromotion(row)">审核转正</el-button>
-                <el-button v-if="row.mentorName" type="text" @click="openMentorDialog(row)">改导师</el-button>
-                <el-button v-else type="text" @click="openMentorDialog(row)">分配导师</el-button>
+                <el-button type="text" @click="openEdit(row)">编辑</el-button>
+                <span v-if="row.userStatus === 'PENDING_PROMOTE'" class="sep">|</span>
+                <el-button v-if="row.userStatus === 'PENDING_PROMOTE'" type="text" @click="goPromotion(row)">审核转正</el-button>
               </div>
             </td>
           </tr>
@@ -151,72 +150,63 @@
       </div>
     </div>
 
-    <!-- 数据说明 -->
-    <div class="dgrid" style="margin-top:16px">
-      
-      
-    </div>
-
-    <!-- ==================== 分配 / 更换导师（2026-09-23） ====================
-        导师已抽成独立 mentor 主表，由「导师管理」页维护；这里只做「选一位」。
-        下拉仅列出本部门**启用中**的导师（后端 /business/mentor/options 已按角色收窄范围）。 -->
+    <!-- 编辑实习生基础信息 -->
     <el-dialog
-      :title="mentorDialog.row && mentorDialog.row.mentorName ? '更换导师' : '分配导师'"
-      :visible.sync="mentorDialog.visible"
-      width="480px"
-      append-to-body
+      :visible.sync="editDialog.visible"
+      title="编辑实习生信息"
+      width="520px"
       :close-on-click-modal="false"
+      @close="resetEdit"
     >
-      <div v-if="mentorDialog.row" class="mentor-head">
-        <strong>{{ mentorDialog.row.nickName }}</strong>
-        <span class="muted"> · {{ mentorDialog.row.userName }}</span>
-        <div class="muted">
-          {{ mentorDialog.row.positionName || '岗位缺失' }}
-          <template v-if="mentorDialog.row.deptName"> · {{ mentorDialog.row.deptName }}</template>
-        </div>
-      </div>
-      <el-form label-width="82px" size="small">
-        <el-form-item label="当前导师">
-          <span v-if="mentorDialog.row && mentorDialog.row.mentorName">
-            {{ mentorDialog.row.mentorName }}
-            <span class="muted">（{{ mentorDialog.row.mentorPhone || '未留联系方式' }}）</span>
-          </span>
-          <span v-else class="muted">未分配</span>
+      <el-form v-loading="editDialog.loading" label-width="90px" size="small">
+        <el-form-item label="账号">
+          <el-input :value="editDialog.row ? editDialog.row.userName : ''" disabled />
         </el-form-item>
-        <el-form-item label="选择导师" required>
-          <el-select
-            v-model="mentorDialog.mentorId"
-            filterable
-            clearable
-            placeholder="从导师库中选择"
+        <el-form-item label="姓名">
+          <el-input v-model="editDialog.form.nickName" placeholder="请输入姓名" maxlength="30" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="editDialog.form.phonenumber" placeholder="请输入手机号" maxlength="11" />
+        </el-form-item>
+        <el-form-item label="邮箱">
+          <el-input v-model="editDialog.form.email" placeholder="请输入邮箱" maxlength="50" />
+        </el-form-item>
+        <el-form-item label="性别">
+          <el-select v-model="editDialog.form.sex" placeholder="请选择" style="width:100%">
+            <el-option label="男" value="0" />
+            <el-option label="女" value="1" />
+            <el-option label="未知" value="2" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="岗位">
+          <el-select v-model="editDialog.form.positionId" placeholder="请选择岗位" clearable filterable style="width:100%">
+            <el-option v-for="p in editDialog.positions" :key="p.positionId" :label="p.positionName" :value="p.positionId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="预计入职">
+          <el-date-picker
+            v-model="editDialog.form.expectedEntryDate"
+            type="date"
+            placeholder="选择日期"
+            value-format="yyyy-MM-dd"
             style="width:100%"
-            :loading="mentorDialog.optionsLoading"
-          >
+          />
+        </el-form-item>
+        <el-form-item label="导师">
+          <el-select v-model="editDialog.form.mentorId" placeholder="请选择导师" clearable filterable style="width:100%">
             <el-option
-              v-for="m in mentorDialog.options"
+              v-for="m in mentorSelectOptions"
               :key="m.id"
-              :label="m.mentorName + '（' + (m.mentorPhone || '无联系方式') + '）'"
+              :label="m.mentorName + (m.mentorPhone ? '（' + m.mentorPhone + '）' : '')"
               :value="m.id"
             />
           </el-select>
-          <div class="field-tip">
-            名单来自「导师管理」页配置的本部门启用中导师
-            <el-button type="text" size="mini" @click="goMentorManage">去导师管理</el-button>
-          </div>
         </el-form-item>
       </el-form>
-      <span slot="footer">
-        <el-button size="small" @click="mentorDialog.visible = false">取消</el-button>
-        <el-button
-          v-if="mentorDialog.row && mentorDialog.row.mentorName"
-          size="small"
-          type="danger"
-          plain
-          :loading="mentorDialog.submitting"
-          @click="clearMentor"
-        >解除关联</el-button>
-        <el-button size="small" type="primary" :loading="mentorDialog.submitting" @click="submitMentor">保存</el-button>
-      </span>
+      <div slot="footer">
+        <el-button size="small" @click="editDialog.visible = false">取消</el-button>
+        <el-button size="small" type="primary" :loading="editDialog.submitting" @click="submitEdit">保存</el-button>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -231,7 +221,7 @@
 //           formalPassed），不必再另做接口。
 //   该接口**不需要传部门参数**，范围从 token 取（超管=全部、部门管理员=本部门）。
 import { getStageProgress } from '@/api/business/analysis'
-import { getMentorOptions, assignInternMentor, clearInternMentor } from '@/api/business/mentor'
+import { getMentorOptions, getDeptPositions, getInternDetailForEdit, updateInternBasic } from '@/api/business/mentor'
 
 // ★ 键用后端归一后的 `stage`（以角色为主、user_status 为辅），不再用原始 userStatus
 const STATUS_MAP = {
@@ -249,13 +239,14 @@ export default {
     return {
       loading: false,
       roster: [],
-      mentorDialog: {
+      mentorSelectOptions: [],
+      editDialog: {
         visible: false,
+        loading: false,
         submitting: false,
-        optionsLoading: false,
         row: null,
-        mentorId: undefined,
-        options: []
+        positions: [],
+        form: { nickName: '', phonenumber: '', email: '', sex: '0', positionId: null, expectedEntryDate: null, mentorId: null }
       },
       query: { positionName: '', mentorName: '', status: 'ALL', entryRange: 'ALL', keyword: '', pageNum: 1, pageSize: 20 }
     }
@@ -383,57 +374,64 @@ export default {
     goPromotion(row) {
       this.$router.push({ path: '/department/people/promotion', query: { id: String(row.userId || row.id) } })
     },
-    // ★ 2026-09-23：去掉「发任务」入口（该操作移到「任务与通知 › 任务管理」里做）
-    /** 打开「分配 / 更换导师」弹窗，并拉取本部门启用中的导师名单 */
-    openMentorDialog(row) {
-      this.mentorDialog.row = row
-      this.mentorDialog.mentorId = row.mentorId || undefined
-      this.mentorDialog.visible = true
-      this.mentorDialog.optionsLoading = true
-      getMentorOptions().then(res => {
-        this.mentorDialog.options = (res && res.data) || []
-      }).catch(() => {
-        this.mentorDialog.options = []
-      }).finally(() => {
-        this.mentorDialog.optionsLoading = false
-      })
-    },
-    submitMentor() {
-      const d = this.mentorDialog
-      if (!d.row) {
-        return
-      }
-      if (!d.mentorId) {
-        this.$message.warning('请先选择一位导师')
-        return
-      }
-      d.submitting = true
-      assignInternMentor({ userId: d.row.userId || d.row.id, mentorId: d.mentorId }).then(() => {
-        this.$message.success('导师已保存')
-        d.visible = false
-        this.loadRoster()
-      }).finally(() => {
-        d.submitting = false
-      })
-    },
-    clearMentor() {
-      const d = this.mentorDialog
-      this.$confirm('确认解除该实习生的导师关联？', '提示', { type: 'warning' }).then(() => {
-        d.submitting = true
-        return clearInternMentor({ userId: d.row.userId || d.row.id })
-      }).then(() => {
-        this.$message.success('已解除导师关联')
-        d.visible = false
-        this.loadRoster()
-      }).catch(() => {}).finally(() => {
-        d.submitting = false
-      })
-    },
-    goMentorManage() {
-      this.$router.push('/department/people/mentors')
-    },
     notReady(action) {
-      this.$message({ message: '「' + action + '」所需的接口尚未落地（见设计方案 §实施状态）', type: 'warning' })
+      this.$message({ message: '「' + action + '」功能暂未开放', type: 'warning' })
+    },
+    openEdit(row) {
+      this.editDialog.row = row
+      this.editDialog.form = { nickName: '', phonenumber: '', email: '', sex: '0', positionId: null, expectedEntryDate: null, mentorId: null }
+      this.editDialog.positions = []
+      this.editDialog.loading = true
+      // ★ 不先打开弹窗——等数据拉回来再 visible，避免接口失败导致"闪现再关闭"
+      Promise.all([
+        getDeptPositions(),
+        getMentorOptions(),
+        getInternDetailForEdit(row.userId || row.id)
+      ]).then(([posRes, menRes, detailRes]) => {
+        this.editDialog.positions = (posRes && posRes.data) || []
+        this.mentorSelectOptions = (menRes && menRes.data) || []
+        const d = (detailRes && detailRes.data) || {}
+        this.editDialog.form = {
+          nickName: d.nickName || '',
+          phonenumber: d.phonenumber || '',
+          email: d.email || '',
+          sex: d.sex != null ? String(d.sex) : '0',
+          positionId: d.positionId != null ? Number(d.positionId) : null,
+          expectedEntryDate: d.expectedEntryDate || null,
+          mentorId: d.mentorId != null ? Number(d.mentorId) : null
+        }
+        this.editDialog.visible = true  // 数据就绪后才显示弹窗
+      }).catch((err) => {
+        const msg = (err && err.msg) || (err && err.message) || '加载实习生信息失败'
+        this.$message.error(msg)
+      }).finally(() => {
+        this.editDialog.loading = false
+      })
+    },
+    submitEdit() {
+      const f = this.editDialog.form
+      const body = {
+        nickName: (f.nickName || '').trim(),
+        phonenumber: (f.phonenumber || '').trim() || null,
+        email: (f.email || '').trim() || null,
+        sex: f.sex,
+        positionId: f.positionId || null,
+        expectedEntryDate: f.expectedEntryDate || null,
+        mentorId: f.mentorId || null
+      }
+      this.editDialog.submitting = true
+      updateInternBasic(this.editDialog.row.userId || this.editDialog.row.id, body).then(() => {
+        this.$message.success('保存成功')
+        this.editDialog.visible = false
+        this.loadRoster()
+      }).finally(() => {
+        this.editDialog.submitting = false
+      })
+    },
+    resetEdit() {
+      this.editDialog.row = null
+      this.editDialog.form = { nickName: '', phonenumber: '', email: '', sex: '0', positionId: null, expectedEntryDate: null, mentorId: null }
+      this.editDialog.positions = []
     }
   }
 }

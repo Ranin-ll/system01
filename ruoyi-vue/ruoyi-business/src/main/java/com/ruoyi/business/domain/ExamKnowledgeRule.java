@@ -25,8 +25,19 @@ public class ExamKnowledgeRule implements Serializable {
     /** 题库知识点 */
     private String knowledgePoint;
 
-    /** 本知识点抽题数量 */
+    /** 本知识点抽题数量（= singleCount + multiCount + judgeCount，行小计） */
     private Integer questionCount;
+
+    /**
+     * ★ 2026-09-24：知识点配比改为**按题型分别分配**。
+     * 三者为该知识点要抽的 单选/多选/判断 数量；都为 0 时回退到旧的
+     * 「按 questionCount + 卷面题型比例分摊」口径（向后兼容存量数据）。
+     */
+    private Integer singleCount;
+
+    private Integer multiCount;
+
+    private Integer judgeCount;
 
     /** 占比%（展示与校验用） */
     private BigDecimal ratio;

@@ -22,15 +22,15 @@
 /**
  * 「选一个实习生」下拉（部门在培人员）
  *
- * 抽成共享组件的理由：部门端的「任务管理 / 通知管理 / 任务批阅」都要按人筛选，
+ * 抽成共享组件的理由：部门端的「通知管理」要按人筛选，
  * 而「怎么算本部门的在培实习生」这件事（部门范围 + user_status 三态 + 昵称兜底）
  * 只应该有一处实现 —— 各页各写一遍迟早分叉。
  *
- * ⚠️ 数据源是 `/business/task/trainees`（业务侧、按 token 的部门收范围），
+ * ⚠️ 数据源是 `/business/dept/trainees`（业务侧、按 token 的部门收范围），
  * **不是** `/system/user/list` —— 后者要 `system:user:list` 权限，部门管理员是 403，
  * 前端会静默拿到空列表（「指定人员」选择器一度就是空的）。
  */
-import { listTrainees } from '@/api/business/task'
+import { listTrainees } from '@/api/business/dept'
 import { mapGetters } from 'vuex'
 
 /** 在培（含待转正）都算「实习生」 */
@@ -65,7 +65,7 @@ export default {
     reload() {
       listTrainees().then(res => {
         this.users = res.data || []
-        // 抛给父组件：父组件常用它把 userId 反解成姓名（如筛选提示里显示「只看 张三 的任务」）
+        // 抛给父组件：父组件常用它把 userId 反解成姓名（如筛选提示里显示「只看 张三」）
         this.$emit('loaded', this.trainees)
       }).catch(() => { this.users = [] })
     },

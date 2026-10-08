@@ -88,7 +88,7 @@ export default {
       if (!first) return ''
       return typeof first === 'string' ? first : (first.url || '')
     },
-    /** 无参考时用内联 SVG 占位（与设计稿缩略图一致） */
+    /** 无参考时用内联 SVG 占位 */
     thumbSvg(i) {
       const layouts = [
         '<svg viewBox="0 0 160 104" preserveAspectRatio="none"><rect x="14" y="18" width="132" height="70" rx="8" fill="#f2f7ff"/><rect x="14" y="18" width="132" height="15" rx="8" fill="#d7e7fc"/><rect x="26" y="42" width="46" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="54" width="70" height="6" rx="3" fill="#cfe0fb"/><rect x="26" y="66" width="34" height="6" rx="3" fill="#cfe0fb"/></svg>',

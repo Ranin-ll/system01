@@ -9,6 +9,7 @@ import com.ruoyi.business.mapper.AnswerSheetMapper;
 import com.ruoyi.business.mapper.ExamMapper;
 import com.ruoyi.business.mapper.QuestionMapper;
 import com.ruoyi.business.service.IAnswerSheetService;
+import com.ruoyi.business.service.support.PaperDrawer;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
@@ -442,7 +443,9 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
      *
      * <p>从<b>本部门题池</b>（question.dept_id）抽题：</p>
      * <ol>
-     *   <li>配了知识配比（exam_knowledge_rule）→ 按知识点逐个抽取，跨知识点去重；</li>
+     *   <li>配了知识配比（exam_knowledge_rule）→ 走 {@link PaperDrawer}，按
+     *       「知识点配比 + 卷面题型配额」抽（★ 2026-09-24 起也会满足 单选/多选/判断 数量，
+     *       原实现只按知识点抽 N 题、不分题型）；</li>
      *   <li>未配知识配比 → 退回「按题型数量从本部门题池随机抽」。</li>
      * </ol>
      */
@@ -451,40 +454,29 @@ public class AnswerSheetServiceImpl extends ServiceImpl<AnswerSheetMapper, Answe
         if (deptId == null) {
             throw new ServiceException("考核未归属部门，无法抽题");
         }
-        List<Question> questions = new ArrayList<>();
-        List<Long> used = new ArrayList<>();
         List<com.ruoyi.business.domain.ExamKnowledgeRule> rules = examRuleMapper.selectKnowledgeRules(exam.getId());
-        if (rules != null && !rules.isEmpty()) {
-            for (com.ruoyi.business.domain.ExamKnowledgeRule rule : rules) {
-                int need = rule.getQuestionCount() == null ? 0 : rule.getQuestionCount();
-                if (need <= 0) {
-                    continue;
+        boolean hasRule = false;
+        if (rules != null) {
+            for (com.ruoyi.business.domain.ExamKnowledgeRule r : rules) {
+                if (r.getQuestionCount() != null && r.getQuestionCount() > 0) {
+                    hasRule = true;
+                    break;
                 }
-                addPicked(questions, used, examRuleMapper.selectQuestionsByPoint(
-                        deptId, rule.getKnowledgePoint(), null, new ArrayList<>(used), need));
             }
-            if (!questions.isEmpty()) {
-                return questions;
+        }
+        if (hasRule) {
+            List<Question> picked = PaperDrawer.draw(examRuleMapper, questionMapper, deptId, rules,
+                    nz(exam.getSingleCount()), nz(exam.getMultiCount()), nz(exam.getJudgeCount()), 0, 0);
+            if (!picked.isEmpty()) {
+                return picked;
             }
         }
         // 退回「按题型数量」从本部门题池抽
+        List<Question> questions = new ArrayList<>();
         questions.addAll(questionMapper.selectQuestionsByType(deptId, null, "SINGLE", exam.getSingleCount()));
         questions.addAll(questionMapper.selectQuestionsByType(deptId, null, "MULTI", exam.getMultiCount()));
         questions.addAll(questionMapper.selectQuestionsByType(deptId, null, "JUDGE", exam.getJudgeCount()));
         return questions;
-    }
-
-    /** 合并抽到的题并跨知识点/题型去重 */
-    private void addPicked(List<Question> target, List<Long> used, List<Question> src) {
-        if (src == null) {
-            return;
-        }
-        for (Question q : src) {
-            if (!used.contains(q.getId())) {
-                used.add(q.getId());
-                target.add(q);
-            }
-        }
     }
 
     private static int nz(Integer v) {

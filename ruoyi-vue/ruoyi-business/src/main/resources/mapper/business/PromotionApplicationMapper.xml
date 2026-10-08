@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.PromotionApplicationMapper">
+
+    <!--
+      转正申请（promotion_application）
+      状态机：DEPT_PENDING -> PASSED / REJECTED（部门终审即生效，跳过 SUPER_PENDING）
+      ★ super_approve_by / super_approve_time 两列保留但业务不写，留给超管代操作留痕。
+      ★ 本 mapper 的 SQL / 注释里不要出现裸的小于号或连续两个短横线。
+    -->
+
+    <resultMap type="PromotionApplication" id="PromotionApplicationResult">
+        <id     property="id"                column="id"                  />
+        <result property="applicationNo"     column="application_no"      />
+        <result property="userId"            column="user_id"             />
+        <result property="deptId"            column="dept_id"             />
+        <result property="status"            column="status"              />
+        <result property="gateCheckJson"     column="gate_check_json"     />
+        <result property="supplement"        column="supplement"          />
+        <result property="deptApproveBy"     column="dept_approve_by"     />
+        <result property="deptApproveTime"   column="dept_approve_time"   />
+        <result property="superApproveBy"    column="super_approve_by"    />
+        <result property="superApproveTime"  column="super_approve_time"  />
+        <result property="rejectReason"      column="reject_reason"       />
+        <result property="certNo"            column="cert_no"             />
+        <result property="createTime"        column="create_time"         />
+        <result property="updateTime"        column="update_time"         />
+        <result property="userName"          column="user_name"           />
+        <result property="realName"          column="real_name"           />
+        <result property="positionName"      column="position_name"       />
+        <result property="positionCode"      column="position_code"       />
+        <result property="deptName"          column="dept_name"           />
+        <result property="accountStatus"     column="account_status"      />
+        <result property="userStatus"        column="user_status"         />
+        <result property="deptApproveName"   column="dept_approve_name"   />
+    </resultMap>
+
+    <sql id="selectApplicationVo">
+        SELECT pa.id, pa.application_no, pa.user_id, pa.dept_id, pa.status, pa.gate_check_json,
+               pa.supplement, pa.dept_approve_by, pa.dept_approve_time,
+               pa.super_approve_by, pa.super_approve_time, pa.reject_reason, pa.cert_no,
+               pa.create_time, pa.update_time,
+               u.user_name      AS user_name,
+               u.nick_name      AS real_name,
+               u.status         AS account_status,
+               u.user_status    AS user_status,
+               d.dept_name      AS dept_name,
+               p.position_name  AS position_name,
+               p.position_code  AS position_code,
+               au.nick_name     AS dept_approve_name
+        FROM promotion_application pa
+        LEFT JOIN sys_user u ON u.user_id = pa.user_id AND u.del_flag = '0'
+        LEFT JOIN sys_dept d ON d.dept_id = pa.dept_id AND d.del_flag = '0'
+        LEFT JOIN position p ON p.id = u.position_id AND p.deleted = 0
+        LEFT JOIN sys_user au ON au.user_id = pa.dept_approve_by
+    </sql>
+
+    <insert id="insertApplication" parameterType="PromotionApplication" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO promotion_application
+            (application_no, user_id, dept_id, status, gate_check_json, supplement,
+             dept_approve_by, dept_approve_time, reject_reason, cert_no, create_time, update_time)
+        VALUES
+            (#{applicationNo}, #{userId}, #{deptId}, #{status}, #{gateCheckJson}, #{supplement},
+             NULL, NULL, NULL, NULL, NOW(), NOW())
+    </insert>
+
+    <select id="selectApplicationById" resultMap="PromotionApplicationResult">
+        <include refid="selectApplicationVo"/>
+        WHERE pa.id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestByUserId" resultMap="PromotionApplicationResult">
+        <include refid="selectApplicationVo"/>
+        WHERE pa.user_id = #{userId}
+        ORDER BY pa.create_time DESC, pa.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectApplicationList" resultMap="PromotionApplicationResult">
+        <include refid="selectApplicationVo"/>
+        <where>
+            <if test="q != null">
+                <if test="q.status != null and q.status != ''">
+                    AND pa.status = #{q.status}
+                </if>
+                <if test="q.userName != null and q.userName != ''">
+                    AND (u.user_name LIKE CONCAT('%', #{q.userName}, '%')
+                         OR u.nick_name LIKE CONCAT('%', #{q.userName}, '%'))
+                </if>
+                <if test="q.realName != null and q.realName != ''">
+                    AND u.nick_name LIKE CONCAT('%', #{q.realName}, '%')
+                </if>
+            </if>
+            <if test="deptId != null">
+                AND pa.dept_id = #{deptId}
+            </if>
+        </where>
+        ORDER BY pa.create_time DESC, pa.id DESC
+    </select>
+
+    <select id="countByStatus" resultType="int">
+        SELECT COUNT(1) FROM promotion_application pa
+        <where>
+            <if test="status != null and status != ''">pa.status = #{status}</if>
+            <if test="deptId != null">AND pa.dept_id = #{deptId}</if>
+        </where>
+    </select>
+
+    <update id="updateApplication" parameterType="PromotionApplication">
+        UPDATE promotion_application
+        SET status            = #{status},
+            gate_check_json   = #{gateCheckJson},
+            supplement        = #{supplement},
+            dept_approve_by   = #{deptApproveBy},
+            dept_approve_time = #{deptApproveTime},
+            reject_reason     = #{rejectReason},
+            cert_no           = #{certNo},
+            update_time       = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="countActiveByUserId" resultType="int">
+        SELECT COUNT(1) FROM promotion_application
+        WHERE user_id = #{userId} AND status = 'DEPT_PENDING'
+    </select>
+
+    <!--
+      候选人 = 本部门在培实习生（持实习生角色 + 账号有效）
+      ★ 用 EXISTS 判角色而非 JOIN：避免多角色行把人数翻倍（与 SuperAnalysisMapper 同口径）
+      ★ 最新一条申请用 MAX(id) 派生表取，避免 MySQL 5.7 窗口函数依赖
+    -->
+    <select id="selectCandidateRows" resultType="com.ruoyi.business.domain.PromotionCandidate">
+        SELECT u.user_id       AS userId,
+               u.user_name     AS userName,
+               u.nick_name     AS nickName,
+               u.dept_id       AS deptId,
+               d.dept_name     AS deptName,
+               u.position_id   AS positionId,
+               p.position_name AS positionName,
+               p.position_code AS positionCode,
+               u.user_status   AS userStatus,
+               CASE WHEN u.protocol_status = 1 THEN 1 ELSE 0 END AS protocolSigned,
+               pa.id               AS applicationId,
+               pa.application_no   AS applicationNo,
+               pa.status           AS applicationStatus,
+               pa.reject_reason    AS rejectReason,
+               pa.supplement       AS supplement,
+               pa.cert_no          AS certNo,
+               pa.create_time      AS submittedAt,
+               pa.dept_approve_time AS decidedAt,
+               au.nick_name        AS deptApproveName
+        FROM sys_user u
+        JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
+        LEFT JOIN position p ON p.id = u.position_id AND p.deleted = 0
+        LEFT JOIN (
+            SELECT pa1.user_id, MAX(pa1.id) AS max_id
+            FROM promotion_application pa1
+            GROUP BY pa1.user_id
+        ) lax ON lax.user_id = u.user_id
+        LEFT JOIN promotion_application pa ON pa.id = lax.max_id
+        LEFT JOIN sys_user au ON au.user_id = pa.dept_approve_by
+        WHERE u.del_flag = '0'
+          AND u.status = '0'
+          AND u.user_status IN ('PRE_TRAINEE', 'FORMAL_TRAINEE', 'PENDING_PROMOTE')
+          AND EXISTS (SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id
+                       WHERE ur.user_id = u.user_id AND r.role_key IN ('PRE_TRAINEE', 'FORMAL_TRAINEE'))
+        <if test="deptId != null">
+          AND u.dept_id = #{deptId}
+        </if>
+        ORDER BY u.dept_id ASC, u.user_id ASC
+    </select>
+
+</mapper>

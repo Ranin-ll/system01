@@ -140,16 +140,7 @@ import { listLearningCourses } from '@/api/business/learning'
 import { learningSummary } from '@/utils/learningPreview'
 
 /**
- * 能力画像详情页（工作台「能力画像 · 详情」下钻，设计稿 i9）
- *
- * 真实数据（复用既有接口，不新增、不改动后端）：
- *  - `GET /business/learning/courses` → 学习投入维度的样本量（学习单项数）
- *  - vuex getters：mentorName / protocolStatus / roles
- *
- * ★ 2026-09-22 起：没有真数据的一律**留空**（不再用示例值 / 示例标）
- *  - 四维分值与综合值：`profile_snapshot` / `ability_dimension` 表存在但**零 Java 层实现**、维度定义未拍板
- *  - 阶段评价原文：`stage_evaluation` 当前 0 行（且 visible_scope='ADMIN_ONLY' 须后端过滤）
- *  - 多周期趋势：需周期归档接口
+ * 能力画像详情页
  */
 
 export default {

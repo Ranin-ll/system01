@@ -146,8 +146,6 @@
         <p v-if="!records.length" class="dsec-note">暂无考核记录。</p>
       </div>
     </div>
-
-    
   </div>
 </template>
 
@@ -169,12 +167,7 @@ export default {
     return {
       loading: false,
       person: {},
-      /**
-       * 2026-09-22：本页的协议 / 学习完成率 / 考核结论 / 数据完整度 / 四维能力
-       * **没有可用的聚合接口**（`profile_snapshot` 零 Java 层、`stage_evaluation` 0 行）
-       * ⇒ 一律留空（原来用 `demoOf(0)` 编造），模板侧显示「--」
-       */
-      demo: { protocol: null, studyRate: null, examKey: null, examText: '待接入', completeness: null, dimensions: [] }
+      demo: { protocol: null, studyRate: null, examKey: null, examText: '—', completeness: null, dimensions: [] }
     }
   },
   computed: {
@@ -197,12 +190,12 @@ export default {
       return [
         {
           key: 'protocol', no: 1, title: '协议签署',
-          desc: passedProtocol === null ? '签署状态待接入' : (passedProtocol ? this.fmtDay(this.person.createTime) + ' 已签' : '尚未签署'),
+          desc: passedProtocol === null ? '—' : (passedProtocol ? this.fmtDay(this.person.createTime) + ' 已签' : '尚未签署'),
           state: passedProtocol ? 'done' : 'now'
         },
         {
           key: 'study', no: 2, title: '在线学习',
-          desc: rate === null ? '完成率待接入' : (rate + '% · ' + (studyOk ? '已达 70% 门槛' : '未达门槛')),
+          desc: rate === null ? '—' : (rate + '% · ' + (studyOk ? '已达 70% 门槛' : '未达门槛')),
           state: studyOk ? 'done' : (passedProtocol ? 'now' : '')
         },
         {

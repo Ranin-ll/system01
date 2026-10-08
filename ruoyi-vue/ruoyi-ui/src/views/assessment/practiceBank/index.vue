@@ -1,6 +1,6 @@
 <template>
   <div class="ipb-page">
-    <!-- 顶部：标题 + 说明 + 统计（口径：只统计已加载的真实数据） -->
+    <!-- 顶部：标题 + 说明 + 统计 -->
     <header class="ipb-hero">
       <div class="ipb-hero-copy">
         <h1>模拟实操题</h1>
@@ -184,7 +184,7 @@ export default {
   },
   computed: {
     baseApi() { return process.env.VUE_APP_BASE_API || '' },
-    /** 全部题目打平（KPI / 筛选计数都以真实数据算） */
+    /** 全部题目打平 */
     allSubjects() {
       return this.groups.reduce((acc, g) => acc.concat(g.subjects || []), [])
     },

@@ -24,6 +24,9 @@ public class RuoYiConfig
     /** 上传路径 */
     private static String profile;
 
+    /** 课程文件存储根目录（绝对路径，可指向任意磁盘，便于后续迁移到其它盘） */
+    private static String courseRoot;
+
     /** 获取地址开关 */
     private static boolean addressEnabled;
 
@@ -68,6 +71,16 @@ public class RuoYiConfig
     public void setProfile(String profile)
     {
         RuoYiConfig.profile = profile;
+    }
+
+    public static String getCourseRoot()
+    {
+        return courseRoot != null ? courseRoot : "E:/ia-dev/courses";
+    }
+
+    public void setCourseRoot(String courseRoot)
+    {
+        RuoYiConfig.courseRoot = courseRoot;
     }
 
     public static boolean isAddressEnabled()

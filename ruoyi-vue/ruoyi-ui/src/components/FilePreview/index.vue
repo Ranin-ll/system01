@@ -41,7 +41,7 @@
 
 <script>
 /**
- * 文件预览（复用于批阅面板、任务资料等需要「先看一眼」的地方）
+ * 文件预览（复用于批阅面板等需要「先看一眼」的地方）
  *
  * 与 `views/assessment/learning/detail.vue` 里的内联预览是同一套渲染方式
  * （pdf/txt 用 iframe、docx 用 docx-preview、pptx 用 pptx-preview），

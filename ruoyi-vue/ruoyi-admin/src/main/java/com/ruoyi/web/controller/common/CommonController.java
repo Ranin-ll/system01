@@ -2,6 +2,8 @@ package com.ruoyi.web.controller.common;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
@@ -144,18 +146,43 @@ public class CommonController
     {
         try
         {
+            // 自行从原始查询串按 UTF-8 解析 resource：本环境 Tomcat 对查询串的中文会被按 ASCII/ISO 误解码成 '?'（不可逆），
+            // 而 getQueryString() 仍是客户端发出的百分号编码原文，这里用 UTF-8 重新解码即可拿到正确中文路径。
+            String rawResource = extractResourceFromQuery(request);
+            if (rawResource != null) {
+                resource = rawResource;
+            }
             // 课程附件（安装包 / 压缩包 / 镜像）不在默认下载白名单里，
             // 这里额外放行课程附件扩展名 —— 否则「课程里传得上去、实习生下载下来却是空文件」。
             if (!FileUtils.checkAllowDownload(resource, MimeTypeUtils.COURSE_ASSET_EXTENSION))
             {
                 throw new Exception(StringUtils.format("资源文件({})非法，不允许下载。 ", resource));
             }
-            // 本地资源路径
-            String localPath = RuoYiConfig.getProfile();
-            // 数据库资源地址
-            String downloadPath = localPath + StringUtils.substringAfter(resource, Constants.RESOURCE_PREFIX);
-            // 下载名称
-            String downloadName = StringUtils.substringAfterLast(downloadPath, "/");
+            // 课程资料自 2026-09-24 起支持「绝对路径」存储（可指向任意磁盘，便于后续迁移到其它盘）。
+            // 绝对路径直接规范化并校验落盘范围；非绝对路径仍按 RuoYi 约定走 /profile 相对解析。
+            String downloadPath;
+            String downloadName;
+            if (new File(resource).isAbsolute())
+            {
+                Path abs = Paths.get(resource).toAbsolutePath().normalize();
+                Path profileRoot = Paths.get(RuoYiConfig.getProfile()).toAbsolutePath().normalize();
+                Path courseRoot = Paths.get(RuoYiConfig.getCourseRoot()).toAbsolutePath().normalize();
+                if (!abs.startsWith(profileRoot) && !abs.startsWith(courseRoot))
+                {
+                    throw new Exception(StringUtils.format("资源文件({})不在允许的根目录内，不允许下载。 ", resource));
+                }
+                downloadPath = abs.toString();
+                downloadName = abs.getFileName().toString();
+            }
+            else
+            {
+                // 本地资源路径
+                String localPath = RuoYiConfig.getProfile();
+                // 数据库资源地址
+                downloadPath = localPath + StringUtils.substringAfter(resource, Constants.RESOURCE_PREFIX);
+                // 下载名称
+                downloadName = StringUtils.substringAfterLast(downloadPath, "/");
+            }
             // ⚠️ 先把「文件到底在不在」校验掉，再写任何响应头。
             // 否则 FileUtils.writeBytes 的 finally 会 close 输出流，等于提前把响应提交掉：
             // 之后就算抛异常，isCommitted() 也已为 true，再也回不了错误体，
@@ -191,5 +218,38 @@ public class CommonController
                         .getBytes(StandardCharsets.UTF_8));
             }
         }
+    }
+
+    /**
+     * 从原始查询串中按 UTF-8 取出 resource 参数值（绕过 Tomcat 对查询串的中文解码）。
+     * <p>本环境 Tomcat 会把查询串里的中文按 ASCII/ISO 误解码成 '?'（不可逆），导致中文路径找不到文件。
+     * {@code HttpServletRequest.getQueryString()} 返回的是客户端发出的百分号编码原文，
+     * 这里用 UTF-8 重新解码即可得到正确的中文路径。</p>
+     */
+    private String extractResourceFromQuery(HttpServletRequest request)
+    {
+        String qs = request.getQueryString();
+        if (StringUtils.isEmpty(qs))
+        {
+            return null;
+        }
+        for (String pair : qs.split("&"))
+        {
+            int eq = pair.indexOf('=');
+            String key = eq >= 0 ? pair.substring(0, eq) : pair;
+            if ("resource".equals(key))
+            {
+                String val = eq >= 0 ? pair.substring(eq + 1) : "";
+                try
+                {
+                    return java.net.URLDecoder.decode(val, "UTF-8");
+                }
+                catch (Exception ignored)
+                {
+                    return val;
+                }
+            }
+        }
+        return null;
     }
 }

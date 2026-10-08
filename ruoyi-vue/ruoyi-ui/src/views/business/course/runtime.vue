@@ -1,14 +1,11 @@
 <script>
 import CoursePage from './index'
 import {
-  addCourseChapter,
   addStudyItem,
-  deleteCourseChapter,
   deleteStudyItem,
   getCourseContents,
   listCourseStudyRecords,
   saveCourseContents,
-  updateCourseChapter,
   updateStudyItem,
   uploadStudyAsset
 } from '@/api/business/courseContent'
@@ -91,42 +88,6 @@ export default Object.assign({}, CoursePage, {
           this.contentDirty = false
           this.$modal.msgSuccess('课程编排已保存')
         })
-    },
-
-    saveChapter() {
-      if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
-      this.$refs.chapterForm.validate(valid => {
-        if (!valid || !this.currentCourse) return
-        if (!isDatabaseCourse(this, this.currentCourse)) {
-          CoursePage.methods.saveChapter.call(this)
-          return
-        }
-        const payload = {
-          chapterName: this.chapterForm.chapterName,
-          chapterIntro: this.chapterForm.chapterIntro,
-          isRequired: this.chapterForm.isRequired
-        }
-        const request = this.chapterForm.id
-          ? updateCourseChapter(this.chapterForm.id, payload)
-          : addCourseChapter(this.currentCourse.id, payload)
-        request.then(() => this.reloadContents()).then(() => {
-          this.chapterDialogOpen = false
-          this.$modal.msgSuccess('章节已保存')
-        })
-      })
-    },
-
-    removeChapter(chapter) {
-      if (!this.canEditContent(this.currentCourse)) return this.comingSoon()
-      this.$modal.confirm('确认删除章节“' + chapter.chapterName + '”？章节中的资料也会一并移除。').then(() => {
-        if (!isDatabaseCourse(this, this.currentCourse)) {
-          CoursePage.methods.removeChapter.call(this, chapter)
-          return
-        }
-        return deleteCourseChapter(chapter.id).then(() => this.reloadContents()).then(() => {
-          this.$modal.msgSuccess('章节已删除')
-        })
-      }).catch(() => {})
     },
 
     openItemDialog(chapter, item) {

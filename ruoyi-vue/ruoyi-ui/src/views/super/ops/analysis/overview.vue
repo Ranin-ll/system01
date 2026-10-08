@@ -6,7 +6,7 @@
         <h1>培养分析看板</h1>
         <p>
           实习生培养与学习考核情况的<strong>部门横向对比</strong>，各维度一张表打尽。
-          <strong>人 / 学习 / 任务 / 考核（模拟 · 正式 · 知识点）全部为实时真数据</strong>；
+          <strong>人 / 学习 / 考核（模拟 · 正式 · 知识点）全部为实时真数据</strong>；
           无样本一律显示「无样本 / 暂无」，<strong>不伪装 0%</strong>。
         </p>
       </div>
@@ -28,7 +28,7 @@
     </div>
 
     <template v-else>
-      <!-- ==================== KPI 条（6，全部可点进对应页面） ==================== -->
+      <!-- ==================== KPI 条（5，全部可点进对应页面） ==================== -->
       <div v-loading="loading" class="s-kpis">
         <div
           v-for="k in kpis"
@@ -67,7 +67,6 @@
                 <th class="ctr" style="width:72px">模拟人次</th>
                 <th style="min-width:126px">模拟均分</th>
                 <th style="min-width:140px">知识点正确率</th>
-                <th style="width:126px">任务 应/已/逾</th>
                 <th style="min-width:126px">综合健康度</th>
               </tr>
             </thead>
@@ -121,17 +120,12 @@
                 </td>
 
                 <td>
-                  <span>{{ num(r.taskTotal) }} / {{ num(r.taskDone) }} / </span>
-                  <span :class="{ bad: num(r.taskOverdue) > 0 }">{{ num(r.taskOverdue) }}</span>
-                </td>
-
-                <td>
                   <template v-if="r.health !== null">
                     <div class="mb">
                       <span class="t"><i :class="toneOf(r.health)" :style="{ width: clamp(r.health) + '%' }" /></span>
                       <b>{{ r.health }}</b>
                     </div>
-                    <span class="n1">有效维度 {{ r.healthDims }}/4</span>
+                    <span class="n1">有效维度 {{ r.healthDims }}/3</span>
                   </template>
                   <span v-else class="none">数据不足 <data-tag :none="true" /></span>
                 </td>
@@ -139,7 +133,15 @@
             </tbody>
           </table>
 
-          
+          <p class="s-note">
+            <b>综合健康度公式（公开）</b>：
+            <code>0.30×学习达标率 + 0.30×知识点正确率 + 0.20×模拟均分归一</code><br />
+            ★ <b>缺项不按 0 计</b> —— 把权重按剩余项<b>重新归一</b>（否则「没数据」会被读成「表现最差」）；
+            全项缺失显示「数据不足」。<br />
+            ★ 本页只统计<b>有在培实习生的部门</b> —— 根部门下的 0 人部门若列出来会多出一行全是「--」的噪声。<br />
+            ★ 「学习进度均值」的分母是<b>该部门有学习记录的人</b>，当前多为 1 人，故标 <code>N=1</code>：
+            它反映的是个人推进度，<b>不能当部门水平横向比</b>。
+          </p>
         </section>
       </div>
 
@@ -308,7 +310,7 @@
 /**
  * 超管「培养分析看板」L0（培养运营 → 培养分析看板）
  *
- * ★ 2026-09-22 起：**人 / 学习 / 任务 / 考核（模拟 · 正式 · 知识点）全部为真数据**
+ * ★ 2026-09-22 起：**人 / 学习 / 考核（模拟 · 正式 · 知识点）全部为真数据**
  *   （原先考核类由同目录 `_mock.js` 填充、理由是「等同事的题库/考核分支合并」—— 该前提已失效）
  * 分母为 0 的项显示「无样本 / 暂无 / --」，不伪装 0%
  *
@@ -416,13 +418,6 @@ export default {
           path: '/super/ops/exams', toLabel: '考核与成绩'
         },
         {
-          key: 'task', label: '任务完成率', color: '#f79009',
-          value: nil(ov.taskDoneRate) ? '--' : ov.taskDoneRate, unit: '%',
-          foot: this.num(ov.taskDone) + '/' + this.num(ov.taskTotal) + ' 已交 · 逾期 ' + this.num(ov.taskOverdue),
-          warn: this.num(ov.taskOverdue) > 0,
-          path: '/super/todo', toLabel: '督办看板'
-        },
-        {
           key: 'block', label: '培养卡点', color: '#667085',
           value: this.num(ov.statusConflict), unit: '人',
           foot: '角色与状态不一致 · 未分导师 ' + this.num(ov.mentorMissing) + ' · 未签协议 ' + this.num(ov.protocolUnsigned),
@@ -463,19 +458,17 @@ export default {
       return rows
     },
 
-    /** 转正 gate 逐条勾选（5 条**全部为真数据**；「部门终审」因 promotion_application 无表 ⇒ 恒 0 人） */
+    /** 转正 gate 逐条勾选（4 条**全部为真数据**；「部门终审」因 promotion_application 无表 ⇒ 恒 0 人） */
     gateRows() {
       const total = this.stageRows.length
       if (!total) return []
       const th = Number(this.ov.learnThreshold || 70)
       let learnFail = 0
-      let taskFail = 0
       let protoFail = 0
       let formalFail = 0
       this.stageRows.forEach(r => {
         const rate = r.learnTotal > 0 ? r.learnDone * 100 / r.learnTotal : 0
         if (rate < th) learnFail++
-        if (Number(r.taskOverdue || 0) > 0) taskFail++
         if (!Number(r.protocolSigned || 0)) protoFail++
         const fp = r.formalPassed
         // 真值：1 通过 / 0 未通过 / null 未参加 ⇒ 只有「已通过」才算达标
@@ -486,8 +479,6 @@ export default {
           text: learnFail + ' 人未达标' },
         { key: 'formal', label: '正式考试通过', pass: total - formalFail, total, mock: false,
           text: formalFail + ' 人未通过或未参加正式考核' },
-        { key: 'task', label: '任务无逾期', pass: total - taskFail, total, mock: false,
-          text: taskFail + ' 人有逾期任务' },
         { key: 'protocol', label: '协议已签', pass: total - protoFail, total, mock: false,
           text: protoFail + ' 人未签' },
         { key: 'approve', label: '部门终审通过', pass: 0, total, mock: false,
@@ -543,7 +534,7 @@ export default {
       return { WAIT_AUDIT: '#98a2b3', PRE_TRAINEE: '#1764f5', PENDING_PROMOTE: '#f79009', FORMAL_TRAINEE: '#12b76a' }[stage] || '#667085'
     },
     /**
-     * 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律）。
+     * 统一跳转：目标路由不存在则不动。
      */
     go(path, query) {
       if (!path) return
@@ -572,10 +563,10 @@ export default {
     },
     /**
      * ★ 实现后端约定的 `?focus=` 锚点：从预警点进来后滚到对应卡片并短暂高亮。
-     * 后端当前取值 task / stage（其余按 sec-&lt;key&gt; 兜底）。
+     * 后端当前取值 stage（其余按 sec-&lt;key&gt; 兜底）。
      */
     focusIdOf(key) {
-      return ({ task: 'sec-stage', stage: 'sec-stage' })[key] || ('sec-' + key)
+      return ({ stage: 'sec-stage' })[key] || ('sec-' + key)
     },
     applyFocus() {
       const key = this.$route.query.focus
@@ -614,16 +605,12 @@ export default {
       const learnRate = Number(r.learnTotal) > 0
         ? Number(r.learnDone) * 100 / Number(r.learnTotal)
         : null
-      const taskRate = Number(r.taskTotal) > 0
-        ? Number(r.taskDone) * 100 / Number(r.taskTotal)
-        : null
       const practiceNorm = practiceAvg.value !== null ? Number(practiceAvg.value) * 10 : null
 
-      // 权重：学习 30 / 知识点 30 / 任务 20 / 模拟 20；★ 缺项把权重按剩余项重新归一
+      // 权重：学习 30 / 知识点 30 / 模拟 20；★ 缺项把权重按剩余项重新归一
       const parts = [
         { w: 0.30, v: learnRate },
         { w: 0.30, v: knowledgeRate },
-        { w: 0.20, v: taskRate },
         { w: 0.20, v: practiceNorm }
       ].filter(p => p.v !== null && p.v !== undefined)
 
@@ -807,9 +794,7 @@ export default {
 /* 注意：不要用 #98a2b3 配浅灰底（对比度太低，看着像空白） */
 .hn { color: #475467; background: #f2f4f7; }
 
-/* ==================== 2026-09-22：全卡片可点（统一 affordance） ====================
-   ★ 只加视觉与鼠标态，不改任何数据结构；跳转一律走 go() / goDept() / goPeople() / goLink()，
-     目标路由不存在时不动 —— 不给死链（项目铁律）。 */
+/* 全卡片可点的视觉与鼠标态，不改任何数据结构。 */
 .link { position: relative; cursor: pointer; transition: background .15s, box-shadow .15s, border-color .15s; }
 .link:hover { background: #f7fbff; }
 

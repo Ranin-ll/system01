@@ -1,42 +1,6 @@
 /**
  * 文件预览 / 下载 公共逻辑
- * ---------------------------------------------------------------------------
- * 【本文档是「合并冲突解决方案」，不是仓库里的文件】
- *
- * 冲突来源：`feature/exam-module`（同事）与 `main`（含超管 P1）**各自新增**了
- * `ruoyi-vue/ruoyi-ui/src/utils/filePreview.js`（git 报 add/add 冲突）。
- * 两边是**两套独立实现**，引用方完全不重叠 —— 所以正确做法是**取并集**，
- * 而不是二选一。
- *
- * ⚠️ 唯一的真实冲突点：两边都导出 `extOf`，但**契约不同**
- *    · main 侧：`extOf(fileName, url)` → 小写不带点（'pdf'）；取不到 → ''
- *    · 分支侧：`extOf(url)`        → 大写（'PDF'）；取不到 → '未知格式'
- *    ⇒ 既不能"都留"（duplicate export → 语法报错），
- *      也不能"留一个"（另一个的调用方会静默拿到语义不同的值）。
- *    ⇒ **解法：把分支侧那个改名为 `extLabel`** —— 它返回的其实是「给人看的格式标签」
- *      （取不到时给 '未知格式'），不是"用于匹配的扩展名"。改名后语义各自归位。
- *
- * 合并后需要同步改名的调用点（只有 2 处，都是分支侧新增页面）：
- *   1. ruoyi-vue/ruoyi-ui/src/views/assessment/guide/index.vue
- *   2. ruoyi-vue/ruoyi-ui/src/views/department/study/prep/index.vue
- *      —— 两处 import 形如：
- *         import { previewKindOf, extOf, fileUrlOf as resolveFileUrl,
- *                  PREVIEW_SUPPORT_TEXT, triggerDownload } from '@/utils/filePreview'
- *      把其中的 `extOf` 改成 `extLabel` 即可（`as resolveFileUrl` 的别名保持不变）。
- *      ⚠️ 页面模板里如果有 `extOf(x)` 的调用，也要一并改成 `extLabel(x)`。
- *
- * 另外注意：两边各有一套「预览类型」判定，名字不同但**分类体系不同**，暂时共存：
- *   · `previewKind(fileName, url)`  → 'inline' | 'docx' | 'pptx' | 'image' | 'none'
- *        —— 回答「用哪个渲染器」（main 侧 FilePreview 组件用）
- *   · `previewKindOf(url)`          → 'image' | 'video' | 'pdf' | 'text' | 'other'
- *        —— 回答「浏览器能不能直接看」（分支侧备考资料页用）
- *   ⇒ 合并期**先共存**（保留各自调用方），后续可统一为一种；但别在合并时顺手重构，
- *     那会把"合并冲突"和"重构"两件事混在一起，出问题难定位。
  */
-
-/* =========================================================================
- * 第一部分：来自 main 侧（超管 P1）—— 供 FilePreview / TaskAttachments / review 用
- * ========================================================================= */
 
 const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']
 const INLINE_EXTS = ['pdf', 'txt']

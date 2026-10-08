@@ -4,7 +4,7 @@
       <div>
         <span class="eyebrow">SUPER ADMIN · GLOBAL CONSOLE</span>
         <h1>全局工作台</h1>
-        <p>全组织培养与考核的总览：在培规模、部门分布、课程与部门题池、考核场次与异常预警。本页<b>只读全局数据</b>；业务写操作请到对应管理入口（课程 / 题库 / 模拟实操题对超管开放，任务类仍归部门管理员）。</p>
+        <p>全组织培养与考核的总览：在培规模、部门分布、课程与题库健康度、考核场次与异常预警。本页<b>只读全局数据</b>；业务写操作请到对应管理入口（课程 / 题库 / 实操题库对超管开放）。</p>
       </div>
       <div class="s-head-actions">
         <span class="s-ro"><i class="el-icon-view" /> 全局只读</span>
@@ -157,18 +157,6 @@ const COMPANY_ROOT_ID = 100 // 兜底：sys_dept 中 parentId=0 的公司根节�
 
 /**
  * 超管「全局工作台」
- *
- * 真实数据（均为既有接口，SUPER_ADMIN 授权后可直接读）：
- *  - /system/dept/list                    部门（公司根节点下即 5 个培养部门）
- *  - /business/position/list              岗位（5 个）
- *  - /business/register/list              报名 / 花名册（含 deptId、positionId、status）
- *  - /business/exam/list?examMode=FORMAL  正式考核场次（跨部门）
- *  - /business/course/list                课程（跨部门）
- *  - /business/question/list             理论题（★ 2026-09-23 起题目直接按部门归属，无「题库」层）
- *  - /monitor/operlog/list                操作日志（最近动态）
- *
- * 不做的部分（如实说明，不留假数）：部门学习完成率 / 考核通过率不在本卡渲染
- *   —— 这两项已在「培养分析看板」（/super/ops/analysis）接真数据。
  */
 export default {
   name: 'SuperDashboard',
@@ -296,7 +284,7 @@ export default {
     this.loadAll()
   },
   methods: {
-    /** 统一跳转：目标路由不存在则**不动** —— 不给死链（本项目铁律） */
+    /** 统一跳转：目标路由不存在则不动 */
     go(path, query) {
       if (!path) return
       if (!this.$router.resolve(path).route.matched.length) return
@@ -374,8 +362,7 @@ export default {
 <style lang="scss" scoped>
 @import '~@/assets/styles/super-module.scss';
 
-/* ==================== 2026-09-22：全卡片可点（与培养分析看板统一 affordance） ====================
-   ★ 只加视觉与鼠标态；跳转走 go() / goLink() / goDept() / goPool()，目标路由不存在时不动。 */
+/* 全卡片可点的视觉与鼠标态 */
 .link { position: relative; cursor: pointer; transition: background .15s, box-shadow .15s, border-color .15s; }
 .link:hover { background: #f7fbff; }
 .s-kpi.link:hover { border-color: #cfe0fb; box-shadow: 0 2px 10px rgba(23, 100, 245, .12); }

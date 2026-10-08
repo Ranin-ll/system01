@@ -22,7 +22,7 @@ import java.util.Map;
 /**
  * 超管「培养分析看板」实现。
  *
- * <p><b>数据边界（本期刻意划的线）</b>：只聚合 <b>人 / 学习 / 任务</b> 三族真数据。
+ * <p><b>数据边界（本期刻意划的线）</b>：只聚合 <b>人 / 学习</b> 两族真数据。
  * <b>模拟考核、正式考核、知识点一律不查库</b> —— 题库与考核模块将有同事的大改动、
  * 等其分支上传后合并，在会变的表上取数等于白做。这几列在 VO 里保留为 {@code null}，
  * 由前端 {@code _mock.js} 填充并统一打「示例数据」橙标；合并后只需在
@@ -100,15 +100,7 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
             row.setLearnAvgProgress(r.getLearnAvgProgress());
             row.setVideoSeconds(r.getVideoSeconds());
         }
-        // ③ 任务
-        for (DeptMatrixRow r : analysisMapper.selectTaskByDept(scope)) {
-            DeptMatrixRow row = ensure(byDept, r);
-            row.setTaskTotal(r.getTaskTotal());
-            row.setTaskDone(r.getTaskDone());
-            row.setTaskOverdue(r.getTaskOverdue());
-            row.setTaskNotStarted(r.getTaskNotStarted());
-        }
-        // ④ 考核类（2026-09-22 起为真数据；原先「本期不查、前端 _mock.js 填充」的前提已失效）
+        // ③ 考核类（2026-09-22 起为真数据；原先「本期不查、前端 _mock.js 填充」的前提已失效）
         for (DeptMatrixRow r : analysisMapper.selectPracticeByDept(scope)) {
             DeptMatrixRow row = ensure(byDept, r);
             row.setPracticeCount(r.getPracticeCount());
@@ -242,9 +234,6 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
         int learnDone = 0;
         int learnPersons = 0;
         long videoSeconds = 0L;
-        int taskTotal = 0;
-        int taskDone = 0;
-        int taskOverdue = 0;
         // 全局平均进度 = 各部门均值按「该部门记录数」加权 —— 与小样本部门被拉平无关，
         // 数学上等于对全部记录求均值（避免「部门均值的算术平均」这种经典错误）
         BigDecimal progressWeighted = BigDecimal.ZERO;
@@ -257,9 +246,6 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
             learnDone += nz(r.getLearnDone());
             learnPersons += nz(r.getLearnPersons());
             videoSeconds += (r.getVideoSeconds() == null ? 0L : r.getVideoSeconds());
-            taskTotal += nz(r.getTaskTotal());
-            taskDone += nz(r.getTaskDone());
-            taskOverdue += nz(r.getTaskOverdue());
             if (r.getLearnAvgProgress() != null && nz(r.getLearnTotal()) > 0) {
                 progressWeighted = progressWeighted.add(
                         r.getLearnAvgProgress().multiply(BigDecimal.valueOf(nz(r.getLearnTotal()))));
@@ -299,17 +285,12 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
                 : null);
         data.put("videoSeconds", videoSeconds);
 
-        data.put("taskTotal", taskTotal);
-        data.put("taskDone", taskDone);
-        data.put("taskOverdue", taskOverdue);
-        data.put("taskDoneRate", rate(taskDone, taskTotal));
-
         data.put("mentorMissing", mentorMissing);
         data.put("protocolUnsigned", protocolUnsigned);
         data.put("statusConflict", statusConflict);
 
         data.put("deptDist", matrix);
-        data.put("alerts", buildAlerts(matrix, taskOverdue, mentorMissing, protocolUnsigned, statusConflict));
+        data.put("alerts", buildAlerts(matrix, mentorMissing, protocolUnsigned, statusConflict));
         data.put("scopedDeptId", scopeDeptId());
         return data;
     }
@@ -330,7 +311,7 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
      * 异常预警：阈值全部取自 assessment_config，改配置即改判定。
      * 每条都能点进对应的下钻视图。
      */
-    private List<Map<String, Object>> buildAlerts(List<DeptMatrixRow> matrix, int taskOverdue,
+    private List<Map<String, Object>> buildAlerts(List<DeptMatrixRow> matrix,
                                                   int mentorMissing, int protocolUnsigned,
                                                   int statusConflict) {
         List<Map<String, Object>> alerts = new ArrayList<>();
@@ -350,30 +331,21 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
                 }
             }
         }
-        // ② 任务逾期
-        if (taskOverdue > 0) {
-            alerts.add(alert("HIGH", "TASK_OVERDUE",
-                    "任务逾期 " + taskOverdue + " 条",
-                    "逾期率 " + (rate(taskOverdue, countTaskTotal(matrix)) == null ? "--"
-                            : rate(taskOverdue, countTaskTotal(matrix)) + "%")
-                            + " · 判定参考 alert_overdue_hours",
-                    "/super/ops/analysis?focus=task"));
-        }
-        // ③ 角色与状态不一致（数据治理问题，不是业务问题）
+        // ② 角色与状态不一致（数据治理问题，不是业务问题）
         if (statusConflict > 0) {
             alerts.add(alert("MEDIUM", "STATUS_CONFLICT",
                     statusConflict + " 人「状态待修正」：已持实习生角色，但 user_status 仍是 WAIT_AUDIT",
                     "口径以角色为主、user_status 为辅；这批人会被同时算进「待审」与「预备」→ 需修正建账流程",
                     "/super/ops/analysis?focus=stage"));
         }
-        // ④ 未分配导师
+        // ③ 未分配导师
         if (mentorMissing > 0) {
             alerts.add(alert("MEDIUM", "MENTOR_MISSING",
                     mentorMissing + " 人未分配导师",
                     "mentor_name 是文本字段（非关联 ID），已分配项亦存在脏值（如「001」）→ 数据质量待治",
                     "/super/ops/analysis?focus=stage"));
         }
-        // ⑤ 未签协议
+        // ④ 未签协议
         if (protocolUnsigned > 0) {
             alerts.add(alert("MEDIUM", "PROTOCOL_UNSIGNED",
                     protocolUnsigned + " 人未签保密协议",
@@ -381,14 +353,6 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
                     "/super/ops/analysis?focus=stage"));
         }
         return alerts;
-    }
-
-    private int countTaskTotal(List<DeptMatrixRow> matrix) {
-        int t = 0;
-        for (DeptMatrixRow r : matrix) {
-            t += nz(r.getTaskTotal());
-        }
-        return t;
     }
 
     private Map<String, Object> alert(String level, String key, String title, String detail, String link) {
@@ -431,7 +395,6 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
         // 本部门 × 知识点明细（2026-09-22 起为真数据，原先前端用 _mock.js 填充）
         vo.setKnowledge(analysisMapper.selectKnowledgeDetailByDept(deptId));
         vo.setGlobalLearnAvgProgress((BigDecimal) ov.get("learnAvgProgress"));
-        vo.setGlobalTaskDoneRate((Integer) ov.get("taskDoneRate"));
         vo.setGlobalInternCount((Integer) ov.get("internTotal"));
         if (row != null) {
             vo.setInternCount(row.getInternCount());
@@ -440,11 +403,7 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
             vo.setLearnDone(row.getLearnDone());
             vo.setLearnPersons(row.getLearnPersons());
             vo.setLearnAvgProgress(row.getLearnAvgProgress());
-            vo.setTaskTotal(row.getTaskTotal());
-            vo.setTaskDone(row.getTaskDone());
-            vo.setTaskOverdue(row.getTaskOverdue());
             vo.setLearnRate(rate(nz(row.getLearnDone()), nz(row.getLearnTotal())));
-            vo.setTaskDoneRate(rate(nz(row.getTaskDone()), nz(row.getTaskTotal())));
         }
 
         vo.setPositions(analysisMapper.selectPositionDist(deptId));
@@ -480,7 +439,6 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
         int mentorMissing = 0;
         int protocolUnsigned = 0;
         int noLearning = 0;
-        int overdueTask = 0;
         for (InternStageRow r : rows) {
             if (nz(r.getStatusConflict()) == 1) {
                 statusConflict++;
@@ -494,9 +452,6 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
             if (nz(r.getLearnTotal()) == 0) {
                 noLearning++;
             }
-            if (nz(r.getTaskOverdue()) > 0) {
-                overdueTask++;
-            }
         }
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("total", rows.size());
@@ -504,7 +459,6 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
         m.put("mentorMissing", mentorMissing);
         m.put("protocolUnsigned", protocolUnsigned);
         m.put("noLearning", noLearning);
-        m.put("overdueTask", overdueTask);
         return m;
     }
 
@@ -536,7 +490,6 @@ public class SuperAnalysisServiceImpl implements ISuperAnalysisService {
         data.put("threshold", th);
         data.put("user", target);
         data.put("study", analysisMapper.selectInternStudy(userId));
-        data.put("tasks", analysisMapper.selectInternTasks(userId));
         // 考核类（2026-09-22 接真数据）：模拟逐场 / 正式逐场 / 本人知识点掌握
         data.put("practice", analysisMapper.selectInternPractice(userId));
         data.put("formal", analysisMapper.selectInternFormal(userId));

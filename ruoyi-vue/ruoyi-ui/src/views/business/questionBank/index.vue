@@ -258,7 +258,42 @@ export default {
         this.deptOptions = (res.data || []).filter(dept => dept.parentId !== 0)
       })
     },
-    /** 拉取题目列表：所属部门（超管）+ 题型 + 题干关键字，全部走后端分页 */
+    loadBanks() {
+      this.bankLoading = true
+      listBank({}).then(res => {
+        this.bankList = res.rows || []
+        this.bankLoading = false
+        // 题目列表已移到「题库详情」独立页 —— 这里不再自动选中题库（原来会多打一次 loadQuestions）
+      }).catch(() => { this.bankLoading = false })
+    },
+    /**
+     * 查看详情 —— 进入独立的「题库详情」页（统计 + 题目管理）。
+     *
+     * <p>为什么用独立页而不是下方同页面板：详情页要放题型 / 难度 / 知识点分布等统计，
+     * 同页横排塞不下；独立页也便于分享链接、刷新不丢位置。</p>
+     * <p>详情页挂在 `/super` 与 `/department` 两处，按当前路径前缀拼目标路由。</p>
+     */
+    goDetail(row) {
+      // 实操题库 → 独立的实操题管理页；理论题库 → 题目管理页
+      const isSuper = this.$route.path.indexOf('/super') === 0
+      // ★ 2026-09-22 修 BUG：实操分支原来把路径**硬编码成部门端** /department/study/practice-bank-detail/，
+      //   超管点了一律 404（超管访问 /department/** 会掉 404）。改为与理论分支同口径按角色前缀拼。
+      if ((row.bankKind || 'THEORY') === 'PRACTICAL') {
+        const pPath = (isSuper ? '/super/ops/practice-bank-detail/' : '/department/study/practice-bank-detail/') + row.id
+        // 目标路由不存在则不动
+        if (!this.$router.resolve(pPath).route.matched.length) return
+        this.$router.push({ path: pPath, query: { bankName: row.bankName, bankType: row.bankType } }).catch(() => {})
+        return
+      }
+      const base = isSuper ? '/super/ops/bank-detail/' : '/department/study/bank-detail/'
+      if (!this.$router.resolve(base + row.id).route.matched.length) return
+      this.$router.push(base + row.id).catch(() => {})
+    },
+    selectBank(row) {
+      this.currentBank = row
+      this.queryParams.pageNum = 1
+      this.loadQuestions()
+    },
     loadQuestions() {
       this.questionLoading = true
       const f = this.filters

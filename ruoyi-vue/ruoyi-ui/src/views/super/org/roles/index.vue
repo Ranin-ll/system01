@@ -69,11 +69,6 @@
           <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>考核配置与发布</b><span><code>ExamServiceImpl</code> 超管放行；接口复用 <code>business:bank:*</code> 权限串</span></div></div>
           <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>实操题库</b><span><code>PracticeSubjectServiceImpl</code> 超管放行（<code>business:psubject:*</code>）</span></div></div>
           <div class="s-step done"><span class="mark">✓</span><div class="txt"><b>注册审核 · 考试成绩批阅与发布</b><span>超管可写且<b>不受部门限制</b>（<code>register:audit</code> / <code>bank:edit</code>）</span></div></div>
-          <div class="s-step now"><span class="mark">✕</span><div class="txt"><b>任务：发布 / 结束 / 批阅</b><span>仍只读 —— <code>TaskServiceImpl.requireDeptAdmin()</code> 直接抛「超级管理员仅可查看任务，不能发布或批阅」（任务列表可读）</span></div></div>
-        </div>
-        <div class="s-callout" style="margin-top:12px">
-          <i class="el-icon-info" />
-          <span>只读边界已收窄到只剩<b>「任务」一条</b>：课程 / 题库 / 考核属于<b>全局可维护的配置类数据</b>，放开给超管不破坏追溯链；而<b>任务的发布与批阅绑定「谁培养、谁负责」</b>，仍由部门管理员独占。转正审批目前是页面前端只读（后端该流程未实现）。</span>
         </div>
       </section>
     </div>
@@ -85,8 +80,6 @@ import { listRole } from '@/api/system/role'
 
 /**
  * 超管「角色权限」页
- * 真实数据：/system/role/list（角色清单）
- * 静态内容：能力 × 角色矩阵（设计稿基准，用于验收）
  */
 export default {
   name: 'SuperRoles',
@@ -104,7 +97,6 @@ export default {
         { name: '模拟考核配置', super: '可写（全局）', dept: '可写', pre: '只做题', formal: '—' },
         { name: '正式考核（发布 / 时间窗 / 指定人员）', super: '可写（全局）', dept: '可写', pre: '参考', formal: '只读历史' },
         { name: '考试成绩批阅与发布', super: '可写（全局）', dept: '可写', pre: '—', formal: '查看' },
-        { name: '任务（发布 / 结束 / 批阅作业）', super: '只读', dept: '可写（本部门）', pre: '—', formal: '查看' },
         { name: '转正审批', super: '只读 + 撤回纠错 ★', dept: '终审即生效', pre: '提交申请', formal: '查看' },
         { name: '考核规则（门槛 / 权重 / 补考）', super: '可写 ★', dept: '只读', pre: '—', formal: '—' },
         { name: '协议 / 证书模板', super: '可写 ★', dept: '只读（使用）', pre: '签署', formal: '查看' },

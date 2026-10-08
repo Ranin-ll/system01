@@ -15,6 +15,9 @@
         <result property="examId"         column="exam_id"        />
         <result property="knowledgePoint" column="knowledge_point"/>
         <result property="questionCount"  column="question_count" />
+        <result property="singleCount"    column="single_count"   />
+        <result property="multiCount"     column="multi_count"    />
+        <result property="judgeCount"     column="judge_count"    />
         <result property="ratio"          column="ratio"          />
         <result property="singleRatio"    column="single_ratio"   />
         <result property="sortNo"         column="sort_no"        />
@@ -25,7 +28,9 @@
 
     <!-- 已配置的知识分布，附带本部门题池该知识点的可用题量（校验「抽题数量 ≤ 可用」） -->
     <select id="selectKnowledgeRules" resultMap="KnowledgeRuleResult">
-        SELECT r.id, r.exam_id, r.knowledge_point, r.question_count, r.ratio, r.single_ratio, r.sort_no, r.create_time,
+        SELECT r.id, r.exam_id, r.knowledge_point, r.question_count,
+               r.single_count, r.multi_count, r.judge_count,
+               r.ratio, r.single_ratio, r.sort_no, r.create_time,
                (SELECT COUNT(1) FROM question q
                  WHERE q.deleted = 0 AND q.dept_id = e.dept_id
                    AND q.knowledge_point = r.knowledge_point)                       AS available_count,
@@ -44,10 +49,12 @@
 
     <insert id="insertKnowledgeRules">
         INSERT INTO exam_knowledge_rule
-            (exam_id, knowledge_point, question_count, ratio, single_ratio, sort_no, create_time)
+            (exam_id, knowledge_point, question_count, single_count, multi_count, judge_count,
+             ratio, single_ratio, sort_no, create_time)
         VALUES
         <foreach collection="list" item="it" separator=",">
-            (#{it.examId}, #{it.knowledgePoint}, #{it.questionCount}, #{it.ratio}, #{it.singleRatio}, #{it.sortNo}, NOW())
+            (#{it.examId}, #{it.knowledgePoint}, #{it.questionCount}, #{it.singleCount}, #{it.multiCount}, #{it.judgeCount},
+             #{it.ratio}, #{it.singleRatio}, #{it.sortNo}, NOW())
         </foreach>
     </insert>
 

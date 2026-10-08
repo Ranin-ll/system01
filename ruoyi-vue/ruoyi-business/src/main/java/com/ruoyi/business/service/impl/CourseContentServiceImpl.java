@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -427,14 +428,26 @@ public class CourseContentServiceImpl extends ServiceImpl<CourseChapterMapper, C
         }
     }
 
-    /** 只删除 profile 根目录内由本系统上传的文件，拒绝远程地址和路径穿越。 */
+    /** 只删除允许根目录内由本系统管理的文件，拒绝远程地址和路径穿越。
+     *  课程资料以绝对路径落库（courseRoot），普通上传仍走 /profile 相对路径，两者都支持。 */
     private void deleteStoredAsset(String contentUrl) {
-        if (contentUrl == null || !contentUrl.startsWith(Constants.RESOURCE_PREFIX + "/")) return;
+        if (contentUrl == null || contentUrl.trim().isEmpty()) return;
         try {
-            String relative = contentUrl.substring((Constants.RESOURCE_PREFIX + "/").length());
-            Path root = Paths.get(RuoYiConfig.getProfile()).toAbsolutePath().normalize();
-            Path asset = root.resolve(relative).normalize();
-            if (asset.startsWith(root)) Files.deleteIfExists(asset);
+            Path asset;
+            if (new File(contentUrl).isAbsolute()) {
+                asset = Paths.get(contentUrl).toAbsolutePath().normalize();
+                Path profileRoot = Paths.get(RuoYiConfig.getProfile()).toAbsolutePath().normalize();
+                Path courseRoot = Paths.get(RuoYiConfig.getCourseRoot()).toAbsolutePath().normalize();
+                if (!asset.startsWith(profileRoot) && !asset.startsWith(courseRoot)) return;
+            } else if (contentUrl.startsWith(Constants.RESOURCE_PREFIX + "/")) {
+                String relative = contentUrl.substring((Constants.RESOURCE_PREFIX + "/").length());
+                Path root = Paths.get(RuoYiConfig.getProfile()).toAbsolutePath().normalize();
+                asset = root.resolve(relative).normalize();
+                if (!asset.startsWith(root)) return;
+            } else {
+                return;
+            }
+            Files.deleteIfExists(asset);
         } catch (Exception ignored) {
             // File cleanup must not roll back successfully persisted course metadata.
         }

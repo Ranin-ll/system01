@@ -83,3 +83,28 @@ export function clearInternMentor(data) {
     data: data
   })
 }
+
+// 本部门岗位下拉（供「实习生管理 → 编辑」弹窗选岗位）
+export function getDeptPositions() {
+  return request({
+    url: '/business/dept/positions',
+    method: 'get'
+  })
+}
+
+// 实习生编辑详情（完整基础信息回显，含 email / sex / positionId / expectedEntryDate）
+export function getInternDetailForEdit(userId) {
+  return request({
+    url: '/business/mentor/intern/' + userId + '/detail',
+    method: 'get'
+  })
+}
+
+// 编辑实习生基础信息（姓名 / 手机 / 邮箱 / 性别 / 岗位 / 预计入职 / 导师）
+export function updateInternBasic(userId, data) {
+  return request({
+    url: '/business/mentor/intern/' + userId,
+    method: 'put',
+    data: data
+  })
+}

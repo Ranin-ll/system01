@@ -53,6 +53,8 @@ public class MimeTypeUtils
     public static final String[] COURSE_ASSET_EXTENSION = {
             // 文档
             "pdf", "doc", "docx", "ppt", "pptx", "txt", "xls", "xlsx",
+            // 课程源码 / 素材（2026-09-24 放开：课程含 md 说明、ThingJS 脚本 tjs、地图 map、CAD 图纸 dwg、打包资源 bundle）
+            "md", "tjs", "map", "dwg", "bundle",
             // 压缩包
             "zip", "7z", "rar", "tar", "gz", "tgz",
             // 安装包

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.PromotionRuleMapper">
+
+    <!--
+      转正要求规则（promotion_rule）
+      ★ dept_id IS NULL = 全局默认规则；非 NULL = 部门级覆盖。
+      ★ 本 mapper 的 SQL / 注释里不要出现裸的小于号或连续两个短横线，否则 MyBatis 解析失败。
+    -->
+
+    <resultMap type="PromotionRule" id="PromotionRuleResult">
+        <id     property="id"            column="id"              />
+        <result property="deptId"        column="dept_id"         />
+        <result property="studyRateMin"  column="study_rate_min"  />
+        <result property="examPassTimes" column="exam_pass_times" />
+        <result property="enabled"       column="enabled"         />
+        <result property="createBy"      column="create_by"       />
+        <result property="createTime"    column="create_time"     />
+        <result property="updateTime"    column="update_time"     />
+        <result property="deptName"      column="dept_name"       />
+    </resultMap>
+
+    <sql id="selectRuleVo">
+        SELECT r.id, r.dept_id, r.study_rate_min, r.exam_pass_times, r.enabled,
+               r.create_by, r.create_time, r.update_time,
+               d.dept_name
+        FROM promotion_rule r
+        LEFT JOIN sys_dept d ON d.dept_id = r.dept_id AND d.del_flag = '0'
+    </sql>
+
+    <select id="selectAllRules" resultMap="PromotionRuleResult">
+        <include refid="selectRuleVo"/>
+        ORDER BY (r.dept_id IS NOT NULL) ASC, r.dept_id ASC, r.id ASC
+    </select>
+
+    <select id="selectByDeptId" resultMap="PromotionRuleResult">
+        <include refid="selectRuleVo"/>
+        WHERE r.dept_id = #{deptId}
+        ORDER BY r.enabled DESC, r.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectGlobalRule" resultMap="PromotionRuleResult">
+        <include refid="selectRuleVo"/>
+        WHERE r.dept_id IS NULL
+        ORDER BY r.enabled DESC, r.id DESC
+        LIMIT 1
+    </select>
+
+    <insert id="insertRule" parameterType="PromotionRule" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO promotion_rule (dept_id, study_rate_min, exam_pass_times, enabled, create_by, create_time, update_time)
+        VALUES (#{deptId}, #{studyRateMin}, #{examPassTimes}, #{enabled}, #{createBy}, NOW(), NOW())
+    </insert>
+
+    <update id="updateRule" parameterType="PromotionRule">
+        UPDATE promotion_rule
+        SET study_rate_min  = #{studyRateMin},
+            exam_pass_times = #{examPassTimes},
+            enabled         = #{enabled},
+            update_time     = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -3,11 +3,8 @@
     <header class="nt-head">
       <div>
         <span class="eyebrow">NOTICE CENTER</span>
-        <h1>任务与通知</h1>
-        <p>
-          发<b>公告</b>（挂出去给人看）或<b>通知</b>（戳到人）。范围四档：全体 / 部门 / 岗位 / 指定人员。
-          <b>公告与「全体」仅超管可发</b>；业务通知统一走业务表，与平台原生「通知公告」并存。
-        </p>
+        <h1>通知中心</h1>
+        <p>发送公告或通知，范围支持全体、部门、岗位、指定人员。公告与「全体」仅超级管理员可发。</p>
       </div>
       <div class="nt-actions">
         <span class="chip"><i class="el-icon-bell" /> 我的未读 {{ unread }}</span>
@@ -55,7 +52,10 @@
           <el-select v-model="form.scopeId" size="small" placeholder="选择岗位" style="width:100%" @change="loadEstimate">
             <el-option v-for="p in positionOptions" :key="p.id" :label="p.positionName" :value="Number(p.id)" />
           </el-select>
-          
+          <div class="tip">
+            岗位分为实习生岗（实施 / 开发 / 设计 / 质检 / 建模）与管理员岗（各部门管理员）。
+            部门管理员不占实习生岗，需单独选择「部门管理员」才会发送给对应管理员。
+          </div>
         </div>
 
         <div v-if="form.scopeType === 'USER'" class="field">
@@ -74,15 +74,15 @@
           <label>公告属性</label>
           <div class="inline">
             <el-checkbox v-model="topFlag">置顶</el-checkbox>
-            <el-date-picker v-model="form.effectiveTo" type="datetime" size="small" placeholder="有效期至（可空）"
-                            value-format="yyyy-MM-dd HH:mm:ss" style="width:200px" />
+            <el-date-picker v-model="form.effectiveTo" type="date" size="small" placeholder="有效期至（可空，选日期=当天结束）"
+                            value-format="yyyy-MM-dd" style="width:200px" />
           </div>
         </div>
 
         <div class="field">
           <label>预计送达</label>
           <span class="badge blue">{{ estimate === null ? '—' : estimate + ' 人' }}</span>
-          <span class="tip" style="display:inline;margin-left:8px">由后端按<b>送达规则</b>实时计算（与发出后的「送达数」同口径，两个数必然一致）</span>
+          <span class="tip" style="display:inline;margin-left:8px">根据所选范围实时计算</span>
         </div>
 
         <div class="foot">
@@ -145,7 +145,7 @@
           </el-table-column>
         </el-table>
         <div v-if="!loading && !sent.length" class="empty">还没有发送过通知</div>
-        
+        <div class="note">送达数为命中该条范围的有效账号数，已读状态与实习生端同步更新。</div>
       </section>
     </div>
 
@@ -162,19 +162,18 @@
         </el-table-column>
         <el-table-column prop="readTime" label="已读时间" />
       </el-table>
-      <div class="note" style="margin-top:10px">未读的人排在前面。「再提醒」= 对这些未读者发一条定向通知（与超管催办同一套机制，P3）。</div>
+      <div class="note" style="margin-top:10px">未读的人排在前面。</div>
     </el-dialog>
   </div>
 </template>
 
 <script>
 /**
- * 超管端「任务与通知」（通知中心）
+ * 超管端「通知中心」
  *
- * 三端命名统一（决策 6）：实习生 / 部门管理员 / 超管都叫「任务与通知」，用户跨角色不用重新认位置。
  * 本页 = 发送（公告 / 通知 × 四档范围）+ 已发送回执 + 撤回 + 未读名单。
  *
- * 权限口径：前端只用 canAnnounce 控制「公告」选项的可见性，**真正的范围强校验在后端**
+ * 权限口径：前端只用 canAnnounce 控制「公告」选项的可见性，真正的范围强校验在后端
  * （公告与 ALL 仅超管；部门管理员限本部门），前端隐藏只是体验。
  */
 import { getUnreadCount, sendMessage, listSentMessages, listRecipients, revokeMessage, estimateAudience } from '@/api/business/message'
@@ -296,7 +295,11 @@ export default {
       // 同上：scopeId 为 0（部门管理员岗）是合法选择，不能当真值判空
       const noScope = f.scopeId === null || f.scopeId === undefined || f.scopeId === ''
       if ((f.scopeType === 'DEPT' || f.scopeType === 'POSITION') && noScope) { this.$message.warning('请选择范围对象'); return }
-      const body = Object.assign({}, f, { isTop: f.msgType === 'ANNOUNCE' && this.topFlag ? 1 : 0 })
+      const body = Object.assign({}, f, {
+        isTop: f.msgType === 'ANNOUNCE' && this.topFlag ? 1 : 0,
+        // date 选择器只到天，拼成当天 23:59:59，避免「00:00:00 当天凌晨即过期」
+        effectiveTo: f.effectiveTo ? (f.effectiveTo + ' 23:59:59') : null
+      })
       if (f.scopeType !== 'USER') body.targetUserIds = []
       this.sending = true
       sendMessage(body).then(res => {

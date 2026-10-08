@@ -312,9 +312,10 @@ export default {
       this.loadDeptOptions()
       this.getList()
     },
-    /** 部门下拉：超管需要，用来选导师归属部门；部门管理员不需要（后端强制本部门） */
+    /** 部门下拉：超管全量部门可选；部门管理员只显示当前部门（交互层面锁定，后端同样强制） */
     loadDeptOptions() {
       if (!this.isSuperScope) {
+        this.deptOptions = [{ deptId: this.$store.getters.deptId, deptName: this.$store.getters.deptName }]
         return
       }
       listDept({ status: '0' }).then(response => {
@@ -357,6 +358,10 @@ export default {
     },
     handleAdd() {
       this.form = this.emptyForm()
+      // 部门管理员：自动锁定到当前部门，前端填入 deptId 避免必填校验卡住
+      if (!this.isSuperScope) {
+        this.form.deptId = this.$store.getters.deptId
+      }
       this.dialogOpen = true
       this.$nextTick(() => {
         this.$refs.form && this.$refs.form.clearValidate()

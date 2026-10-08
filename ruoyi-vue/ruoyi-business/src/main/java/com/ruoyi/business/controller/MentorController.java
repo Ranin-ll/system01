@@ -132,6 +132,30 @@ public class MentorController extends BaseController {
     }
 
     /**
+     * 实习生编辑详情（完整基础信息回显）。
+     *
+     * <p>花名册聚合接口 {@code stage-progress} 不带 email / sex / positionId / mentorId，
+     * 编辑弹窗打开时用它补齐回显字段。路径带 {@code /detail} 后缀，优先于 {@code /intern/{userId}} 匹配。</p>
+     */
+    @PreAuthorize("@ss.hasPermi('business:intern:edit')")
+    @GetMapping("/intern/{userId}/detail")
+    public AjaxResult internDetailForEdit(@PathVariable Long userId) {
+        return AjaxResult.success(mentorService.getInternDetailForEdit(userId));
+    }
+
+    /**
+     * 编辑实习生基础信息（姓名 / 手机 / 邮箱 / 性别 / 岗位 / 预计入职 / 导师）。
+     *
+     * <p>部门管理员仅能改本部门实习生（Service 层二次校验），超管不限。</p>
+     */
+    @PreAuthorize("@ss.hasPermi('business:intern:edit')")
+    @Log(title = "实习生基础信息", businessType = BusinessType.UPDATE)
+    @PutMapping("/intern/{userId}")
+    public AjaxResult updateInternBasic(@PathVariable Long userId, @RequestBody Map<String, Object> body) {
+        return toAjax(mentorService.updateInternBasic(userId, body));
+    }
+
+    /**
      * ★ 禁止裸 {@code Long.valueOf(map.get("id"))}：泛型擦除后插入 checkcast，
      * JSON 数字会被解成 Integer，必然 ClassCastException。
      * 统一走这个安全转换。

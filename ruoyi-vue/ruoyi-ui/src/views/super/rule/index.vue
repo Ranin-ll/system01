@@ -5,8 +5,8 @@
         <span class="eyebrow">SUPER ADMIN · RULES &amp; CONFIG</span>
         <h1>系统规则</h1>
         <p>
-          超管在业务侧<b>唯一能写</b>的地方：考核规则默认值、证书编号规则、异常预警阈值、协议模板版本。
-          改的是「<b>默认值</b>」，<b>不改已发布批次的冻结快照</b>。
+          超管在业务侧<b>唯一能写</b>的地方：考核规则默认值、转正要求、证书编号规则、异常预警阈值、协议模板版本。
+          改的是「<b>默认值</b>」，<b>不影响已发布批次当时生效的规则</b>。
         </p>
       </div>
       <div class="s-head-actions">
@@ -24,7 +24,6 @@
       <section class="s-card s-c7">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx">规</span><h3>考核规则（全局默认值）</h3></div>
-          <span class="s-badge ok">真实数据 · 可写</span>
         </div>
         <el-form label-width="150px" size="small" v-loading="loading">
           <el-form-item label="学习门槛（必修完成率）">
@@ -56,37 +55,47 @@
         <div class="s-callout">
           <i class="el-icon-info" />
           <span>
-            <b>生效范围：</b>本页改的是<b>默认值</b>。已发布批次按各自冻结的规则执行，历史成绩不受影响。
-            数据落点：<code>assessment_config</code>（单行，id=1）。
+            <b>生效范围：</b>本页改的是<b>默认值</b>。已发布批次按发布时的规则执行，历史成绩不受影响。
           </span>
         </div>
         <div class="s-callout warn" style="margin-top:8px">
           <i class="el-icon-warning-outline" />
           <span>
-            <b>⚠️ 生效链尚未打通：</b>「发布批次时把默认值冻结进 <code>exam_rule_snapshot</code>」这一步属考核域，
-            当前<b>全库无代码实现</b>（该表 0 行、零引用）。所以现在改默认值<b>只入库、还不会影响新批次</b> ——
-            需与考核域分支对齐后再接线。
+            <b>⚠️ 注意：</b>这里保存的默认值<b>暂不会自动套用到新发布的考核批次</b>，
+            发布批次时仍需单独确认抽题规则。
           </span>
         </div>
       </section>
 
-      <!-- ⑤ 转正要求（按部门设置） -->
-      <section class="s-card s-c7">
+      <!-- ⑤ 转正要求（按部门设置）—— 醒目强调卡 -->
+      <section class="s-card s-c7 promo-rule-card">
         <div class="s-card-h">
-          <div class="tt"><span class="s-idx">转</span><h3>转正要求（按部门设置）</h3></div>
-          <span class="s-badge ok">演示态 · localStorage</span>
+          <div class="tt"><span class="s-idx">转</span><h3>转正要求</h3></div>
+          <span class="s-badge blue">{{ promotionDeptId ? '按部门设置' : '默认要求' }}</span>
+        </div>
+        <p class="promo-rule-lead">
+          实习生需<b>同时满足</b>以下条件，才能提交转正申请。<b>保存后立即生效</b>。
+        </p>
+        <div class="promo-rule-cur">
+          <i class="el-icon-info" />
+          当前默认要求（未单独设置的部门）：学习完成率
+          <b>{{ promotionGlobal ? promotionGlobal.studyRateMin : promotionDefaults.studyRateMin }}%</b> ·
+          正式考核通过
+          <b>{{ promotionGlobal ? promotionGlobal.examPassTimes : promotionDefaults.examPassTimes }} 次</b>
         </div>
         <el-form label-width="150px" size="small">
-          <el-form-item label="目标部门">
+          <el-form-item label="适用部门">
             <el-select v-model="promotionDeptId" placeholder="选择部门" clearable style="width:300px" @change="onPromotionDeptChange">
-              <el-option :value="''" label="全局默认值（未单独设置的部门）" />
+              <el-option :value="''" label="所有部门（默认要求）" />
               <el-option v-for="d in depts" :key="d.deptId" :value="d.deptId" :label="d.deptName" />
             </el-select>
-            <span class="s-badge blue" style="margin-left:8px">{{ promotionDeptId ? '按部门' : '全局默认' }}</span>
+            <span class="unit" style="margin-left:10px">
+              {{ promotionDeptId ? '只对该部门单独设置' : '未单独设置的部门都适用' }}
+            </span>
           </el-form-item>
           <el-form-item label="学习完成率门槛">
             <el-input-number v-model="promotionRule.studyRateMin" :min="0" :max="100" :step="5" controls-position="right" style="width:130px" />
-            <span class="unit">%</span>
+            <span class="unit">%（填 0 表示不设学习门槛）</span>
           </el-form-item>
           <el-form-item label="正式考核通过次数">
             <el-input-number v-model="promotionRule.examPassTimes" :min="1" :max="10" controls-position="right" style="width:130px" />
@@ -94,33 +103,27 @@
           </el-form-item>
           <el-form-item>
             <el-button size="small" type="primary" icon="el-icon-check" :loading="promotionSaving" @click="savePromotionRule">
-              保存{{ promotionDeptId ? '本部门' : '全局默认' }}转正要求
+              保存{{ promotionDeptId ? '部门要求' : '默认要求' }}
             </el-button>
           </el-form-item>
         </el-form>
         <table v-if="promotionOverrides.length" class="s-tbl" style="margin-top:8px">
-          <thead><tr><th>部门</th><th style="width:140px">学习完成率门槛</th><th style="width:150px">正式考核通过</th><th style="width:130px">操作</th></tr></thead>
+          <thead><tr><th>部门</th><th style="width:140px">学习完成率门槛</th><th style="width:150px">正式考核通过</th></tr></thead>
           <tbody>
             <tr v-for="o in promotionOverrides" :key="o.deptId">
               <td class="nm">{{ o.deptName }}</td>
               <td>{{ o.studyRateMin }}%</td>
               <td>{{ o.examPassTimes }} 次</td>
-              <td><el-button type="text" size="mini" @click="removePromotionOverride(o)">删除（恢复全局）</el-button></td>
             </tr>
           </tbody>
         </table>
-        <div v-else class="s-empty"><i class="el-icon-office-building" /><span>尚未对任何部门单独设置，全部沿用全局默认值</span></div>
-        <p class="s-note">
-          部门管理员也可在本部门「实习转正审核」页设置本部门规则，两处读写同一份
-          <code>promotion-rule-{deptId}</code>；实习生端按所属部门读取，部门未单独设置时回退「全局默认值」。
-        </p>
+        <div v-else class="s-empty"><i class="el-icon-office-building" /><span>尚未对任何部门单独设置，所有部门都用默认要求</span></div>
       </section>
 
       <!-- ② 协议模板与版本 -->
       <section class="s-card s-c5">
         <div class="s-card-h">
           <div class="tt"><span class="s-idx g">签</span><h3>协议模板与版本</h3></div>
-          <span class="s-badge ok">真实数据</span>
           <el-button size="mini" type="primary" icon="el-icon-plus" style="margin-left:auto" :disabled="!canWrite" @click="openTplDialog">新增版本</el-button>
         </div>
         <table v-if="templates.length" class="s-tbl">
@@ -279,6 +282,11 @@
  */
 import { getRuleConfig, updateRuleConfig, listAgreementTemplates, publishAgreementTemplate } from '@/api/business/rule'
 import { listDept } from '@/api/system/dept'
+import {
+  getPromotionRuleBoard,
+  getPromotionRule,
+  savePromotionRule as apiSavePromotionRule
+} from '@/api/business/promotion'
 
 export default {
   name: 'SuperRules',
@@ -292,11 +300,13 @@ export default {
       templates: [],
       tplDialog: false,
       newTpl: { agreementName: '保密协议', versionNo: '', effectiveTime: '', fileUrl: '', content: '' },
-      // 转正要求（按部门设置，演示态 localStorage）
+      // 转正要求（按部门设置）
       depts: [],
       promotionDeptId: '',
       promotionRule: { studyRateMin: 0, examPassTimes: 1 },
       promotionOverrides: [],
+      promotionGlobal: null,
+      promotionDefaults: { studyRateMin: 0, examPassTimes: 1 },
       promotionSaving: false
     }
   },
@@ -347,69 +357,58 @@ export default {
     loadDepts() {
       return listDept({ status: '0' }).then(res => {
         this.depts = (res.data || []).filter(d => d.parentId !== 0)
-        this.rebuildPromotionOverrides()
-        this.onPromotionDeptChange()
+        this.loadPromotionBoard()
       }).catch(() => {
         this.depts = []
-        this.rebuildPromotionOverrides()
-        this.onPromotionDeptChange()
+        this.loadPromotionBoard()
       })
     },
-    rebuildPromotionOverrides() {
-      this.promotionOverrides = this.depts.map(d => {
-        try {
-          const raw = localStorage.getItem('promotion-rule-' + d.deptId)
-          if (raw) {
-            const c = JSON.parse(raw)
-            return {
-              deptId: d.deptId,
-              deptName: d.deptName,
-              studyRateMin: Number(c.studyRateMin != null ? c.studyRateMin : 0),
-              examPassTimes: Number(c.examPassTimes != null ? c.examPassTimes : 1)
-            }
-          }
-        } catch (e) { /* 忽略解析失败 */ }
-        return null
-      }).filter(Boolean)
+    /** 转正要求：全局默认 + 各部门覆盖（落库 promotion_rule，2026-09-29 接真） */
+    loadPromotionBoard() {
+      return getPromotionRuleBoard().then(res => {
+        const d = res.data || {}
+        this.promotionGlobal = d.global || null
+        this.promotionDefaults = d.defaults || { studyRateMin: 0, examPassTimes: 1 }
+        this.promotionOverrides = (d.overrides || []).map(o => ({
+          deptId: o.deptId,
+          deptName: o.deptName,
+          studyRateMin: Number(o.studyRateMin != null ? o.studyRateMin : 0),
+          examPassTimes: Number(o.examPassTimes != null ? o.examPassTimes : 1)
+        }))
+        this.onPromotionDeptChange()
+      }).catch(() => {
+        this.promotionOverrides = []
+      })
     },
-    promotionRuleKey() {
-      return this.promotionDeptId ? ('promotion-rule-' + this.promotionDeptId) : 'promotion-rule'
-    },
+    /** 切换目标部门 → 读取该部门的生效规则（部门覆盖 → 全局 → 内置兜底） */
     onPromotionDeptChange() {
-      const key = this.promotionRuleKey()
-      try {
-        const raw = localStorage.getItem(key)
-        if (raw) {
-          const c = JSON.parse(raw)
-          this.promotionRule = {
-            studyRateMin: Number(c.studyRateMin != null ? c.studyRateMin : 0),
-            examPassTimes: Number(c.examPassTimes != null ? c.examPassTimes : 1)
-          }
-          return
+      if (!this.promotionDeptId) {
+        const g = this.promotionGlobal || this.promotionDefaults
+        this.promotionRule = {
+          studyRateMin: Number(g.studyRateMin != null ? g.studyRateMin : 0),
+          examPassTimes: Number(g.examPassTimes != null ? g.examPassTimes : 1)
         }
-      } catch (e) { /* 忽略 */ }
-      this.promotionRule = { studyRateMin: 0, examPassTimes: 1 }
+        return
+      }
+      getPromotionRule(this.promotionDeptId).then(res => {
+        const r = res.data || {}
+        this.promotionRule = {
+          studyRateMin: Number(r.studyRateMin != null ? r.studyRateMin : 0),
+          examPassTimes: Number(r.examPassTimes != null ? r.examPassTimes : 1)
+        }
+      }).catch(() => {})
     },
+    /** 保存（deptId 为空 = 默认要求；非空 = 该部门单独设置） */
     savePromotionRule() {
-      const key = this.promotionRuleKey()
       this.promotionSaving = true
-      try {
-        localStorage.setItem(key, JSON.stringify(this.promotionRule))
-        this.$message.success('已保存' + (this.promotionDeptId ? '本部门' : '全局默认') + '转正要求')
-        this.rebuildPromotionOverrides()
-      } catch (e) {
-        this.$message.error('保存失败：本地存储不可用')
-      }
-      this.promotionSaving = false
-    },
-    removePromotionOverride(o) {
-      try {
-        localStorage.removeItem('promotion-rule-' + o.deptId)
-        this.rebuildPromotionOverrides()
-        this.$message.success('已恢复「' + o.deptName + '」为全局默认值')
-      } catch (e) {
-        this.$message.error('删除失败')
-      }
+      apiSavePromotionRule({
+        deptId: this.promotionDeptId || null,
+        studyRateMin: this.promotionRule.studyRateMin,
+        examPassTimes: this.promotionRule.examPassTimes
+      }).then(res => {
+        this.$message.success(res.msg || '转正要求已保存')
+        this.loadPromotionBoard()
+      }).catch(() => {}).finally(() => { this.promotionSaving = false })
     },
     openTplDialog() {
       this.newTpl = { agreementName: '保密协议', versionNo: '', effectiveTime: '', fileUrl: '', content: '' }
@@ -440,4 +439,35 @@ export default {
 
 <style lang="scss" scoped>
 @import '~@/assets/styles/super-module.scss';
+
+/* ---- 转正要求：醒目强调卡 ---- */
+.promo-rule-card {
+  background: linear-gradient(180deg, #f2f7ff 0%, #fff 46%);
+  border: 1px solid #d7e7fc;
+  border-left: 4px solid #1764f5;
+  box-shadow: 0 2px 10px rgba(23, 100, 245, .08);
+}
+.promo-rule-card .s-card-h { border-bottom-color: #dbe9ff; }
+.promo-rule-card .s-card-h h3 { color: #1249c4; font-size: 17px; }
+.promo-rule-lead {
+  margin: 0 0 12px;
+  color: #475467;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.promo-rule-lead b { color: #1764f5; }
+.promo-rule-cur {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  color: #344054;
+  font-size: 12.5px;
+  background: #e8f1fd;
+  border-radius: 8px;
+}
+.promo-rule-cur i { color: #1764f5; }
+.promo-rule-cur b { color: #1249c4; }
 </style>

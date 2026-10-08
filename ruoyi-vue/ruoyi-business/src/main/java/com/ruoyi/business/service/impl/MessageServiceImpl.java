@@ -110,9 +110,9 @@ public class MessageServiceImpl implements IMessageService {
 
     // ------------------------------------------------------------------ P1 发送方
 
-    /** 允许的消息类型（公告 / 人工通知 / 由业务事件产生的五类） */
+    /** 允许的消息类型（公告 / 人工通知 / 由业务事件产生的四类） */
     private static final java.util.List<String> ALLOWED_TYPES = java.util.Arrays.asList(
-            Notice.TYPE_ANNOUNCE, "NOTIFY", "TASK", "EXAM", "AUDIT", "URGE", "SYSTEM");
+            Notice.TYPE_ANNOUNCE, "NOTIFY", "EXAM", "AUDIT", "URGE", "SYSTEM");
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -196,7 +196,7 @@ public class MessageServiceImpl implements IMessageService {
         n.setBizId(req.getBizId());
         n.setLinkUrl(req.getLinkUrl());
         n.setIsTop(req.getIsTop() == null ? 0 : req.getIsTop());
-        n.setEffectiveTo(req.getEffectiveTo());
+        n.setEffectiveTo(normalizeEffectiveTo(req.getEffectiveTo()));
         n.setPublisherId(SecurityUtils.getUserId());
         n.setPublishTime(now);
         n.setStatus(Notice.STATUS_PUBLISHED);
@@ -221,7 +221,7 @@ public class MessageServiceImpl implements IMessageService {
         n.setBizId(notice.getBizId());
         n.setLinkUrl(notice.getLinkUrl());
         n.setIsTop(notice.getIsTop() == null ? 0 : notice.getIsTop());
-        n.setEffectiveTo(notice.getEffectiveTo());
+        n.setEffectiveTo(normalizeEffectiveTo(notice.getEffectiveTo()));
         // 系统消息：无发送人
         n.setPublisherId(null);
         n.setPublishTime(now);
@@ -306,5 +306,29 @@ public class MessageServiceImpl implements IMessageService {
 
     private boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
+    }
+
+    /**
+     * 有效期归一化：前端日期选择器只选日期、不选时间时，会把时间带成 00:00:00，
+     * 导致「有效期至当天」被理解成「当天凌晨即过期」——通知一发出去就不可见。
+     * 这里把「时分秒全为 0」的有效期统一推迟到当天 23:59:59，语义变成「有效到所选当天结束」。
+     * 显式指定了具体时间（如 13:30）的则原样保留。
+     */
+    private Date normalizeEffectiveTo(Date effectiveTo) {
+        if (effectiveTo == null) {
+            return null;
+        }
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        c.setTime(effectiveTo);
+        if (c.get(java.util.Calendar.HOUR_OF_DAY) == 0
+                && c.get(java.util.Calendar.MINUTE) == 0
+                && c.get(java.util.Calendar.SECOND) == 0
+                && c.get(java.util.Calendar.MILLISECOND) == 0) {
+            c.set(java.util.Calendar.HOUR_OF_DAY, 23);
+            c.set(java.util.Calendar.MINUTE, 59);
+            c.set(java.util.Calendar.SECOND, 59);
+            c.set(java.util.Calendar.MILLISECOND, 0);
+        }
+        return c.getTime();
     }
 }

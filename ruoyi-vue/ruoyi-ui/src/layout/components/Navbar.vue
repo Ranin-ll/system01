@@ -12,7 +12,7 @@
         </el-tooltip>
       </template>
 
-      <!-- 消息中心：所有角色都可见（未读数来自送达谓词，超管看督办回执、部门管理员看催办/待批） -->
+      <!-- 消息中心：所有角色都可见（未读数来自送达谓词） -->
       <el-tooltip :content="unread ? ('消息中心 · ' + unread + ' 条未读') : '消息中心'" effect="dark" placement="bottom">
         <router-link to="/messages" class="right-menu-item hover-effect bell-item">
           <i class="el-icon-bell" />

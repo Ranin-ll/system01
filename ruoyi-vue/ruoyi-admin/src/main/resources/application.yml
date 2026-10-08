@@ -8,6 +8,8 @@ ruoyi:
   copyrightYear: 2026
   # 本地开发文件路径；部署时通过环境专用配置替换为服务器目录或对象存储。
   profile: ${RUOYI_PROFILE:E:/ia-dev/uploads}
+  # 课程文件存储根目录；课程资料以绝对路径落库，可指向任意磁盘（后续迁移只需改这里 + 更新库中 content_url）。
+  course-root: ${RUOYI_COURSE_ROOT:E:/ia-dev/courses}
   # 获取ip地址开关
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
@@ -23,6 +25,8 @@ server:
   tomcat:
     # tomcat的URI编码
     uri-encoding: UTF-8
+    # 查询串也按请求体编码（UTF-8）解码，否则中文文件名（课程资源绝对路径）会被按 Latin-1 误解码导致文件找不到
+    use-body-encoding-for-uri: true
     # 连接数满后的排队数，默认为100
     accept-count: 1000
     threads:

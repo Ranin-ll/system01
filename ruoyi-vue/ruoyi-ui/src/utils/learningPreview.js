@@ -182,7 +182,7 @@ export function loadPreviewCourses(userKey, deptName) {
     const saved = localStorage.getItem(storageKey)
     if (saved) return JSON.parse(saved).map(syncCourse)
   } catch (error) {
-    // localStorage 不可用时继续使用内存演示数据。
+    // localStorage 不可用时继续使用内存数据。
   }
   return clone(deptConfig(deptName).courses).map(course => syncCourse(course))
 }

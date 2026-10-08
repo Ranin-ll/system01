@@ -17,7 +17,7 @@ import java.util.Map;
  * 且是按 {@code user_id / course_id} 分组 —— **部门维度的聚合一条都没有**，
  * 「部门横向对比」无法靠前端拼出来。</p>
  *
- * <p><b>取数范围</b>：人 / 学习 / 任务 / <b>考核类（模拟 · 正式 · 知识点）</b> 全部为真数据。
+ * <p><b>取数范围</b>：人 / 学习 / <b>考核类（模拟 · 正式 · 知识点）</b> 全部为真数据。
  * ★ 2026-09-22 更新：原先「考核类本期不查、由前端 {@code _mock.js} 填充并打橙标」的前提
  * （等同事的题库 / 考核分支合并）**已失效** —— 分支早已合并、表结构已稳定，
  * 因此在本模块补齐聚合查询，前端 {@code pick(real, mock)} 会自动优先真值并去掉橙标。</p>
@@ -37,9 +37,6 @@ public interface SuperAnalysisMapper {
     /** 学习情况按部门（记录数 / 达标数 / 人数 / 平均进度 / 视频时长） */
     List<DeptMatrixRow> selectLearnByDept(@Param("threshold") BigDecimal threshold,
                                           @Param("deptId") Long deptId);
-
-    /** 任务交付按部门（应交 / 已交 / 逾期 / 未开始） */
-    List<DeptMatrixRow> selectTaskByDept(@Param("deptId") Long deptId);
 
     /** 培养状态进度逐人明细（阶段 / 卡点 / 转正 gate 的真数据输入项）。
      *  {@code deptId} 非空则只看该部门 —— L1 部门详情的实习生明细表复用它，**不再另写一份口径**。 */
@@ -69,15 +66,6 @@ public interface SuperAnalysisMapper {
 
     /** 逐学习项（课程 / 章节 / 单项：进度、时长、读完确认、完成时间） */
     List<Map<String, Object>> selectInternStudy(@Param("userId") Long userId);
-
-    /**
-     * 逐任务（含审核结果）。
-     *
-     * <p>⚠️ 必须对 {@code task_submission} **取最新一次提交**：一个 assignment 会有
-     * 多个版本行（实测 user 126 的同一任务有 PASSED/REJECTED/PASSED 三行），
-     * 直接 JOIN 会让任务清单**行数翻倍**、审核结果还会串。</p>
-     */
-    List<Map<String, Object>> selectInternTasks(@Param("userId") Long userId);
 
     // ==================================================================
     // 考核类（2026-09-22 起接真数据）
