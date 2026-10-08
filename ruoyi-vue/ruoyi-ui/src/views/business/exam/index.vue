@@ -194,7 +194,7 @@
           <div class="pick-icon"><i class="el-icon-document-checked" /></div>
           <div class="pick-body">
             <b>理论考核</b>
-            <span>从题库组卷（多题库 × 单选/多选/判断配额），实习生线上答题，交卷即自动判分。</span>
+            <span>从题库按题型抽题组卷，实习生线上答题，交卷即自动判分。</span>
           </div>
           <i v-if="form.examType === 'THEORY'" class="el-icon-success pick-check" />
         </div>

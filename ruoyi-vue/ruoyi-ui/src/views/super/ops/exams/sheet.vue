@@ -113,7 +113,7 @@
               </div>
               <div class="chap-meta">对 {{ c.ok }} · 错 {{ c.bad }} · 未作答 {{ c.blank }}</div>
             </div>
-            <p class="s-note">口径：已作答的题参与得分率，<b>未作答单独统计</b>（白卷不会被读成"这些章节都不会"）。</p>
+            <p class="s-note">统计方式：已作答的题参与得分率，<b>未作答单独统计</b>（白卷不会被读成"这些章节都不会"）。</p>
           </template>
           <div v-else class="s-empty sm"><i class="el-icon-data-analysis" /><span>本题答卷没有可聚合的章节数据</span></div>
 
@@ -242,7 +242,7 @@ export default {
           gradingList(examId).then(r => { this.peers = (r && r.data) || [] }).catch(() => {})
         }
       }).catch(() => {
-        this.loadError = '加载失败：可能是权限不足或后端未启动'
+        this.loadError = '加载失败：可能是权限不足，请稍后重试'
         this.loading = false
       })
     },

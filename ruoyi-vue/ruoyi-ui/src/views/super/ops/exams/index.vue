@@ -6,8 +6,8 @@
         <h1>考核与成绩</h1>
         <p>
           跨部门看考核：哪些场次<b>该开考却没开</b>、哪些还停在草稿、每个部门的应考与实考情况。
-          <b>正式考核</b>统计应考 / 实考 / 缺考 / 已出分 / 通过；<b>模拟考核</b>属练习（走
-          <code>practice_record</code>，不产生答卷），只显示题量与状态、不计应考人次。
+          <b>正式考核</b>统计应考 / 实考 / 缺考 / 已出分 / 通过；<b>模拟考核</b>属练习，
+          只显示题量与状态、不计应考人次。
         </p>
       </div>
       <div class="s-head-actions">
@@ -108,7 +108,7 @@
                 <span class="sep">·</span>
                 <span class="num" :class="{ warn: stat(e).absent > 0 }">{{ stat(e).absent }}</span>
               </template>
-              <span v-else class="muted" title="模拟考核属练习，不产生答卷">— 练习不计</span>
+              <span v-else class="muted" title="模拟考核不计成绩">— 练习不计</span>
             </td>
             <td>
               <template v-if="e.examMode === 'FORMAL'">
@@ -135,7 +135,7 @@
         <el-button size="mini" @click="resetFilters">清空筛选</el-button>
       </div>
       <p class="s-note">
-        「应考」= 该场按<code>发布范围</code>（全部在培 / 指定人员）确定的应考人数；「实考」= 已交卷人数；「缺考」= 应考 − 实考。
+        「应考」= 该场发布范围内应参加的人数；「实考」= 已交卷人数；「缺考」= 应考 − 实考。
         缺考为 0 时不着色；正式考核才有这三个数字。
       </p>
     </section>
@@ -185,7 +185,7 @@
       <div v-else class="s-empty"><i class="el-icon-search" /><span>当前筛选下没有部门</span></div>
       <p class="s-note">
         通过率 = 通过人数 / <b>已出分人数</b>（无样本的部门显示「无样本」，不伪装 0%）。
-        模拟考核不计入这里的应考人次（它是练习，不产生答卷）。
+        模拟考核不计入这里的应考人次。
       </p>
     </section>
   </div>

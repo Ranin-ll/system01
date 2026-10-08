@@ -71,7 +71,7 @@
     <div v-else class="dm-note flow">
       <i class="el-icon-info" />
       <span>
-        <b>两步走</b>：① 改完所有配置（基本信息 · 组卷或题目清单 · 发布设置）后，点右上角「<b>保存配置</b>」统一落库；
+        <b>两步走</b>：① 改完所有配置（基本信息 · 组卷或题目清单 · 发布设置）后，点右上角「<b>保存配置</b>」统一保存；
         ② 确认无误再点「<b>发布</b>」。<b>发布后配置即锁定</b>，只能查看或删除后重新发布。
       </span>
     </div>
@@ -116,7 +116,7 @@
         <div class="field-tip">
           <template v-if="canEditBase">
             <span class="f-hint" :class="{ bad: baseScoreLevel === 'danger' }">
-              {{ baseScoreHint }} · 改完请点右上角「<b>保存配置</b>」统一落库
+              {{ baseScoreHint }} · 改完请点右上角「<b>保存配置</b>」统一保存
             </span>
           </template>
           <span v-else class="f-hint lock"><i class="el-icon-lock" /> 已发布／批改中的正式考核不能改基本信息，可先「停用」再改</span>
@@ -134,8 +134,74 @@
           <div class="field"><span>卷面满分<i class="f-note">自动计算</i></span><b>{{ ruleTotalScore }} 分</b></div>
         </template>
 
-        <div class="field"><span>考核时间<i class="f-note">下方设置</i></span><b>{{ windowText }}</b></div>
-        <div class="field"><span>发布范围<i class="f-note">下方设置</i></span><b>{{ assignText }}</b></div>
+        <!-- 发布设置（就地可改）：发布方式 / 时间窗 / 发布范围 —— 随「保存配置」一起提交 -->
+        <div class="field edit">
+          <span>发布方式</span>
+          <el-radio-group v-model="publishMode" size="mini" :disabled="configLocked">
+            <el-radio-button label="NOW">立即发布</el-radio-button>
+            <el-radio-button label="TIMED">定时发布</el-radio-button>
+          </el-radio-group>
+        </div>
+        <div v-if="publishMode === 'TIMED'" class="field block">
+          <span class="block-label">开放 / 截止时间</span>
+          <el-date-picker
+            v-model="timeRange"
+            type="datetimerange"
+            size="mini"
+            :disabled="configLocked"
+            unlink-panels
+            range-separator="至"
+            start-placeholder="开放时间"
+            end-placeholder="截止时间"
+            value-format="yyyy-MM-dd HH:mm:ss"
+            style="width:100%"
+          />
+        </div>
+        <div class="field edit">
+          <span>发布范围</span>
+          <el-radio-group v-model="assignMode" size="mini" :disabled="configLocked">
+            <el-radio-button label="ALL">全部在培实习生</el-radio-button>
+            <el-radio-button label="ASSIGNED">指定人员</el-radio-button>
+          </el-radio-group>
+        </div>
+        <div v-if="assignMode === 'ASSIGNED'" class="field block assign-wrap">
+          <span class="block-label">指定人员名单<i class="f-note">已选 {{ participantIds.length }} 人</i></span>
+          <div class="assign-pick">
+            <div class="ap-head">
+              <el-input
+                v-model="internKeyword"
+                size="mini"
+                clearable
+                :disabled="configLocked"
+                placeholder="搜索姓名 / 岗位"
+                prefix-icon="el-icon-search"
+                style="width:100%"
+              />
+              <el-select v-if="isSuperAdmin" v-model="internDeptFilter" size="mini" clearable :disabled="configLocked" placeholder="全部部门" style="width:100%">
+                <el-option v-for="d in internDepts" :key="d.deptId" :label="d.deptName" :value="d.deptId" />
+              </el-select>
+              <div class="ap-btns">
+                <el-button size="mini" :disabled="configLocked" @click="checkAllInterns">全选</el-button>
+                <el-button size="mini" :disabled="configLocked" @click="clearAllInterns">清空已选</el-button>
+              </div>
+            </div>
+            <div class="ap-list">
+              <el-checkbox-group v-model="participantIds" class="ap-group">
+                <el-checkbox v-for="u in filteredInterns" :key="u.userId" :label="u.userId" :disabled="configLocked" class="ap-item">
+                  <span class="ap-name">{{ u.nickName }}</span>
+                  <span v-if="isSuperAdmin && u.deptName" class="ap-dept">{{ u.deptName }}</span>
+                  <span class="ap-meta">{{ u.positionName || '未分配岗位' }}</span>
+                  <el-tag v-if="u.offRoster" size="mini" type="warning" effect="plain">已不在在培名单</el-tag>
+                </el-checkbox>
+              </el-checkbox-group>
+              <div v-if="!filteredInterns.length" class="ap-empty">
+                <i class="el-icon-user" />
+                <span>{{ internKeyword || internDeptFilter ? '没有匹配到的在培实习生' : '该范围内暂无可指定的在培实习生' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="field"><span>已作答 / 待批阅<i class="f-note">统计</i></span><b>{{ exam.answeredCount || 0 }} / {{ exam.pendingCount || 0 }}</b></div>
       </div>
 
@@ -158,10 +224,9 @@
           </div>
 
           <p class="draw-basis">
-            抽题口径：从<b>本部门理论题池</b>（可用 {{ poolTotal }} 题 / {{ poolPoints.length }} 个知识点）
+            抽题方式：从<b>本部门理论题池</b>（可用 {{ poolTotal }} 题 / {{ poolPoints.length }} 个知识点）
             <template v-if="poolOnlyMode">按<b>卷面题型数量</b>随机抽取（不按知识点分配）</template>
-            <template v-else>按<b>知识点配比</b>随机抽取</template>
-            ，跨知识点去重。
+            <template v-else>按<b>知识点配比</b>随机抽取</template>。
             <el-tag size="mini" effect="plain" :type="drawBasisTag">{{ drawBasisText }}</el-tag>
           </p>
 
@@ -270,11 +335,10 @@
             <span :class="{ bad: typeSums.JUDGE !== paperCount('JUDGE') }">判断 已配 <b>{{ typeSums.JUDGE }}</b> / 卷面 <b>{{ paperCount('JUDGE') }}</b></span>
           </div>
           <p class="draw-basis">
-            题池知识点已在页面加载时自动带入（不需要手工挑选）。<b>每个知识点分别填 单选 / 多选 / 判断 各抽几题</b>，
+            <b>每个知识点分别填 单选 / 多选 / 判断 各抽几题</b>，
             三类「已配」合计须分别等于上方卷面结构里的该题型数量；某行全为 0 = 该知识点不参与抽题。
             单行每个题型都不能超过该知识点该题型的「题池可用」。
-            若不想按知识点分配，点上方「不分配知识点，整池抽题」即可按题型从整个题池抽
-            （保存后本场考核即按整池抽题，再次进入需重新点一次）。
+            若不想按知识点分配，点上方「不分配知识点，整池抽题」即可按题型从整个题池抽。
           </p>
           <div class="dm-callout" :class="checkOk ? 'ok' : 'warn'">
             <span v-if="checkOk && poolOnlyMode">
@@ -376,81 +440,6 @@
             </div>
           </template>
         </template>
-      </div>
-    </div>
-
-    <!-- ===== 发布设置（本条考核独立） ===== -->
-    <div class="stage-publish" :class="{ locked: configLocked }">
-      <div class="dm-sub-head">
-        <h4>{{ typeLabel }}发布设置</h4>
-      </div>
-      <div class="dm-grid">
-        <div class="dm-fields">
-          <div class="field">
-            <span>发布方式</span>
-            <el-radio-group v-model="publishMode" size="mini">
-              <el-radio-button label="NOW">立即发布</el-radio-button>
-              <el-radio-button label="TIMED">定时发布</el-radio-button>
-            </el-radio-group>
-          </div>
-          <div v-if="publishMode === 'TIMED'" class="field block">
-            <span class="block-label">开放 / 截止时间</span>
-            <el-date-picker
-              v-model="timeRange"
-              type="datetimerange"
-              size="mini"
-              unlink-panels
-              range-separator="至"
-              start-placeholder="开放时间"
-              end-placeholder="截止时间"
-              value-format="yyyy-MM-dd HH:mm:ss"
-              style="width:100%"
-            />
-          </div>
-        </div>
-        <div class="dm-table-wrap">
-          <div class="assign-bar">
-            <el-radio-group v-model="assignMode" size="mini">
-              <el-radio-button label="ALL">全部在培实习生</el-radio-button>
-              <el-radio-button label="ASSIGNED">指定人员</el-radio-button>
-            </el-radio-group>
-            <span v-if="assignMode === 'ASSIGNED'" class="ap-scope">可选范围：{{ scopeLabel }}</span>
-          </div>
-
-          <!-- 指定人员：按范围拉花名册，复选框勾选 -->
-          <div v-if="assignMode === 'ASSIGNED'" class="assign-pick">
-            <div class="ap-head">
-              <el-input
-                v-model="internKeyword"
-                size="mini"
-                clearable
-                placeholder="搜索姓名 / 岗位"
-                prefix-icon="el-icon-search"
-                style="width:190px"
-              />
-              <el-select v-if="isSuperAdmin" v-model="internDeptFilter" size="mini" clearable placeholder="全部部门" style="width:150px">
-                <el-option v-for="d in internDepts" :key="d.deptId" :label="d.deptName" :value="d.deptId" />
-              </el-select>
-              <el-button size="mini" @click="checkAllInterns">全选当前列表</el-button>
-              <el-button size="mini" @click="clearAllInterns">清空已选</el-button>
-              <span class="ap-count">已选 <b>{{ participantIds.length }}</b> 人 · 当前显示 {{ filteredInterns.length }} 人</span>
-            </div>
-            <div class="ap-list">
-              <el-checkbox-group v-model="participantIds" class="ap-group">
-                <el-checkbox v-for="u in filteredInterns" :key="u.userId" :label="u.userId" class="ap-item">
-                  <span class="ap-name">{{ u.nickName }}</span>
-                  <span v-if="isSuperAdmin && u.deptName" class="ap-dept">{{ u.deptName }}</span>
-                  <span class="ap-meta">{{ u.positionName || '未分配岗位' }}</span>
-                  <el-tag v-if="u.offRoster" size="mini" type="warning" effect="plain">已不在在培名单</el-tag>
-                </el-checkbox>
-              </el-checkbox-group>
-              <div v-if="!filteredInterns.length" class="ap-empty">
-                <i class="el-icon-user" />
-                <span>{{ internKeyword || internDeptFilter ? '没有匹配到的在培实习生' : '该范围内暂无可指定的在培实习生' }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -678,20 +667,6 @@ export default {
       return (s.attachments && s.attachments.length) ? s.attachments : parseJsonList(s.attachmentsJson)
     },
     activePreview() { return this.activeImages.filter(i => !this.isVideo(i.url)).map(i => this.baseApi + i.url) },
-    windowText() {
-      const start = this.exam.startTime ? String(this.exam.startTime).slice(0, 16) : ''
-      const end = this.exam.endTime ? String(this.exam.endTime).slice(0, 16) : ''
-      if (!start && !end) return '未设置（立即发布）'
-      return (start || '--') + ' ~ ' + (end || '--')
-    },
-    assignText() {
-      if (this.assignMode === 'ASSIGNED') return '指定 ' + this.participantIds.length + ' 人'
-      return '全部在培实习生'
-    },
-    /** 可选名单范围文案：部门管理员只看本部门，超管看全部部门 */
-    scopeLabel() {
-      return this.isSuperAdmin ? '全部部门在培实习生' : '本部门在培实习生'
-    },
     /** 超管的部门筛选下拉项（从花名册里抽出出现过的部门） */
     internDepts() {
       const seen = {}
@@ -771,7 +746,7 @@ export default {
       if (this.isPractice) {
         if (!this.subjectItems.length) return '还没有实操题目：点右上角「从模拟实操题选题」一键带入，或「编辑题目」逐条填写（至少一道题才能发布）。'
         if (this.subjectItems.some(s => !String(s.title || '').trim())) return '存在没填题干的题目，请补全或删除该题。'
-        if (this.subjectItems.some(s => !(Number(s.score) > 0))) return '存在满分为 0 的题目，请填写每题满分（发布时后端也会拦截）。'
+        if (this.subjectItems.some(s => !(Number(s.score) > 0))) return '存在满分为 0 的题目，请填写每题满分，否则无法发布。'
         return ''
       }
       if (this.typeCountSum <= 0) return '卷面题量为 0：请在上方「卷面结构」里填单选题 / 多选题 / 判断题的数量。'
@@ -1153,7 +1128,7 @@ export default {
       this.subjectItems = this.subjectItems.concat(added)
       this.activeSubjectIndex = this.subjectItems.length - added.length
       this.editingSubjects = true
-      this.$modal.msgSuccess('已带入 ' + added.length + ' 道题：核对每道题的满分后点「保存题目」落库')
+      this.$modal.msgSuccess('已带入 ' + added.length + ' 道题：核对每道题的满分后点「保存题目」保存生效')
     },
     /** 实操：把「全部设为」的分数应用到每一道题 */
     applyBulkScore() {
@@ -1452,20 +1427,13 @@ function parseJsonList(json) {
 .dm-note.lock { color: #7a4a06; background: #fff8ec; border: 1px solid #fadfb0; }
 .dm-note.lock i { color: #b54708; }
 /* 已发布：可编辑区整体降饱和 + 屏蔽交互（值仍可查看） */
-.dm-table-wrap.locked,
-.stage-publish.locked { opacity: .8; }
+.dm-table-wrap.locked { opacity: .8; }
 .dm-table-wrap.locked .el-button,
 .dm-table-wrap.locked .el-input,
 .dm-table-wrap.locked .el-select,
 .dm-table-wrap.locked .el-input-number,
 .dm-table-wrap.locked .el-textarea,
-.dm-table-wrap.locked .el-checkbox,
-.stage-publish.locked .el-button,
-.stage-publish.locked .el-input,
-.stage-publish.locked .el-select,
-.stage-publish.locked .el-input-number,
-.stage-publish.locked .el-radio-group,
-.stage-publish.locked .el-date-editor { pointer-events: none; }
+.dm-table-wrap.locked .el-checkbox { pointer-events: none; }
 
 .field-tip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
 .f-hint { color: #8490a0; font-size: 11.5px; }
@@ -1527,29 +1495,23 @@ function parseJsonList(json) {
 .sj-download:hover { background: #e8f1fd; border-color: #1764f5; }
 .sj-download i { font-size: 13px; }
 
-.stage-publish { margin-top: 16px; padding-top: 14px; border-top: 1px dashed #e7ecf3; }
-
-/* 发布设置 · 指定人员：复选框花名册 */
-.assign-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.assign-bar .ap-save { margin-left: auto; }
-.ap-scope { color: #98a2b3; font-size: 11.5px; }
+/* 发布设置 · 指定人员：复选框花名册（并入左栏，窄列下纵向排布） */
+.assign-wrap { grid-column: 1 / -1; }
 .assign-pick { padding: 10px 12px; background: #f8fafc; border: 1px solid #eef1f5; border-radius: 7px; }
 .ap-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 9px; }
-.ap-count { margin-left: auto; color: #8490a0; font-size: 11.5px; }
-.ap-count b { color: #1764f5; font-size: 13px; }
+.ap-btns { display: flex; gap: 6px; }
 .ap-list { max-height: 208px; overflow-y: auto; }
-.ap-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-group { display: block; }
 .ap-item {
-  display: flex; align-items: center; width: calc(50% - 3px); margin-right: 0; padding: 5px 9px;
+  display: flex; align-items: center; width: 100%; margin: 0 0 6px; padding: 5px 9px;
   background: #fff; border: 1px solid #e7ecf3; border-radius: 5px;
 }
-.ap-item ::v-deep .el-checkbox__label { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 12.5px; line-height: 1.5; }
+.ap-item ::v-deep .el-checkbox__label { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; flex-wrap: wrap; font-size: 12.5px; line-height: 1.5; }
 .ap-name { color: #1d2939; font-weight: 600; }
 .ap-dept { color: #1764f5; font-size: 11.5px; }
 .ap-meta { color: #98a2b3; font-size: 11.5px; }
 .ap-empty { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 22px 0; color: #98a2b3; font-size: 12.5px; }
 .ap-empty i { font-size: 18px; }
-.stage-publish .dm-grid { padding-top: 12px; }
 
 @media (max-width: 1100px) {
   .dm-grid { grid-template-columns: 1fr; }

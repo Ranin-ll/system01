@@ -63,7 +63,7 @@
                 <td class="ctr">{{ it.seq }}</td>
                 <td class="ctr">{{ typeLabel(it.qtype) }}</td>
                 <td class="stem">
-                  {{ it.stem || '（题目已被修改，无题干快照）' }}
+                  {{ it.stem || '（题目内容已变更，暂时无法显示原题干）' }}
                   <ul v-if="optsOf(it).length" class="er-opts">
                     <li
                       v-for="o in optsOf(it)"

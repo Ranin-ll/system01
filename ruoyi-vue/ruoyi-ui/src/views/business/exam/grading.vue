@@ -122,7 +122,7 @@
               <td class="ctr">{{ it.seq || index + 1 }}</td>
               <td class="ctr">{{ typeLabel(it.qtype) }}</td>
               <td>
-                <div class="th-stem">{{ it.stem || '（题目已被修改，无题干快照）' }}</div>
+                <div class="th-stem">{{ it.stem || '（题目内容已变更，暂时无法显示原题干）' }}</div>
                 <ul v-if="parseOptions(it).length" class="th-opts">
                   <li
                     v-for="o in parseOptions(it)"
@@ -164,7 +164,7 @@
               <div class="gi-left">
                 <div class="gi-head">
                   <span class="gi-seq">{{ index + 1 }}</span>
-                  <div class="gi-title">{{ it.stem || '（题目已被修改，无题干快照）' }}</div>
+                  <div class="gi-title">{{ it.stem || '（题目内容已变更，暂时无法显示原题干）' }}</div>
                   <span class="gi-full">{{ fullText(it) }}</span>
                 </div>
 
