@@ -413,6 +413,24 @@ export default {
     resetMaterialFilter() {
       this.materialFilter = { keyword: '', status: '' }
     },
+    /**
+     * 备考资料总览 4 卡（全部由已加载列表计算）。
+     * ⚠️ 2026-09-24 修：本方法在合并 origin/main（4335cac，冲突以我为主）时被整段丢掉，
+     *    而模板第 35 行 `v-for="k in materialKpis()"` 仍在调用 ⇒ 渲染期
+     *    `TypeError: _vm.materialKpis is not a function` ⇒ 默认页签（备考资料）整页空白。
+     *    从 41d22a9 取回原实现（口径未变）。
+     */
+    materialKpis() {
+      const list = this.materials || []
+      const published = list.filter(m => m.status === 'PUBLISHED').length
+      const positions = new Set(list.map(m => m.positionName || '未设置岗位'))
+      return [
+        { label: '资料总数', value: list.length, unit: '份', icon: 'el-icon-folder-opened', tone: '' },
+        { label: '已发布', value: published, unit: '份', icon: 'el-icon-circle-check', tone: 'tone-green' },
+        { label: '待发布 / 已停用', value: list.length - published, unit: '份', icon: 'el-icon-edit-outline', tone: 'tone-orange' },
+        { label: '覆盖岗位', value: positions.size, unit: '个', icon: 'el-icon-office-building', tone: 'tone-purple' }
+      ]
+    },
     switchTab(key) {
       this.activeTab = key
       // 回写 ?tab=，刷新 / 分享链接都能停在同一个页签

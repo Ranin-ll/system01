@@ -96,7 +96,8 @@
               <div class="dcallout" :class="checkOk ? 'ok' : 'warn'" style="margin:0 0 12px">
                 <i :class="checkOk ? 'el-icon-success' : 'el-icon-warning-outline'" />
                 <span>
-                  <template v-if="checkOk">校验通过：{{ knowledgeRules.length }} 个知识点 · 合计 {{ knowledgeCountSum }} 题（= 卷面题量 {{ questionTotal }} 题）· 满分 {{ totalScore }} 分 ✓</template>
+                  <template v-if="checkOk && poolOnlyMode">校验通过：整池抽题 · 按卷面题型数量从整个题池抽 {{ questionTotal }} 题 · 满分 {{ totalScore }} 分 ✓</template>
+                  <template v-else-if="checkOk">校验通过：{{ knowledgeRules.filter(r => rowTotal(r) > 0).length }} 个知识点 · 单选 {{ typeSums.SINGLE }} / 多选 {{ typeSums.MULTI }} / 判断 {{ typeSums.JUDGE }} 题 · 合计 {{ knowledgeCountSum }} 题 · 满分 {{ totalScore }} 分 ✓</template>
                   <template v-else>{{ checkMessage }}</template>
                 </span>
               </div>
@@ -106,44 +107,109 @@
                   <div class="dcard-h" style="padding:0 0 10px">
                     <div class="tt"><span class="idx">分</span><h3>知识点配比（每个知识点抽几道题）</h3></div>
                     <div class="dbtn-row">
-                      <el-button size="mini" icon="el-icon-download" @click="importFromPool">从题池导入知识点</el-button>
-                      <el-button size="mini" icon="el-icon-plus" @click="addKnowledgeRule(null)">添加知识点</el-button>
+                      <el-button size="mini" icon="el-icon-refresh" @click="reloadPool">重新载入题池</el-button>
+                      <el-button
+                        size="mini"
+                        :type="poolOnlyMode ? 'success' : ''"
+                        icon="el-icon-s-grid"
+                        @click="toggleWholePool"
+                      >{{ poolOnlyMode ? '整池抽题（点此恢复按知识点）' : '不分配知识点，整池抽题' }}</el-button>
                     </div>
                   </div>
-                  <el-table :data="knowledgeRules" size="mini" border empty-text="点右上角「从题池导入知识点」把本部门已有知识点带进来">
-                    <el-table-column label="知识点（章节）" min-width="180">
+
+                  <el-alert
+                    v-if="poolOnlyMode"
+                    type="success"
+                    :closable="false"
+                    show-icon
+                    style="margin-bottom:10px"
+                    title="整池抽题模式：不按知识点分配，直接按上方的题型数量（单选 / 多选 / 判断）从本部门整个理论题池随机抽题。"
+                  />
+
+                  <el-table
+                    :data="knowledgeRules"
+                    size="mini"
+                    border
+                    :class="{ 'pool-off': poolOnlyMode }"
+                    empty-text="本部门题池暂无知识点，请先到「题库管理」导入题目"
+                  >
+                    <el-table-column label="知识点（章节）" min-width="150">
                       <template slot-scope="scope">
-                        <el-select
-                          v-model="scope.row.knowledgePoint"
+                        <span>{{ scope.row.knowledgePoint }}</span>
+                        <span v-if="!isKnownPoint(scope.row.knowledgePoint)" class="kp-warn">题池无此知识点</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="题池可用" width="118" align="center">
+                      <template slot-scope="scope">
+                        <div class="avail-cell">
+                          <b>{{ poolAvailable(scope.row.knowledgePoint) }}</b><small>题</small>
+                          <span class="avail-sub">{{ poolTypeText(scope.row.knowledgePoint) }}</span>
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="单选" width="92" align="center">
+                      <template slot-scope="scope">
+                        <el-input-number
+                          v-model="scope.row.singleCount"
+                          :min="0"
+                          :max="typeInputMax(scope.row, 'SINGLE')"
+                          :disabled="poolOnlyMode"
                           size="mini"
-                          filterable
-                          allow-create
-                          default-first-option
-                          placeholder="选择或输入知识点"
-                          style="width:100%"
-                        >
-                          <el-option v-for="p in poolPoints" :key="p.knowledgePoint" :label="p.knowledgePoint" :value="p.knowledgePoint" />
-                        </el-select>
+                          style="width:80px"
+                          @change="onTypeChange(scope.row, 'SINGLE')"
+                        />
                       </template>
                     </el-table-column>
-                    <el-table-column label="题池可用" width="86" align="center">
-                      <template slot-scope="scope"><span class="muted">{{ poolAvailable(scope.row.knowledgePoint) }} 题</span></template>
-                    </el-table-column>
-                    <el-table-column label="抽题数量" width="118" align="center">
+                    <el-table-column label="多选" width="92" align="center">
                       <template slot-scope="scope">
-                        <el-input-number v-model="scope.row.questionCount" :min="0" :max="Math.max(poolAvailable(scope.row.knowledgePoint), 999)" size="mini" style="width:100px" />
+                        <el-input-number
+                          v-model="scope.row.multiCount"
+                          :min="0"
+                          :max="typeInputMax(scope.row, 'MULTI')"
+                          :disabled="poolOnlyMode"
+                          size="mini"
+                          style="width:80px"
+                          @change="onTypeChange(scope.row, 'MULTI')"
+                        />
                       </template>
                     </el-table-column>
-                    <el-table-column label="占比" width="76" align="center">
-                      <template slot-scope="scope"><span class="muted">{{ ruleRatioText(scope.row) }}%</span></template>
-                    </el-table-column>
-                    <el-table-column label="操作" width="70" align="center">
+                    <el-table-column label="判断" width="92" align="center">
                       <template slot-scope="scope">
-                        <el-button type="text" size="mini" class="danger-text" @click="knowledgeRules.splice(scope.$index, 1)">删除</el-button>
+                        <el-input-number
+                          v-model="scope.row.judgeCount"
+                          :min="0"
+                          :max="typeInputMax(scope.row, 'JUDGE')"
+                          :disabled="poolOnlyMode"
+                          size="mini"
+                          style="width:80px"
+                          @change="onTypeChange(scope.row, 'JUDGE')"
+                        />
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="小计" width="76" align="center">
+                      <template slot-scope="scope">
+                        <span v-if="rowTotal(scope.row) > 0" class="alloc-badge on">{{ rowTotal(scope.row) }} 题</span>
+                        <span v-else class="alloc-badge">未分配</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="62" align="center">
+                      <template slot-scope="scope">
+                        <el-button type="text" size="mini" class="danger-text" :disabled="poolOnlyMode" @click="removeRule(scope.$index)">删除</el-button>
                       </template>
                     </el-table-column>
                   </el-table>
-                  <p class="dsec-note">抽题时在<b>本部门理论题池内按知识点随机取题</b>，跨知识点去重。「抽题量 ≤ 题池该知识点可用」超了会抽不满卷，保存时后端会拦截。</p>
+                  <div class="type-sum">
+                    <span :class="{ bad: typeSums.SINGLE !== paperCount('SINGLE') }">单选 已配 <b>{{ typeSums.SINGLE }}</b> / 卷面 <b>{{ paperCount('SINGLE') }}</b></span>
+                    <span :class="{ bad: typeSums.MULTI !== paperCount('MULTI') }">多选 已配 <b>{{ typeSums.MULTI }}</b> / 卷面 <b>{{ paperCount('MULTI') }}</b></span>
+                    <span :class="{ bad: typeSums.JUDGE !== paperCount('JUDGE') }">判断 已配 <b>{{ typeSums.JUDGE }}</b> / 卷面 <b>{{ paperCount('JUDGE') }}</b></span>
+                  </div>
+                  <p class="dsec-note">
+                    题池知识点已在页面加载时自动带入（不需要手工挑选）。<b>每个知识点分别填 单选 / 多选 / 判断 各抽几题</b>，
+                    三类「已配」合计须分别等于上方卷面结构里的该题型数量；某行全为 0 表示该知识点不参与抽题。
+                    单行每个题型都不能超过该知识点该题型的「题池可用」。抽题时在<b>本部门理论题池内按知识点 + 题型抽取</b>，跨知识点去重。
+                    若不想按知识点分配，点上方「不分配知识点，整池抽题」即可按题型从整个题池抽
+                    （保存后本套卷即按整池抽题，再次进入本页需重新点一次）。
+                  </p>
                 </div>
 
                 <div class="c4">
@@ -219,6 +285,13 @@ function emptyPaperForm() {
   return { id: null, examName: '', description: '', difficulty: '', contentBias: '' }
 }
 
+/** 三种题型：键 / 中文名 / 行上的字段名 / 题池里的可用量字段名 */
+const TYPE_META = [
+  { key: 'SINGLE', name: '单选', rowKey: 'singleCount', availKey: 'singleCount' },
+  { key: 'MULTI', name: '多选', rowKey: 'multiCount', availKey: 'multiCount' },
+  { key: 'JUDGE', name: '判断', rowKey: 'judgeCount', availKey: 'judgeCount' }
+]
+
 /**
  * 套卷配置（独立页）：从「模拟备考管理 → 模拟理论考核」列表点「配置」进来。
  * 页面职责：基础信息只读摘要 + 组卷配置（分值/时长/通过线/题库抽题量/试抽）→ 保存并生效。
@@ -236,10 +309,17 @@ export default {
       examForm: emptyExamForm(),
       /** 本部门题池概览（可用题量，按题型） */
       poolMeta: null,
-      /** 本部门题池的知识点及题量 */
+      /** 本部门题池的知识点及题量（含分题型可用量） */
       poolPoints: [],
-      /** 知识点配比明细（落 exam_knowledge_rule） */
+      /** 已保存的知识点配比（getExamConfig 原样，用于自动带入知识点时回填「已分配」数量） */
+      savedRules: [],
+      /** 知识点配比明细（落 exam_knowledge_rule）：题池全部知识点 + 已存配置回填的数量 */
       knowledgeRules: [],
+      /**
+       * ★ 2026-09-24：整池抽题模式 —— 不按知识点分配，只按卷面题型数量从整个题池抽。
+       * true 时 knowledgePayload() 提交空配比、校验只查题型数量与整池可用量。
+       */
+      poolOnlyMode: false,
       drawing: false,
       previewQuestions: [],
       durationOptions: [0, 30, 45, 60, 90, 120, 180, 240],
@@ -258,51 +338,119 @@ export default {
     questionTotal() {
       return (Number(this.examForm.singleCount) || 0) + (Number(this.examForm.multiCount) || 0) + (Number(this.examForm.judgeCount) || 0)
     },
-    /** 知识点抽题数量合计 */
+    /** 知识点抽题数量合计（各行「单选+多选+判断」之和） */
     knowledgeCountSum() {
-      return this.knowledgeRules.reduce((sum, r) => sum + (Number(r.questionCount) || 0), 0)
+      return this.knowledgeRules.reduce((sum, r) => sum + this.rowTotal(r), 0)
+    },
+    /** 各题型的「已配」合计 */
+    typeSums() {
+      const t = { SINGLE: 0, MULTI: 0, JUDGE: 0 }
+      this.knowledgeRules.forEach(r => {
+        t.SINGLE += Number(r.singleCount) || 0
+        t.MULTI += Number(r.multiCount) || 0
+        t.JUDGE += Number(r.judgeCount) || 0
+      })
+      return t
     },
     totalScore() {
       return (Number(this.examForm.singleCount) || 0) * (Number(this.examForm.singleScore) || 0) +
         (Number(this.examForm.multiCount) || 0) * (Number(this.examForm.multiScore) || 0) +
         (Number(this.examForm.judgeCount) || 0) * (Number(this.examForm.judgeScore) || 0)
     },
-    /** 超出题池该知识点可用题量的行 */
+    /** 整池的分题型可用量（整池抽题模式下用它做题型校验） */
+    poolTypeTotal() {
+      const t = { SINGLE: 0, MULTI: 0, JUDGE: 0 }
+      this.poolPoints.forEach(p => {
+        t.SINGLE += Number(p.singleCount) || 0
+        t.MULTI += Number(p.multiCount) || 0
+        t.JUDGE += Number(p.judgeCount) || 0
+      })
+      return t
+    },
+    /** 「某一行某题型」超过该知识点该题型可用量的组合（题池查不到该知识点 = 可用 0） */
     overRows() {
-      return this.knowledgeRules.filter(r => (Number(r.questionCount) || 0) > this.poolAvailable(r.knowledgePoint))
+      if (this.poolOnlyMode) return []
+      const bad = []
+      this.knowledgeRules.forEach(r => {
+        TYPE_META.forEach(t => {
+          const need = Number(r[t.rowKey]) || 0
+          const have = this.poolAvailableOf(r.knowledgePoint, t.key)
+          if (need > have) {
+            bad.push({ point: r.knowledgePoint, name: t.name, need: need, have: have })
+          }
+        })
+      })
+      return bad
+    },
+    /** 整池抽题模式用：整池的分题型可用量 vs 卷面题型需求（非整池模式恒 ok） */
+    poolQuota() {
+      const need = {
+        SINGLE: Number(this.examForm.singleCount) || 0,
+        MULTI: Number(this.examForm.multiCount) || 0,
+        JUDGE: Number(this.examForm.judgeCount) || 0
+      }
+      if (!this.poolOnlyMode) {
+        return { need: need, have: { SINGLE: 0, MULTI: 0, JUDGE: 0 }, lacks: [], ok: true }
+      }
+      const t = this.poolTypeTotal
+      const have = { SINGLE: t.SINGLE, MULTI: t.MULTI, JUDGE: t.JUDGE }
+      const lacks = []
+      TYPE_META.forEach(x => {
+        if (need[x.key] > have[x.key]) lacks.push({ name: x.name, need: need[x.key], have: have[x.key] })
+      })
+      return { need: need, have: have, lacks: lacks, ok: lacks.length === 0 }
     },
     checkOk() {
+      if (this.questionTotal <= 0) return false
+      if (this.totalScore <= 0) return false
+      if (this.poolOnlyMode) {
+        // 整池抽题：不要求知识点配比，只要题型数量能被整池覆盖
+        return this.poolQuota.ok
+      }
       if (!this.knowledgeRules.length) return false
       if (this.knowledgeRules.some(r => !String(r.knowledgePoint || '').trim())) return false
       if (this.knowledgeCountSum <= 0) return false
-      if (this.questionTotal <= 0 || this.questionTotal !== this.knowledgeCountSum) return false
-      if (this.totalScore <= 0) return false
-      return this.overRows.length === 0
+      if (this.overRows.length) return false
+      // ★ 分题型配平：三类「已配」必须分别等于卷面该题型数量
+      return TYPE_META.every(t => this.typeSums[t.key] === this.paperCount(t.key))
     },
     checkMessage() {
-      if (!this.knowledgeRules.length) return '尚未配置知识点配比：点右上角「从题池导入知识点」把本部门已有知识点带进来，再逐个填抽题数量。'
-      if (this.knowledgeRules.some(r => !String(r.knowledgePoint || '').trim())) return '存在未选知识点的行，请选择知识点或删除该行。'
-      if (this.knowledgeCountSum <= 0) return '抽题数量合计为 0，请至少为一个知识点设置抽题数量。'
       if (this.questionTotal <= 0) return '卷面题量为 0：请在上方「卷面结构」里填单选题 / 多选题 / 判断题的数量。'
-      if (this.questionTotal !== this.knowledgeCountSum) {
-        return '知识点抽题数量合计（' + this.knowledgeCountSum + ' 题）须等于卷面题量（' + this.questionTotal + ' 题）。'
-      }
       if (this.totalScore <= 0) return '每题分值都是 0，卷面满分为 0。请在上方「卷面结构」里设置每题分值。'
+      if (this.poolOnlyMode) {
+        if (this.poolQuota.ok) return ''
+        return '卷面题型数量超出本部门题池的可用题量：'
+          + this.poolQuota.lacks.map(l => l.name + '需 ' + l.need + ' 题、现有 ' + l.have + ' 题').join('；')
+          + '。请调整卷面题型数量，或先到「题库管理」补齐题目。'
+      }
+      if (!this.knowledgeRules.length) return '本部门题池还没有知识点：请先到「题库管理」导入题目，再回来配置。'
+      if (this.knowledgeRules.some(r => !String(r.knowledgePoint || '').trim())) return '存在未选知识点的行，请删除该行。'
+      if (this.knowledgeCountSum <= 0) return '抽题数量合计为 0，请为知识点分配单选 / 多选 / 判断数量；或不分配知识点、改用「整池抽题」。'
       if (this.overRows.length) {
-        return '「' + this.overRows.map(r => r.knowledgePoint).join('、') + '」的抽题数量超过题池该知识点可用题量，会抽不满卷。'
+        return this.overRows.map(b => '「' + b.point + '」' + b.name + '要 ' + b.need + ' 题、题池只有 ' + b.have + ' 题').join('；')
+          + '。请调小对应数量。'
+      }
+      const bad = TYPE_META.filter(t => this.typeSums[t.key] !== this.paperCount(t.key))
+        .map(t => t.name + ' 已配 ' + this.typeSums[t.key] + ' / 卷面 ' + this.paperCount(t.key))
+      if (bad.length) {
+        return '各题型的配比合计须分别等于卷面该题型数量（' + bad.join('；') + '），请按题型逐类配平。'
       }
       return ''
     }
   },
-  created() {
+  async created() {
     this.examId = this.$route.params.examId ? Number(this.$route.params.examId) : null
     if (!this.examId) {
       this.$modal.msgWarning('缺少套卷ID，请从套卷列表点「配置」进入')
       this.goBack()
       return
     }
-    this.loadExam()
-    this.loadPool()
+    // ★ 2026-09-24：必须「先 await 取完题池 + 已存配置，再渲染知识点表」。
+    //   知识点表是自动带入的，且抽题数量输入框的 :max 依赖题池可用题量；
+    //   若并行加载，行会在题池数据到位前渲染，el-input-number 会把已存的抽题数量夹成 0（静默数据损坏）。
+    await this.loadExam()
+    await this.loadPool()
+    this.buildKnowledgeRules()
   },
   methods: {
     goBack() {
@@ -310,10 +458,10 @@ export default {
       const isSuper = isSuperAdminRole(this.roles) || isSuperAdminRole()
       this.$router.push((isSuper ? '/super/ops/prep' : '/department/study/prep') + '?tab=module')
     },
-    /** 套卷本体 + 组卷配置 */
+    /** 套卷本体 + 组卷配置（返回 Promise，供 created 串行等待） */
     loadExam() {
       this.loading = true
-      getExam(this.examId).then(res => {
+      const p1 = getExam(this.examId).then(res => {
         const d = res.data || {}
         this.exam = d
         this.examForm = {
@@ -331,14 +479,19 @@ export default {
         this.durationPreset = this.durationOptions.indexOf(this.examForm.duration) > -1 ? this.examForm.duration : -1
         this.loading = false
       }).catch(() => { this.loading = false })
-      getExamConfig(this.examId).then(res => {
+      // 已存的知识点配比先暂存到 savedRules，等题池到位后由 buildKnowledgeRules() 合并回填
+      const p2 = getExamConfig(this.examId).then(res => {
         const data = res.data || {}
-        this.knowledgeRules = (data.knowledgeRules || []).map((r, i) => ({
+        this.savedRules = (data.knowledgeRules || []).map((r, i) => ({
           knowledgePoint: r.knowledgePoint || '',
           questionCount: Number(r.questionCount) || 0,
+          singleCount: Number(r.singleCount) || 0,
+          multiCount: Number(r.multiCount) || 0,
+          judgeCount: Number(r.judgeCount) || 0,
           sortNo: r.sortNo || i + 1
         }))
-      }).catch(() => { this.knowledgeRules = [] })
+      }).catch(() => { this.savedRules = [] })
+      return Promise.all([p1, p2])
     },
     /**
      * 拉取本部门题池：可用题量（按题型）+ 知识点清单。
@@ -361,55 +514,175 @@ export default {
           : null
         this.poolPoints = (kpRes.data || []).map(p => ({
           knowledgePoint: p.knowledgePoint,
-          totalCount: Number(p.totalCount) || 0
+          totalCount: Number(p.totalCount) || 0,
+          singleCount: Number(p.singleCount) || 0,
+          multiCount: Number(p.multiCount) || 0,
+          judgeCount: Number(p.judgeCount) || 0
         }))
       })
     },
-    /** 题池某知识点的可用题量（查不到时不设上限，避免把已存值夹成 0） */
-    poolAvailable(point) {
-      if (!point) return Number.MAX_SAFE_INTEGER
-      const p = this.poolPoints.find(x => x.knowledgePoint === point)
-      return p ? p.totalCount : Number.MAX_SAFE_INTEGER
-    },
-    /** 单个知识点占总题量的比例（展示用，四舍五入到整数） */
-    ruleRatioText(row) {
-      const total = this.knowledgeCountSum
-      if (!total) return '0'
-      return Math.round((Number(row.questionCount) || 0) * 100 / total)
-    },
-    /** 添加一行知识点配比 */
-    addKnowledgeRule(point) {
-      this.knowledgeRules.push({ knowledgePoint: point || '', questionCount: 0 })
-    },
-    /** 「从题池导入知识点」：把题池里已有知识点带进来（已存在的跳过，保留已填数量） */
-    importFromPool() {
-      if (!this.poolPoints.length) {
-        this.$modal.msgWarning('本部门题池还没有题目，请先到「题库管理」导入题目')
-        return
+    /**
+     * 把「题池全部知识点」自动带成配比行，并用已存配置回填**分题型**数量。
+     * 已存配置里若含题池已不存在的知识点，也**保留该行且不动数量**，交给校验条提示。
+     */
+    buildKnowledgeRules() {
+      // 若已存配比里有任何一行分配 > 0 → 不是整池模式（整池保存出来就是空配比，无法反推，
+      // 所以只做「有分配 ⇒ 一定是按知识点」这一侧的判定，绝不反推整池）
+      this.poolOnlyMode = false
+      const rows = []
+      const seen = {}
+      const push = (point, s, m, j) => {
+        if (!point || seen[point]) return
+        seen[point] = true
+        rows.push({
+          knowledgePoint: point,
+          singleCount: Math.max(0, Math.floor(Number(s) || 0)),
+          multiCount: Math.max(0, Math.floor(Number(m) || 0)),
+          judgeCount: Math.max(0, Math.floor(Number(j) || 0))
+        })
       }
-      const exist = {}
-      this.knowledgeRules.forEach(r => { if (r.knowledgePoint) exist[r.knowledgePoint] = true })
-      const added = []
-      this.poolPoints.forEach(p => {
-        if (exist[p.knowledgePoint]) return
-        exist[p.knowledgePoint] = true
-        added.push({ knowledgePoint: p.knowledgePoint, questionCount: 0 })
+      this.savedRules.forEach(r => {
+        // 兼容旧数据：只有 questionCount、没分题型的老行，把总数放进「单选」列，由管理员按题型重新配平
+        const typed = (Number(r.singleCount) || 0) + (Number(r.multiCount) || 0) + (Number(r.judgeCount) || 0) > 0
+        push(String(r.knowledgePoint || '').trim(),
+          typed ? r.singleCount : r.questionCount,
+          typed ? r.multiCount : 0,
+          typed ? r.judgeCount : 0)
       })
-      if (!added.length) {
-        this.$modal.msgWarning('题池里的知识点都已在本表里，未重复添加')
-        return
-      }
-      this.knowledgeRules = this.knowledgeRules.concat(added)
-      this.$modal.msgSuccess('已带入 ' + added.length + ' 个知识点，请逐个填写抽题数量')
+      this.poolPoints.forEach(p => push(p.knowledgePoint, 0, 0, 0))
+      this.knowledgeRules = rows
     },
+    /** 重新载入题池：保留当前表内已填的分题型数量，按最新题池重建行 */
+    reloadPool() {
+      const keep = {}
+      this.knowledgeRules.forEach(r => {
+        if (r.knowledgePoint) {
+          keep[r.knowledgePoint] = {
+            singleCount: Number(r.singleCount) || 0,
+            multiCount: Number(r.multiCount) || 0,
+            judgeCount: Number(r.judgeCount) || 0
+          }
+        }
+      })
+      this.loadPool().then(() => {
+        this.savedRules = Object.keys(keep).map(k => Object.assign({ knowledgePoint: k }, keep[k]))
+        this.buildKnowledgeRules()
+        this.$modal.msgSuccess('已按最新题池重新载入知识点')
+      })
+    },
+    /** 题池某知识点的可用**总**题量（查不到 = 0） */
+    poolAvailable(point) {
+      if (!point) return 0
+      const p = this.poolPoints.find(x => x.knowledgePoint === point)
+      return p ? p.totalCount : 0
+    },
+    /** 题池某知识点**某题型**的可用量（查不到 = 0） */
+    poolAvailableOf(point, type) {
+      if (!point) return 0
+      const p = this.poolPoints.find(x => x.knowledgePoint === point)
+      if (!p) return 0
+      const meta = TYPE_META.find(t => t.key === type)
+      return meta ? (Number(p[meta.availKey]) || 0) : 0
+    },
+    /** 题池该知识点的分题型可用量文案（展示用） */
+    poolTypeText(point) {
+      const p = this.poolPoints.find(x => x.knowledgePoint === point)
+      if (!p) return '题池无此知识点'
+      return '单' + (Number(p.singleCount) || 0) + ' · 多' + (Number(p.multiCount) || 0) + ' · 判' + (Number(p.judgeCount) || 0)
+    },
+    /** 行小计 = 单选 + 多选 + 判断 */
+    rowTotal(row) {
+      if (!row) return 0
+      return (Number(row.singleCount) || 0) + (Number(row.multiCount) || 0) + (Number(row.judgeCount) || 0)
+    },
+    /** 卷面某题型的目标数量 */
+    paperCount(type) {
+      if (type === 'SINGLE') return Number(this.examForm.singleCount) || 0
+      if (type === 'MULTI') return Number(this.examForm.multiCount) || 0
+      if (type === 'JUDGE') return Number(this.examForm.judgeCount) || 0
+      return 0
+    },
+    /**
+     * 某行某题型输入框的上限 = **max(当前值, min(该知识点该题型的可用量, 卷面该题型数量 − 其它行该题型之和))**。
+     *
+     * 三件事一次解决（都是实测踩出来的）：
+     *   ① 取「该知识点该题型的可用量」→ 到达上限时**加号自动禁用**，填不出抽不满的量；
+     *   ② 再取「卷面该题型数量 − 其它行之和」→ **别的行已把该题型配额占满时，这一行的加号直接禁用**，
+     *      不会出现「点一下加号 +1、总量已超又要回退」的鬼畜状态（用户实测反馈）；
+     *   ③ 最后与**当前值**取 max → 已存的历史值不会被 el-input-number 立刻夹成 0（静默数据损坏），
+     *      且当前值已在/超过上限时减号仍可用 → **不会「加了一个就再也减不回 0」**（用户实测反馈）。
+     *
+     * ⚠️ 上限只能在 :max 里做，**不要在 @change 里事后回退**：那会让 el-input-number 的内部
+     *    currentValue 与 v-model 脱节（输入框显示 1、模型却是 0，加减都失灵）。
+     */
+    typeInputMax(row, type) {
+      const meta = TYPE_META.find(t => t.key === type)
+      if (!meta) return 0
+      const cur = Number(row && row[meta.rowKey]) || 0
+      const avail = this.poolAvailableOf(row && row.knowledgePoint, type)
+      const others = this.knowledgeRules.reduce((s, r) => s + (r === row ? 0 : (Number(r[meta.rowKey]) || 0)), 0)
+      const remaining = Math.max(0, this.paperCount(type) - others)
+      return Math.max(cur, Math.min(avail, remaining))
+    },
+    /**
+     * 分题型数量变更：**只做归一化**（把输入框清空产生的 undefined/NaN 落回 0），不做上限回退。
+     * 上限由 typeInputMax 在 :max 上拦住，这里回退会让组件内部值与模型脱节。
+     */
+    onTypeChange(row, type) {
+      const meta = TYPE_META.find(t => t.key === type)
+      if (!meta) return
+      let v = Number(row[meta.rowKey])
+      if (!isFinite(v) || v < 0) v = 0
+      v = Math.floor(v)
+      if (v !== Number(row[meta.rowKey])) {
+        this.$set(row, meta.rowKey, v)
+      }
+    },
+    /** 该知识点是否在本部门题池里（不在 → 显示提示标） */
+    isKnownPoint(point) {
+      if (!point) return true
+      return this.poolPoints.some(x => x.knowledgePoint === point)
+    },
+    /** 删除一行配比 */
+    removeRule(index) {
+      this.knowledgeRules.splice(index, 1)
+    },
+    /**
+     * 切换「整池抽题」模式。
+     * 进入时清掉所有知识点分配（并把它们留在表里灰显，便于随时切回来）。
+     */
+    toggleWholePool() {
+      if (!this.poolOnlyMode) {
+        if (!this.questionTotal) {
+          this.$modal.msgWarning('请先在上方「卷面结构」里填单选题 / 多选题 / 判断题的数量')
+          return
+        }
+        this.knowledgeRules.forEach(r => { r.singleCount = 0; r.multiCount = 0; r.judgeCount = 0 })
+        this.poolOnlyMode = true
+        this.$modal.msgSuccess('已切换到整池抽题：按题型数量从本部门整个理论题池随机抽，不再按知识点分配')
+      } else {
+        this.poolOnlyMode = false
+        this.$modal.msgSuccess('已恢复按知识点配比抽题')
+      }
+    },
+    /** 提交用的知识点配比（分题型）；整池抽题模式下提交空（后端按题型从全池抽） */
     knowledgePayload() {
+      if (this.poolOnlyMode) return []
       return this.knowledgeRules
         .filter(r => String(r.knowledgePoint || '').trim())
-        .map((r, i) => ({
-          knowledgePoint: String(r.knowledgePoint).trim(),
-          questionCount: Number(r.questionCount) || 0,
-          sortNo: i + 1
-        }))
+        .map((r, i) => {
+          const s = Number(r.singleCount) || 0
+          const m = Number(r.multiCount) || 0
+          const j = Number(r.judgeCount) || 0
+          return {
+            knowledgePoint: String(r.knowledgePoint).trim(),
+            singleCount: s,
+            multiCount: m,
+            judgeCount: j,
+            questionCount: s + m + j,
+            sortNo: i + 1
+          }
+        })
     },
     // ---- 基础信息弹窗 ----
     openPaperDialog() {
@@ -463,7 +736,15 @@ export default {
         return
       }
       this.drawing = true
-      tryDraw({ deptId: this.exam && this.exam.deptId, knowledgeRules: this.knowledgePayload() }).then(res => {
+      // ★ 2026-09-24：把卷面题型数量一并传过去 —— 后端试抽现在会按「知识点配比 + 题型配额」抽，
+      //   不传的话预览就退化成「不分题型」，与真实卷不一致。
+      tryDraw({
+        deptId: this.exam && this.exam.deptId,
+        singleCount: Number(this.examForm.singleCount) || 0,
+        multiCount: Number(this.examForm.multiCount) || 0,
+        judgeCount: Number(this.examForm.judgeCount) || 0,
+        knowledgeRules: this.knowledgePayload()
+      }).then(res => {
         this.previewQuestions = res.data || []
         this.drawing = false
         if (!this.previewQuestions.length) {
@@ -526,4 +807,21 @@ export default {
 .pc-item label { display: block; margin-bottom: 5px; color: #98a2b3; font-size: 11.5px; }
 .pc-item span { color: #344054; font-size: 13px; line-height: 1.6; }
 .pc-item span.strong { color: #1d2939; font-size: 14px; font-weight: 600; }
+
+/* 知识点配比表：题池可用（总数 + 分题型）/ 已分配 徽标 */
+.avail-cell { display: flex; flex-direction: column; line-height: 1.35; }
+.avail-cell b { color: #1d2939; font-size: 13px; }
+.avail-cell small { margin-left: 2px; color: #98a2b3; font-size: 11px; }
+.avail-sub { margin-top: 1px; color: #98a2b3; font-size: 11px; }
+.alloc-badge { display: inline-block; padding: 1px 6px; color: #98a2b3; background: #f2f4f7; font-size: 11px; border-radius: 3px; }
+.alloc-badge.on { color: #1764f5; background: #edf4ff; font-weight: 600; }
+/* 题池里已不存在的知识点：给个醒目标（这类行填了也抽不出题） */
+.kp-warn { margin-left: 6px; padding: 0 5px; color: #d9534f; background: #fdeeed; font-size: 11px; border-radius: 3px; }
+/* 整池抽题模式下，知识点表只作参考，整体降透明度 */
+.pool-off ::v-deep .el-table__body-wrapper { opacity: .45; }
+/* 分题型「已配 / 卷面」小结条 */
+.type-sum { display: flex; flex-wrap: wrap; gap: 16px; padding: 9px 13px; margin-top: 10px; color: #475467; background: #f8fafc; border: 1px solid #eef1f6; border-radius: 6px; font-size: 12.5px; }
+.type-sum b { color: #1d2939; font-size: 14px; }
+.type-sum .bad { color: #d9534f; }
+.type-sum .bad b { color: #d9534f; }
 </style>

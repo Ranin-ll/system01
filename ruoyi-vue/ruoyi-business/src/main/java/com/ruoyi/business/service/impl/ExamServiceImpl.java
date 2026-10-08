@@ -26,13 +26,17 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
     private final ExamMapper examMapper;
     private final com.ruoyi.business.mapper.ExamRuleMapper examRuleMapper;
     private final com.ruoyi.business.mapper.PracticeModuleMapper practiceModuleMapper;
+    /** ★ 2026-09-24：试抽改为走 PaperDrawer（按题型配额），需要它来补齐/截断到卷面题量 */
+    private final com.ruoyi.business.mapper.QuestionMapper questionMapper;
 
     public ExamServiceImpl(ExamMapper examMapper,
                            com.ruoyi.business.mapper.ExamRuleMapper examRuleMapper,
-                           com.ruoyi.business.mapper.PracticeModuleMapper practiceModuleMapper) {
+                           com.ruoyi.business.mapper.PracticeModuleMapper practiceModuleMapper,
+                           com.ruoyi.business.mapper.QuestionMapper questionMapper) {
         this.examMapper = examMapper;
         this.examRuleMapper = examRuleMapper;
         this.practiceModuleMapper = practiceModuleMapper;
+        this.questionMapper = questionMapper;
     }
 
     @Override
@@ -434,10 +438,20 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
      */
     @Override
     public java.util.List<java.util.Map<String, Object>> tryDraw(Long deptId, Exam params) {
-        if (params == null || params.getKnowledgeRules() == null || params.getKnowledgeRules().isEmpty()) {
-            throw new ServiceException("请先配置知识点配比");
+        if (params == null) {
+            throw new ServiceException("缺少试抽参数");
         }
-        return drawByKnowledge(resolveDeptId(deptId), params.getKnowledgeRules());
+        // ★ 2026-09-24：允许**不配知识点配比**（「整池抽题」模式）—— 此时按卷面题型数量
+        //   从本部门整个理论题池抽。PaperDrawer 对「空 rules + 有题型数量」已支持整池补齐
+        //   （fillQuota 的兜底分支会以 qtype 从 deptId 全池抽）。
+        int single = nz(params.getSingleCount());
+        int multi = nz(params.getMultiCount());
+        int judge = nz(params.getJudgeCount());
+        boolean hasRules = params.getKnowledgeRules() != null && !params.getKnowledgeRules().isEmpty();
+        if (!hasRules && single + multi + judge <= 0) {
+            throw new ServiceException("请配置知识点配比，或先设置卷面题型数量（单选 / 多选 / 判断）后再试抽");
+        }
+        return drawByKnowledge(resolveDeptId(deptId), params.getKnowledgeRules(), single, multi, judge);
     }
 
     /** 按知识分布试抽（部门从请求参数或当前账号部门解析） */
@@ -447,32 +461,29 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
         return tryDraw(deptId, params);
     }
 
-    /** 从部门题池按知识点配比抽题（不落库），返回试抽明细。 */
+    /**
+     * 从部门题池按「知识点配比 + 卷面题型配额」抽题（不落库），返回试抽明细。
+     *
+     * <p>★ 2026-09-24：改走 {@link com.ruoyi.business.service.support.PaperDrawer}，与真实模拟卷
+     * （{@code PracticeServiceImpl}）/正式卷（{@code AnswerSheetServiceImpl}）同一口径。
+     * 原实现只按知识点抽 N 题、**不分题型**，导致试抽预览里出现的题型分布与卷面设的
+     * 单选/多选/判断 对不上（预览骗人）。</p>
+     */
     private java.util.List<java.util.Map<String, Object>> drawByKnowledge(
-            Long deptId, java.util.List<com.ruoyi.business.domain.ExamKnowledgeRule> rules) {
+            Long deptId, java.util.List<com.ruoyi.business.domain.ExamKnowledgeRule> rules,
+            int single, int multi, int judge) {
+        java.util.List<com.ruoyi.business.domain.Question> picked = com.ruoyi.business.service.support.PaperDrawer
+                .draw(examRuleMapper, questionMapper, deptId, rules, single, multi, judge, 0, 0);
         java.util.List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
-        java.util.List<Long> used = new java.util.ArrayList<>();
         int no = 1;
-        for (com.ruoyi.business.domain.ExamKnowledgeRule rule : rules) {
-            int need = rule.getQuestionCount() == null ? 0 : rule.getQuestionCount();
-            if (need <= 0) {
-                continue;
-            }
-            java.util.List<com.ruoyi.business.domain.Question> picked =
-                    examRuleMapper.selectQuestionsByPoint(deptId, rule.getKnowledgePoint(), null, new java.util.ArrayList<>(used), need);
-            if (picked == null) {
-                continue;
-            }
-            for (com.ruoyi.business.domain.Question q : picked) {
-                used.add(q.getId());
-                java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
-                m.put("seq", no++);
-                m.put("questionId", q.getId());
-                m.put("qtype", q.getQtype());
-                m.put("knowledgePoint", q.getKnowledgePoint());
-                m.put("stem", q.getStem());
-                result.add(m);
-            }
+        for (com.ruoyi.business.domain.Question q : picked) {
+            java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("seq", no++);
+            m.put("questionId", q.getId());
+            m.put("qtype", q.getQtype());
+            m.put("knowledgePoint", q.getKnowledgePoint());
+            m.put("stem", q.getStem());
+            result.add(m);
         }
         return result;
     }
@@ -656,18 +667,51 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
         }
     }
 
-    /** 知识分布校验：三项（占比 100% / 题量一致 / 不超题库可用） */
+    /**
+     * 知识分布校验：① 占比之和（如传）② 抽题数量合计须等于卷面题量 ③ 不超本部门题池可用题量
+     * ④ 分题型可用量须覆盖卷面题型数量 ⑤（分题型模式）各题型合计须与卷面逐题型一致。
+     *
+     * <p>★ 2026-09-24 调整：**允许某知识点抽题数量为 0**（0 = 该知识点不参与抽题），
+     * 不再要求「每个知识点都必须有分配」—— 页面会把题池全部知识点列出来，只给需要的填数量。
+     * 同时把「卷面题量」口径从 {@code exam.question_count} 改为「本次提交的 单选+多选+判断」
+     * （回退库中值），避免首次配置时库里还是 0 导致该校验被静默跳过。</p>
+     *
+     * <p>★ 2026-09-24 二次调整：知识点配比改为**按题型分别分配**。任一行的
+     * {@code singleCount/multiCount/judgeCount} 三者和 &gt; 0 即视为「分题型模式」，
+     * 此时要求 每个题型的合计 必须**逐类等于**卷面该题型数量（不再靠比例猜），
+     * 并逐行核对单行某题型是否超该知识点该题型的可用量。</p>
+     */
     private void validateKnowledgeRules(Exam exam, Exam params) {
         if (params == null || params.getKnowledgeRules() == null || params.getKnowledgeRules().isEmpty()) {
             return;
         }
         int countSum = 0;
+        int singleSum = 0;
+        int multiSum = 0;
+        int judgeSum = 0;
+        boolean typed = false;
         java.math.BigDecimal ratioSum = java.math.BigDecimal.ZERO;
         for (com.ruoyi.business.domain.ExamKnowledgeRule rule : params.getKnowledgeRules()) {
-            if (rule.getQuestionCount() == null || rule.getQuestionCount() <= 0) {
-                throw new ServiceException("知识分布「" + rule.getKnowledgePoint() + "」的抽题数量必须大于 0");
+            int s = rule.getSingleCount() == null ? 0 : rule.getSingleCount();
+            int m = rule.getMultiCount() == null ? 0 : rule.getMultiCount();
+            int j = rule.getJudgeCount() == null ? 0 : rule.getJudgeCount();
+            if (s < 0 || m < 0 || j < 0) {
+                throw new ServiceException("知识配比「" + rule.getKnowledgePoint() + "」的分题型数量不能为负数");
             }
-            countSum += rule.getQuestionCount();
+            int n = rule.getQuestionCount() == null ? 0 : rule.getQuestionCount();
+            if (n < 0) {
+                throw new ServiceException("知识配比「" + rule.getKnowledgePoint() + "」的抽题数量不能为负数");
+            }
+            if (s + m + j > 0) {
+                // 分题型模式：行小计以三者之和为准
+                typed = true;
+                n = s + m + j;
+            }
+            // ★ n == 0 是合法值：表示该知识点不参与抽题（原「必须大于 0」已按要求去掉）
+            singleSum += s;
+            multiSum += m;
+            judgeSum += j;
+            countSum += n;
             if (rule.getRatio() != null) {
                 ratioSum = ratioSum.add(rule.getRatio());
             }
@@ -676,26 +720,142 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
                 && ratioSum.subtract(new java.math.BigDecimal("100")).abs().compareTo(new java.math.BigDecimal("0.01")) > 0) {
             throw new ServiceException("知识分布占比之和须为 100%，当前为 " + ratioSum.stripTrailingZeros().toPlainString() + "%");
         }
-        Integer total = exam.getQuestionCount();
-        if (total != null && total > 0 && countSum != total) {
-            throw new ServiceException("知识分布抽题数量之和（" + countSum + "）须等于考试信息里的题目数量（" + total + "）");
+        int paperTotal = resolvePaperTotal(exam, params);
+        if (paperTotal > 0 && countSum != paperTotal) {
+            throw new ServiceException("知识点抽题数量合计（" + countSum + " 题）须等于卷面题量（" + paperTotal
+                    + " 题），请调整各知识点的抽题数量或上方的题型数量");
         }
-        // 本部门题池可用题量校验（防抽不出题）
-        if (!params.getKnowledgeRules().isEmpty()) {
-            java.util.List<java.util.Map<String, Object>> available = examRuleMapper.selectDeptKnowledgePoints(exam.getDeptId());
-            java.util.Map<String, Integer> availableMap = new java.util.HashMap<>();
-            for (java.util.Map<String, Object> row : available) {
-                availableMap.put(String.valueOf(row.get("knowledgePoint")),
-                        Integer.valueOf(String.valueOf(row.get("totalCount"))));
+        // ★ 分题型配平校验：逐类合计必须等于卷面该题型数量
+        if (typed) {
+            int ps = params.getSingleCount() == null ? nz(exam.getSingleCount()) : params.getSingleCount();
+            int pm = params.getMultiCount() == null ? nz(exam.getMultiCount()) : params.getMultiCount();
+            int pj = params.getJudgeCount() == null ? nz(exam.getJudgeCount()) : params.getJudgeCount();
+            java.util.List<String> mismatch = new java.util.ArrayList<>();
+            if (singleSum != ps) {
+                mismatch.add("单选 已配 " + singleSum + " / 卷面 " + ps);
             }
-            for (com.ruoyi.business.domain.ExamKnowledgeRule rule : params.getKnowledgeRules()) {
-                Integer have = availableMap.get(rule.getKnowledgePoint());
-                if (have != null && rule.getQuestionCount() > have) {
-                    throw new ServiceException("知识配比「" + rule.getKnowledgePoint() + "」抽题数量 "
-                            + rule.getQuestionCount() + " 题超过本部门题池可用题量（" + have + " 题）");
+            if (multiSum != pm) {
+                mismatch.add("多选 已配 " + multiSum + " / 卷面 " + pm);
+            }
+            if (judgeSum != pj) {
+                mismatch.add("判断 已配 " + judgeSum + " / 卷面 " + pj);
+            }
+            if (!mismatch.isEmpty()) {
+                throw new ServiceException("知识点配比的题型数量与卷面题型数量不一致（" + String.join("；", mismatch)
+                        + "），请按题型逐类配平");
+            }
+        }
+        // 本部门题池可用题量校验（按知识点，防抽不出题）
+        java.util.List<java.util.Map<String, Object>> available = examRuleMapper.selectDeptKnowledgePoints(exam.getDeptId());
+        java.util.Map<String, Integer> availableMap = new java.util.HashMap<>();
+        java.util.Map<String, java.util.Map<String, Object>> rowMap = new java.util.HashMap<>();
+        for (java.util.Map<String, Object> row : nvl(available)) {
+            String kp = String.valueOf(row.get("knowledgePoint"));
+            availableMap.put(kp, intOf(row.get("totalCount")));
+            rowMap.put(kp, row);
+        }
+        for (com.ruoyi.business.domain.ExamKnowledgeRule rule : params.getKnowledgeRules()) {
+            Integer have = availableMap.get(rule.getKnowledgePoint());
+            if (have != null && rule.getQuestionCount() != null && rule.getQuestionCount() > have) {
+                throw new ServiceException("知识配比「" + rule.getKnowledgePoint() + "」抽题数量 "
+                        + rule.getQuestionCount() + " 题超过本部门题池可用的 " + have + " 题");
+            }
+            // ★ 分题型模式下逐行核对「某题型要几题 / 该知识点该题型只有几题」，能精确指出哪一行差多少
+            if (typed) {
+                java.util.Map<String, Object> poolRow = rowMap.get(rule.getKnowledgePoint());
+                if (poolRow == null) {
+                    continue;
                 }
+                checkPointType(rule.getKnowledgePoint(), "单选", rule.getSingleCount(), intOf(poolRow.get("singleCount")));
+                checkPointType(rule.getKnowledgePoint(), "多选", rule.getMultiCount(), intOf(poolRow.get("multiCount")));
+                checkPointType(rule.getKnowledgePoint(), "判断", rule.getJudgeCount(), intOf(poolRow.get("judgeCount")));
             }
         }
+        validateTypeQuota(exam, params, available);
+    }
+
+    /** 单行某题型不得超该知识点该题型可用量 */
+    private void checkPointType(String point, String typeName, Integer need, int have) {
+        int n = need == null ? 0 : need;
+        if (n > have) {
+            throw new ServiceException("知识配比「" + point + "」的" + typeName + "要 " + n
+                    + " 题，但本部门题池该知识点的" + typeName + "只有 " + have + " 题");
+        }
+    }
+
+    /**
+     * 卷面题量：优先「本次提交的 单选+多选+判断」，回退库中 {@code question_count}，
+     * 再回退库中题型数量合计。
+     */
+    private int resolvePaperTotal(Exam exam, Exam params) {
+        if (params != null && (params.getSingleCount() != null || params.getMultiCount() != null || params.getJudgeCount() != null)) {
+            int s = params.getSingleCount() == null ? nz(exam.getSingleCount()) : params.getSingleCount();
+            int m = params.getMultiCount() == null ? nz(exam.getMultiCount()) : params.getMultiCount();
+            int j = params.getJudgeCount() == null ? nz(exam.getJudgeCount()) : params.getJudgeCount();
+            return s + m + j;
+        }
+        int stored = nz(exam.getQuestionCount());
+        if (stored > 0) {
+            return stored;
+        }
+        return nz(exam.getSingleCount()) + nz(exam.getMultiCount()) + nz(exam.getJudgeCount());
+    }
+
+    /**
+     * ★ 2026-09-24 新增：分题型可用量校验（理论卷）。
+     *
+     * <p>卷面声明的 单选/多选/判断 数量，必须能被「参与抽题的知识点（抽题数量 &gt; 0）」按题型覆盖：
+     * 把这些知识点的该题型可用量相加，任一题型不足就明确报出「哪个题型、需要几题、现有几题」。
+     * 这样管理员在保存时就能看到具体缺口，而不是等到抽题时才发现抽不满。</p>
+     */
+    private void validateTypeQuota(Exam exam, Exam params, java.util.List<java.util.Map<String, Object>> poolRows) {
+        if (!"THEORY".equals(exam.getExamType())) {
+            return;
+        }
+        int needSingle = params.getSingleCount() == null ? nz(exam.getSingleCount()) : params.getSingleCount();
+        int needMulti = params.getMultiCount() == null ? nz(exam.getMultiCount()) : params.getMultiCount();
+        int needJudge = params.getJudgeCount() == null ? nz(exam.getJudgeCount()) : params.getJudgeCount();
+        if (needSingle <= 0 && needMulti <= 0 && needJudge <= 0) {
+            return;
+        }
+        java.util.Set<String> chosen = new java.util.HashSet<>();
+        for (com.ruoyi.business.domain.ExamKnowledgeRule rule : params.getKnowledgeRules()) {
+            if (rule.getQuestionCount() != null && rule.getQuestionCount() > 0 && rule.getKnowledgePoint() != null) {
+                chosen.add(rule.getKnowledgePoint());
+            }
+        }
+        if (chosen.isEmpty()) {
+            return;
+        }
+        int haveSingle = 0;
+        int haveMulti = 0;
+        int haveJudge = 0;
+        for (java.util.Map<String, Object> row : nvl(poolRows)) {
+            if (!chosen.contains(String.valueOf(row.get("knowledgePoint")))) {
+                continue;
+            }
+            haveSingle += intOf(row.get("singleCount"));
+            haveMulti += intOf(row.get("multiCount"));
+            haveJudge += intOf(row.get("judgeCount"));
+        }
+        java.util.List<String> lacks = new java.util.ArrayList<>();
+        if (needSingle > haveSingle) {
+            lacks.add("单选 需要 " + needSingle + " 题、所选知识点共 " + haveSingle + " 题");
+        }
+        if (needMulti > haveMulti) {
+            lacks.add("多选 需要 " + needMulti + " 题、所选知识点共 " + haveMulti + " 题");
+        }
+        if (needJudge > haveJudge) {
+            lacks.add("判断 需要 " + needJudge + " 题、所选知识点共 " + haveJudge + " 题");
+        }
+        if (!lacks.isEmpty()) {
+            throw new ServiceException("卷面题型数量超出所选知识点的可用题量（" + String.join("；", lacks)
+                    + "）。请调整卷面题型数量、改选其它知识点，或先到「题库管理」补齐题目");
+        }
+    }
+
+    private static <T> java.util.List<T> nvl(java.util.List<T> list) {
+        return list == null ? java.util.Collections.<T>emptyList() : list;
     }
 
     private void saveKnowledgeRules(Long examId, Exam params) {
@@ -711,6 +871,18 @@ public class ExamServiceImpl extends ServiceImpl<ExamMapper, Exam> implements IE
             }
             rule.setExamId(examId);
             rule.setSortNo(seq++);
+            // ★ 2026-09-24：分题型三列归一化；只要传了分题型数量，question_count 就回写为行小计
+            int s = rule.getSingleCount() == null ? 0 : rule.getSingleCount();
+            int m = rule.getMultiCount() == null ? 0 : rule.getMultiCount();
+            int j = rule.getJudgeCount() == null ? 0 : rule.getJudgeCount();
+            rule.setSingleCount(s);
+            rule.setMultiCount(m);
+            rule.setJudgeCount(j);
+            if (s + m + j > 0) {
+                rule.setQuestionCount(s + m + j);
+            } else if (rule.getQuestionCount() == null) {
+                rule.setQuestionCount(0);
+            }
             list.add(rule);
         }
         if (!list.isEmpty()) {
