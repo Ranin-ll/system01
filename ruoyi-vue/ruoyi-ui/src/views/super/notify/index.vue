@@ -74,8 +74,8 @@
           <label>公告属性</label>
           <div class="inline">
             <el-checkbox v-model="topFlag">置顶</el-checkbox>
-            <el-date-picker v-model="form.effectiveTo" type="datetime" size="small" placeholder="有效期至（可空）"
-                            value-format="yyyy-MM-dd HH:mm:ss" style="width:200px" />
+            <el-date-picker v-model="form.effectiveTo" type="date" size="small" placeholder="有效期至（可空，选日期=当天结束）"
+                            value-format="yyyy-MM-dd" style="width:200px" />
           </div>
         </div>
 
@@ -295,7 +295,11 @@ export default {
       // 同上：scopeId 为 0（部门管理员岗）是合法选择，不能当真值判空
       const noScope = f.scopeId === null || f.scopeId === undefined || f.scopeId === ''
       if ((f.scopeType === 'DEPT' || f.scopeType === 'POSITION') && noScope) { this.$message.warning('请选择范围对象'); return }
-      const body = Object.assign({}, f, { isTop: f.msgType === 'ANNOUNCE' && this.topFlag ? 1 : 0 })
+      const body = Object.assign({}, f, {
+        isTop: f.msgType === 'ANNOUNCE' && this.topFlag ? 1 : 0,
+        // date 选择器只到天，拼成当天 23:59:59，避免「00:00:00 当天凌晨即过期」
+        effectiveTo: f.effectiveTo ? (f.effectiveTo + ' 23:59:59') : null
+      })
       if (f.scopeType !== 'USER') body.targetUserIds = []
       this.sending = true
       sendMessage(body).then(res => {

@@ -38,8 +38,8 @@
           </div>
           <div class="dfield">
             <label>有效期至</label>
-            <el-date-picker v-model="form.effectiveTo" type="datetime" size="small"
-                            value-format="yyyy-MM-dd HH:mm:ss" placeholder="可留空（长期有效）" style="width:100%" />
+            <el-date-picker v-model="form.effectiveTo" type="date" size="small"
+                            value-format="yyyy-MM-dd" placeholder="可留空（长期有效，选日期=当天结束）" style="width:100%" />
           </div>
         </div>
 
@@ -295,7 +295,8 @@ export default {
         title: f.title,
         content: f.content,
         isTop: f.isTop,
-        effectiveTo: f.effectiveTo || null
+        // date 选择器只到天，拼成当天 23:59:59，避免「00:00:00 当天凌晨即过期」
+        effectiveTo: f.effectiveTo ? (f.effectiveTo + ' 23:59:59') : null
       }
       this.sending = true
       sendMessage(body).then(res => {
