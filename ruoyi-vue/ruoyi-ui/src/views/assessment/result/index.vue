@@ -82,7 +82,9 @@
             <p>转正要求由部门管理员设置；资格齐备后提交，部门管理员审核通过即生效并发证。</p>
           </div>
         </div>
-        <el-tag size="mini" type="warning" effect="plain">promotion_application 待后端</el-tag>
+        <el-tag size="mini" effect="plain" :type="currentStatus === 'PASSED' ? 'success' : (currentStatus === 'DEPT_PENDING' ? 'primary' : 'info')">
+          要求来源：{{ ruleSourceText }}
+        </el-tag>
       </div>
 
       <div class="promo-grid">
@@ -118,10 +120,14 @@
           <!-- 驳回原因 -->
           <div v-if="currentStatus === 'REJECTED'" class="reject-box">
             <b>驳回原因</b>
-            <p>{{ rejectReason || '驳回原因需由后端转正申请接口返回（promotion_application 待实现）' }}</p>
+            <p>{{ rejectReason || '部门管理员未填写驳回原因' }}</p>
+          </div>
+          <div v-else-if="currentStatus === 'REVOKED'" class="reject-box" style="border-color:#e4e9f0;background:#fafbfc">
+            <b style="color:#475467">申请已撤回 / 作废</b>
+            <p style="color:#667085">{{ rejectReason || '可修改后重新提交。' }}</p>
           </div>
 
-          <!-- 申请表单（未提交 / 已驳回可编辑） -->
+          <!-- 申请表单（未提交 / 已驳回 / 已撤回可编辑） -->
           <div v-if="canEditForm" class="apply-form">
             <el-input
               v-model="applyForm.note"
@@ -132,27 +138,22 @@
               placeholder="请填写转正说明 / 阶段自评（将随申请提交给部门管理员）"
             />
             <div class="apply-row">
-              <!-- action 是 el-upload 的必填 prop，但这里 auto-upload=false 且只用
-                   on-change 取文件，根本不会发起上传请求；补个占位值消掉控制台警告。
-                   合并「学习与考核」单页后，这段在合并页里也会渲染，警告会更显眼。 -->
-              <el-upload action="#" :auto-upload="false" :limit="1" :show-file-list="true" accept="*" :on-change="onApplyFile">
-                <el-button size="small" icon="el-icon-paperclip">附加材料（可选）</el-button>
-              </el-upload>
+              <span class="rg-note" style="margin:0">提交后由部门管理员审核，通过即生效并自动发证。</span>
               <el-button
                 type="primary"
                 size="small"
                 :disabled="!canApply"
                 :loading="submitting"
                 @click="submitApplication"
-              >{{ currentStatus === 'REJECTED' ? '重新提交转正申请' : '提交转正申请' }}</el-button>
+              >{{ currentStatus === 'REJECTED' ? '重新提交转正申请' : (currentStatus === 'REVOKED' ? '重新提交转正申请' : '提交转正申请') }}</el-button>
             </div>
-            
+
           </div>
 
           <!-- 进行中 / 已通过的操作 -->
-          <div v-else-if="currentStatus === 'PENDING'" class="apply-actions">
+          <div v-else-if="currentStatus === 'DEPT_PENDING'" class="apply-actions">
             <span class="rg-note">申请已提交 {{ formMeta.submittedAt }}，等待部门管理员审核。</span>
-            <el-button size="small" @click="withdrawApplication">撤回申请</el-button>
+            <el-button size="small" :loading="withdrawing" @click="withdrawApplication">撤回申请</el-button>
           </div>
           <div v-else class="apply-actions">
             <span class="rg-note">审批通过 · 已转为正式实习生，电子证书已生成（在工作台底部的「协议与证书」栏查看与下载）。</span>
@@ -197,8 +198,7 @@
 
 <script>
 import { myExamList, mySheetDetail } from '@/api/business/exam'
-import { listLearningCourses } from '@/api/business/learning'
-import { learningSummary } from '@/utils/learningPreview'
+import { getMyPromotion, submitMyPromotion, withdrawMyPromotion } from '@/api/business/promotion'
 import { parseTime } from '@/utils/ruoyi'
 import { mapGetters } from 'vuex'
 
@@ -210,8 +210,10 @@ const PASS_LINE = 70
  * 后端缺口（相关数据一律留空，不用假数据撑版面）：
  *  - 部门平均分：需 `answer_sheet` 按部门的聚合接口 —— **按业务要求不向实习生展示**
  *  - 薄弱模块分析：需按 `question.knowledge_point` 聚合得分率
- *  - 电子证书：`certificate` 表存在但无接口（证书展示统一在工作台底部「协议与证书」栏）
- *  - 转正申请单：`promotion_application` 零 Java 层 ⇒ 表单可填但不可提交，状态按角色推导
+ *  - 电子证书：证书展示统一在工作台底部「协议与证书」栏（`/business/intern/promotion/certificate`）
+ *
+ * ★ 2026-09-29：转正申请已接真（promotion_application + promotion_rule），
+ *   资格清单、申请状态、驳回原因全部来自服务端，前端不再自行推导。
  */
 
 /**
@@ -227,33 +229,45 @@ export default {
       dialogVisible: false,
       current: null,
       currentItems: [],
-      // 转正申请（promotion_application 零 Java 层 ⇒ 本地表单，不提交）
-      applyForm: { note: '', fileName: '' },
-      formMeta: { submittedAt: '--' },
+      // 转正：服务端视图 {rule, gate, canApply, application, certificate}
+      promotion: { rule: null, gate: null, canApply: false, application: null, certificate: null },
+      applyForm: { note: '' },
       submitting: false,
-      // 转正要求由部门管理员设置；后端 promotion_rule 接口就绪前用本地默认值
-      promotionConfig: { studyRateMin: 0, examPassTimes: 1 },
-      learningOverview: { progress: null, courseCount: 0, completedCourses: 0, learningCourses: 0, completedItems: 0, itemCount: 0, lastStudyTime: '尚未开始' }
+      withdrawing: false
     }
   },
   computed: {
     ...mapGetters(['roles', 'protocolStatus', 'deptName', 'deptId']),
     isFormal() { return this.roles.indexOf('FORMAL_TRAINEE') > -1 },
-    /** 转正申请状态：按角色推导（无 promotion_application 接口 ⇒ 只会是这两种） */
+    /** 转正申请状态：UNSUBMITTED / DEPT_PENDING / PASSED / REJECTED / REVOKED */
     currentStatus() {
-      return this.isFormal ? 'PASSED' : 'UNSUBMITTED'
+      const app = this.promotion.application
+      return app && app.status ? app.status : 'UNSUBMITTED'
     },
     promotionState() {
       return {
         UNSUBMITTED: { label: '未提交', tone: 'gray' },
-        PENDING: { label: '待部门审核', tone: 'info' },
+        DEPT_PENDING: { label: '待部门审核', tone: 'info' },
         PASSED: { label: '审批通过 · 已转正', tone: 'ok' },
-        REJECTED: { label: '已驳回', tone: 'warn' }
+        REJECTED: { label: '已驳回', tone: 'warn' },
+        REVOKED: { label: '已撤回 / 已作废', tone: 'gray' }
       }[this.currentStatus] || { label: '--', tone: 'gray' }
     },
-    canEditForm() { return this.currentStatus === 'UNSUBMITTED' || this.currentStatus === 'REJECTED' },
-    rejectReason() { return '' },
-    learningProgress() { return this.learningOverview.progress === null ? 0 : this.learningOverview.progress },
+    canEditForm() { return ['UNSUBMITTED', 'REJECTED', 'REVOKED'].indexOf(this.currentStatus) > -1 },
+    rejectReason() {
+      const app = this.promotion.application
+      return app && app.rejectReason ? app.rejectReason : ''
+    },
+    /** 转正要求来源说明 */
+    ruleSourceText() {
+      const source = this.promotion.rule && this.promotion.rule.source
+      return source === 'DEPT' ? '本部门设置' : '系统默认'
+    },
+    formMeta() {
+      const app = this.promotion.application
+      if (!app || !app.createTime) return { submittedAt: '--' }
+      return { submittedAt: parseTime(app.createTime, '{y}-{m}-{d} {h}:{i}') }
+    },
     /** 已通过的正式考核场次（一场考核的所有已出分环节均通过，计为通过一场） */
     passedExamCount() {
       const byExam = {}
@@ -346,53 +360,62 @@ export default {
       if (!this.weakModules.length) return { module: '--', rate: 0 }
       return this.weakModules.reduce((min, m) => (m.rate < min.rate ? m : min), this.weakModules[0])
     },
-    /** 转正资格核对清单（由部门管理员设置要求；无「必修项」概念） */
+    /** 转正资格核对清单（服务端计算，前端只负责渲染） */
     checklist() {
-      const signed = Number(this.protocolStatus) === 1
-      const rateMin = Number(this.promotionConfig.studyRateMin || 0)
-      const passTimes = Number(this.promotionConfig.examPassTimes || 1)
-      const items = [
-        {
-          key: 'study',
-          pass: this.learningProgress >= rateMin,
-          label: '学习完成率 ≥ ' + rateMin + '%',
-          value: '当前 ' + this.learningProgress + '%'
-        },
-        {
-          key: 'exam',
-          pass: this.passedExamCount >= passTimes,
-          label: '正式考核已通过 ' + passTimes + ' 次',
-          value: '当前 ' + this.passedExamCount + ' 次'
-        },
-        {
-          key: 'protocol',
-          pass: signed,
-          label: '保密协议已签署',
-          value: signed ? '已签署' : '待签署'
-        }
-      ]
-      return items
+      const gate = this.promotion.gate
+      if (!gate || !gate.items) return []
+      return gate.items.map(item => ({
+        key: item.key,
+        pass: item.pass === true,
+        label: item.label,
+        value: item.value || '—'
+      }))
     },
-    failCount() { return this.checklist.filter(i => !i.pass).length },
-    canApply() { return this.failCount === 0 },
-    /** 申请状态时间线（按角色推导的两种状态） */
+    failCount() {
+      const gate = this.promotion.gate
+      return gate && gate.failCount != null ? gate.failCount : this.checklist.filter(i => !i.pass).length
+    },
+    canApply() { return this.promotion.canApply === true },
+    /** 申请状态时间线（由真实申请状态驱动） */
     timeline() {
       const status = this.currentStatus
       const submitted = this.formMeta.submittedAt
-      const base = [
-        { label: '提交转正申请', desc: status === 'UNSUBMITTED' ? '待提交 · 填写转正说明与阶段自评' : '已提交 · ' + submitted, state: status === 'UNSUBMITTED' ? 'todo' : 'done' },
-        { label: '部门管理员审核', desc: status === 'UNSUBMITTED' ? '未开始' : (status === 'PENDING' ? (this.deptName || '所属部门') + '管理员审核中' : '已完成审核'), state: status === 'UNSUBMITTED' ? 'todo' : (status === 'PENDING' ? 'now' : 'done') },
-        { label: '审批通过 · 即时生效', desc: status === 'PASSED' ? '已转为正式实习生（FORMAL_TRAINEE）' : (status === 'REJECTED' ? '本次未通过，修正后可重新提交' : '未开始'), state: status === 'PASSED' ? 'done' : 'todo' },
-        { label: '自动发证', desc: status === 'PASSED' ? '证书已生成，可在工作台底部「协议与证书」栏查看' : '未开始', state: status === 'PASSED' ? 'done' : 'todo' }
+      const submittedDone = status !== 'UNSUBMITTED'
+      const decided = status === 'PASSED' || status === 'REJECTED' || status === 'REVOKED'
+      return [
+        {
+          label: '提交转正申请',
+          desc: submittedDone ? '已提交 · ' + submitted : '待提交 · 填写转正说明与阶段自评',
+          state: submittedDone ? 'done' : 'todo'
+        },
+        {
+          label: '部门管理员审核',
+          desc: status === 'DEPT_PENDING'
+            ? (this.deptName || '所属部门') + '管理员审核中'
+            : (decided ? '已完成审核' : '未开始'),
+          state: status === 'DEPT_PENDING' ? 'now' : (decided ? 'done' : 'todo')
+        },
+        {
+          label: '审批通过 · 即时生效',
+          desc: status === 'PASSED'
+            ? '已转为正式实习生'
+            : (status === 'REJECTED' ? '本次未通过，修正后可重新提交'
+              : (status === 'REVOKED' ? '申请已撤回 / 作废，可重新提交' : '未开始')),
+          state: status === 'PASSED' ? 'done' : 'todo'
+        },
+        {
+          label: '自动发证',
+          desc: status === 'PASSED' ? '证书已生成，可在工作台底部「协议与证书」栏查看' : '未开始',
+          state: status === 'PASSED' ? 'done' : 'todo'
+        }
       ]
-      if (status === 'REJECTED') base[1].state = 'done'
-      return base
     },
     /** 证书展示已移至工作台底部「协议与证书」栏，本页只呈现申请状态 */
     certHint() {
       if (this.currentStatus === 'PASSED') return '证书已生成，可在工作台底部「协议与证书」栏查看与下载'
       if (this.currentStatus === 'REJECTED') return '转正申请被驳回，修正并重新提交、审批通过后生成证书'
-      if (this.currentStatus === 'PENDING') return '等待部门管理员审核通过后生成证书'
+      if (this.currentStatus === 'DEPT_PENDING') return '等待部门管理员审核通过后生成证书'
+      if (this.currentStatus === 'REVOKED') return '申请已撤回 / 作废，可随时重新提交'
       return '正式考核通过并提交转正申请、审批通过后生成证书'
     }
   },
@@ -402,28 +425,26 @@ export default {
   methods: {
     loadAll() {
       this.loading = true
-      this.loadPromotionConfig()
-      Promise.all([this.loadExams(), this.loadLearning()]).then(() => { this.loading = false }).catch(() => { this.loading = false })
+      Promise.all([this.loadExams(), this.loadPromotion()])
+        .then(() => { this.loading = false })
+        .catch(() => { this.loading = false })
     },
-    /** 读取部门管理员设置的转正要求（后端 promotion_rule 就绪前用本地演示配置） */
-    loadPromotionConfig() {
-      const load = function (key) {
-        try {
-          const saved = localStorage.getItem(key)
-          if (saved) {
-            const c = JSON.parse(saved)
-            return {
-              studyRateMin: Number(c.studyRateMin != null ? c.studyRateMin : 0),
-              examPassTimes: Number(c.examPassTimes != null ? c.examPassTimes : 1)
-            }
-          }
-        } catch (e) { /* 忽略 */ }
-        return null
-      }
-      // 优先本部门规则，其次全局默认，最后内置默认
-      const deptRule = this.deptId ? load('promotion-rule-' + this.deptId) : null
-      const globalRule = load('promotion-rule')
-      this.promotionConfig = deptRule || globalRule || { studyRateMin: 0, examPassTimes: 1 }
+    /** 转正视图：生效规则 + 资格清单 + 最新申请 + 证书（服务端一次给全） */
+    loadPromotion() {
+      return getMyPromotion().then(res => {
+        const d = res.data || {}
+        this.promotion = {
+          rule: d.rule || null,
+          gate: d.gate || null,
+          canApply: d.canApply === true,
+          application: d.application || null,
+          certificate: d.certificate || null
+        }
+        const app = d.application
+        this.applyForm.note = app && app.supplement ? app.supplement : ''
+      }).catch(() => {
+        this.promotion = { rule: null, gate: null, canApply: false, application: null, certificate: null }
+      })
     },
     loadExams() {
       return myExamList('FORMAL').then(res => {
@@ -432,13 +453,6 @@ export default {
       }).catch(() => {
         this.rows = []
         this.records = []
-      })
-    },
-    loadLearning() {
-      return listLearningCourses().then(res => {
-        this.learningOverview = learningSummary(res.data || [])
-      }).catch(() => {
-        this.learningOverview = learningSummary([])
       })
     },
     /** 场次名：考核名称里的批次 / 期次标识（示例解析，后端补批次字段后可直取） */
@@ -515,10 +529,6 @@ export default {
       this.currentItems = row._items || []
       this.dialogVisible = true
     },
-    onApplyFile(file) {
-      this.applyForm.fileName = file.name || ''
-      this.$modal.msgSuccess('已选择附加材料：' + this.applyForm.fileName + '（未上传）')
-    },
     submitApplication() {
       if (!this.canApply) {
         this.$modal.msgWarning('资格未齐备，请先补齐清单中的未满足项')
@@ -528,10 +538,24 @@ export default {
         this.$modal.msgWarning('请先填写转正说明 / 阶段自评')
         return
       }
-      this.$modal.msgWarning('转正申请接口（promotion_application）尚未实现 —— 表单可填写预览，但当前无法真正提交')
+      this.submitting = true
+      submitMyPromotion({ supplement: this.applyForm.note.trim() }).then(res => {
+        this.$modal.msgSuccess(res.msg || '转正申请已提交')
+        this.loadPromotion()
+      }).catch(() => {}).finally(() => { this.submitting = false })
     },
     withdrawApplication() {
-      this.$modal.msgWarning('转正申请接口（promotion_application）尚未实现 —— 无可撤回的申请')
+      this.$confirm('撤回后申请回到可编辑状态，需要重新提交。确认撤回？', '撤回转正申请', {
+        confirmButtonText: '确认撤回',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.withdrawing = true
+        withdrawMyPromotion().then(res => {
+          this.$modal.msgSuccess(res.msg || '已撤回')
+          this.loadPromotion()
+        }).catch(() => {}).finally(() => { this.withdrawing = false })
+      }).catch(() => {})
     },
     /** 证书在工作台底部「协议与证书」栏，这里直接带去工作台 */
     goWorkspace() {

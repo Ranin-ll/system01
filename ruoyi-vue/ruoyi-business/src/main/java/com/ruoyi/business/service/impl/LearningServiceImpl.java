@@ -71,6 +71,33 @@ public class LearningServiceImpl implements ILearningService {
         return recordMapper.selectDailyDuration(userId, days == null ? 14 : days);
     }
 
+    /**
+     * 指定用户的学习完成率（转正门槛用）。口径与前端 learningSummary 一致：
+     * 必修课优先，无必修课取全部课，求进度均值；无课程返回 null。
+     */
+    @Override
+    public BigDecimal studyRateOf(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        List<Course> courses = courseMapper.selectLearningCourses(userId);
+        if (courses == null || courses.isEmpty()) {
+            return null;
+        }
+        for (Course course : courses) {
+            fillLearningContent(course, userId);
+        }
+        List<Course> required = courses.stream()
+                .filter(c -> c.getIsRequired() != null && c.getIsRequired() == 1)
+                .collect(Collectors.toList());
+        List<Course> source = required.isEmpty() ? courses : required;
+        BigDecimal sum = BigDecimal.ZERO;
+        for (Course course : source) {
+            sum = sum.add(BigDecimal.valueOf(course.getProgress() == null ? 0 : course.getProgress()));
+        }
+        return sum.divide(BigDecimal.valueOf(source.size()), 1, RoundingMode.HALF_UP);
+    }
+
     @Override
     @Transactional
     public StudyRecord saveProgress(Long itemId, LearningProgressBody body) {

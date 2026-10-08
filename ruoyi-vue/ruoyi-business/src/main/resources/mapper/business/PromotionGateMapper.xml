@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.mapper.PromotionGateMapper">
+
+    <!--
+      转正资格取数（只读）
+      ★ 通过场次口径：一场 = 一个 exam_id；该场「已发布且已出分」的答卷全部 pass_flag = 1 才算通过。
+        与实习生端 assessment/result/index.vue 的 passedExamCount 计算逻辑完全一致。
+      ★ 本 mapper 的 SQL / 注释里不要出现裸的小于号或连续两个短横线。
+    -->
+
+    <!-- 通过场次数：分组后 HAVING「通过张数 = 总张数」 -->
+    <select id="selectPassedFormalExamTimes" resultType="int">
+        SELECT COUNT(1) FROM (
+            SELECT s.exam_id
+              FROM answer_sheet s
+              INNER JOIN exam e ON e.id = s.exam_id AND e.deleted = 0 AND e.exam_mode = 'FORMAL'
+             WHERE s.user_id = #{userId}
+               AND s.status = 'PUBLISHED'
+               AND s.final_score IS NOT NULL
+             GROUP BY s.exam_id
+            HAVING SUM(CASE WHEN s.pass_flag = 1 THEN 1 ELSE 0 END) = COUNT(1)
+        ) t
+    </select>
+
+    <!-- 参加场次数（有已出分答卷的场次） -->
+    <select id="selectFormalExamTimes" resultType="int">
+        SELECT COUNT(DISTINCT s.exam_id)
+          FROM answer_sheet s
+          INNER JOIN exam e ON e.id = s.exam_id AND e.deleted = 0 AND e.exam_mode = 'FORMAL'
+         WHERE s.user_id = #{userId}
+           AND s.status = 'PUBLISHED'
+           AND s.final_score IS NOT NULL
+    </select>
+
+    <!-- 批量：逐人「通过场次 / 参加场次」，一次查完避免 N+1 -->
+    <select id="selectExamTimesByDept" resultType="java.util.LinkedHashMap">
+        SELECT t.user_id AS userId,
+               COUNT(1)  AS examTimes,
+               SUM(CASE WHEN t.failCount = 0 THEN 1 ELSE 0 END) AS passedTimes
+          FROM (
+              SELECT s.user_id,
+                     s.exam_id,
+                     SUM(CASE WHEN s.pass_flag = 1 THEN 0 ELSE 1 END) AS failCount
+                FROM answer_sheet s
+                INNER JOIN exam e ON e.id = s.exam_id AND e.deleted = 0 AND e.exam_mode = 'FORMAL'
+               <where>
+                   s.status = 'PUBLISHED'
+                   AND s.final_score IS NOT NULL
+                   <if test="deptId != null">AND e.dept_id = #{deptId}</if>
+               </where>
+               GROUP BY s.user_id, s.exam_id
+          ) t
+         GROUP BY t.user_id
+    </select>
+
+    <!-- 证书签发所需人员摘要 -->
+    <select id="selectUserBrief" resultType="java.util.LinkedHashMap">
+        SELECT u.user_id       AS userId,
+               u.user_name     AS userName,
+               u.nick_name     AS nickName,
+               u.user_status   AS userStatus,
+               u.dept_id       AS deptId,
+               d.dept_name     AS deptName,
+               u.position_id   AS positionId,
+               p.position_name AS positionName,
+               p.position_code AS positionCode
+          FROM sys_user u
+          LEFT JOIN sys_dept d ON d.dept_id = u.dept_id AND d.del_flag = '0'
+          LEFT JOIN position p ON p.id = u.position_id AND p.deleted = 0
+         WHERE u.user_id = #{userId} AND u.del_flag = '0'
+         LIMIT 1
+    </select>
+
+    <!-- 协议签署状态（注册域字段） -->
+    <select id="selectProtocolStatus" resultType="java.lang.Integer">
+        SELECT protocol_status FROM sys_user WHERE user_id = #{userId} AND del_flag = '0' LIMIT 1
+    </select>
+
+</mapper>
