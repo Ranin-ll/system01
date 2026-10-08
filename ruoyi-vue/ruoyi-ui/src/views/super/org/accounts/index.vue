@@ -549,6 +549,11 @@ import { listDept } from '@/api/system/dept'
 import { listPosition, getDeptBindings } from '@/api/business/position'
 import { listPersonnel, getPersonnel, savePersonnelBusiness, deletePersonnel, getPersonnelSummary } from '@/api/business/personnel'
 import { listRegister, auditRegister, getRegisterSummary } from '@/api/business/register'
+// ⚠️ 2026-09-24 修：本行在合并 origin/main（4335cac）时被丢掉，
+//   而 created() → loadMentorOptions() → getMentorOptions() 仍被调用 ⇒
+//   `ReferenceError: getMentorOptions is not defined`（Error in created hook），
+//   直接中断 created 后续初始化（人员列表 / 待审计数 / 汇总 / 申请列表全都不加载）。
+import { getMentorOptions } from '@/api/business/mentor'
 
 /** 培养状态文案：与系统其余页面（如部门端档案页）保持同一口径 */
 const STATUS_TEXT = {
@@ -652,6 +657,19 @@ export default {
     }
   },
   computed: {
+    /**
+     * 审核弹窗表单校验：仅「驳回」时才要求填原因（与 submitAudit 的手动兜底一致）。
+     * ⚠️ 2026-09-24 补：模板第 523 行 `:rules="auditRules"` 一直在引用，但本 computed
+     *    从未定义过 ⇒ 渲染期 Vue 警告 `Property or method "auditRules" is not defined`，
+     *    且表单内联校验不生效（只靠 submitAudit 里的 message.warning 兜底）。
+     */
+    auditRules() {
+      return {
+        reason: this.audit.action === 'REJECT'
+          ? [{ required: true, message: '请填写驳回原因', trigger: 'blur' }]
+          : []
+      }
+    },
     /** 签名图：仅当留档的是 data:image 图片时才给 <img>；历史 TEXT 记录返回空串走降级文案 */
     signatureImage() {
       const data = this.agreementSignature && this.agreementSignature.signatureData
